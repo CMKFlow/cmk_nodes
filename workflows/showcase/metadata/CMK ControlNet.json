@@ -1,0 +1,14 @@
+{
+  "published": true,
+  "order": 30,
+  "displayName": "CMK ControlNet",
+  "category": "Geführte Bilderzeugung",
+  "category_en": "Guided Generation",
+  "description": "Erzeugt ein Bild, dessen Aufbau oder Konturen durch ein zusätzliches Referenzbild und einen ControlNet-Preprocessor geführt werden.",
+  "description_en": "Creates an image whose composition or contours are guided by an additional reference image and a ControlNet preprocessor.",
+  "cmkHighlight": "Das optionale ControlNet-Modul wird zwischen Start und KSampler eingesetzt und erweitert den laufenden PROCESS, ohne die übrigen Module fest miteinander zu verkoppeln.",
+  "cmkHighlight_en": "The optional ControlNet module is placed between the start and KSampler and enriches the active PROCESS without tightly coupling the other modules.",
+  "previews": [
+    { "src": "assets/showcase/ControlNet.png", "label": "Workflow", "label_en": "Workflow" }
+  ]
+}

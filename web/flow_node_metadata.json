@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 2,
+  "nodes": {
+    "CMKPipeCreateImage": {
+      "description": "Bereitet Bild, Maske und Beschreibung für die Bilderzeugung vor.",
+      "features": ["Startet die eigentliche Bilderzeugung", "Übernimmt Bildbeschreibung und optional einen LoRA-Stack"],
+      "placementNote": "Als Startmodul vor ControlNet oder dem ersten KSampler platzieren.",
+      "recommendedBefore": ["02 LoRA Stack (optional)", "Image Input (optional)"],
+      "recommendedAfter": ["05 ControlNet (optional)", "10 KSampler 1st Pass"],
+      "previews": [
+        { "src": "assets/previews/create-image.png", "label": "Node" }
+      ],
+      "previewAlt": "CMK Flow Create Image Node"
+    },
+    "CMKCheckpointVAELoaderPipe": {
+      "description": "Wählt das Bildmodell und die passende Bilddecodierung für die Erzeugung aus.",
+      "features": ["Stellt das Modell für Sampler oder Refiner bereit"],
+      "placementNote": "Vor dem KSampler oder Refiner platzieren und den MODEL-Ausgang mit dessen MODEL-Eingang verbinden.",
+      "recommendedAfter": ["10 KSampler 1st Pass", "20 Refiner"],
+      "previews": [
+        { "src": "assets/previews/checkpoint-vae.png", "label": "Node" }
+      ],
+      "previewAlt": "CMK Flow Checkpoint und VAE Node"
+    },
+    "CMKLoadImage": {
+      "description": "Lädt ein Bild unverändert in den Flow.",
+      "features": ["Kompakter Bild-Loader ohne zusätzliche Größenanpassung"],
+      "placementNote": "Vor einem Baustein platzieren, der ein vorhandenes Bild verarbeiten soll.",
+      "recommendedAfter": ["Save Project Image"],
+      "previews": [
+        { "src": "assets/previews/load-image.png", "label": "Node" }
+      ],
+      "previewAlt": "CMK Flow Load Image Node"
+    },
+    "CMKImageLoadAndResizePipe": {
+      "description": "Lädt ein Bild und passt es bei Bedarf an die gewünschte Arbeitsgröße an.",
+      "features": ["Bild laden", "Größe und Ausrichtung für den weiteren Flow vorbereiten"],
+      "placementNote": "Am Anfang eines bildbasierten Flows vor Create Image oder einem Verarbeitungsmodul platzieren.",
+      "recommendedAfter": ["01 START HERE · Create Image", "05 ControlNet (optional)"],
+      "previews": [
+        { "src": "assets/previews/image-input.png", "label": "Node" }
+      ],
+      "previewAlt": "CMK Flow Image Input Node"
+    },
+    "CMKSwapImageLoaderPipe": {
+      "description": "Lädt Ziel- und Quellbild für einen FaceSwap.",
+      "features": ["Bereitet beide benötigten Bilder gemeinsam vor"],
+      "placementNote": "Direkt vor FaceSwap Image platzieren.",
+      "recommendedAfter": [],
+      "previews": [
+        { "src": "assets/previews/faceswap-image-input.png", "label": "Node" }
+      ],
+      "previewAlt": "CMK Flow FaceSwap Image Input mit Ziel- und Quellbild-Auswahl"
+    },
+    "CMKControlNetPreparePipe": {
+      "description": "Ergänzt optional eine Bildführung für die nachfolgende Bilderzeugung.",
+      "features": ["Kann Aufbau oder Konturen eines Bildes als Orientierung verwenden"],
+      "placementNote": "Zwischen Create Image und dem ersten KSampler platzieren. Wenn keine Bildführung gewünscht ist, kann der Baustein entfallen.",
+      "recommendedBefore": ["01 START HERE · Create Image"],
+      "recommendedAfter": ["10 KSampler 1st Pass"],
+      "previews": [
+        { "src": "assets/previews/controlnet.png", "label": "Node" }
+      ],
+      "previewAlt": "CMK Flow ControlNet Node"
+    },
+    "CMK_SaveProjectImage": {
+      "description": "Speichert das fertige Bild mit Projektname und optionalem Datumsordner.",
+      "features": ["Speichert das Ergebnis am Ende der Verarbeitung"],
+      "placementNote": "Als letzten Baustein hinter der gewünschten Bildbearbeitung platzieren.",
+      "recommendedBefore": ["90 Upscale & Save", "fertige Bildbearbeitung"],
+      "previews": [
+        { "src": "assets/previews/save-project-image.png", "label": "Node" }
+      ],
+      "previewAlt": "CMK Flow Save Project Image Node"
+    }
+  }
+}

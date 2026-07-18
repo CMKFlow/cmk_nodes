@@ -1,0 +1,58 @@
+{
+  "nodes": {
+    "CMKLogCreate": {
+      "description": "Erzeugt eine leere CMK-Protokollleitung als Ausgangspunkt für strukturierte Ablaufmeldungen."
+    },
+    "CMKLogSetBlock": {
+      "description": "Fügt einer CMK-Protokollleitung einen benannten und sortierbaren Textblock hinzu."
+    },
+    "CMKLogConcat": {
+      "description": "Führt bis zu 32 Protokollblöcke in einer bestehenden CMK-Protokollleitung zusammen."
+    },
+    "CMKLogExportText": {
+      "description": "Sortiert eine CMK-Protokollleitung und gibt ihren vollständigen Inhalt als lesbaren Text aus."
+    },
+    "CMKPreviewRender": {
+      "description": "Macht aus einer einzelnen CMK-Diagnose eine vollständige visuelle Ablaufdarstellung mit Zwischenbildern, Beschriftungen und den entscheidenden Einstellungen.",
+      "highlight": "Zeigt nicht nur das Endergebnis, sondern macht sichtbar, was innerhalb einer komplexen CMK-Node tatsächlich geschehen ist. Ideal zum Verstehen, Vergleichen und gezielten Optimieren eines Verarbeitungsschritts.",
+      "highlight_en": "Shows more than the final result by revealing what actually happened inside a complex CMK node. Ideal for understanding, comparing, and deliberately improving one processing step.",
+      "previews": [
+        { "src": "assets/toolbox/preview-render.png", "label": "Beispiel", "label_en": "Example" }
+      ],
+      "special": true
+    },
+    "CMKPreviewBoard": {
+      "description": "Fasst bis zu 32 CMK-Diagnosen zu einer gemeinsamen visuellen Übersicht zusammen und stellt mehrere Verarbeitungsschritte unmittelbar nebeneinander.",
+      "highlight": "Verwandelt einen umfangreichen Workflow in eine lesbare Diagnosewand. Unterschiede, Übergaben und Auswirkungen aufeinanderfolgender Module lassen sich auf einen Blick beurteilen.",
+      "highlight_en": "Turns a large workflow into a readable diagnostic wall. Differences, hand-offs, and the effects of consecutive modules can be assessed at a glance.",
+      "previews": [
+        { "src": "assets/toolbox/preview-board.png", "label": "Beispiel", "label_en": "Example" }
+      ],
+      "special": true
+    },
+    "CMKSummary": {
+      "description": "Verdichtet eine CMK-Diagnose zu einer übersichtlichen Zusammenfassung der ausgeführten Verarbeitung, ihrer Einstellungen und ihres Ergebnisses.",
+      "highlight": "Macht die entscheidenden Angaben eines komplexen Verarbeitungsschritts sofort lesbar, ohne dass einzelne Diagnosebilder oder technische Rohdaten durchsucht werden müssen. Die Zusammenfassung kann zugleich als Text weitergegeben werden.",
+      "highlight_en": "Makes the decisive information from a complex processing step immediately readable without searching through individual diagnostic images or technical raw data. The summary can also be passed on as text.",
+      "previews": [
+        { "src": "assets/toolbox/summary.png", "label": "Beispiel", "label_en": "Example" }
+      ],
+      "special": true
+    },
+    "CMK_ImageMetrics": {
+      "description": "Ermittelt Abmessungen, Batch-Größe und Kanalzahl eines Bildes und stellt die Werte zusätzlich als CMK-Diagnose bereit."
+    },
+    "CMK_ImageQuickMetrics": {
+      "description": "Zeigt die wichtigsten Bild- und Tensorwerte direkt in der Node an und reicht das Bild unverändert weiter."
+    },
+    "CMK_VideoMetrics": {
+      "description": "Ermittelt technische Kennwerte eines Videos und stellt sie für Diagnose und Protokollierung bereit."
+    },
+    "CMK_VideoQuickMetrics": {
+      "description": "Zeigt die wichtigsten technischen Videowerte unmittelbar in der Node an."
+    },
+    "CMKVideoCompare": {
+      "description": "Vergleicht Video- oder Segmentdaten und bereitet die ermittelten Unterschiede für Diagnose und Protokollierung auf."
+    }
+  }
+}

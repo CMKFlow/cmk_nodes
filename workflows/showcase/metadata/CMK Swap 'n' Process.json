@@ -1,0 +1,14 @@
+{
+  "published": true,
+  "order": 60,
+  "displayName": "CMK Swap ’n’ Process",
+  "category": "Gesichtsverarbeitung",
+  "category_en": "Face Processing",
+  "description": "Kombiniert FaceSwap und FaceProcess: Zuerst wird ein Gesicht übertragen, danach wird das Ergebnis gezielt erkannt und weiterverarbeitet.",
+  "description_en": "Combines FaceSwap and FaceProcess: a face is transferred first, then the result is detected and processed further.",
+  "cmkHighlight": "Macht die freie Kombinierbarkeit der CMK-Module sichtbar. Zwei eigenständig nutzbare Verarbeitungsschritte werden ohne Sonderlogik zu einer verständlichen Kette verbunden.",
+  "cmkHighlight_en": "Makes the free combinability of CMK modules visible. Two independently usable processing steps are connected into a clear chain without special-case logic.",
+  "previews": [
+    { "src": "assets/showcase/Swap 'n' Process.png", "label": "Workflow", "label_en": "Workflow" }
+  ]
+}

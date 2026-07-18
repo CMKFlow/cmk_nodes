@@ -1,0 +1,2040 @@
+{
+  "id": "34e3f63e-3dc4-5767-957f-4a079ffe8c54",
+  "revision": 1,
+  "last_node_id": 4992,
+  "last_link_id": 0,
+  "nodes": [
+    {
+      "id": 4992,
+      "type": "bf3ad4e5-d255-5be7-93ca-32c6f8b48fb7",
+      "pos": [
+        14335,
+        -1995
+      ],
+      "size": [
+        600,
+        1289
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "MODEL",
+          "type": "CMK_MODEL_PIPE",
+          "link": null
+        },
+        {
+          "name": "PROCESS",
+          "type": "CMK_PIPE",
+          "link": null
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "LOG",
+          "shape": 7,
+          "type": "CMK_LOG_PIPE",
+          "link": null
+        },
+        {
+          "name": "detailer_global_enable",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "detailer_global_enable"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "CMK_MODEL_PIPE",
+          "links": []
+        },
+        {
+          "name": "PROCESS",
+          "type": "CMK_PIPE",
+          "links": []
+        },
+        {
+          "label": "IMAGE",
+          "name": "image",
+          "type": "IMAGE",
+          "links": []
+        },
+        {
+          "name": "LOG",
+          "type": "CMK_LOG_PIPE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "proxyWidgets": [
+          [
+            "4986",
+            "detailer_global_enable"
+          ],
+          [
+            "4983",
+            "eclipse_comparer"
+          ]
+        ]
+      },
+      "widgets_values": [],
+      "color": "#432",
+      "bgcolor": "#653",
+      "shape": 1,
+      "title": "CMK Flow · Detailer · Advanced"
+    }
+  ],
+  "links": [],
+  "groups": [],
+  "definitions": {
+    "subgraphs": [
+      {
+        "id": "bf3ad4e5-d255-5be7-93ca-32c6f8b48fb7",
+        "version": 1,
+        "state": {
+          "lastGroupId": 113,
+          "lastNodeId": 4994,
+          "lastLinkId": 12115,
+          "lastRerouteId": 0
+        },
+        "revision": 0,
+        "config": {},
+        "name": "CMK Flow · 30 Detailer · Advanced",
+        "inputNode": {
+          "id": -10,
+          "bounding": [
+            7685,
+            2180,
+            173.982421875,
+            148
+          ]
+        },
+        "outputNode": {
+          "id": -20,
+          "bounding": [
+            10825,
+            2155,
+            128,
+            128
+          ]
+        },
+        "inputs": [
+          {
+            "id": "27e296d6-a4b0-4680-97df-e79b962e5d83",
+            "name": "MODEL",
+            "type": "CMK_MODEL_PIPE",
+            "linkIds": [
+              11955,
+              11960
+            ],
+            "pos": [
+              7834.982421875,
+              2204
+            ]
+          },
+          {
+            "id": "6ad57ad9-e8fd-4d0e-ac67-f91acd490718",
+            "name": "PROCESS",
+            "type": "CMK_PIPE",
+            "linkIds": [
+              11956,
+              11961
+            ],
+            "pos": [
+              7834.982421875,
+              2224
+            ]
+          },
+          {
+            "id": "cf4f0bab-68e1-420e-ac4a-59837f25af7d",
+            "name": "IMAGE",
+            "type": "IMAGE",
+            "linkIds": [
+              11957,
+              11976,
+              11983
+            ],
+            "pos": [
+              7834.982421875,
+              2244
+            ]
+          },
+          {
+            "id": "5b45d5f1-ca56-4d03-9694-3ace54e5a1ce",
+            "name": "LOG",
+            "type": "CMK_LOG_PIPE",
+            "linkIds": [
+              11958
+            ],
+            "pos": [
+              7834.982421875,
+              2264
+            ]
+          },
+          {
+            "id": "5fbfeb2d-3f0e-4604-99ba-f1f62ff615c3",
+            "name": "detailer_global_enable",
+            "type": "BOOLEAN",
+            "linkIds": [
+              11959
+            ],
+            "pos": [
+              7834.982421875,
+              2284
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "id": "b127c0ca-4dad-425d-8684-81a427270a20",
+            "name": "MODEL",
+            "type": "CMK_MODEL_PIPE",
+            "linkIds": [
+              11966
+            ],
+            "pos": [
+              10849,
+              2179
+            ]
+          },
+          {
+            "id": "b7dfe787-2736-4a4b-948c-5834cc80a45f",
+            "name": "PROCESS",
+            "type": "CMK_PIPE",
+            "linkIds": [
+              11967
+            ],
+            "pos": [
+              10849,
+              2199
+            ]
+          },
+          {
+            "id": "7babbcd5-5bc5-4d5f-9482-d273d54061fb",
+            "name": "image",
+            "type": "IMAGE",
+            "linkIds": [
+              12054
+            ],
+            "label": "IMAGE",
+            "pos": [
+              10849,
+              2219
+            ]
+          },
+          {
+            "id": "dbdb6ac2-0adb-447f-a9b3-d319ef772385",
+            "name": "LOG",
+            "type": "CMK_LOG_PIPE",
+            "linkIds": [
+              12055
+            ],
+            "pos": [
+              10849,
+              2239
+            ]
+          }
+        ],
+        "widgets": [],
+        "nodes": [
+          {
+            "id": 4982,
+            "type": "SEGSPreview",
+            "pos": [
+              8550,
+              3160
+            ],
+            "size": [
+              440,
+              590
+            ],
+            "flags": {},
+            "order": 1,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "segs",
+                "name": "segs",
+                "type": "SEGS",
+                "link": 11981
+              },
+              {
+                "localized_name": "fallback_image_opt",
+                "name": "fallback_image_opt",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": null
+              },
+              {
+                "localized_name": "alpha_mode",
+                "name": "alpha_mode",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "alpha_mode"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "min_alpha",
+                "name": "min_alpha",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "min_alpha"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "shape": 6,
+                "type": "IMAGE",
+                "links": null
+              }
+            ],
+            "title": "SEGSPreview - Base",
+            "properties": {
+              "Node name for S&R": "SEGSPreview"
+            },
+            "widgets_values": [
+              true,
+              0.2
+            ],
+            "shape": 1
+          },
+          {
+            "id": 4983,
+            "type": "Image Comparer [Eclipse]",
+            "pos": [
+              9465,
+              2135
+            ],
+            "size": [
+              1020,
+              1625
+            ],
+            "flags": {
+              "collapsed": false
+            },
+            "order": 2,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "image_a",
+                "name": "image_a",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 11980
+              },
+              {
+                "localized_name": "image_b",
+                "name": "image_b",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 11983
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "image",
+                "name": "image",
+                "type": "IMAGE",
+                "links": null
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "Image Comparer [Eclipse]",
+              "comparer_mode": "Click",
+              "default_output": "b"
+            },
+            "widgets_values": [],
+            "color": "#222",
+            "bgcolor": "#000",
+            "shape": 1
+          },
+          {
+            "id": 4984,
+            "type": "Note",
+            "pos": [
+              7955,
+              3255
+            ],
+            "size": [
+              510,
+              250
+            ],
+            "flags": {},
+            "order": 0,
+            "mode": 0,
+            "inputs": [],
+            "outputs": [],
+            "properties": {},
+            "widgets_values": [
+              "Face Detailer\n15 Steps\nDenoise 0,20\n\n\nBody Detailer\n20 Steps\nDenoise 0,30\n\nObject Detailer\n25 Steps\nDenoise 0,35"
+            ],
+            "color": "#432",
+            "bgcolor": "#653",
+            "shape": 1
+          },
+          {
+            "id": 4985,
+            "type": "SEGSPreview",
+            "pos": [
+              9000,
+              3160
+            ],
+            "size": [
+              445,
+              590
+            ],
+            "flags": {},
+            "order": 3,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "segs",
+                "name": "segs",
+                "type": "SEGS",
+                "link": 11982
+              },
+              {
+                "localized_name": "fallback_image_opt",
+                "name": "fallback_image_opt",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": null
+              },
+              {
+                "localized_name": "alpha_mode",
+                "name": "alpha_mode",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "alpha_mode"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "min_alpha",
+                "name": "min_alpha",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "min_alpha"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "shape": 6,
+                "type": "IMAGE",
+                "links": null
+              }
+            ],
+            "title": "SEGSPreview - Base",
+            "properties": {
+              "Node name for S&R": "SEGSPreview"
+            },
+            "widgets_values": [
+              true,
+              0.2
+            ],
+            "shape": 1
+          },
+          {
+            "id": 4986,
+            "type": "CMKDetailerPreparePipe",
+            "pos": [
+              7915,
+              2180
+            ],
+            "size": [
+              605,
+              685
+            ],
+            "flags": {},
+            "order": 4,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "CMK_MODEL_PIPE",
+                "link": 11955
+              },
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "CMK_PIPE",
+                "link": 11956
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "link": 11957
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 11958
+              },
+              {
+                "localized_name": "sam_model_name",
+                "name": "sam_model_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "sam_model_name"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "sam_device_mode",
+                "name": "sam_device_mode",
+                "type": "COMBO",
+                "widget": {
+                  "name": "sam_device_mode"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "detailer_global_enable",
+                "name": "detailer_global_enable",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "detailer_global_enable"
+                },
+                "link": 11959
+              },
+              {
+                "localized_name": "use_prompt_lora_from_sampler",
+                "name": "use_prompt_lora_from_sampler",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "use_prompt_lora_from_sampler"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "lora_name",
+                "name": "lora_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "lora_name"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "strength_model",
+                "name": "strength_model",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "strength_model"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "strength_clip",
+                "name": "strength_clip",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "strength_clip"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "prompt_pos",
+                "name": "prompt_pos",
+                "type": "STRING",
+                "widget": {
+                  "name": "prompt_pos"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "prompt_neg",
+                "name": "prompt_neg",
+                "type": "STRING",
+                "widget": {
+                  "name": "prompt_neg"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "steps",
+                "name": "steps",
+                "type": "INT",
+                "widget": {
+                  "name": "steps"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "cfg",
+                "name": "cfg",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "cfg"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "sampler",
+                "name": "sampler",
+                "type": "COMBO",
+                "widget": {
+                  "name": "sampler"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "scheduler",
+                "name": "scheduler",
+                "type": "COMBO",
+                "widget": {
+                  "name": "scheduler"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "stop_at_clip_layer",
+                "name": "stop_at_clip_layer",
+                "type": "INT",
+                "widget": {
+                  "name": "stop_at_clip_layer"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "pag_scale",
+                "name": "pag_scale",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "pag_scale"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "sampling",
+                "name": "sampling",
+                "type": "COMBO",
+                "widget": {
+                  "name": "sampling"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "zsnr",
+                "name": "zsnr",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "zsnr"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "freeu_enabled",
+                "name": "freeu_enabled",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "freeu_enabled"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "freeu_b1",
+                "name": "freeu_b1",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "freeu_b1"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "freeu_b2",
+                "name": "freeu_b2",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "freeu_b2"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "freeu_s1",
+                "name": "freeu_s1",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "freeu_s1"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "freeu_s2",
+                "name": "freeu_s2",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "freeu_s2"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "DETAILER",
+                "name": "DETAILER",
+                "type": "CMK_DETAILER_PIPE",
+                "links": [
+                  11970,
+                  12046
+                ]
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "links": [
+                  11971
+                ]
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "links": null
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKDetailerPreparePipe"
+            },
+            "widgets_values": [
+              "sam_vit_b_01ec64.pth",
+              "AUTO",
+              true,
+              true,
+              "details/breast/SDXL_BodyDetail_Breast_Vulva.safetensors",
+              1,
+              1,
+              "",
+              "",
+              25,
+              5,
+              "euler",
+              "simple",
+              -2,
+              2.5,
+              "v_prediction",
+              true,
+              true,
+              1.3,
+              1.4,
+              0.9,
+              0.2
+            ],
+            "shape": 1
+          },
+          {
+            "id": 4987,
+            "type": "CMK_SmartDetailerPipe",
+            "pos": [
+              8545,
+              2180
+            ],
+            "size": [
+              445,
+              940
+            ],
+            "flags": {
+              "collapsed": false
+            },
+            "order": 5,
+            "mode": 0,
+            "showAdvanced": true,
+            "inputs": [
+              {
+                "localized_name": "DETAILER",
+                "name": "DETAILER",
+                "type": "CMK_DETAILER_PIPE",
+                "link": 11970
+              },
+              {
+                "localized_name": "enable",
+                "name": "enable",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "enable"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "output_image_proceed",
+                "name": "output_image_proceed",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "output_image_proceed"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "model_name",
+                "name": "model_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "model_name"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "bbox_threshold",
+                "name": "bbox_threshold",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "bbox_threshold"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "bbox_dilation",
+                "name": "bbox_dilation",
+                "type": "INT",
+                "widget": {
+                  "name": "bbox_dilation"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "crop_factor",
+                "name": "crop_factor",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "crop_factor"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "drop_size",
+                "name": "drop_size",
+                "type": "INT",
+                "widget": {
+                  "name": "drop_size"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "guide_size",
+                "name": "guide_size",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "guide_size"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "guide_size_for",
+                "name": "guide_size_for",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "guide_size_for"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "max_size",
+                "name": "max_size",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "max_size"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "denoise",
+                "name": "denoise",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "denoise"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "noise_mask",
+                "name": "noise_mask",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "noise_mask"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "force_inpaint",
+                "name": "force_inpaint",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "force_inpaint"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "SEGS DETECTED",
+                "name": "SEGS DETECTED",
+                "type": "SEGS",
+                "links": [
+                  11981
+                ]
+              },
+              {
+                "localized_name": "SEGS PROCEED",
+                "name": "SEGS PROCEED",
+                "type": "SEGS",
+                "links": [
+                  11977
+                ]
+              },
+              {
+                "localized_name": "IMAGE PROCEED",
+                "name": "IMAGE PROCEED",
+                "type": "IMAGE",
+                "links": null
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "links": null
+              },
+              {
+                "localized_name": "LOG BLOCK",
+                "name": "LOG BLOCK",
+                "type": "CMK_LOG_BLOCK",
+                "links": [
+                  12050
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMK_SmartDetailerPipe"
+            },
+            "widgets_values": [
+              true,
+              false,
+              "bbox/hand_yolov8s.pt",
+              0.5,
+              0,
+              1.5,
+              10,
+              512,
+              true,
+              768,
+              0.2,
+              true,
+              true
+            ],
+            "shape": 1
+          },
+          {
+            "id": 4988,
+            "type": "CMK_SmartDetailerPipe",
+            "pos": [
+              9005,
+              2180
+            ],
+            "size": [
+              440,
+              940
+            ],
+            "flags": {
+              "collapsed": false
+            },
+            "order": 6,
+            "mode": 0,
+            "showAdvanced": true,
+            "inputs": [
+              {
+                "localized_name": "DETAILER",
+                "name": "DETAILER",
+                "type": "CMK_DETAILER_PIPE",
+                "link": 12046
+              },
+              {
+                "localized_name": "enable",
+                "name": "enable",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "enable"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "output_image_proceed",
+                "name": "output_image_proceed",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "output_image_proceed"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "model_name",
+                "name": "model_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "model_name"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "bbox_threshold",
+                "name": "bbox_threshold",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "bbox_threshold"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "bbox_dilation",
+                "name": "bbox_dilation",
+                "type": "INT",
+                "widget": {
+                  "name": "bbox_dilation"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "crop_factor",
+                "name": "crop_factor",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "crop_factor"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "drop_size",
+                "name": "drop_size",
+                "type": "INT",
+                "widget": {
+                  "name": "drop_size"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "guide_size",
+                "name": "guide_size",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "guide_size"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "guide_size_for",
+                "name": "guide_size_for",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "guide_size_for"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "max_size",
+                "name": "max_size",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "max_size"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "denoise",
+                "name": "denoise",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "denoise"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "noise_mask",
+                "name": "noise_mask",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "noise_mask"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "force_inpaint",
+                "name": "force_inpaint",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "force_inpaint"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "SEGS DETECTED",
+                "name": "SEGS DETECTED",
+                "type": "SEGS",
+                "links": [
+                  11982
+                ]
+              },
+              {
+                "localized_name": "SEGS PROCEED",
+                "name": "SEGS PROCEED",
+                "type": "SEGS",
+                "links": [
+                  11978
+                ]
+              },
+              {
+                "localized_name": "IMAGE PROCEED",
+                "name": "IMAGE PROCEED",
+                "type": "IMAGE",
+                "links": null
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "links": null
+              },
+              {
+                "localized_name": "LOG BLOCK",
+                "name": "LOG BLOCK",
+                "type": "CMK_LOG_BLOCK",
+                "links": [
+                  12051
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMK_SmartDetailerPipe"
+            },
+            "widgets_values": [
+              true,
+              false,
+              "segm/person_yolov8m-seg.pt",
+              0.5,
+              0,
+              2,
+              10,
+              512,
+              true,
+              768,
+              0.4,
+              true,
+              true
+            ],
+            "shape": 1
+          },
+          {
+            "id": 4989,
+            "type": "CMK_SEGSConcate",
+            "pos": [
+              10560,
+              2140
+            ],
+            "size": [
+              225,
+              10
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 7,
+            "mode": 0,
+            "inputs": [
+              {
+                "label": "IMAGE",
+                "localized_name": "image",
+                "name": "image",
+                "type": "IMAGE",
+                "link": 11976
+              },
+              {
+                "label": "SEGS 1",
+                "localized_name": "segs",
+                "name": "segs",
+                "type": "SEGS",
+                "link": 11977
+              },
+              {
+                "label": "SEGS 2",
+                "localized_name": "segs_2",
+                "name": "segs_2",
+                "shape": 7,
+                "type": "SEGS",
+                "link": 11978
+              },
+              {
+                "label": "SEGS 3",
+                "localized_name": "segs_3",
+                "name": "segs_3",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_4",
+                "name": "segs_4",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_5",
+                "name": "segs_5",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_6",
+                "name": "segs_6",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_7",
+                "name": "segs_7",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_8",
+                "name": "segs_8",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_9",
+                "name": "segs_9",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_10",
+                "name": "segs_10",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_11",
+                "name": "segs_11",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_12",
+                "name": "segs_12",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_13",
+                "name": "segs_13",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_14",
+                "name": "segs_14",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_15",
+                "name": "segs_15",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_16",
+                "name": "segs_16",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_17",
+                "name": "segs_17",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_18",
+                "name": "segs_18",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_19",
+                "name": "segs_19",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_20",
+                "name": "segs_20",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_21",
+                "name": "segs_21",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_22",
+                "name": "segs_22",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_23",
+                "name": "segs_23",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_24",
+                "name": "segs_24",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_25",
+                "name": "segs_25",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_26",
+                "name": "segs_26",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_27",
+                "name": "segs_27",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_28",
+                "name": "segs_28",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_29",
+                "name": "segs_29",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_30",
+                "name": "segs_30",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_31",
+                "name": "segs_31",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "localized_name": "segs_32",
+                "name": "segs_32",
+                "shape": 7,
+                "type": "SEGS",
+                "link": null
+              },
+              {
+                "label": "FEATHER",
+                "localized_name": "feather",
+                "name": "feather",
+                "type": "INT",
+                "widget": {
+                  "name": "feather"
+                },
+                "link": null
+              },
+              {
+                "label": "ALPHA",
+                "localized_name": "alpha",
+                "name": "alpha",
+                "type": "INT",
+                "widget": {
+                  "name": "alpha"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  11974
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMK_SEGSConcate"
+            },
+            "widgets_values": [
+              5,
+              255
+            ],
+            "shape": 1
+          },
+          {
+            "id": 4990,
+            "type": "CMKLogConcat",
+            "pos": [
+              10560,
+              2180
+            ],
+            "size": [
+              225,
+              10
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 8,
+            "mode": 0,
+            "inputs": [
+              {
+                "label": "LOG",
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "link": 11971
+              },
+              {
+                "label": "LOG BLOCK 1",
+                "localized_name": "log_block",
+                "name": "log_block",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": 12050
+              },
+              {
+                "label": "LOG BLOCK 2",
+                "localized_name": "log_block_2",
+                "name": "log_block_2",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": 12051
+              },
+              {
+                "label": "LOG BLOCK 3",
+                "localized_name": "log_block_3",
+                "name": "log_block_3",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_4",
+                "name": "log_block_4",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_5",
+                "name": "log_block_5",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_6",
+                "name": "log_block_6",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_7",
+                "name": "log_block_7",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_8",
+                "name": "log_block_8",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_9",
+                "name": "log_block_9",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_10",
+                "name": "log_block_10",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_11",
+                "name": "log_block_11",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_12",
+                "name": "log_block_12",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_13",
+                "name": "log_block_13",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_14",
+                "name": "log_block_14",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_15",
+                "name": "log_block_15",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_16",
+                "name": "log_block_16",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_17",
+                "name": "log_block_17",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_18",
+                "name": "log_block_18",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_19",
+                "name": "log_block_19",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_20",
+                "name": "log_block_20",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_21",
+                "name": "log_block_21",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_22",
+                "name": "log_block_22",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_23",
+                "name": "log_block_23",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_24",
+                "name": "log_block_24",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_25",
+                "name": "log_block_25",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_26",
+                "name": "log_block_26",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_27",
+                "name": "log_block_27",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_28",
+                "name": "log_block_28",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_29",
+                "name": "log_block_29",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_30",
+                "name": "log_block_30",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_31",
+                "name": "log_block_31",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              },
+              {
+                "localized_name": "log_block_32",
+                "name": "log_block_32",
+                "shape": 7,
+                "type": "CMK_LOG_BLOCK",
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "links": [
+                  11979
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKLogConcat"
+            },
+            "shape": 1
+          },
+          {
+            "id": 4991,
+            "type": "CMKDetailerBoundaryCache",
+            "pos": [
+              10560,
+              2230
+            ],
+            "size": [
+              225,
+              10
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 9,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "CMK_MODEL_PIPE",
+                "link": 11960
+              },
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "CMK_PIPE",
+                "link": 11961
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "link": 11974
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "link": 11979
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "CMK_MODEL_PIPE",
+                "links": [
+                  11966
+                ]
+              },
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "CMK_PIPE",
+                "links": [
+                  11967
+                ]
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  11980,
+                  12054
+                ]
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "links": [
+                  12055
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKDetailerBoundaryCache"
+            },
+            "shape": 1
+          }
+        ],
+        "groups": [
+          {
+            "id": 113,
+            "title": "CMK Flow 30 Detailer Advanced",
+            "bounding": [
+              7895,
+              2065,
+              2600,
+              1705
+            ],
+            "color": "#b58b2a",
+            "flags": {}
+          },
+          {
+            "id": 92,
+            "title": "MODEL INITIALIZATION Detailer",
+            "bounding": [
+              7905,
+              2105,
+              625,
+              1655
+            ],
+            "color": "#A88",
+            "flags": {}
+          },
+          {
+            "id": 97,
+            "title": "DETAILER_KASKADE",
+            "bounding": [
+              8535,
+              2105,
+              920,
+              1655
+            ],
+            "color": "#b58b2a",
+            "flags": {}
+          }
+        ],
+        "links": [
+          {
+            "id": 11955,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 4986,
+            "target_slot": 0,
+            "type": "CMK_MODEL_PIPE"
+          },
+          {
+            "id": 11956,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 4986,
+            "target_slot": 1,
+            "type": "CMK_PIPE"
+          },
+          {
+            "id": 11957,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 4986,
+            "target_slot": 2,
+            "type": "IMAGE"
+          },
+          {
+            "id": 11958,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 4986,
+            "target_slot": 3,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 11959,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 4986,
+            "target_slot": 6,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 11960,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 4991,
+            "target_slot": 0,
+            "type": "CMK_MODEL_PIPE"
+          },
+          {
+            "id": 11961,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 4991,
+            "target_slot": 1,
+            "type": "CMK_PIPE"
+          },
+          {
+            "id": 11966,
+            "origin_id": 4991,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 0,
+            "type": "CMK_MODEL_PIPE"
+          },
+          {
+            "id": 11967,
+            "origin_id": 4991,
+            "origin_slot": 1,
+            "target_id": -20,
+            "target_slot": 1,
+            "type": "CMK_PIPE"
+          },
+          {
+            "id": 11970,
+            "origin_id": 4986,
+            "origin_slot": 0,
+            "target_id": 4987,
+            "target_slot": 0,
+            "type": "CMK_DETAILER_PIPE"
+          },
+          {
+            "id": 11971,
+            "origin_id": 4986,
+            "origin_slot": 1,
+            "target_id": 4990,
+            "target_slot": 0,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 11974,
+            "origin_id": 4989,
+            "origin_slot": 0,
+            "target_id": 4991,
+            "target_slot": 2,
+            "type": "IMAGE"
+          },
+          {
+            "id": 11976,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 4989,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 11977,
+            "origin_id": 4987,
+            "origin_slot": 1,
+            "target_id": 4989,
+            "target_slot": 1,
+            "type": "SEGS"
+          },
+          {
+            "id": 11978,
+            "origin_id": 4988,
+            "origin_slot": 1,
+            "target_id": 4989,
+            "target_slot": 2,
+            "type": "SEGS"
+          },
+          {
+            "id": 11979,
+            "origin_id": 4990,
+            "origin_slot": 0,
+            "target_id": 4991,
+            "target_slot": 3,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 11980,
+            "origin_id": 4991,
+            "origin_slot": 2,
+            "target_id": 4983,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 11981,
+            "origin_id": 4987,
+            "origin_slot": 0,
+            "target_id": 4982,
+            "target_slot": 0,
+            "type": "SEGS"
+          },
+          {
+            "id": 11982,
+            "origin_id": 4988,
+            "origin_slot": 0,
+            "target_id": 4985,
+            "target_slot": 0,
+            "type": "SEGS"
+          },
+          {
+            "id": 11983,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 4983,
+            "target_slot": 1,
+            "type": "IMAGE"
+          },
+          {
+            "id": 12046,
+            "origin_id": 4986,
+            "origin_slot": 0,
+            "target_id": 4988,
+            "target_slot": 0,
+            "type": "CMK_DETAILER_PIPE"
+          },
+          {
+            "id": 12050,
+            "origin_id": 4987,
+            "origin_slot": 4,
+            "target_id": 4990,
+            "target_slot": 1,
+            "type": "CMK_LOG_BLOCK"
+          },
+          {
+            "id": 12051,
+            "origin_id": 4988,
+            "origin_slot": 4,
+            "target_id": 4990,
+            "target_slot": 2,
+            "type": "CMK_LOG_BLOCK"
+          },
+          {
+            "id": 12054,
+            "origin_id": 4991,
+            "origin_slot": 2,
+            "target_id": -20,
+            "target_slot": 2,
+            "type": "IMAGE"
+          },
+          {
+            "id": 12055,
+            "origin_id": 4991,
+            "origin_slot": 3,
+            "target_id": -20,
+            "target_slot": 3,
+            "type": "CMK_LOG_PIPE"
+          }
+        ],
+        "extra": {}
+      }
+    ]
+  },
+  "config": {},
+  "extra": {
+    "CMKReference": {
+      "schemaVersion": 1,
+      "name": "CMK Flow · Detailer · Advanced",
+      "level": "ADVANCED",
+      "description": "Zwei getrennte Detailer-Zweige mit gemeinsamer Ergebnisführung."
+    }
+  },
+  "version": 0.4
+}

@@ -1,0 +1,14 @@
+{
+  "published": true,
+  "order": 40,
+  "displayName": "CMK FaceSwap",
+  "category": "Gesichtsverarbeitung",
+  "category_en": "Face Processing",
+  "description": "Überträgt ein Gesicht aus einem Quellbild auf eine Zielperson und speichert das bearbeitete Ergebnis.",
+  "description_en": "Transfers a face from a source image to a target person and saves the processed result.",
+  "cmkHighlight": "Demonstriert, dass ein CMK-Prozessmodul auch als kompakter eigenständiger Bild-Workflow funktioniert. Klare Grenzen halten Laden, Verarbeitung und Speichern voneinander getrennt.",
+  "cmkHighlight_en": "Demonstrates that a CMK process module also works as a compact standalone image workflow. Clear boundaries keep loading, processing, and saving separate.",
+  "previews": [
+    { "src": "assets/showcase/FaceSwap.png", "label": "Workflow", "label_en": "Workflow" }
+  ]
+}

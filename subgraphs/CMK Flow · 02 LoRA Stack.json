@@ -1,0 +1,661 @@
+{
+  "revision": 0,
+  "last_node_id": 4526,
+  "last_link_id": 0,
+  "nodes": [
+    {
+      "id": 4526,
+      "type": "b9fa321e-d7fb-48ee-8f06-0a74b492ce96",
+      "pos": [
+        0,
+        0
+      ],
+      "size": [
+        400,
+        150
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "txt_pos",
+          "localized_name": "prompt1",
+          "name": "prompt1",
+          "shape": 7,
+          "type": "STRING",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "localized_name": "LORA_STACK",
+          "name": "LORA_STACK",
+          "type": "LORA_STACK",
+          "links": []
+        },
+        {
+          "localized_name": "active_loras",
+          "name": "active_loras",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "label": "prompt_pos",
+          "localized_name": "prompt",
+          "name": "prompt",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "properties": {
+        "proxyWidgets": []
+      },
+      "widgets_values": [],
+      "color": "#332922",
+      "bgcolor": "#593930",
+      "shape": 1,
+      "title": "CMK Flow · 02 LoRA Stack"
+    }
+  ],
+  "links": [],
+  "version": 0.4,
+  "definitions": {
+    "subgraphs": [
+      {
+        "id": "b9fa321e-d7fb-48ee-8f06-0a74b492ce96",
+        "version": 1,
+        "state": {
+          "lastGroupId": 110,
+          "lastNodeId": 4927,
+          "lastLinkId": 12067,
+          "lastRerouteId": 0
+        },
+        "revision": 0,
+        "config": {},
+        "name": "CMK Flow · 02 LoRA Stack",
+        "inputNode": {
+          "id": -10,
+          "bounding": [
+            6725,
+            1685,
+            128,
+            68
+          ]
+        },
+        "outputNode": {
+          "id": -20,
+          "bounding": [
+            8140,
+            1370,
+            128,
+            108
+          ]
+        },
+        "inputs": [
+          {
+            "id": "7e5b38ab-1843-4c41-9690-29c6b80d9d8a",
+            "name": "prompt1",
+            "type": "STRING",
+            "linkIds": [
+              11154
+            ],
+            "localized_name": "prompt1",
+            "label": "txt_pos",
+            "shape": 7,
+            "pos": [
+              6829,
+              1709
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "id": "459a7fc4-aeaf-41b4-afcf-294561d52eab",
+            "name": "LORA_STACK",
+            "type": "LORA_STACK",
+            "linkIds": [
+              11150
+            ],
+            "localized_name": "LORA_STACK",
+            "pos": [
+              8164,
+              1394
+            ]
+          },
+          {
+            "id": "fdaa7e30-636a-448a-b722-766a1b4522bd",
+            "name": "active_loras",
+            "type": "STRING",
+            "linkIds": [
+              11151
+            ],
+            "localized_name": "active_loras",
+            "pos": [
+              8164,
+              1414
+            ]
+          },
+          {
+            "id": "f6ce3350-24dc-414e-ac7b-4ce9d3bebf42",
+            "name": "prompt",
+            "type": "STRING",
+            "linkIds": [
+              11153
+            ],
+            "localized_name": "prompt",
+            "label": "prompt_pos",
+            "pos": [
+              8164,
+              1434
+            ]
+          }
+        ],
+        "widgets": [],
+        "nodes": [
+          {
+            "id": 4521,
+            "type": "TriggerWord Toggle (LoraManager)",
+            "pos": [
+              7130,
+              1845
+            ],
+            "size": [
+              575,
+              355
+            ],
+            "flags": {
+              "collapsed": false
+            },
+            "order": 1,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "group_mode",
+                "name": "group_mode",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "group_mode"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "default_active",
+                "name": "default_active",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "default_active"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "allow_strength_adjustment",
+                "name": "allow_strength_adjustment",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "allow_strength_adjustment"
+                },
+                "link": null
+              },
+              {
+                "name": "trigger_words",
+                "shape": 7,
+                "type": "string",
+                "link": 11149
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "filtered_trigger_words",
+                "name": "filtered_trigger_words",
+                "type": "STRING",
+                "links": [
+                  11152
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "TriggerWord Toggle (LoraManager)"
+            },
+            "widgets_values": [
+              true,
+              true,
+              false,
+              [
+                {
+                  "text": "natural skin texture",
+                  "active": true,
+                  "highlighted": false,
+                  "strength": null,
+                  "items": [
+                    {
+                      "text": "natural skin texture",
+                      "active": true,
+                      "highlighted": false,
+                      "strength": null
+                    }
+                  ]
+                },
+                {
+                  "text": "fine pores",
+                  "active": true,
+                  "highlighted": false,
+                  "strength": null,
+                  "items": [
+                    {
+                      "text": "fine pores",
+                      "active": true,
+                      "highlighted": false,
+                      "strength": null
+                    }
+                  ]
+                },
+                {
+                  "text": "realistic skin",
+                  "active": true,
+                  "highlighted": false,
+                  "strength": null,
+                  "items": [
+                    {
+                      "text": "realistic skin",
+                      "active": true,
+                      "highlighted": false,
+                      "strength": null
+                    }
+                  ]
+                },
+                {
+                  "text": "intricate skin details",
+                  "active": true,
+                  "highlighted": false,
+                  "strength": null,
+                  "items": [
+                    {
+                      "text": "intricate skin details",
+                      "active": true,
+                      "highlighted": false,
+                      "strength": null
+                    }
+                  ]
+                },
+                {
+                  "text": "skin dentation",
+                  "active": true,
+                  "highlighted": false,
+                  "strength": null,
+                  "items": [
+                    {
+                      "text": "skin dentation",
+                      "active": true,
+                      "highlighted": false,
+                      "strength": null
+                    }
+                  ]
+                },
+                {
+                  "text": "ruanyi0356",
+                  "active": true,
+                  "highlighted": false,
+                  "strength": null,
+                  "items": [
+                    {
+                      "text": "ruanyi0356",
+                      "active": true,
+                      "highlighted": false,
+                      "strength": null
+                    }
+                  ]
+                },
+                {
+                  "text": "lingerie",
+                  "active": true,
+                  "highlighted": false,
+                  "strength": null,
+                  "items": [
+                    {
+                      "text": "lingerie",
+                      "active": true,
+                      "highlighted": false,
+                      "strength": null
+                    }
+                  ]
+                },
+                {
+                  "text": "black thighhighs",
+                  "active": true,
+                  "highlighted": false,
+                  "strength": null,
+                  "items": [
+                    {
+                      "text": "black thighhighs",
+                      "active": true,
+                      "highlighted": false,
+                      "strength": null
+                    }
+                  ]
+                },
+                {
+                  "text": "garter straps",
+                  "active": true,
+                  "highlighted": false,
+                  "strength": null,
+                  "items": [
+                    {
+                      "text": "garter straps",
+                      "active": true,
+                      "highlighted": false,
+                      "strength": null
+                    }
+                  ]
+                },
+                {
+                  "text": "bra removed",
+                  "active": true,
+                  "highlighted": false,
+                  "strength": null,
+                  "items": [
+                    {
+                      "text": "bra removed",
+                      "active": true,
+                      "highlighted": false,
+                      "strength": null
+                    }
+                  ]
+                }
+              ],
+              "natural skin texture,,, fine pores,,, realistic skin,,, intricate skin details,,, skin dentation,,, ruanyi0356,, lingerie,, black thighhighs,, garter straps,, bra removed"
+            ],
+            "shape": 1
+          },
+          {
+            "id": 4522,
+            "type": "Lora Stacker (LoraManager)",
+            "pos": [
+              7135,
+              1275
+            ],
+            "size": [
+              570,
+              565
+            ],
+            "flags": {
+              "collapsed": false
+            },
+            "order": 0,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "text",
+                "name": "text",
+                "type": "AUTOCOMPLETE_TEXT_LORAS",
+                "widget": {
+                  "name": "text"
+                },
+                "link": null
+              },
+              {
+                "name": "lora_stack",
+                "shape": 7,
+                "type": "LORA_STACK",
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "LORA_STACK",
+                "name": "LORA_STACK",
+                "type": "LORA_STACK",
+                "links": [
+                  11150
+                ]
+              },
+              {
+                "localized_name": "trigger_words",
+                "name": "trigger_words",
+                "type": "STRING",
+                "links": [
+                  11149
+                ]
+              },
+              {
+                "localized_name": "active_loras",
+                "name": "active_loras",
+                "type": "STRING",
+                "links": [
+                  11151
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "Lora Stacker (LoraManager)",
+              "__lm_widget_ids": [
+                "__lm_autocomplete_meta_text",
+                "text",
+                "loras"
+              ]
+            },
+            "widgets_values": [
+              {
+                "version": 1,
+                "textWidgetName": "text",
+                "lastAccepted": {
+                  "start": 201,
+                  "end": 225,
+                  "insertedText": "<lora:Black Lingerie:1>,",
+                  "textSnapshot": "<lora:Super_Skin_Detailer_By_Stable_Yogi_PD0_V1:1.00>, <lora:PONY_BreastDetail:1.00>, <lora:Chitose_Style_Lingerie-000008:1.00>, <lora:SDXL FishnetLingerie:1.00>, <lora:SDXL Crotchless Lingerie:1.00>, <lora:Black Lingerie:1>,"
+                }
+              },
+              "<lora:Super_Skin_Detailer_By_Stable_Yogi_PD0_V1:1.00>, <lora:PONY_BreastDetail:1.00>, <lora:Chitose_Style_Lingerie-000008:1.00>, <lora:SDXL FishnetLingerie:1.00>, <lora:SDXL Crotchless Lingerie:1.00>, <lora:Black Lingerie:1.00>",
+              [
+                {
+                  "name": "Super_Skin_Detailer_By_Stable_Yogi_PD0_V1",
+                  "strength": 1,
+                  "active": true,
+                  "expanded": false,
+                  "clipStrength": 1,
+                  "locked": false
+                },
+                {
+                  "name": "PONY_BreastDetail",
+                  "strength": 1,
+                  "active": false,
+                  "expanded": false,
+                  "clipStrength": 1,
+                  "locked": false
+                },
+                {
+                  "name": "Chitose_Style_Lingerie-000008",
+                  "strength": 1,
+                  "active": false,
+                  "expanded": false,
+                  "clipStrength": 1,
+                  "locked": false
+                },
+                {
+                  "name": "SDXL FishnetLingerie",
+                  "strength": 1,
+                  "active": false,
+                  "expanded": false,
+                  "clipStrength": 1,
+                  "locked": false
+                },
+                {
+                  "name": "SDXL Crotchless Lingerie",
+                  "strength": 1,
+                  "active": false,
+                  "expanded": false,
+                  "clipStrength": 1,
+                  "locked": false
+                },
+                {
+                  "name": "Black Lingerie",
+                  "strength": 1,
+                  "active": true,
+                  "expanded": false,
+                  "clipStrength": 1,
+                  "locked": false
+                }
+              ]
+            ],
+            "shape": 1
+          },
+          {
+            "id": 4523,
+            "type": "easy promptConcat",
+            "pos": [
+              7840,
+              1430
+            ],
+            "size": [
+              225,
+              55
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 2,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "prompt1",
+                "name": "prompt1",
+                "shape": 7,
+                "type": "STRING",
+                "link": 11154
+              },
+              {
+                "localized_name": "prompt2",
+                "name": "prompt2",
+                "shape": 7,
+                "type": "STRING",
+                "link": 11152
+              },
+              {
+                "localized_name": "separator",
+                "name": "separator",
+                "shape": 7,
+                "type": "STRING",
+                "widget": {
+                  "name": "separator"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "prompt",
+                "name": "prompt",
+                "type": "STRING",
+                "links": [
+                  11153
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "easy promptConcat"
+            },
+            "widgets_values": [
+              ""
+            ],
+            "color": "#233",
+            "bgcolor": "#355",
+            "shape": 1
+          }
+        ],
+        "groups": [],
+        "links": [
+          {
+            "id": 11149,
+            "origin_id": 4522,
+            "origin_slot": 1,
+            "target_id": 4521,
+            "target_slot": 3,
+            "type": "string"
+          },
+          {
+            "id": 11152,
+            "origin_id": 4521,
+            "origin_slot": 0,
+            "target_id": 4523,
+            "target_slot": 1,
+            "type": "STRING"
+          },
+          {
+            "id": 11154,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 4523,
+            "target_slot": 0,
+            "type": "STRING"
+          },
+          {
+            "id": 11150,
+            "origin_id": 4522,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 0,
+            "type": "LORA_STACK"
+          },
+          {
+            "id": 11151,
+            "origin_id": 4522,
+            "origin_slot": 2,
+            "target_id": -20,
+            "target_slot": 1,
+            "type": "STRING"
+          },
+          {
+            "id": 11153,
+            "origin_id": 4523,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 2,
+            "type": "STRING"
+          }
+        ],
+        "extra": {}
+      }
+    ]
+  },
+  "extra": {
+    "CMKFlow": {
+      "schemaVersion": 2,
+      "published": true,
+      "category": "Input",
+      "description": "Kombiniert mehrere LoRAs zu einem übersichtlichen Stack für den nachfolgenden Flow.",
+      "status": "STABLE",
+      "order": 2,
+      "searchAliases": [
+        "lora",
+        "stack",
+        "model"
+      ],
+      "displayName": "02 LoRA Stack",
+      "domain": "Model Setup",
+      "compatibility": [
+        "SDXL"
+      ],
+      "version": "1.0.0",
+      "author": "CMK Nodes",
+      "features": [
+        "LoRA-Stack aufbauen",
+        "Mehrere LoRAs gewichten",
+        "Prompt für den Flow vorbereiten"
+      ],
+      "previews": [
+        {
+          "src": "assets/previews/lora-stack-outer.png",
+          "label": "Modul"
+        },
+        {
+          "src": "assets/previews/lora-stack-inner.png",
+          "label": "Aufbau"
+        }
+      ],
+      "placementNote": "Vor Create Image platzieren, wenn ein oder mehrere LoRAs verwendet werden sollen.",
+      "recommendedAfter": [
+        "01 START HERE · Create Image"
+      ]
+    }
+  }
+}

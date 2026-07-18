@@ -1,0 +1,186 @@
+{
+  "flows": {
+    "CMKPipeCreateImage": {
+      "description": "Prepares image, mask, and prompt for image generation.",
+      "features": [
+        "Starts the image generation process",
+        "Accepts the prompt and an optional LoRA stack"
+      ],
+      "placementNote": "Place as the starting module before ControlNet or the first KSampler."
+    },
+    "CMKCheckpointVAELoaderPipe": {
+      "description": "Selects the image model and matching image decoder.",
+      "features": [
+        "Provides the model for a sampler or refiner"
+      ],
+      "placementNote": "Place before the KSampler or Refiner and connect MODEL to its MODEL input."
+    },
+    "CMKLoadImage": {
+      "description": "Loads an image into the flow without modifying it.",
+      "features": [
+        "Compact image loader without resizing"
+      ],
+      "placementNote": "Place before a module that processes an existing image."
+    },
+    "CMKImageLoadAndResizePipe": {
+      "description": "Loads an image and optionally adjusts it to the working size.",
+      "features": [
+        "Load an image",
+        "Prepare size and orientation for the flow"
+      ],
+      "placementNote": "Place at the beginning of an image-based flow before Create Image or a processing module."
+    },
+    "CMKSwapImageLoaderPipe": {
+      "description": "Loads target and source images for FaceSwap.",
+      "features": [
+        "Prepares both required images together"
+      ],
+      "placementNote": "Place directly before FaceSwap Image."
+    },
+    "CMKControlNetPreparePipe": {
+      "description": "Optionally adds image guidance for the following generation step.",
+      "features": [
+        "Uses composition or contours of an image as guidance"
+      ],
+      "placementNote": "Place between Create Image and the first KSampler. Omit it when no image guidance is needed."
+    },
+    "CMK_SaveProjectImage": {
+      "description": "Saves the finished image with a project name and optional date folder.",
+      "features": [
+        "Saves the result at the end of processing"
+      ],
+      "placementNote": "Place after the desired image processing as the final module.",
+      "recommendedBefore": [
+        "90 Upscale & Save",
+        "completed image processing"
+      ]
+    },
+    "CMK Flow · 02 LoRA Stack": {
+      "description": "Combines multiple LoRAs into a clear stack for the following flow.",
+      "features": [
+        "Build a LoRA stack",
+        "Weight multiple LoRAs",
+        "Prepare the prompt for the flow"
+      ],
+      "placementNote": "Place before Create Image when one or more LoRAs are used."
+    },
+    "CMK Flow · 10 KSampler 1st Pass": {
+      "description": "Creates the first image pass from the prepared CMK process.",
+      "features": [
+        {
+          "title": "Run the first sampling pass",
+          "description": "Runs the first image pass from the prepared CMK PROCESS."
+        },
+        {
+          "title": "Control CFG and scheduler",
+          "description": "Applies CFG, scheduler, and additional sampler parameters."
+        },
+        {
+          "title": "Seed management",
+          "description": "Manages and reproduces the seed for consistent results."
+        },
+        {
+          "title": "Process prompt and conditioning",
+          "description": "Processes the prompt, negative prompt, and conditioning."
+        },
+        {
+          "title": "LoRA integration",
+          "description": "Integrates LoRAs seamlessly into the sampling process."
+        }
+      ],
+      "placementNote": "Place after Create Image and optional ControlNet. Connect the selected model to MODEL.",
+      "dependencyNote": "Connect SAMPLED to the Refiner input with the same name.",
+      "featureCallout": {
+        "title": "Supports both Text2Image and Inpaint",
+        "text": "A single sampler module for both processes – works with any compatible SDXL checkpoint. No specialized checkpoints required."
+      }
+    },
+    "CMK Flow · 20 Refiner": {
+      "description": "Refines the first pass in a separate refinement step.",
+      "features": [
+        "Run a separate refinement pass",
+        "Use the sampling result",
+        "Apply Refiner conditioning"
+      ],
+      "placementNote": "Place directly after the first KSampler. Image enhancement modules can follow.",
+      "dependencyNote": "SAMPLED, MODEL, and PROCESS come from the corresponding outputs of the preceding modules."
+    },
+    "CMK Flow · 30 Detailer": {
+      "description": "Adds a curated detailer step for targeted image enhancement.",
+      "features": [
+        "Enhance a selected image area",
+        "Enable or skip the module centrally",
+        "Return the result directly to CMK Flow"
+      ],
+      "placementNote": "Place after KSampler or Refiner and before FaceSwap, FaceProcess, or the finish."
+    },
+    "CMK Flow · 30 Detailer · Advanced": {
+      "description": "Combines two separately configured Detailer branches and returns their processed areas to the flow.",
+      "features": [
+        "Configure two Detailer branches independently",
+        "Merge processed image areas",
+        "Use one shared log and final flow boundary"
+      ],
+      "placementNote": "Place after KSampler or Refiner for two different detail tasks.",
+      "dependencyNote": "Each branch needs a suitable detector model for its intended image area."
+    },
+    "CMK Flow · 40 FaceSwap": {
+      "description": "Runs FaceSwap inside the CMK Flow pipeline.",
+      "features": [
+        "FaceSwap within the flow pipeline",
+        "Process the target image",
+        "Enable or skip the module centrally"
+      ],
+      "placementNote": "Place after image generation or the Refiner."
+    },
+    "CMK Flow · 40 FaceSwap · Advanced": {
+      "description": "Processes up to three target persons in separate FaceSwap branches and returns the combined result to the flow.",
+      "features": [
+        "Three branches for left, center, and right target persons",
+        "Merge processed image areas",
+        "Use one shared log and final flow boundary"
+      ],
+      "placementNote": "Place after image generation or the Refiner for images with up to three target persons.",
+      "dependencyNote": "Select a separate source image for every FaceSwap branch in use."
+    },
+    "CMK Flow · 50 FaceProcess": {
+      "description": "Prepares a detected face for further processing in the flow.",
+      "features": [
+        "Process one selected face",
+        "Enable or skip the module centrally",
+        "Return the result directly to CMK Flow"
+      ],
+      "placementNote": "Place after Refiner, Detailer, or FaceSwap and before final saving."
+    },
+    "CMK Flow · 50 FaceProcess · Advanced": {
+      "description": "Processes up to three target persons in separate FaceProcess branches and returns the combined result to the flow.",
+      "features": [
+        "Configure up to three FaceProcess branches independently",
+        "Merge processed face areas",
+        "Use one shared log and final flow boundary"
+      ],
+      "placementNote": "Place after Refiner, Detailer, or FaceSwap for images with up to three target persons.",
+      "dependencyNote": "Each branch independently selects its target face and processing mode."
+    },
+    "CMK Flow · 90 Upscale & Save": {
+      "description": "Upscales the finished image and provides the saving finish of CMK Flow.",
+      "features": [
+        "Upscale the output image",
+        "Control filename and destination folder",
+        "Save the image as the final flow step"
+      ],
+      "placementNote": "Place as the final module of CMK Flow."
+    }
+  },
+  "toolbox": {
+    "CMKPreviewBoard": "Combines up to 32 CMK diagnostics into one visual overview and places multiple processing stages directly beside each other.",
+    "CMKPreviewRender": "Turns one CMK diagnostic into a complete visual process view with intermediate images, captions, and the decisive settings.",
+    "CMKSummary": "Condenses a CMK diagnostic into a clear summary of the processing performed, its settings, and its result.",
+    "CMKLogCreate": "Creates an empty CMK log pipe for structured workflow messages.",
+    "CMKLogSetBlock": "Adds a named and sortable text block to a CMK log pipe.",
+    "CMKLogConcat": "Combines up to 32 log blocks in an existing CMK log pipe.",
+    "CMKLogExportText": "Sorts a CMK log pipe and exports its complete content as readable text.",
+    "CMK_ImageMetrics": "Reads image dimensions, batch size, and channels and also provides them as a CMK diagnostic.",
+    "CMK_ImageQuickMetrics": "Shows key image and tensor values directly in the node and passes the image through unchanged."
+  }
+}

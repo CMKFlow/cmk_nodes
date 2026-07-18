@@ -1,0 +1,15 @@
+{
+  "published": true,
+  "order": 90,
+  "displayName": "CMK Full Flow",
+  "category": "Kompletter Flow",
+  "category_en": "Complete Flow",
+  "description": "Vereint Bilderzeugung oder Inpainting mit optionalem ControlNet, Refiner, Detailer, FaceSwap, FaceProcess und abschließender Ausgabe.",
+  "description_en": "Combines image generation or inpainting with optional ControlNet, refiner, detailer, FaceSwap, FaceProcess, and final output.",
+  "cmkHighlight": "Zeigt die CMK-Philosophie im Ganzen: Ein gemeinsamer PROCESS begleitet klar begrenzte, frei kombinierbare Module vom Einstieg bis zum fertigen Bild. Derselbe Aufbau kann sowohl Text2Image als auch Inpainting tragen.",
+  "cmkHighlight_en": "Shows the complete CMK philosophy: one shared PROCESS accompanies clearly bounded, freely combinable modules from input to finished image. The same structure supports both Text2Image and inpainting.",
+  "previews": [
+    { "src": "assets/showcase/FullFlow_Text2Image.png", "label": "Text2Image", "label_en": "Text2Image" },
+    { "src": "assets/showcase/FullFlow_Inpaint.png", "label": "Inpaint", "label_en": "Inpaint" }
+  ]
+}

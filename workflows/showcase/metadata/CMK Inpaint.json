@@ -1,0 +1,14 @@
+{
+  "published": true,
+  "order": 20,
+  "displayName": "CMK Inpaint",
+  "category": "Bildbearbeitung",
+  "category_en": "Image Editing",
+  "description": "Lädt ein vorhandenes Bild samt Maske, ersetzt den markierten Bereich per Inpainting und verfeinert anschließend das Ergebnis.",
+  "description_en": "Loads an existing image and mask, replaces the marked area through inpainting, and then refines the result.",
+  "cmkHighlight": "Verwendet dieselbe modulare Prozesskette wie Text2Image. Erst Bild, Maske und der aktivierte Inpaint-Modus ändern die Aufgabe – die nachfolgenden CMK-Module bleiben vertraut.",
+  "cmkHighlight_en": "Uses the same modular process chain as Text2Image. The image, mask, and enabled inpaint mode change the task while the following CMK modules remain familiar.",
+  "previews": [
+    { "src": "assets/showcase/Inpaint.png", "label": "Workflow", "label_en": "Workflow" }
+  ]
+}

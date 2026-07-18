@@ -1,0 +1,14 @@
+{
+  "published": true,
+  "order": 70,
+  "displayName": "CMK FaceSwap Video",
+  "category": "Video",
+  "category_en": "Video",
+  "description": "Lädt ein Video, führt FaceSwap über die Bildfolge aus, vergleicht das Ergebnis und speichert Video sowie Protokoll.",
+  "description_en": "Loads a video, applies FaceSwap across its frames, compares the result, and saves both video and log.",
+  "cmkHighlight": "Überträgt die CMK-Idee aus klaren Arbeitsschritten, Diagnose, Vergleich und Protokollierung auf einen vollständigen Video-Workflow.",
+  "cmkHighlight_en": "Transfers the CMK idea of clear processing stages, diagnostics, comparison, and logging to a complete video workflow.",
+  "previews": [
+    { "src": "assets/showcase/FaceSwap Video.png", "label": "Workflow", "label_en": "Workflow" }
+  ]
+}
