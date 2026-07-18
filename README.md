@@ -1,6 +1,12 @@
-# CMK Nodes
+<p align="center">
+  <img src="web/assets/brand/cmk-logo.png" width="140" alt="CMK Flow logo">
+</p>
+
+# CMK Flow
 
 Modulares Custom-Node-Paket für ComfyUI.
+
+[Quellcode](https://github.com/CMKFlow/cmk_nodes) · [Dokumentation](https://github.com/CMKFlow/cmk_nodes#dokumente) · [Freiwillig unterstützen](https://paypal.me/CMKFlow)
 
 Copyright (C) 2026 Carsten Kirschner
 

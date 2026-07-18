@@ -1,3 +1,10 @@
+## 2026-07-19 — Videoverwaltung und Projektauftritt im Flow Browser
+
+- Der Flow Browser besitzt eine integrierte Videoverwaltung für dauerhaft gespeicherte CMK-Videoprojekte. Sie zeigt Speicherbelegung, Segmente und zusammengeführte Arbeitsvideos, öffnet Projekte erneut im Flow und kann deren Speicherordner anzeigen.
+- Arbeitsdateien lassen sich projektweise oder gesammelt nach ausdrücklicher Bestätigung löschen. Laufende Prozesse und Fehlschläge werden verständlich angezeigt; bestehende Segmente bleiben bis zur gezielten Löschung für die spätere Weiterarbeit erhalten.
+- Der About-Dialog trägt nun das CMK-Logo dezent in der Titelzeile und enthält einen zurückhaltenden Link zur freiwilligen Unterstützung über PayPal. Der Hinweis stellt ausdrücklich klar, dass eine Unterstützung keinen Einfluss auf den Funktionsumfang von CMK Flow hat.
+- Der About-Dialog und das README verlinken den öffentlichen Quellcode und die Dokumentation direkt unter `https://github.com/CMKFlow/cmk_nodes`.
+
 ## 2026-07-17 — FaceSwap-Referenzen
 
 - Zwei klar getrennte FaceSwap-Referenzen ergänzt: `CMK Flow · FaceSwap Image` als empfohlener Einstieg mit einer Instanz und `CMK Flow · FaceSwap Image · Advanced` mit drei parallelen Zielpositionen. Advanced verwendet eine eigene Subgraph-ID und enthält bewusst weder Detailer noch FaceProcess. Im Flow Browser erscheint Advanced als untergeordnete, bewusst wählbare Variante des voreingestellten FaceSwap-Eintrags.

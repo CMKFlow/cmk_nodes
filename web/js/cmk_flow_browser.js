@@ -49,6 +49,8 @@ function addStyles() {
     .cmk-about-overlay { position: fixed; inset: 0; z-index: 10001; display: grid; place-items: center; padding: 24px; background: rgba(0,0,0,.68); }
     .cmk-about-dialog { width: min(680px, 92vw); max-height: 86vh; overflow: auto; border: 1px solid #354049; border-radius: 14px; background: #12191e; color: #d4dde0; box-shadow: 0 24px 80px rgba(0,0,0,.68); }
     .cmk-about-header { display: flex; align-items: center; justify-content: space-between; padding: 17px 20px; border-bottom: 1px solid #2d373e; }
+    .cmk-about-title { display: flex; align-items: center; gap: 11px; }
+    .cmk-about-logo { width: 36px; height: 36px; border: 1px solid #30434d; border-radius: 8px; object-fit: cover; box-shadow: 0 0 14px rgba(38,173,210,.12); }
     .cmk-about-header h3 { margin: 0; color: #eef3f4; font-size: 21px; }
     .cmk-about-body { padding: 20px; color: #bcc7cb; line-height: 1.65; }
     .cmk-about-body p { margin: 0 0 15px; }
@@ -57,6 +59,12 @@ function addStyles() {
     .cmk-about-responsibility { margin-top: 22px; padding: 18px; border: 1px solid #304147; border-radius: 10px; background: #141f24; }
     .cmk-about-responsibility h4 { margin: 0 0 10px; color: #62d9d6; font-size: 14px; }
     .cmk-about-support { margin-top: 22px; padding-top: 20px; border-top: 1px solid #303a41; }
+    .cmk-about-donation { margin-top: 18px; padding-top: 17px; border-top: 1px solid #273138; text-align: center; }
+    .cmk-about-donation p { margin-bottom: 11px; color: #8f9ca1; font-size: 12px; line-height: 1.5; }
+    .cmk-about-donation-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .cmk-about-donation-link { display: inline-flex; align-items: center; justify-content: center; padding: 7px 12px; border: 1px solid #3a4951; border-radius: 7px; background: #182126; color: #b8c4c8; font-size: 12px; font-weight: 600; text-decoration: none; transition: border-color .15s ease, background .15s ease, color .15s ease; }
+    .cmk-about-donation-link:hover { border-color: #55717a; background: #1c292f; color: #e0e7e9; }
+    .cmk-about-donation-link:focus-visible { outline: 2px solid #62d9d6; outline-offset: 2px; }
     .cmk-about-legal { margin-top: 20px; padding-top: 16px; border-top: 1px solid #303a41; color: #88969c; font-size: 12px; line-height: 1.5; }
     .cmk-about-legal p { margin-bottom: 3px; }
     .cmk-storage-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0 20px; }
@@ -1102,6 +1110,13 @@ function openAboutDialog(root) {
         <div class="cmk-about-legal">
           <p>Copyright © 2026 Carsten Kirschner</p>
           <p>Lizenziert unter GNU GPL v3 oder neuer (GPL-3.0-or-later).</p>
+        </div>
+        <div class="cmk-about-donation">
+          <p>Eine Unterstützung ist vollständig freiwillig und hat keinen Einfluss auf den Funktionsumfang von CMK Flow.</p>
+          <div class="cmk-about-donation-actions">
+            <a class="cmk-about-donation-link" href="https://github.com/CMKFlow/cmk_nodes" target="_blank" rel="noopener noreferrer">Quellcode &amp; Dokumentation</a>
+            <a class="cmk-about-donation-link" href="https://paypal.me/CMKFlow" target="_blank" rel="noopener noreferrer">Freiwillig via PayPal unterstützen</a>
+          </div>
         </div>` : `
         <p>CMK Flow began with the wish for a single native custom node. Once it became clear what custom nodes could make possible, that node grew into a project. The project eventually evolved into a product.</p>
         <p><strong>CMK Flow was conceived by Carsten Kirschner and developed with the support of modern AI-assisted software engineering tools.</strong></p>
@@ -1122,11 +1137,21 @@ function openAboutDialog(root) {
         <div class="cmk-about-legal">
           <p>Copyright © 2026 Carsten Kirschner</p>
           <p>Licensed under GNU GPL v3 or later (GPL-3.0-or-later).</p>
+        </div>
+        <div class="cmk-about-donation">
+          <p>Support is entirely voluntary and does not affect the features available in CMK Flow.</p>
+          <div class="cmk-about-donation-actions">
+            <a class="cmk-about-donation-link" href="https://github.com/CMKFlow/cmk_nodes" target="_blank" rel="noopener noreferrer">Source code &amp; documentation</a>
+            <a class="cmk-about-donation-link" href="https://paypal.me/CMKFlow" target="_blank" rel="noopener noreferrer">Support voluntarily via PayPal</a>
+          </div>
         </div>`;
   overlay.innerHTML = `
     <section class="cmk-about-dialog" role="dialog" aria-modal="true" aria-labelledby="cmk-about-title">
       <header class="cmk-about-header">
-        <h3 id="cmk-about-title">About CMK Flow</h3>
+        <div class="cmk-about-title">
+          <img class="cmk-about-logo" src="/extensions/cmk_nodes/assets/brand/cmk-logo.png" alt="" width="36" height="36">
+          <h3 id="cmk-about-title">About CMK Flow</h3>
+        </div>
         <button class="cmk-flow-close" type="button" aria-label="Close">×</button>
       </header>
       <div class="cmk-about-body">${aboutBody}</div>
