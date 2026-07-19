@@ -1,3 +1,18 @@
+## 2026-07-19 — Verpflichtender lokaler FaceSwap ContentGuard
+
+- Alle öffentlichen CMK-FaceSwap-Pfade prüfen Quell- und Zielbilder vor der Verarbeitung; der Videopfad prüft jedes Ziel-Frame.
+- Explizite Inhalte, geschätzte Minderjährigkeit, unsichere Altersschätzungen unter 25 sowie fehlende oder fehlerhafte Schutzmodelle brechen fail-closed ab.
+- Der Guard besitzt keine öffentliche Umgehungsoption. Deaktivierte FaceSwap-Nodes bleiben unveränderte Pass-through-Pfade.
+- Video-Caches tragen die ContentGuard-Version in ihrer Signatur. Bei einem Guard-Abbruch werden alle im aktuellen Lauf neu erzeugten Swap-Segmente verworfen.
+- NudeNet läuft lokal für die Erkennung expliziter Inhalte; InsightFace liefert die lokale Altersschätzung.
+- Guard-Abbrüche erscheinen für Anwender knapp als `ContentGuard activated — FaceSwap aborted`; der neutrale Diagnosecode bleibt für die Fehlersuche erhalten.
+
+## 2026-07-19 — Image Input ohne verzerrtes Standard-Resize
+
+- `CMK Flow · Image Input` zeigt `CROP` und `CROP POSITION` wieder direkt in der normalen Node-Oberfläche.
+- Neue Nodes starten mit aktivem, seitenverhältnistreuem Crop; `center`, `top`, `bottom`, `left` und `right` steuern die Verankerung des erhaltenen Bildausschnitts.
+- Bereits gespeicherte Nodes behalten ihren gespeicherten Crop-Wert und können einmalig auf `ON` gestellt werden.
+
 ## 2026-07-19 — Native Installation ohne fremde Custom Nodes
 
 - CMK Flow registriert sich in einer leeren ComfyUI-Installation ohne Impact Pack, Impact Subpack, ReActor oder AIO Aux Preprocessors.

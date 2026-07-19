@@ -3,3 +3,4 @@ onnxruntime>=1.27.0
 insightface>=1.0.1
 segment-anything>=1.0
 imageio-ffmpeg>=0.6.0
+nudenet==3.4.2

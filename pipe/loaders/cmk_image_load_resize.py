@@ -113,17 +113,15 @@ class CMKImageLoadAndResizePipe:
                 "CROP": (
                     "BOOLEAN",
                     {
-                        "default": False,
+                        "default": True,
                         "label_on": "ON",
                         "label_off": "OFF",
-                        "advanced": True,
                     },
                 ),
                 "CROP POSITION": (
                     CROP_POSITIONS,
                     {
                         "default": "center",
-                        "advanced": True,
                     },
                 ),
             }
@@ -207,7 +205,7 @@ class CMKImageLoadAndResizePipe:
         resolution = str(inputs.get("RESOLUTION", "SDXL 1152x832") or "SDXL 1152x832")
         swap_dimensions = bool(inputs.get("SWAP DIMENSIONS", False))
         resize_method = str(inputs.get("RESIZE METHOD", "lanczos") or "lanczos")
-        crop_enabled = bool(inputs.get("CROP", False))
+        crop_enabled = bool(inputs.get("CROP", True))
         crop_position = str(inputs.get("CROP POSITION", "center") or "center").lower()
         if crop_position not in CROP_POSITIONS:
             crop_position = "center"

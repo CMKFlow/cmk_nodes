@@ -71,7 +71,7 @@ Zwischen Sampler und Refiner wird statt `IMAGE` der proprietäre Latent-Übergab
 - persistente Branch-Caches für unveränderte parallele Instanzen;
 - verpflichtende Modul-Boundaries vor Comparer, nachfolgenden Modulen und öffentlichen Ausgängen;
 - eigenständige Nutzung von Detailer und FaceProcess über die CMK-Loader bleibt möglich;
-- `CMK Image Load and Resize -Pipe-` lädt und skaliert ein Bild als kompakte SideKick-Quelle für direkt pixelbasierte Module; optionaler Advanced-Crop erhält das Zielseitenverhältnis mit `center/top/bottom/left/right`.
+- `CMK Flow · Image Input` verwendet für neue Nodes standardmäßig den sichtbaren seitenverhältnistreuen Crop. `center/top/bottom/left/right` bestimmen, welcher Bildbereich beim Resize erhalten bleibt; dadurch wird das Bild nicht auf das Zielseitenverhältnis verzerrt.
 - `CMK Swap Image Loader -Pipe-` lädt Target und Source in einer zweispaltigen Oberfläche; nur das Target nutzt Resize und optionalen Advanced-Crop, die Source bleibt pixelmäßig unverändert.
 
 ## Installation
@@ -120,6 +120,23 @@ Face-Restore-Modelle. Fehlende Modelle blockieren nicht die Registrierung
 unbeteiligter CMK-Nodes, sondern erzeugen im gewählten Funktionspfad eine klare
 Laufzeitmeldung.
 
+## FaceSwap ContentGuard
+
+Die öffentlichen CMK-FaceSwap-Pfade besitzen einen verpflichtenden lokalen
+ContentGuard. Er prüft Quell- und Zielbilder vor dem Swap; im Videopfad wird
+jedes Ziel-Frame geprüft. Explizite Inhalte, ein geschätztes Alter unter 18,
+ein nicht sicher als erwachsen bestätigtes Alter unter 25 sowie fehlende oder
+fehlerhafte Schutzmodelle führen zu einem harten Abbruch. Es gibt in der
+öffentlichen Oberfläche keine Umgehungsoption. Deaktivierte FaceSwap-Nodes
+bleiben echte Pass-through-Pfade und laden den Guard nicht.
+
+Der Guard arbeitet vollständig lokal mit NudeNet zur Erkennung expliziter
+Bildinhalte und dem Altersmodell des installierten InsightFace-Pakets. Er ist
+eine technische Risikobegrenzung, keine Altersbestätigung, keine
+Einwilligungsprüfung und keine Garantie gegen Fehlklassifikationen. Details zur
+Policy und zu den neutralen Diagnosecodes stehen in
+[`CONTENT_GUARD.md`](CONTENT_GUARD.md).
+
 ## Cache-Verhalten
 
 Interne CMK-Caches liegen unter:
@@ -151,6 +168,7 @@ Caches sind temporäre Beschleuniger und kein portables Projektformat.
 | `SUBGRAPH_AUDIT.md` | Nutzungsinventar und sicherer Bereinigungsplan der Subgraphs |
 | `TOOLBOX.md` | Produktgrenze, Funktionsinventar und Pflegeplan des offenen Baukastens |
 | `CMK_FLOW_COMPATIBILITY.md` | Entwurf des Integrationsvertrags für externe Baukasten-Nodes und Flow-Module |
+| `CONTENT_GUARD.md` | verbindliche lokale FaceSwap-Schutzpolicy, Abbruchregeln und Grenzen |
 
 ## Lizenz
 

@@ -289,6 +289,7 @@ class CMKFaceSwapImage:
             if bool(enabled):
                 raw_result = engine.swap_selected(
                     target_rgb=target_rgb,
+                    source_rgb=source_rgb,
                     source_selected_face=source_payload,
                     target_selected_face=target_payload,
                     settings=settings,
@@ -587,6 +588,7 @@ class CMKFaceSwapImagePipe:
             if enabled:
                 raw_result, paste_mask = engine.swap_selected_with_mask(
                     target_rgb=target_rgb,
+                    source_rgb=source_rgb,
                     source_selected_face=source_payload,
                     target_selected_face=target_payload,
                     settings=settings,

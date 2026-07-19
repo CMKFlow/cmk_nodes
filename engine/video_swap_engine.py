@@ -8,6 +8,7 @@ import numpy as np
 
 from .detector_engine import CMKDetectorEngine, DetectorSettings
 from .swap_selected_engine import CMKSelectedSwapEngine, SelectedSwapSettings
+from .content_guard import get_content_guard
 
 
 @dataclass
@@ -81,7 +82,12 @@ class CMKVideoSwapEngine:
         faces=self.detect_filtered(image_rgb, drop_size)
         if not faces:
             raise RuntimeError("CMK FaceSwap Video: no source face detected")
-        return _select_initial(faces, selection, image_rgb.shape[1], image_rgb.shape[0])
+        selected = _select_initial(faces, selection, image_rgb.shape[1], image_rgb.shape[0])
+        get_content_guard().inspect_image(image_rgb, selected["raw"], "source")
+        return selected
+
+    def inspect_target_content(self, image_rgb: np.ndarray) -> None:
+        get_content_guard().inspect_content(image_rgb, "target_frame")
 
     def select_target(self, image_rgb: np.ndarray, faces: list[dict], selection: str, state: TrackState | None,
                       max_missing_frames: int, tracking_iou_threshold: float, tracking_embedding_threshold: float):
@@ -108,5 +114,5 @@ class CMKVideoSwapEngine:
             emb = state.embedding*0.8 + emb*0.2; emb /= max(1e-8, float(np.linalg.norm(emb)))
         return best, TrackState(_bbox(best), emb if emb is not None else state.embedding, 0)
 
-    def swap_frame(self, image_rgb: np.ndarray, source_face: dict, target_face: dict, settings: SelectedSwapSettings) -> np.ndarray:
-        return self.swapper.swap_faces(image_rgb, source_face["raw"], target_face["raw"], settings)
+    def swap_frame(self, image_rgb: np.ndarray, source_rgb: np.ndarray, source_face: dict, target_face: dict, settings: SelectedSwapSettings) -> np.ndarray:
+        return self.swapper.swap_faces(image_rgb, source_rgb, source_face["raw"], target_face["raw"], settings)
