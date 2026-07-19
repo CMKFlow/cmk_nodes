@@ -9,6 +9,6 @@
   "cmkHighlight": "Verwendet dieselbe modulare Prozesskette wie Text2Image. Erst Bild, Maske und der aktivierte Inpaint-Modus ändern die Aufgabe – die nachfolgenden CMK-Module bleiben vertraut.",
   "cmkHighlight_en": "Uses the same modular process chain as Text2Image. The image, mask, and enabled inpaint mode change the task while the following CMK modules remain familiar.",
   "previews": [
-    { "src": "assets/showcase/Inpaint.png", "label": "Workflow", "label_en": "Workflow" }
+    { "src": "assets/showcase/Inpaint-20260719.png", "label": "Workflow", "label_en": "Workflow" }
   ]
 }

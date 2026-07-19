@@ -15,28 +15,13 @@ from .cmk_sampler_prepare import (
 )
 from .cmk_log_pipe import cmk_add_block, cmk_format_loras
 from ..utils.cmk_diagnostic import make_diagnostic_payload
+from ..engine.native_detailer import CMKSAMLoader
 
 
 
 def _sam_loader_input_specs():
-    """Reuse Impact Pack SAMLoader input definitions when available."""
-    try:
-        import nodes  # type: ignore
-
-        node_cls = (getattr(nodes, "NODE_CLASS_MAPPINGS", {}) or {}).get("SAMLoader")
-        if node_cls is None or not hasattr(node_cls, "INPUT_TYPES"):
-            raise RuntimeError("SAMLoader unavailable")
-
-        required = (node_cls.INPUT_TYPES() or {}).get("required", {}) or {}
-        model_spec = required.get("model_name")
-        device_spec = required.get("device_mode")
-        if model_spec is None or device_spec is None:
-            raise RuntimeError("SAMLoader input definition incomplete")
-        return model_spec, device_spec
-    except Exception:
-        # Keeps the node loadable so the runtime error can clearly identify a
-        # missing/outdated Impact Pack instead of hiding the entire CMK package.
-        return (("SAMLoader unavailable",),), (("AUTO", "Prefer GPU", "CPU"), {"default": "CPU"})
+    required = CMKSAMLoader.INPUT_TYPES()["required"]
+    return required["model_name"], required["device_mode"]
 
 def _safe_default(items, preferred):
     if preferred in items:
@@ -271,16 +256,10 @@ class CMKFaceProcessPreparePipe:
             )
 
         try:
-            sam_model = _unwrap_node_output(
-                _call_node_kwargs(
-                    ("SAMLoader",),
-                    model_name=sam_model_name,
-                    device_mode=sam_device_mode,
-                )
-            )
+            sam_model = _unwrap_node_output(CMKSAMLoader().load(sam_model_name, sam_device_mode))
         except Exception as exc:
             raise RuntimeError(
-                "CMK FaceProcess Prepare -Pipe-: Impact Pack SAMLoader failed. "
+                "CMK FaceProcess Prepare -Pipe-: native CMK SAM loader failed. "
                 "Check the selected SAM model and device mode. "
                 f"Original error: {exc}"
             ) from exc

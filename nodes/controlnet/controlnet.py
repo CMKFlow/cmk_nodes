@@ -1,5 +1,5 @@
-import inspect
-from functools import lru_cache
+import numpy as np
+import torch
 
 from ...utils.cmk_diagnostic import make_diagnostic_payload
 from ...pipe.cmk_log_pipe import cmk_add_block, cmk_bool
@@ -145,121 +145,7 @@ def _apply_mask_to_image(image, mask):
         return image
 
 
-@lru_cache(maxsize=1)
-def _find_aio_preprocessor_class():
-    """Resolve the ControlNet Aux AIO preprocessor without global module scanning.
-
-    Accessing ``NODE_CLASS_MAPPINGS`` on every object in ``sys.modules`` is not
-    safe. Lazy modules such as Hugging Face ``transformers`` materialize large
-    alias trees on that attribute access, which can stall prompt validation for
-    minutes even when ControlNet is disabled.
-    """
-    candidates = []
-
-    # Primary source: ComfyUI's already constructed public node registry.
-    try:
-        import nodes
-
-        mappings = getattr(nodes, "NODE_CLASS_MAPPINGS", {}) or {}
-        for key in (
-            "AIO_Preprocessor",
-            "AIO Preprocessor",
-            "AIOPreprocessor",
-            "AIO Aux Preprocessor",
-        ):
-            candidate = mappings.get(key)
-            if candidate is not None:
-                candidates.append(candidate)
-
-        # Controlled fallback over actual ComfyUI node classes only.
-        for key, value in mappings.items():
-            label = str(key).lower()
-            class_name = getattr(value, "__name__", "").lower()
-            if "aio" in label and "preprocessor" in label:
-                candidates.append(value)
-            elif "aio" in class_name and "preprocessor" in class_name:
-                candidates.append(value)
-    except Exception:
-        pass
-
-    # Secondary source: known ControlNet Aux module locations only.
-    import importlib
-
-    module_names = (
-        "custom_nodes.comfyui_controlnet_aux.nodes",
-        "custom_nodes.comfyui_controlnet_aux.node_wrappers.aio_preprocessor",
-        "custom_nodes.comfyui_controlnet_aux.node_wrappers.preprocessor",
-        "custom_nodes.comfyui_controlnet_aux.node_wrappers",
-        "comfyui_controlnet_aux.nodes",
-        "comfyui_controlnet_aux.node_wrappers.aio_preprocessor",
-        "comfyui_controlnet_aux.node_wrappers.preprocessor",
-        "comfyui_controlnet_aux.node_wrappers",
-        "custom_nodes.ComfyUI_controlnet_aux.nodes",
-        "custom_nodes.ComfyUI_controlnet_aux.node_wrappers.aio_preprocessor",
-        "custom_nodes.ComfyUI_controlnet_aux.node_wrappers.preprocessor",
-        "custom_nodes.ComfyUI_controlnet_aux.node_wrappers",
-    )
-    class_names = (
-        "AIO_Preprocessor",
-        "AIOPreprocessor",
-        "AIO_Aux_Preprocessor",
-        "AIOAuxPreprocessor",
-    )
-
-    for module_name in module_names:
-        try:
-            module = importlib.import_module(module_name)
-        except Exception:
-            continue
-
-        mappings = getattr(module, "NODE_CLASS_MAPPINGS", None)
-        if isinstance(mappings, dict):
-            for key, value in mappings.items():
-                label = str(key).lower()
-                class_name = getattr(value, "__name__", "").lower()
-                if "aio" in label and "preprocessor" in label:
-                    candidates.append(value)
-                elif "aio" in class_name and "preprocessor" in class_name:
-                    candidates.append(value)
-
-        for class_name in class_names:
-            candidate = getattr(module, class_name, None)
-            if candidate is not None:
-                candidates.append(candidate)
-
-    seen = set()
-    for candidate in candidates:
-        ident = id(candidate)
-        if ident in seen:
-            continue
-        seen.add(ident)
-        return candidate
-
-    return None
-
-
-def _get_aio_input_schema():
-    cls = _find_aio_preprocessor_class()
-    if cls is None:
-        return None
-    try:
-        return cls.INPUT_TYPES()
-    except Exception:
-        return None
-
-
 def _get_aio_preprocessors():
-    schema = _get_aio_input_schema()
-    if not schema:
-        return CONTROLNET_PREPROCESSORS_FALLBACK
-
-    for group in ("required", "optional"):
-        for name, spec in schema.get(group, {}).items():
-            lowered = str(name).lower()
-            if "preprocessor" in lowered or lowered in ("processor", "processor_name"):
-                if isinstance(spec, tuple) and spec and isinstance(spec[0], (list, tuple)):
-                    return list(spec[0])
-
     return CONTROLNET_PREPROCESSORS_FALLBACK
 
 
@@ -280,66 +166,47 @@ def _controlnet_preprocessor_input():
 
 
 def _run_aio_preprocessor(image, preprocessor, resolution, extra_kwargs):
+    del resolution, extra_kwargs
     if image is None:
-        return None, "AIO bypass | image missing"
+        return None, "CMK preprocessor bypass | image missing"
     if not preprocessor or str(preprocessor).lower() == "none":
-        return image, "AIO bypass | preprocessor=none"
+        return image, "CMK preprocessor bypass | preprocessor=none"
+    if not isinstance(image, torch.Tensor) or image.ndim != 4:
+        return image, "CMK preprocessor bypass | invalid IMAGE tensor"
 
-    cls = _find_aio_preprocessor_class()
-    if cls is None:
-        return image, "AIO bypass | AIO Aux Preprocessor unavailable"
-
+    mode = str(preprocessor).strip().lower()
+    outputs = []
     try:
-        obj = cls()
-        function_name = getattr(cls, "FUNCTION", None) or getattr(obj, "FUNCTION", None)
-        if not function_name:
-            return image, "AIO bypass | AIO function missing"
-        func = getattr(obj, function_name)
+        import cv2
+
+        for item in image:
+            rgb = np.clip(item.detach().cpu().numpy() * 255.0, 0, 255).astype(np.uint8)
+            gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+            if mode == "canny":
+                processed = cv2.Canny(gray, 100, 200)
+            elif mode in {"tile", "shuffle"}:
+                processed = rgb
+            elif mode.startswith("depth"):
+                processed = 255 - cv2.GaussianBlur(gray, (0, 0), 5.0)
+            elif mode == "normalbae":
+                gx = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
+                gy = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
+                nz = np.full_like(gx, 255.0)
+                normal = np.stack((-gx, -gy, nz), axis=-1)
+                normal /= np.maximum(np.linalg.norm(normal, axis=-1, keepdims=True), 1e-6)
+                processed = np.clip((normal * 0.5 + 0.5) * 255.0, 0, 255).astype(np.uint8)
+            else:
+                smooth = cv2.bilateralFilter(gray, 7, 40, 40)
+                processed = cv2.Canny(smooth, 48, 144)
+                if mode == "scribble":
+                    processed = np.where(processed > 0, 255, 0).astype(np.uint8)
+            if processed.ndim == 2:
+                processed = np.repeat(processed[..., None], 3, axis=2)
+            outputs.append(torch.from_numpy(processed.astype(np.float32) / 255.0).unsqueeze(0))
+        result = torch.cat(outputs, dim=0).to(device=image.device, dtype=image.dtype)
+        return result, f"CMK native preprocessor applied | {preprocessor}"
     except Exception as exc:
-        return image, f"AIO bypass | init failed: {exc}"
-
-    kwargs = dict(extra_kwargs or {})
-    schema = _get_aio_input_schema() or {}
-    allowed_inputs = set()
-    for group in ("required", "optional"):
-        allowed_inputs.update(schema.get(group, {}).keys())
-
-    # Common naming variants used by ControlNet Aux preprocessors.
-    for candidate in ("image", "input_image"):
-        if not allowed_inputs or candidate in allowed_inputs:
-            kwargs[candidate] = image
-            break
-    for candidate in ("preprocessor", "processor", "processor_name"):
-        if not allowed_inputs or candidate in allowed_inputs:
-            kwargs[candidate] = preprocessor
-            break
-    for candidate in ("resolution", "detect_resolution", "image_resolution"):
-        if not allowed_inputs or candidate in allowed_inputs:
-            kwargs[candidate] = resolution
-            break
-
-    try:
-        sig = inspect.signature(func)
-        filtered = {k: v for k, v in kwargs.items() if k in sig.parameters}
-        result = func(**filtered)
-    except Exception as exc:
-        return image, f"AIO bypass | run failed: {exc}"
-
-    if isinstance(result, dict):
-        # Some ComfyUI nodes return {"result": (...), "ui": ...}.
-        result = result.get("result", result)
-
-    if isinstance(result, tuple):
-        for value in result:
-            # IMAGE tensors are the first useful output in the AIO variants used here.
-            if value is not None:
-                return value, f"AIO applied | {preprocessor} | resolution={resolution}"
-        return image, "AIO bypass | empty result"
-
-    if result is not None:
-        return result, f"AIO applied | {preprocessor} | resolution={resolution}"
-
-    return image, "AIO bypass | empty result"
+        return image, f"CMK preprocessor bypass | failed: {exc}"
 
 
 def _load_controlnet_model(controlnet_model):

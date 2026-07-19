@@ -56,8 +56,9 @@ function addStyles() {
     .cmk-about-body p { margin: 0 0 15px; }
     .cmk-about-body p:last-child { margin-bottom: 0; }
     .cmk-about-body strong { color: #eef3f4; }
-    .cmk-about-responsibility { margin-top: 22px; padding: 18px; border: 1px solid #304147; border-radius: 10px; background: #141f24; }
-    .cmk-about-responsibility h4 { margin: 0 0 10px; color: #62d9d6; font-size: 14px; }
+    .cmk-about-responsibility, .cmk-about-acknowledgements { margin-top: 22px; padding: 18px; border: 1px solid #304147; border-radius: 10px; background: #141f24; }
+    .cmk-about-responsibility h4, .cmk-about-acknowledgements h4 { margin: 0 0 10px; color: #62d9d6; font-size: 14px; }
+    .cmk-about-acknowledgements a { color: #7cdfe0; }
     .cmk-about-support { margin-top: 22px; padding-top: 20px; border-top: 1px solid #303a41; }
     .cmk-about-donation { margin-top: 18px; padding-top: 17px; border-top: 1px solid #273138; text-align: center; }
     .cmk-about-donation p { margin-bottom: 11px; color: #8f9ca1; font-size: 12px; line-height: 1.5; }
@@ -1096,6 +1097,11 @@ function openAboutDialog(root) {
         <p>Ein erheblicher Teil des Quellcodes wurde mit KI-Unterstützung erzeugt, analysiert und weiterentwickelt. CMK Flow entstand jedoch <strong>nicht</strong> aus einem einzigen Prompt. Es ist das Ergebnis zahlloser Architekturentscheidungen, Tests, Fehlersuchen, Überarbeitungen und vieler Stunden konzentrierter Entwicklungsarbeit.</p>
         <p>KI diente während des gesamten Projekts als leistungsfähiges Werkzeug zur Umsetzung. Produktvision, Systemarchitektur, Benutzererlebnis und grundlegende Gestaltungsphilosophie wurden in einem fortlaufenden, vom Menschen geführten Entwicklungsprozess bestimmt.</p>
         <p><strong>CMK Flow verbindet menschliche Kreativität, durchdachtes Produktdesign und KI-gestützte Softwareentwicklung. Es zeigt, wie menschliche Erfahrung und moderne KI gemeinsam Software schaffen können, die keiner von beiden allein hätte hervorbringen können.</strong></p>
+        <div class="cmk-about-acknowledgements">
+          <h4>Inspiration &amp; Anerkennung</h4>
+          <p>Der <a href="https://github.com/willmiao/ComfyUI-Lora-Manager" target="_blank" rel="noopener noreferrer">ComfyUI LoRA Manager von willmiao</a> hat die Erwartung an den CMK Flow Browser wesentlich mitgeprägt: überraschend direkt aus ComfyUI eine komfortable Browseroberfläche zu öffnen und dort Checkpoints, LoRAs, Metadaten und Civitai-Inhalte zugänglich zu machen, zeigte eindrucksvoll, wie funktional eine integrierte Verwaltungsoberfläche sein kann.</p>
+          <p>CMK Flow ist ein eigenständiges Projekt und steht in keiner offiziellen Verbindung zum LoRA Manager. Diese Nennung würdigt die gestalterische Inspiration und die umfangreiche Arbeit hinter diesem Open-Source-Projekt.</p>
+        </div>
         <div class="cmk-about-responsibility">
           <h4>Verantwortung</h4>
           <p>CMK Flow will erwachsenen Menschen nicht vorschreiben, was sie privat und einvernehmlich gestalten. Gleichzeitig toleriert CMK keinerlei Veröffentlichung manipulierter Darstellungen realer Personen ohne deren ausdrückliche Einwilligung – insbesondere nicht in sexualisiertem oder entwürdigendem Zusammenhang.</p>
@@ -1123,6 +1129,11 @@ function openAboutDialog(root) {
         <p>A significant portion of the source code was generated, analyzed, and refined with AI assistance. However, CMK Flow was <strong>not</strong> created from a single prompt. It is the result of countless architectural decisions, testing, debugging, refactoring, and many hours of focused development.</p>
         <p>AI served as a powerful implementation tool throughout the project. The product vision, system architecture, user experience, and overall design philosophy were defined through an ongoing human-led development process.</p>
         <p><strong>CMK Flow represents the combination of human creativity, thoughtful product design, and AI-assisted software engineering. It demonstrates how human expertise and modern AI can work together to create software that neither could have produced alone.</strong></p>
+        <div class="cmk-about-acknowledgements">
+          <h4>Inspiration &amp; acknowledgement</h4>
+          <p><a href="https://github.com/willmiao/ComfyUI-Lora-Manager" target="_blank" rel="noopener noreferrer">ComfyUI LoRA Manager by willmiao</a> strongly influenced the expectations behind the CMK Flow Browser. Its unexpectedly seamless transition from ComfyUI into a comfortable browser interface for checkpoints, LoRAs, metadata, and Civitai content demonstrated how capable an integrated management experience could be.</p>
+          <p>CMK Flow is an independent project and has no official affiliation with LoRA Manager. This acknowledgement recognizes the design inspiration and the substantial work behind that open-source project.</p>
+        </div>
         <div class="cmk-about-responsibility">
           <h4>Responsibility</h4>
           <p>CMK Flow does not seek to dictate what consenting adults create in private. At the same time, CMK does not tolerate the publication of manipulated depictions of real people without their explicit consent, especially in a sexualized or degrading context.</p>

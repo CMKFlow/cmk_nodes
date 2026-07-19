@@ -80,6 +80,62 @@ def _from_model_output(output: np.ndarray) -> np.ndarray | None:
     return _clip_rgb(pred_f)
 
 
+@lru_cache(maxsize=3)
+def _get_spandrel_face_model(model_name: str):
+    import comfy.utils
+    from spandrel import ImageModelDescriptor, ModelLoader
+
+    model_path = resolve_face_restore_model(model_name)
+    state = comfy.utils.load_torch_file(model_path, safe_load=True)
+    model = ModelLoader().load_from_state_dict(state).eval()
+    if not isinstance(model, ImageModelDescriptor):
+        raise RuntimeError(f"Unsupported face-restore model architecture: {model_name}")
+    model.to("cpu")
+    return model
+
+
+class GFPGANEnhancerBackend:
+    """Native GFPGAN runner using the Spandrel architecture bundled with ComfyUI."""
+
+    model_size = 512
+
+    def __init__(self, model_name: str = "GFPGANv1.4.pth") -> None:
+        self.model_name = str(model_name)
+        self.name = f"gfpgan:{self.model_name}"
+
+    def enhance_aligned(self, aligned_rgb: np.ndarray) -> np.ndarray:
+        import cv2
+        import torch
+
+        aligned = _clip_rgb(aligned_rgb)
+        original_height, original_width = aligned.shape[:2]
+        if (original_height, original_width) != (self.model_size, self.model_size):
+            model_input = cv2.resize(
+                aligned,
+                (self.model_size, self.model_size),
+                interpolation=cv2.INTER_LANCZOS4,
+            )
+        else:
+            model_input = aligned
+        tensor = torch.from_numpy(model_input.astype(np.float32) / 255.0)
+        tensor = tensor.movedim(-1, 0).unsqueeze(0).to("cpu")
+        model = _get_spandrel_face_model(self.model_name)
+        with torch.no_grad():
+            output = model(tensor).clamp(0.0, 1.0)
+        restored = output[0].movedim(0, -1).cpu().numpy() * 255.0
+        restored = _clip_rgb(restored)
+        if restored.shape[:2] != (original_height, original_width):
+            restored = cv2.resize(
+                restored,
+                (original_width, original_height),
+                interpolation=cv2.INTER_AREA,
+            )
+        return _clip_rgb(restored)
+
+    def enhance(self, *, image_rgb: np.ndarray, target_face) -> np.ndarray:
+        return _clip_rgb(image_rgb)
+
+
 class GPENEnhancerBackend:
     """Internal GPEN aligned-face enhancer."""
 
@@ -214,12 +270,46 @@ def codeformer_availability() -> tuple[bool, str]:
         return False, str(exc)
 
 
+@lru_cache(maxsize=1)
+def gpen_availability() -> tuple[bool, str]:
+    try:
+        resolve_face_restore_model(GPENEnhancerBackend.model_name)
+        return True, "available"
+    except Exception as exc:
+        return False, str(exc)
+
+
+@lru_cache(maxsize=1)
+def gfpgan_availability() -> tuple[bool, str]:
+    try:
+        resolve_face_restore_model("GFPGANv1.4.pth")
+        return True, "available"
+    except Exception as exc:
+        return False, str(exc)
+
+
 def get_available_enhancer_modes() -> list[str]:
+    # Keep GPEN as a legacy-compatible workflow value even when its optional
+    # ONNX checkpoint is absent; validation then resolves it to a safe fallback.
     modes = ["Off", "GPEN"]
+    available, _ = gfpgan_availability()
+    if available:
+        modes.append("GFPGAN")
     available, _ = codeformer_availability()
     if available:
         modes.append("CodeFormer")
     return modes
+
+
+def get_default_enhancer_mode() -> str:
+    available, _ = gpen_availability()
+    if available:
+        return "GPEN"
+    modes = get_available_enhancer_modes()
+    for preferred in ("GFPGAN", "CodeFormer"):
+        if preferred in modes:
+            return preferred
+    return "Off"
 
 
 def _state_dict_from_checkpoint(checkpoint):
@@ -392,11 +482,20 @@ def validate_enhancer_mode(mode: str) -> str:
     if value == "off":
         return "Off"
     if value == "gpen":
-        try:
-            _get_session(GPENEnhancerBackend.model_name)
-        except Exception as exc:
-            raise RuntimeError(f"GPEN is unavailable: {exc}") from exc
-        return "GPEN"
+        available, _ = gpen_availability()
+        if available:
+            return "GPEN"
+        # Older CMK workflows used GPEN as a fixed default. A clean install
+        # must remain executable when that optional ONNX checkpoint is absent.
+        for fallback in ("GFPGAN", "CodeFormer"):
+            if fallback in get_available_enhancer_modes():
+                return fallback
+        return "Off"
+    if value == "gfpgan":
+        available, reason = gfpgan_availability()
+        if not available:
+            raise RuntimeError(f"GFPGAN is unavailable: {reason}")
+        return "GFPGAN"
     if value == "codeformer":
         available, reason = codeformer_availability()
         if not available:
@@ -419,4 +518,6 @@ def get_enhancer_backend(mode: str):
         return NoEnhancerBackend()
     if canonical == "CodeFormer":
         return CodeFormerEnhancerBackend()
+    if canonical == "GFPGAN":
+        return GFPGANEnhancerBackend()
     return GPENEnhancerBackend()

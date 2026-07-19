@@ -1,3 +1,14 @@
+## 2026-07-19 — Native Installation ohne fremde Custom Nodes
+
+- CMK Flow registriert sich in einer leeren ComfyUI-Installation ohne Impact Pack, Impact Subpack, ReActor oder AIO Aux Preprocessors.
+- Eine CMK-eigene Laufzeit übernimmt Ultralytics-Erkennung, `SEGS`, Detailer-Sampling, SAM-Maskierung und Pasteback.
+- FaceProcess-Restore verwendet die vorhandenen CMK-Engines für InsightFace-Erkennung, GPEN/CodeFormer und maskiertes Pasteback statt ReActor-Code zu laden.
+- ControlNet-Preprocessing und SDXL-Conditioning verwenden CMK- beziehungsweise ComfyUI-native Pfade.
+- `requirements.txt` und die Installationsanleitung beschreiben nun den vollständigen GitHub-Clean-Room-Weg.
+- CMK warnt verständlich, wenn im aktiven ComfyUI-Profil Vue Nodes / Nodes 2.0 deaktiviert ist, und entfernt den Hinweis unmittelbar nach dem Aktivieren.
+- Die Installationshinweise nennen `Live preview method: auto` als Voraussetzung für laufende Sampler- und Refiner-Vorschauen.
+- README und „About CMK Flow“ würdigen den ComfyUI LoRA Manager als gestalterische Inspiration für die integrierte Browsererfahrung.
+
 ## 2026-07-19 — Videoverwaltung und Projektauftritt im Flow Browser
 
 - Der Flow Browser besitzt eine integrierte Videoverwaltung für dauerhaft gespeicherte CMK-Videoprojekte. Sie zeigt Speicherbelegung, Segmente und zusammengeführte Arbeitsvideos, öffnet Projekte erneut im Flow und kann deren Speicherordner anzeigen.

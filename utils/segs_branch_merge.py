@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Sequence
 
 import torch
-from impact.segs_nodes import SEGSPaste
+
+from ..engine.native_detailer import SEGSPaste
 
 from .stable_segs import image_signature, stable_branch_components
 

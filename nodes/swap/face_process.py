@@ -1,7 +1,3 @@
-import os
-import sys
-import importlib.util
-
 import torch
 import numpy as np
 import comfy.samplers
@@ -9,44 +5,14 @@ import folder_paths
 
 from ...utils.cmk_diagnostic import make_diagnostic_payload
 from ...engine.detailer_limits import clamp_detailer_denoise
-
-COMFYUI_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-
-IMPACT_MODULES = os.path.join(
-    COMFYUI_DIR,
-    "custom_nodes",
-    "comfyui-impact-pack",
-    "modules",
+from ...engine.native_detailer import (
+    core,
+    SimpleDetectorForEach,
+    SEGSDetailer,
+    SEGSPaste,
+    UltralyticsDetectorProvider,
 )
-
-IMPACT_SUBPACK_ROOT = os.path.join(
-    COMFYUI_DIR,
-    "custom_nodes",
-    "comfyui-impact-subpack",
-)
-
-REACTOR_ROOT = os.path.join(
-    COMFYUI_DIR,
-    "custom_nodes",
-    "comfyui-reactor-node",
-)
-
-for path in (IMPACT_MODULES, IMPACT_SUBPACK_ROOT, REACTOR_ROOT):
-    if path not in sys.path:
-        sys.path.insert(0, path)
-
-from impact import core
-from impact.detectors import SimpleDetectorForEach
-from impact.segs_nodes import SEGSDetailer, SEGSPaste
-from modules.subpack_nodes import UltralyticsDetectorProvider
-
-
-REACTOR_NODES_PATH = os.path.join(REACTOR_ROOT, "nodes.py")
-spec = importlib.util.spec_from_file_location("reactor_nodes_cmk", REACTOR_NODES_PATH)
-reactor_nodes = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(reactor_nodes)
-
-RestoreFaceAdvanced = reactor_nodes.RestoreFaceAdvanced
+from ...engine.native_face_restore import RestoreFaceAdvanced
 
 
 class CMKAnyType(str):
@@ -1058,7 +1024,7 @@ class CMK_FaceProcess:
         process_info = "none"
 
         if process_mode == "Restore":
-            # RestoreFaceAdvanced has its own face detector. Impact/Ultralytics
+            # CMK face restoration has its own InsightFace detector. CMK SEGS
             # detection is useful for diagnostics only and must never block restore.
             if detect_model not in (None, "none"):
                 segs_detected = self._detect_segs(

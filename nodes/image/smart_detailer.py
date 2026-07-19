@@ -1,33 +1,14 @@
-import os
-import sys
-
 import numpy as np
 import comfy.samplers
 import folder_paths
 
-COMFYUI_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
-
-IMPACT_MODULES = os.path.join(
-    COMFYUI_DIR,
-    "custom_nodes",
-    "comfyui-impact-pack",
-    "modules",
+from ...engine.native_detailer import (
+    core,
+    SimpleDetectorForEach,
+    SEGSDetailer,
+    SEGSPaste,
+    UltralyticsDetectorProvider,
 )
-
-IMPACT_SUBPACK_ROOT = os.path.join(
-    COMFYUI_DIR,
-    "custom_nodes",
-    "comfyui-impact-subpack",
-)
-
-for path in (IMPACT_MODULES, IMPACT_SUBPACK_ROOT):
-    if path not in sys.path:
-        sys.path.insert(0, path)
-
-from impact import core
-from impact.detectors import SimpleDetectorForEach
-from impact.segs_nodes import SEGSDetailer, SEGSPaste
-from modules.subpack_nodes import UltralyticsDetectorProvider
 
 from ...utils.cmk_diagnostic import make_diagnostic_payload
 from ...engine.detailer_limits import clamp_detailer_denoise

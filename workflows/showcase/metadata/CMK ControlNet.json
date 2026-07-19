@@ -9,6 +9,6 @@
   "cmkHighlight": "Das optionale ControlNet-Modul wird zwischen Start und KSampler eingesetzt und erweitert den laufenden PROCESS, ohne die übrigen Module fest miteinander zu verkoppeln.",
   "cmkHighlight_en": "The optional ControlNet module is placed between the start and KSampler and enriches the active PROCESS without tightly coupling the other modules.",
   "previews": [
-    { "src": "assets/showcase/ControlNet.png", "label": "Workflow", "label_en": "Workflow" }
+    { "src": "assets/showcase/ControlNet-20260719.png", "label": "Workflow", "label_en": "Workflow" }
   ]
 }

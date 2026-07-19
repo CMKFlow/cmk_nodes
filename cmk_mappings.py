@@ -90,6 +90,14 @@ from .nodes.swap.face_select import CMKFaceSelect
 from .nodes.utils.preview_render import CMKPreviewRender
 from .nodes.utils.preview_board import CMKPreviewBoard
 from .nodes.utils.summary import CMKSummary
+from .nodes.utils.native_flow_helpers import (
+    CMKImageCompare,
+    CMKSEGSPreview,
+    CMKLoRAStackBuilder,
+    CMKPromptConcat,
+    CMKTriggerWordsFilter,
+    CMKStringDual,
+)
 from .nodes.swap.face_mask import CMKFaceMask
 from .nodes.swap.face_restore import CMKFaceRestore
 from .nodes.swap.face_swap import CMKFaceSwapImage, CMKFaceSwapImagePipe
@@ -199,6 +207,12 @@ NODE_CLASS_MAPPINGS = {
         "CMKPreviewRender": CMKPreviewRender,
         "CMKPreviewBoard": CMKPreviewBoard,
         "CMKSummary": CMKSummary,
+        "CMKImageCompare": CMKImageCompare,
+        "CMKSEGSPreview": CMKSEGSPreview,
+        "CMKLoRAStackBuilder": CMKLoRAStackBuilder,
+        "CMKPromptConcat": CMKPromptConcat,
+        "CMKTriggerWordsFilter": CMKTriggerWordsFilter,
+        "CMKStringDual": CMKStringDual,
         "CMKFaceMask": CMKFaceMask,
         "CMKFaceRestore": CMKFaceRestore,
 }
@@ -210,6 +224,12 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CMKImageLoadAndResizePipe": "CMK Flow · Image Input",
     "CMKSwapImageLoaderPipe": "CMK Flow · FaceSwap Image Input",
     "CMKLoRATextLoader": "CMK LoRA Text Loader",
+    "CMKImageCompare": "CMK Image Compare",
+    "CMKSEGSPreview": "CMK SEGS Preview",
+    "CMKLoRAStackBuilder": "CMK LoRA Stack Builder",
+    "CMKPromptConcat": "CMK Prompt Concatenate",
+    "CMKTriggerWordsFilter": "CMK Trigger Words Filter",
+    "CMKStringDual": "CMK Positive / Negative Text",
 
     "CMKGetPipe": "CMK Pipe Get",
     "CMKPipeInspect": "CMK Pipe Inspect",

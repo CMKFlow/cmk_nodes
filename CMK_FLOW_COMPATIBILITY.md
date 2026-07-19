@@ -1,5 +1,14 @@
 # CMK Flow Compatibility
 
+## Frontend requirement
+
+CMK Flow requires ComfyUI **Vue Nodes / Nodes 2.0** to be enabled in the active
+user profile. The legacy LiteGraph renderer does not provide the dynamic and
+advanced widget behavior used by CMK Flow.
+
+For sampler and refiner previews, set **Comfy → Execution → Live preview
+method** to **auto** in the active user profile.
+
 **Specification:** Draft 0.2  
 **Purpose:** Integration contract for third-party nodes and modules  
 **Authority:** `ARCHITECTURE.md` remains authoritative for CMK's own architecture

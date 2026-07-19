@@ -111,6 +111,23 @@ def _executable(name: str) -> str:
     if path:
         return path
 
+    # Desktop applications on macOS commonly inherit a minimal PATH which does
+    # not include Homebrew or MacPorts, even though the executable is installed.
+    # Check the conventional absolute locations before falling back to a Python
+    # package that bundles FFmpeg.
+    executable_name = f"{name}.exe" if os.name == "nt" else name
+    conventional_dirs = (
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+        "/opt/local/bin",
+        "/usr/bin",
+        "/bin",
+    )
+    for directory in conventional_dirs:
+        candidate = Path(directory) / executable_name
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate)
+
     if name == "ffmpeg":
         try:
             import imageio_ffmpeg

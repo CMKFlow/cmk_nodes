@@ -5,7 +5,11 @@ import torch
 
 from ...engine.detector_engine import CMKDetectorEngine, DetectorSettings
 from ...engine.swap_selected_engine import CMKSelectedSwapEngine, SelectedSwapSettings
-from ...engine.enhance_backends import get_available_enhancer_modes, validate_enhancer_mode
+from ...engine.enhance_backends import (
+    get_available_enhancer_modes,
+    get_default_enhancer_mode,
+    validate_enhancer_mode,
+)
 from ...models.model_manager import list_detector_models, list_swap_models
 from ...utils.face_set_utils import (
     normalize_selected_face,
@@ -180,7 +184,7 @@ class CMKFaceSwapImage:
                 "enabled": ("BOOLEAN", {"default": True}),
                 "swap_model": (list_swap_models(),),
                 "detector_model": (list_detector_models(),),
-                "face_enhancer": (get_available_enhancer_modes(), {"default": "GPEN"}),
+                "face_enhancer": (get_available_enhancer_modes(), {"default": get_default_enhancer_mode()}),
                 "target_selection": (_SELECTION_MODES, {"default": "Largest"}),
                 "source_selection": (_SELECTION_MODES, {"default": "Largest"}),
                 "blend": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.05}),
@@ -217,7 +221,8 @@ class CMKFaceSwapImage:
         blend = _clamp_float(blend, 0.0, 1.0, 1.0)
         target_selection = str(target_selection) if str(target_selection) in _SELECTION_MODES else "Largest"
         source_selection = str(source_selection) if str(source_selection) in _SELECTION_MODES else "Largest"
-        face_enhancer = str(face_enhancer or "GPEN")
+        requested_face_enhancer = str(face_enhancer or get_default_enhancer_mode())
+        face_enhancer = requested_face_enhancer
         if bool(enabled):
             face_enhancer = validate_enhancer_mode(face_enhancer)
         elif face_enhancer not in get_available_enhancer_modes():
@@ -353,6 +358,7 @@ class CMKFaceSwapImage:
             f"Model            : {swap_model}",
             f"Detector         : {detector_model}",
             f"Enhancer         : {face_enhancer}",
+            *( [f"Enhancer fallback: {requested_face_enhancer} → {face_enhancer}"] if requested_face_enhancer != face_enhancer else [] ),
             f"Target Source    : {target_source_kind}",
             f"Target Selection : {target_selection}",
             f"Source Source    : {source_source_kind}",
@@ -435,7 +441,7 @@ class CMKFaceSwapImagePipe:
                 "DETECT MODEL": (list_detector_models(),),
                 "TARGET FACE": (_SELECTION_MODES, {"default": "Largest"}),
                 "SOURCE FACE": (_SELECTION_MODES, {"default": "Largest"}),
-                "FACE ENHANCER": (get_available_enhancer_modes(), {"default": "GPEN"}),
+                "FACE ENHANCER": (get_available_enhancer_modes(), {"default": get_default_enhancer_mode()}),
                 "BLEND": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.05}),
                 "bbox_dilation": ("INT", {"default": 0, "min": -512, "max": 512, "step": 1, "advanced": True}),
                 "crop_factor": ("FLOAT", {"default": 1.5, "min": 1.0, "max": 3.0, "step": 0.1, "advanced": True}),
@@ -467,7 +473,11 @@ class CMKFaceSwapImagePipe:
             target_selection = "Largest"
         if source_selection not in _SELECTION_MODES:
             source_selection = "Largest"
-        face_enhancer = str(inputs.get("FACE ENHANCER", "GPEN") or "GPEN")
+        requested_face_enhancer = str(
+            inputs.get("FACE ENHANCER", get_default_enhancer_mode())
+            or get_default_enhancer_mode()
+        )
+        face_enhancer = requested_face_enhancer
         if enabled:
             face_enhancer = validate_enhancer_mode(face_enhancer)
         elif face_enhancer not in get_available_enhancer_modes():
@@ -641,6 +651,7 @@ class CMKFaceSwapImagePipe:
             f"SWAP MODEL      : {swap_model}",
             f"DETECT MODEL    : {detector_model}",
             f"FACE ENHANCER   : {face_enhancer}",
+            *( [f"ENHANCER FALLBACK: {requested_face_enhancer} → {face_enhancer}"] if requested_face_enhancer != face_enhancer else [] ),
             f"TARGET FACE     : {target_selection}",
             f"SOURCE FACE     : {source_selection}",
             f"BLEND           : {blend:.2f}",

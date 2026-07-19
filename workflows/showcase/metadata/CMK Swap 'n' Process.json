@@ -9,6 +9,6 @@
   "cmkHighlight": "Macht die freie Kombinierbarkeit der CMK-Module sichtbar. Zwei eigenständig nutzbare Verarbeitungsschritte werden ohne Sonderlogik zu einer verständlichen Kette verbunden.",
   "cmkHighlight_en": "Makes the free combinability of CMK modules visible. Two independently usable processing steps are connected into a clear chain without special-case logic.",
   "previews": [
-    { "src": "assets/showcase/Swap 'n' Process.png", "label": "Workflow", "label_en": "Workflow" }
+    { "src": "assets/showcase/Swap 'n' Process-20260719.png", "label": "Workflow", "label_en": "Workflow" }
   ]
 }

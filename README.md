@@ -19,6 +19,18 @@ CMK **** -Pipe- → geschlossenes, geführtes Ökosystem
 
 Der verbindliche Architektur- und Schnittstellenvertrag steht in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
+## Inspiration und Anerkennung
+
+Der [ComfyUI LoRA Manager von willmiao](https://github.com/willmiao/ComfyUI-Lora-Manager)
+hat die Erwartungen an den CMK Flow Browser wesentlich mitgeprägt. Seine direkt
+aus ComfyUI geöffnete Browseroberfläche für Checkpoints, LoRAs, Metadaten und
+Civitai-Inhalte zeigte eindrucksvoll, wie komfortabel eine integrierte
+Verwaltungsoberfläche sein kann.
+
+CMK Flow ist ein eigenständiges Projekt ohne offizielle Verbindung zum LoRA
+Manager. Diese Nennung würdigt die gestalterische Inspiration und die umfangreiche
+Arbeit hinter dem Open-Source-Projekt; sie behauptet keine Übernahme von Code.
+
 ## Einstieg
 
 Der zentrale Einstieg ist der `CMK Flow Browser`. Er stellt die aktuellen Module,
@@ -64,28 +76,49 @@ Zwischen Sampler und Refiner wird statt `IMAGE` der proprietäre Latent-Übergab
 
 ## Installation
 
-1. Bestehenden Ordner `custom_nodes/cmk_nodes` vollständig sichern.
-2. Den vorhandenen Ordner vollständig ersetzen; keine alten Einzeldateien daneben liegen lassen.
-3. Die JSON-Dateien unter `subgraphs/` im Node-Pack belassen. ComfyUI lädt `custom_nodes/cmk_nodes/subgraphs/*.json` automatisch; zusätzliche Kopien unter `user/default/subgraphs/` erzeugen doppelte Blueprint-Einträge.
-4. Kuratierte Beispielworkflows im Flow Browser unter `Referenzen` als neue Kopie öffnen. `workflows/reference/` enthält ausschließlich technische Modulreferenzen und ist nicht für die parallele Standardinstallation vorgesehen.
-5. ComfyUI vollständig neu starten.
-6. Den zum Paketstand passenden Referenzworkflow laden.
-7. Bei geänderten Node-Sockets oder Subgraph-Schnittstellen alte Instanzen im Workflow ersetzen, falls ComfyUI gespeicherte Portlayouts beibehält.
+In einem Terminal der gewünschten ComfyUI-Installation:
+
+```bash
+cd /Pfad/zu/ComfyUI
+git clone https://github.com/CMKFlow/cmk_nodes.git custom_nodes/cmk_nodes
+python -m pip install -r custom_nodes/cmk_nodes/requirements.txt
+```
+
+Anschließend ComfyUI vollständig beenden und neu starten. Für ein Update:
+
+```bash
+git -C custom_nodes/cmk_nodes pull --ff-only
+python -m pip install -r custom_nodes/cmk_nodes/requirements.txt
+```
+
+### Erforderliche ComfyUI-Oberfläche
+
+CMK Flow benötigt die ComfyUI-Einstellung **Vue Nodes / Nodes 2.0**. Ohne sie
+fallen dynamische CMK-Nodes auf die alte LiteGraph-Darstellung zurück;
+Advanced-Umschaltung, Dropdowns, Shapes und automatische Größenanpassung stehen
+dann nicht wie vorgesehen zur Verfügung. CMK zeigt beim Start einen Hinweis,
+wenn die Einstellung im aktuellen Benutzerprofil nicht aktiviert ist. Die
+Oberfläche wechselt beim Aktivieren unmittelbar; ein Neuladen ist nicht nötig.
+
+Für Vorschauen während Sampler- und Refiner-Läufen sollte unter
+**Comfy → Execution → Live preview method** der Wert **auto** gewählt sein.
+
+Bei einer bestehenden manuellen CMK-Installation den bisherigen Ordner zuerst sichern und vollständig ersetzen; keine alten Einzeldateien daneben liegen lassen. Die JSON-Dateien unter `subgraphs/` bleiben im Node-Pack. Zusätzliche Kopien unter `user/default/subgraphs/` erzeugen doppelte Blueprint-Einträge.
 
 Vor dem Kopieren sollten vorhandene gleichnamige Workflows gesichert werden. Dateien unter `workflows/archive/` werden nicht für die normale Installation benötigt.
 
 ## Laufzeitabhängigkeiten
 
-Je nach genutztem Modul werden insbesondere benötigt:
+CMK Flow benötigt keine fremden Custom-Node-Pakete. Detektion, `SEGS`, Detailer,
+Pasteback, FaceProcess-Restore, SAM-Laden und die angebotenen
+ControlNet-Preprozessoren werden innerhalb von CMK bereitgestellt.
 
-- ComfyUI Impact Pack;
-- ComfyUI Impact Subpack;
-- Ultralytics-Detector-Modelle;
-- SAM-Modelle;
-- ReActor beziehungsweise dessen Restore-Backend für FaceProcess-Restore;
-- AIO Aux Preprocessors für entsprechende ControlNet-Preprocessor.
-
-Fehlende optionale Module dürfen keine unbeteiligten CMK-Nodes aus der Registrierung entfernen. Der jeweilige Funktionspfad muss stattdessen eine klare Laufzeitmeldung liefern.
+Die Python-Bibliotheken stehen in `requirements.txt`. Modellgestützte Funktionen
+benötigen weiterhin die jeweils ausgewählten Modelle, insbesondere
+Ultralytics-Detektormodelle, SAM-Modelle, InsightFace-Modelle sowie optionale
+Face-Restore-Modelle. Fehlende Modelle blockieren nicht die Registrierung
+unbeteiligter CMK-Nodes, sondern erzeugen im gewählten Funktionspfad eine klare
+Laufzeitmeldung.
 
 ## Cache-Verhalten
 

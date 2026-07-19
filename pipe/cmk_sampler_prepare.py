@@ -368,32 +368,27 @@ class CMKSamplerPrepareSDXLPipe:
         return _first(_call_node(("FreeU_V2",), model, float(b1), float(b2), float(s1), float(s2)))
 
     def _encode_sdxl_plus(self, clip, width: int, height: int, size_cond_factor: int, text: str):
-        # Preferred path: ComfyUI Essentials node used by the original subgraph.
+        # CMK owns this path and relies only on ComfyUI's native SDXL encoder.
+        # ``size_cond_factor`` remains in the public contract for workflow
+        # compatibility; native SDXL conditioning uses the effective dimensions.
+        del size_cond_factor
         try:
-            return _first(_call_node(("CLIPTextEncodeSDXL+",), clip, int(width), int(height), int(size_cond_factor), text))
-        except Exception as exc_plus:
-            # Fallback for installations without the + node. This keeps the node
-            # usable on plain ComfyUI, but CMK SDXL defaults are based on the + node.
-            try:
-                return _first(
-                    _call_node(
-                        ("CLIPTextEncodeSDXL",),
-                        clip,
-                        int(width),
-                        int(height),
-                        0,
-                        0,
-                        int(width),
-                        int(height),
-                        text,
-                        text,
-                    )
+            return _first(
+                _call_node(
+                    ("CLIPTextEncodeSDXL",),
+                    clip,
+                    int(width),
+                    int(height),
+                    0,
+                    0,
+                    int(width),
+                    int(height),
+                    text,
+                    text,
                 )
-            except Exception as exc_builtin:
-                raise RuntimeError(
-                    "SDXL conditioning encode failed. Required node 'CLIPTextEncodeSDXL+' "
-                    f"is unavailable or incompatible. Plus error: {exc_plus}. Builtin fallback error: {exc_builtin}"
-                ) from exc_builtin
+            )
+        except Exception as exc:
+            raise RuntimeError(f"Native SDXL conditioning encode failed: {exc}") from exc
 
 
     def _vae_encode(self, vae, image):

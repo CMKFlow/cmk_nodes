@@ -9,6 +9,6 @@
   "cmkHighlight": "Zeigt den klaren CMK-Grundfluss vom Prompt über den ersten Bilddurchlauf und Refiner bis zum Abschluss. Die nummerierten Module machen Reihenfolge und Austauschbarkeit unmittelbar sichtbar.",
   "cmkHighlight_en": "Shows the clear CMK core flow from prompt through the first image pass and refiner to the final output. Numbered modules make both sequence and interchangeability immediately visible.",
   "previews": [
-    { "src": "assets/showcase/Text2Image.png", "label": "Workflow", "label_en": "Workflow" }
+    { "src": "assets/showcase/Text2Image-20260719.png", "label": "Workflow", "label_en": "Workflow" }
   ]
 }

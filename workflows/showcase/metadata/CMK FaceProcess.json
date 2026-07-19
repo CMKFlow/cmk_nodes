@@ -9,6 +9,6 @@
   "cmkHighlight": "Zeigt die Trennung zwischen Modellvorbereitung, eigentlicher Bildverarbeitung und Ausgabe. Das Modul lässt sich dadurch gezielt in größere CMK-Flows übernehmen.",
   "cmkHighlight_en": "Shows the separation between model preparation, actual image processing, and output. This allows the module to be placed deliberately inside larger CMK flows.",
   "previews": [
-    { "src": "assets/showcase/FaceProcess.png", "label": "Workflow", "label_en": "Workflow" }
+    { "src": "assets/showcase/FaceProcess-20260719.png", "label": "Workflow", "label_en": "Workflow" }
   ]
 }
