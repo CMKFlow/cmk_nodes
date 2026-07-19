@@ -12,7 +12,6 @@ Die aktuelle Nutzungs- und Bereinigungsmatrix steht in [`SUBGRAPH_AUDIT.md`](SUB
 | `workflows/reference/` | Technische Referenzen einzelner Module und Funktionen |
 | `workflows/showcase/` | Kuratierte, im Flow Browser veröffentlichte Beispielworkflows |
 | `workflows/examples/` | Interne oder spezialisierte Arbeitsbeispiele; kein Veröffentlichungseinstieg |
-| `workflows/archive/` | Historische Stände; nicht für Neuinstallationen vorgesehen |
 
 Die aktuellen veröffentlichten Bildbeispiele liegen unter `workflows/showcase/` und
 werden ausschließlich über den Flow Browser als neue Kopie geöffnet. Technische

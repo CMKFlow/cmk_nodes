@@ -105,7 +105,7 @@ Für Vorschauen während Sampler- und Refiner-Läufen sollte unter
 
 Bei einer bestehenden manuellen CMK-Installation den bisherigen Ordner zuerst sichern und vollständig ersetzen; keine alten Einzeldateien daneben liegen lassen. Die JSON-Dateien unter `subgraphs/` bleiben im Node-Pack. Zusätzliche Kopien unter `user/default/subgraphs/` erzeugen doppelte Blueprint-Einträge.
 
-Vor dem Kopieren sollten vorhandene gleichnamige Workflows gesichert werden. Dateien unter `workflows/archive/` werden nicht für die normale Installation benötigt.
+Vor dem Kopieren sollten vorhandene gleichnamige Workflows außerhalb des Node-Packs gesichert werden. Historische Entwicklungsstände sind nicht Bestandteil der öffentlichen CMK-Veröffentlichung.
 
 ## Laufzeitabhängigkeiten
 
