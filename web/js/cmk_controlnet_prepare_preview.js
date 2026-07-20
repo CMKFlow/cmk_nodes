@@ -12,6 +12,13 @@ const CMK_NODE_CLASSES = new Set([
 ]);
 const BUTTON_WIDGET_NAME = "select_reference_image";
 
+const PERCENT_WIDGET_LABELS = new Map([
+    ["controlnet_start_percent", "start_percent"],
+    ["controlnet_end_percent", "end_percent"],
+    ["start_percent", "start_percent"],
+    ["end_percent", "end_percent"],
+]);
+
 function isCMKControlNetPrepare(node) {
     return node && (
         CMK_NODE_CLASSES.has(node.comfyClass) ||
@@ -25,6 +32,42 @@ function findReferenceWidget(node) {
 
 function findWidget(node, name) {
     return node?.widgets?.find((widget) => widget?.name === name);
+}
+
+function clarifyPercentLabels(node) {
+    if (!isCMKControlNetPrepare(node)) return;
+    for (const widget of node.widgets || []) {
+        const label = PERCENT_WIDGET_LABELS.get(widget?.name);
+        if (!label) continue;
+        widget.label = label;
+        widget.options = { ...(widget.options || {}), label };
+    }
+    node.setDirtyCanvas?.(true, true);
+}
+
+function clarifyPercentSchema(nodeData) {
+    for (const [name, label] of PERCENT_WIDGET_LABELS) {
+        const spec = nodeData?.input?.required?.[name];
+        if (!Array.isArray(spec)) continue;
+        spec[1] = { ...(spec[1] || {}), label };
+    }
+}
+
+function migrateLegacyFractions(node, values, info) {
+    if (!Array.isArray(values)) return values;
+    if (Number(info?.properties?.cmkControlNetPercentScale) === 100) return values;
+
+    const migrated = [...values];
+    for (const widget of node.widgets || []) {
+        if (!PERCENT_WIDGET_LABELS.has(widget?.name)) continue;
+        const index = node.widgets.indexOf(widget);
+        const value = migrated[index];
+        if (typeof value === "number" && value >= 0 && value <= 1) {
+            migrated[index] = value * 100;
+        }
+    }
+    info.properties = { ...(info.properties || {}), cmkControlNetPercentScale: 100 };
+    return migrated;
 }
 
 function moveWidgetAfter(node, widget, afterName) {
@@ -172,15 +215,17 @@ function normalizePickerValue(node, values) {
 }
 
 app.registerExtension({
-    name: "cmk.controlnet.prepare.reference_picker.v31",
+    name: "cmk.controlnet.prepare.reference_picker.v33",
 
     beforeRegisterNodeDef(nodeType, nodeData) {
         if (!CMK_NODE_CLASSES.has(nodeData.name)) return;
+        clarifyPercentSchema(nodeData);
 
         const originalOnConfigure = nodeType.prototype.onConfigure;
         nodeType.prototype.onConfigure = function(info) {
             if (Array.isArray(info?.widgets_values)) {
                 info = { ...info, widgets_values: normalizePickerValue(this, info.widgets_values) };
+                info.widgets_values = migrateLegacyFractions(this, info.widgets_values, info);
             }
             return originalOnConfigure?.call(this, info);
         };
@@ -188,6 +233,7 @@ app.registerExtension({
         const originalOnSerialize = nodeType.prototype.onSerialize;
         nodeType.prototype.onSerialize = function(info) {
             const result = originalOnSerialize?.call(this, info);
+            info.properties = { ...(info.properties || {}), cmkControlNetPercentScale: 100 };
             const pickerIndex = this.widgets?.findIndex((widget) => widget?.name === BUTTON_WIDGET_NAME) ?? -1;
             if (pickerIndex >= 0 && Array.isArray(info?.widgets_values)) {
                 const [pickerValue] = info.widgets_values.splice(pickerIndex, 1);
@@ -200,11 +246,13 @@ app.registerExtension({
         nodeType.prototype.onNodeCreated = function() {
             const result = originalOnNodeCreated?.apply(this, arguments);
             addReferencePickerButton(this);
+            clarifyPercentLabels(this);
             return result;
         };
     },
 
     nodeCreated(node) {
         addReferencePickerButton(node);
+        clarifyPercentLabels(node);
     },
 });

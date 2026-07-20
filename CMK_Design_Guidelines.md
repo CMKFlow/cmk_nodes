@@ -25,7 +25,7 @@ Technische Advanced-Parameter dürfen präzise interne Namen verwenden:
 ```text
 bbox_threshold
 start_percent
-controlnet_end_percent
+end_percent
 stop_at_clip_layer
 ```
 
@@ -134,10 +134,30 @@ Sampling-Modus
 ZSNR
 PAG
 FreeU-Einzelwerte
-Start-/End-Prozente
+Start-/End-Prozente (`0–100`)
 ```
 
 Ein Parameter gehört nur dann in Standard, wenn er regelmäßig eine bewusste fachliche Entscheidung verlangt.
+
+Prozentparameter werden in der Advanced-Oberfläche technisch und klein als
+`start_percent` und `end_percent` bezeichnet. Sichtbare Werte verwenden den
+vertrauten Bereich `0–100`; erst intern werden sie für ComfyUI auf `0.0–1.0`
+normiert.
+
+## 6.1 Äußere Standardgröße der Flow-Subgraphen
+
+Die großen nummerierten Flow-Subgraphen verwenden in geschlossenem Zustand
+einheitlich:
+
+```text
+Breite: 600
+Höhe:  1225
+```
+
+Die Größe wird sowohl als `size: [600, 1225]` als auch persistent in
+`properties.cmkOuterSize: [600, 1225]` gespeichert. Standard- und
+Advanced-Varianten weichen davon nur ab, wenn eine ausdrücklich dokumentierte
+fachliche UI-Anforderung eine andere Außenfläche benötigt.
 
 ## 7. Diagnostik
 

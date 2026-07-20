@@ -5,6 +5,17 @@ import folder_paths
 from ...loader.checkpoint_vae_loader import load_checkpoint_vae_resources
 
 
+DEFAULT_CHECKPOINT = "juggernautXL_ragnarok.safetensors"
+
+
+def _checkpoint_choices():
+    choices = list(folder_paths.get_filename_list("checkpoints"))
+    if DEFAULT_CHECKPOINT in choices:
+        choices.remove(DEFAULT_CHECKPOINT)
+        choices.insert(0, DEFAULT_CHECKPOINT)
+    return choices
+
+
 class CMKCheckpointVAELoaderPipe:
     """Create the shared read-only CMK MODEL resource pipe.
 
@@ -20,7 +31,7 @@ class CMKCheckpointVAELoaderPipe:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "ckpt_name": (folder_paths.get_filename_list("checkpoints"),),
+                "ckpt_name": (_checkpoint_choices(),),
                 "vae_name": (folder_paths.get_filename_list("vae"),),
                 "checkpoint_vae": ("BOOLEAN", {"default": True}),
             }

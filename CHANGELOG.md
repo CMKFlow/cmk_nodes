@@ -1,3 +1,10 @@
+## 2026-07-20 — ControlNet-Parameter und konsistente Flow-Darstellung
+
+- `CMK Flow · 05 ControlNet (optional)` zeigt die technischen Advanced-Parameter wieder klein als `start_percent` und `end_percent` im verständlichen Bereich `0–100`; intern werden sie weiterhin auf ComfyUIs Bereich `0.0–1.0` normiert.
+- Bestehende gespeicherte Fraction-Werte werden beim Laden einmalig in Prozentwerte migriert. Neue Defaults sind `STRENGTH = 1.50`, `start_percent = 0` und `end_percent = 30`.
+- Der kanonische Subgraph `30 Detailer · Advanced` und sein Referenzworkflow verwenden nun die einheitliche persistente Außenfläche `600 × 1225`. Dieser Standard ist in den Design Guidelines dokumentiert.
+- `CMK Flow · Checkpoint & VAE` verwendet für neue Nodes bevorzugt `juggernautXL_ragnarok.safetensors`, sofern das Modell installiert ist. Der Flow Browser enthält den aktualisierten Aufbau-Screenshot unter einem neuen cache-sicheren Asset-Namen.
+
 ## 2026-07-19 — Verpflichtender lokaler FaceSwap ContentGuard
 
 - Alle öffentlichen CMK-FaceSwap-Pfade prüfen Quell- und Zielbilder vor der Verarbeitung; der Videopfad prüft jedes Ziel-Frame.

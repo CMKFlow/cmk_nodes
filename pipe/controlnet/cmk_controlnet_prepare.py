@@ -46,19 +46,21 @@ class CMKControlNetPreparePipe:
                 "APPLY MASK": ("BOOLEAN", {"default": False}),
                 "PREPROCESSOR": _controlnet_preprocessor_input(),
                 "STRENGTH": ("FLOAT", {
-                    "default": 0.60, "min": 0.0, "max": 2.0, "step": 0.05
+                    "default": 1.50, "min": 0.0, "max": 2.0, "step": 0.05
                 }),
                 "resolution": ("INT", {
                     "default": 768, "min": 64, "max": 8192, "step": 8,
                     "advanced": True
                 }),
                 "controlnet_start_percent": ("FLOAT", {
-                    "default": 0.00, "min": 0.0, "max": 1.0, "step": 0.01,
-                    "advanced": True
+                    "default": 0.00, "min": 0.0, "max": 100.0, "step": 1.0,
+                    "advanced": True,
+                    "tooltip": "ControlNet start point in percent (0–100)."
                 }),
                 "controlnet_end_percent": ("FLOAT", {
-                    "default": 1.00, "min": 0.0, "max": 1.0, "step": 0.01,
-                    "advanced": True
+                    "default": 30.00, "min": 0.0, "max": 100.0, "step": 1.0,
+                    "advanced": True,
+                    "tooltip": "ControlNet end point in percent (0–100)."
                 }),
                 "invert_hint": ("BOOLEAN", {
                     "default": False,
@@ -94,7 +96,7 @@ class CMKControlNetPreparePipe:
         reference_image = str(kwargs.get("REFERENCE IMAGE", ""))
         apply_mask = bool(kwargs.get("APPLY MASK", False))
         preprocessor = kwargs.get("PREPROCESSOR")
-        controlnet_strength = float(kwargs.get("STRENGTH", 0.60))
+        controlnet_strength = float(kwargs.get("STRENGTH", 1.50))
         invert_hint = bool(invert_hint)
 
         # IMAGE is transported only through the public IMAGE socket.
@@ -141,8 +143,10 @@ class CMKControlNetPreparePipe:
         log = str(result_payload[3])
 
         strength = float(controlnet_strength)
-        start_percent = float(controlnet_start_percent)
-        end_percent = float(controlnet_end_percent)
+        start_percent_ui = min(100.0, max(0.0, float(controlnet_start_percent)))
+        end_percent_ui = min(100.0, max(0.0, float(controlnet_end_percent)))
+        start_percent = start_percent_ui / 100.0
+        end_percent = end_percent_ui / 100.0
         
         if enabled and control_net is not None and controlnet_image is not None:
             new_pipe = CMKPipeSetControlNet().set_controlnet(
@@ -177,8 +181,8 @@ class CMKControlNetPreparePipe:
         if enable:
             log_lines.extend([
                 f"STRENGTH        : {strength:.3f}",
-                f"START PERCENT   : {start_percent:.3f}",
-                f"END PERCENT     : {end_percent:.3f}",
+                f"START PERCENT   : {start_percent_ui:.0f}%",
+                f"END PERCENT     : {end_percent_ui:.0f}%",
                 f"INVERT HINT     : {'ON' if invert_hint else 'OFF'}",
             ])
         log_pipe = cmk_add_block(kwargs.get("LOG"), "ControlNet", 30, log_lines, True)

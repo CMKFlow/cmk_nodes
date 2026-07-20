@@ -18,7 +18,7 @@
       "placementNote": "Vor dem KSampler oder Refiner platzieren und den MODEL-Ausgang mit dessen MODEL-Eingang verbinden.",
       "recommendedAfter": ["10 KSampler 1st Pass", "20 Refiner"],
       "previews": [
-        { "src": "assets/previews/checkpoint-vae.png", "label": "Node" }
+        { "src": "assets/previews/checkpoint-vae-v2.png", "label": "Node" }
       ],
       "previewAlt": "CMK Flow Checkpoint und VAE Node"
     },
