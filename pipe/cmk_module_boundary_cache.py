@@ -547,12 +547,14 @@ class CMKDetailerBoundaryCache:
 
 class CMKFaceBoundaryCache:
     _SCOPE = "faceprocess_boundary"
-    _SCHEMA = "cmk_faceprocess_boundary_v4"
+    _SCHEMA = "cmk_faceprocess_boundary_v5"
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
+                "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
+                "PROCESS": ("CMK_PIPE", {"lazy": True}),
                 "IMAGE": ("IMAGE", {"lazy": True}),
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
             },
@@ -562,8 +564,8 @@ class CMKFaceBoundaryCache:
             },
         }
 
-    RETURN_TYPES = ("IMAGE", "CMK_LOG_PIPE")
-    RETURN_NAMES = ("IMAGE", "LOG")
+    RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_PIPE", "IMAGE", "CMK_LOG_PIPE")
+    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG")
     FUNCTION = "boundary"
     CATEGORY = "CMK/Developer/Boundary & Cache"
     DEV_ONLY = True
@@ -604,7 +606,7 @@ class CMKFaceBoundaryCache:
             unique_id,
             ("CMKFaceBoundaryCache",),
             self._SCHEMA,
-            exclude_inputs=("IMAGE", "LOG"),
+            exclude_inputs=("MODEL", "PROCESS", "IMAGE", "LOG"),
             include_node_identity=True,
         )
 
@@ -629,6 +631,8 @@ class CMKFaceBoundaryCache:
 
     def check_lazy_status(
         self,
+        MODEL=None,
+        PROCESS=None,
         IMAGE=None,
         LOG=None,
         prompt=None,
@@ -646,6 +650,10 @@ class CMKFaceBoundaryCache:
                 unique_id=unique_id,
             )
             needed = []
+            if MODEL is None:
+                needed.append("MODEL")
+            if PROCESS is None:
+                needed.append("PROCESS")
             if IMAGE is None:
                 needed.append("IMAGE")
             if LOG is None:
@@ -667,7 +675,12 @@ class CMKFaceBoundaryCache:
                 detail=f"{detail}; {dependency_detail}",
                 unique_id=unique_id,
             )
-            return []
+            needed = []
+            if MODEL is None:
+                needed.append("MODEL")
+            if PROCESS is None:
+                needed.append("PROCESS")
+            return needed
 
         if cache_key and _disk_available(self._SCOPE, cache_key):
             write_status(
@@ -679,6 +692,10 @@ class CMKFaceBoundaryCache:
             )
 
         needed = []
+        if MODEL is None:
+            needed.append("MODEL")
+        if PROCESS is None:
+            needed.append("PROCESS")
         if IMAGE is None:
             needed.append("IMAGE")
         if LOG is None:
@@ -687,6 +704,8 @@ class CMKFaceBoundaryCache:
 
     def boundary(
         self,
+        MODEL=None,
+        PROCESS=None,
         IMAGE=None,
         LOG=None,
         prompt=None,
@@ -699,7 +718,12 @@ class CMKFaceBoundaryCache:
         if module_disabled:
             missing = [
                 name
-                for name, value in (("IMAGE", IMAGE), ("LOG", LOG))
+                for name, value in (
+                    ("MODEL", MODEL),
+                    ("PROCESS", PROCESS),
+                    ("IMAGE", IMAGE),
+                    ("LOG", LOG),
+                )
                 if value is None
             ]
             if missing:
@@ -720,7 +744,7 @@ class CMKFaceBoundaryCache:
                 "[CMK Boundary Cache / FaceProcess] "
                 "DISABLED PASSTHROUGH -> CACHE SKIPPED"
             )
-            return IMAGE, LOG
+            return MODEL, PROCESS, IMAGE, LOG
 
         cache_key, detail = self._cache_key(prompt, unique_id)
         dependencies, dependency_detail = self._dependencies(
@@ -745,7 +769,7 @@ class CMKFaceBoundaryCache:
                     "[CMK Boundary Cache / FaceProcess] HIT "
                     f"{cache_key[:12]}"
                 )
-                return cached_image, cached_log
+                return MODEL, PROCESS, cached_image, cached_log
             except Exception as exc:
                 write_status(
                     self._SCOPE,
@@ -758,6 +782,8 @@ class CMKFaceBoundaryCache:
         missing = [
             name
             for name, value in (
+                ("MODEL", MODEL),
+                ("PROCESS", PROCESS),
                 ("IMAGE", IMAGE),
                 ("LOG", LOG),
             )
@@ -805,7 +831,7 @@ class CMKFaceBoundaryCache:
                     f"{exc}"
                 )
 
-        return IMAGE, LOG
+        return MODEL, PROCESS, IMAGE, LOG
 
 
 def _faceswap_entry_paths(scope: str, cache_key: str):

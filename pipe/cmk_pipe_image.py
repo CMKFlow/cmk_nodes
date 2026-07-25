@@ -19,9 +19,16 @@ RESOLUTION_PRESETS = [
 
 UPSCALE_METHODS = ["lanczos", "bicubic", "bilinear", "nearest"]
 DEVICES = ["cpu", "mps", "cuda"]
-MASKED_AREA_FILL = ["neutral", "original", "black", "white", "noise"]
-
-
+MASKED_AREA_FILL = [
+    "neutral",
+    "lama",
+    "telea",
+    "navier-stokes",
+    "original",
+    "black",
+    "white",
+    "noise",
+]
 def parse_resolution(resolution, fallback_width=1024, fallback_height=1024):
     text = str(resolution or "").strip()
     token = text.split()[-1] if text else ""
@@ -78,6 +85,110 @@ def resize_mask_tensor(mask, width, height):
     return resized
 
 
+def apply_mask_fill(image, mask, fill_mode: str, seed: int = 0):
+    """Return the exact IMAGE payload with CMK's selected mask fill applied."""
+    if image is None or mask is None:
+        return image
+
+    import torch
+    import torch.nn.functional as F
+
+    if not isinstance(image, torch.Tensor) or not isinstance(mask, torch.Tensor):
+        return image
+
+    fill_mode = str(fill_mode or "original").strip().lower()
+    if fill_mode == "original":
+        return image
+
+    work_mask = mask.float()
+    if work_mask.ndim == 2:
+        work_mask = work_mask.unsqueeze(0)
+    if work_mask.ndim == 4:
+        if work_mask.shape[-1] == 1:
+            work_mask = work_mask[..., 0]
+        elif work_mask.shape[1] == 1:
+            work_mask = work_mask[:, 0]
+    if work_mask.ndim != 3:
+        return image
+
+    if tuple(work_mask.shape[-2:]) != tuple(image.shape[1:3]):
+        work_mask = F.interpolate(
+            work_mask.unsqueeze(1),
+            size=tuple(image.shape[1:3]),
+            mode="nearest",
+        ).squeeze(1)
+    if work_mask.shape[0] == 1 and image.shape[0] > 1:
+        work_mask = work_mask.expand(image.shape[0], -1, -1)
+
+    alpha = work_mask.clamp(0.0, 1.0).unsqueeze(-1).to(
+        device=image.device,
+        dtype=image.dtype,
+    )
+    if fill_mode == "lama":
+        from ..engine.lama_inpaint import lama_inpaint_tensor
+
+        return lama_inpaint_tensor(image, work_mask)
+    if fill_mode in {"telea", "navier-stokes"}:
+        import cv2
+        import numpy as np
+
+        algorithm = (
+            cv2.INPAINT_TELEA
+            if fill_mode == "telea"
+            else cv2.INPAINT_NS
+        )
+        filled_frames = []
+        for index in range(int(image.shape[0])):
+            source = (
+                image[index]
+                .detach()
+                .float()
+                .clamp(0.0, 1.0)
+                .cpu()
+                .numpy()
+            )
+            mask_index = min(index, int(alpha.shape[0]) - 1)
+            mask_np = (
+                alpha[mask_index, ..., 0]
+                .detach()
+                .float()
+                .cpu()
+                .numpy()
+            )
+            source_u8 = np.rint(source * 255.0).astype(np.uint8)
+            mask_u8 = np.where(mask_np > 0.01, 255, 0).astype(np.uint8)
+            filled_u8 = cv2.inpaint(source_u8, mask_u8, 3.0, algorithm)
+            filled_frames.append(
+                torch.from_numpy(filled_u8.astype(np.float32) / 255.0)
+            )
+        fill = torch.stack(filled_frames, dim=0).to(
+            device=image.device,
+            dtype=image.dtype,
+        )
+    elif fill_mode == "black":
+        fill = torch.zeros_like(image)
+    elif fill_mode == "white":
+        fill = torch.ones_like(image)
+    elif fill_mode == "noise":
+        generator = torch.Generator(device="cpu")
+        generator.manual_seed(int(seed) & 0x7FFFFFFFFFFFFFFF)
+        fill = torch.rand(
+            tuple(image.shape),
+            generator=generator,
+            dtype=torch.float32,
+            device="cpu",
+        ).to(device=image.device, dtype=image.dtype)
+    else:
+        # Neutral preserves scene luminance without retaining masked content.
+        keep = 1.0 - alpha
+        count = keep.sum(dim=(1, 2), keepdim=True)
+        measured = (image * keep).sum(dim=(1, 2), keepdim=True) / count.clamp_min(1.0)
+        mean = torch.where(count > 0.0, measured, torch.full_like(measured, 0.5))
+        fill = mean.expand_as(image)
+
+    return image * (1.0 - alpha) + fill * alpha
+
+
 
 
 def mask_to_preview_rgb(mask):
@@ -129,11 +240,13 @@ def build_image_log_block(
     active_loras,
     prompt_pos,
     prompt_neg,
+    inpaint_process_mode,
 ):
     lines = [
         f"SDXL PRESET     : {resolution}",
         f"PROCESS SIZE    : {width} × {height}",
         f"INPAINT MODE    : {cmk_bool(boolean_inpaint_mode)}",
+        f"PROCESS MODE    : {str(inpaint_process_mode).upper()}",
         f"OUTPAINT        : {cmk_bool(outpaint_on)}",
         f"SWAP DIMENSIONS : {cmk_bool(swap_dimensions)}",
         f"UPSCALE METHOD  : {upscale_method}",
@@ -173,19 +286,43 @@ class CMKPipeCreateImage:
             "required": {
                 "PROMPT POS": ("STRING", {"default": "", "multiline": True, "tooltip": "Positive prompt for the complete Flow."}),
                 "PROMPT NEG": ("STRING", {"default": "", "multiline": True, "tooltip": "Negative prompt for the complete Flow."}),
-                "INPAINT_MODE": ("BOOLEAN", {"default": False}),
+                "INPAINT_MODE": (
+                    ["Text2Image", "Inpaint"],
+                    {
+                        "default": "Text2Image",
+                        "tooltip": (
+                            "Text2Image creates a new image. Inpaint uses IMAGE and MASK "
+                            "and reveals the task-specific inpaint settings."
+                        ),
+                    },
+                ),
                 "resolution": (RESOLUTION_PRESETS, {"default": "SDXL 1152x832"}),
                 "swap_dimensions": ("BOOLEAN", {"default": False}),
                 "upscale_method": (UPSCALE_METHODS, {"default": "lanczos"}),
                 "device": (DEVICES, {"default": "cpu"}),
-                "outpaint_on": ("BOOLEAN", {"default": False}),
-                "mask_fill_holes": ("BOOLEAN", {"default": False}),
-                "fill_masked_area": (MASKED_AREA_FILL, {"default": "neutral"}),
             },
             "optional": {
+                "PROCESS": (
+                    "CMK_PIPE",
+                    {
+                        "tooltip": (
+                            "Optional incoming PROCESS from an upstream CMK Flow input module. "
+                            "Create Image preserves it and applies its authoritative image settings."
+                        ),
+                    },
+                ),
                 "IMAGE": ("IMAGE", {"tooltip": "Required only when INPAINT_MODE is enabled."}),
                 "MASK": ("MASK", {"tooltip": "Required only when INPAINT_MODE is enabled."}),
                 "FILENAME STRING": ("STRING", {"forceInput": True, "default": "", "tooltip": "Required only when INPAINT_MODE is enabled; used by logging and project output."}),
+                "LOG": (
+                    "CMK_LOG_PIPE",
+                    {
+                        "tooltip": (
+                            "Optional incoming LOG from an upstream CMK Flow input module. "
+                            "Create Image appends its image preparation block."
+                        ),
+                    },
+                ),
                 "lora_stack": ("LORA_STACK", {"tooltip": "Connect 'CMK Flow · 02 LoRA Stack'."}),
                 "lora_syntax": (
                     "STRING",
@@ -193,6 +330,28 @@ class CMKPipeCreateImage:
                         "forceInput": True,
                         "default": "",
                         "multiline": True,
+                    },
+                ),
+                # Text2Image deliberately hides these widgets. They therefore
+                # must be optional in ComfyUI's prompt contract; create_image
+                # supplies the same defaults when the UI omits them.
+                "outpaint_on": ("BOOLEAN", {"default": False}),
+                "mask_fill_holes": ("BOOLEAN", {"default": False}),
+                "fill_masked_area": (MASKED_AREA_FILL, {"default": "neutral"}),
+                "process_mode": (
+                    ["Custom", "Replace Object", "Remove Object", "Extend Image"],
+                    {
+                        "default": "Custom",
+                        "tooltip": (
+                            "Selects a guided inpaint preset; it does not perform semantic object recognition. "
+                            "Custom keeps the Sampler Advanced values. Replace Object uses noise fill, denoise 1.00, "
+                            "noise mask ON, context reference ON and outpaint OFF; user prompt and LoRAs remain active. "
+                            "Remove Object uses local LaMa "
+                            "for prompt-free object removal; diffusion, existing prompts and all LoRAs are bypassed. "
+                            "Extend Image uses "
+                            "Navier-Stokes fill, denoise 1.00, noise mask ON and context reference ON; an outpaint "
+                            "mask/canvas is still required. Guided modes override fill_masked_area."
+                        ),
                     },
                 ),
             },
@@ -210,6 +369,8 @@ class CMKPipeCreateImage:
     CATEGORY = 'CMK/Flow/Input'
 
     def create_image(self, **inputs):
+        incoming_process = inputs.get("PROCESS")
+        incoming_log = inputs.get("LOG")
         image = inputs.get("IMAGE")
         mask = inputs.get("MASK")
         filename_string = str(inputs.get("FILENAME STRING", "") or "")
@@ -217,7 +378,13 @@ class CMKPipeCreateImage:
         lora_syntax = inputs.get("lora_syntax", "") or ""
         prompt_pos = inputs.get("PROMPT POS", "") or ""
         prompt_neg = inputs.get("PROMPT NEG", "") or ""
-        INPAINT_MODE = inputs.get("INPAINT_MODE", False)
+        raw_mode = inputs.get("INPAINT_MODE", "Text2Image")
+        INPAINT_MODE = (
+            bool(raw_mode)
+            if isinstance(raw_mode, bool)
+            else str(raw_mode or "Text2Image").strip().lower() == "inpaint"
+        )
+        process_mode = inputs.get("process_mode", "Custom")
         resolution = inputs.get("resolution", "SDXL 1152x832")
         swap_dimensions = inputs.get("swap_dimensions", False)
         upscale_method = inputs.get("upscale_method", "lanczos")
@@ -225,6 +392,44 @@ class CMKPipeCreateImage:
         outpaint_on = inputs.get("outpaint_on", False)
         mask_fill_holes = inputs.get("mask_fill_holes", False)
         fill_masked_area = inputs.get("fill_masked_area", "neutral")
+        mode_key = str(process_mode or "Custom").strip().lower()
+        inpaint_process_mode = {
+            "custom": "custom",
+            "replace": "replace",
+            "replace object": "replace",
+            "remove": "remove",
+            "remove object": "remove",
+            "extend": "extend",
+            "extend image": "extend",
+        }.get(mode_key, "custom")
+        guided_fill_modes = {
+            "replace": "noise",
+            "remove": "lama",
+            "extend": "navier-stokes",
+        }
+        effective_fill_mode = (
+            guided_fill_modes.get(inpaint_process_mode)
+            if bool(INPAINT_MODE) and inpaint_process_mode != "custom"
+            else str(fill_masked_area or "neutral").strip().lower()
+        )
+        source_prompt_pos = prompt_pos
+        source_prompt_neg = prompt_neg
+        source_lora_syntax = lora_syntax
+        source_lora_stack = lora_stack
+        remove_isolated = bool(INPAINT_MODE) and inpaint_process_mode == "remove"
+        if remove_isolated:
+            # Remove Object is a complete CMK task, not another prompt/LoRA
+            # variation. Existing workflow styling must not recreate the
+            # masked subject.
+            prompt_pos = ""
+            prompt_neg = ""
+            lora_syntax = ""
+            lora_stack = None
+            outpaint_on = False
+        elif bool(INPAINT_MODE) and inpaint_process_mode == "replace":
+            # Replacement happens inside the existing canvas. Noise removes
+            # the semantic silhouette of the old object before diffusion.
+            outpaint_on = False
 
         if bool(INPAINT_MODE):
             missing = []
@@ -250,10 +455,16 @@ class CMKPipeCreateImage:
         # This node prepares only the dedicated IMAGE cable and image-related
         # process metadata. The sampler owns LATENT creation and the final
         # NORMAL/INPAINT branch selection.
-        image_out = resize_image_tensor(image, width, height, upscale_method)
+        image_resized = resize_image_tensor(image, width, height, upscale_method)
         mask_process = resize_mask_tensor(mask, width, height)
+        image_out = (
+            apply_mask_fill(image_resized, mask_process, effective_fill_mode, seed=0)
+            if bool(INPAINT_MODE)
+            else image_resized
+        )
 
-        pipe = {
+        pipe = dict(incoming_process) if isinstance(incoming_process, dict) else {}
+        pipe.update({
             "mask": mask_process,
             "mask_original": mask,
             "width": width,
@@ -268,7 +479,9 @@ class CMKPipeCreateImage:
             "device": device,
             "outpaint_on": outpaint_on,
             "mask_fill_holes": mask_fill_holes,
-            "fill_masked_area": fill_masked_area,
+            "fill_masked_area": effective_fill_mode,
+            "mask_fill_applied": bool(INPAINT_MODE and image_out is not None and mask_process is not None),
+            "mask_fill_seed": 0,
             "filename_string": filename_string,
             "file_name": filename_string,
             "prompt_pos": prompt_pos,
@@ -277,10 +490,17 @@ class CMKPipeCreateImage:
             # Compatibility field for Prepare nodes not yet migrated to lora_syntax.
             "active_loras": lora_syntax,
             "lora_stack": lora_stack,
+            "source_prompt_pos": source_prompt_pos,
+            "source_prompt_neg": source_prompt_neg,
+            "source_lora_syntax": source_lora_syntax,
+            "source_lora_stack": source_lora_stack,
+            "remove_isolated": remove_isolated,
+            "remove_result_image": image_out if remove_isolated else None,
             "boolean_inpaint_mode": INPAINT_MODE,
+            "inpaint_process_mode": inpaint_process_mode,
             "control_net": None,
             "controlnet_image": None,
-        }
+        })
 
         log_lines = build_image_log_block(
             resolution=resolution,
@@ -292,37 +512,66 @@ class CMKPipeCreateImage:
             upscale_method=upscale_method,
             device=device,
             mask_fill_holes=mask_fill_holes,
-            fill_masked_area=fill_masked_area,
+            fill_masked_area=effective_fill_mode,
             active_loras=lora_syntax,
             prompt_pos=prompt_pos,
             prompt_neg=prompt_neg,
+            inpaint_process_mode=inpaint_process_mode,
         )
         if filename_string:
             log_lines.insert(0, f"FILE NAME       : {filename_string}")
+        if remove_isolated:
+            log_lines.extend(
+                [
+                    "",
+                    "REMOVE ENGINE   : LaMa",
+                    "DIFFUSION       : Bypassed",
+                    "SOURCE PROMPTS  : Ignored",
+                    "SOURCE LORAS    : Ignored",
+                ]
+            )
         log_pipe = cmk_add_block(
-            {
-                "blocks": [],
-                "filename_string": filename_string,
-                "file_name": filename_string,
-                "prompt_pos": prompt_pos,
-                "prompt_neg": prompt_neg,
-            },
+            incoming_log,
             "Image",
             10,
             log_lines,
             True,
         )
+        log_pipe.update(
+            {
+                "filename_string": filename_string,
+                "file_name": filename_string,
+                "prompt_pos": prompt_pos,
+                "prompt_neg": prompt_neg,
+            }
+        )
 
         summary = "\n".join(log_lines)
-        diagnostic_previews = [image_out]
-        mask_preview = mask_to_preview_rgb(mask_process)
-        if mask_preview is not None:
-            diagnostic_previews.append(mask_preview)
+        diagnostic_previews = [image_resized]
+        diagnostic_stages = []
+        if image_resized is not None:
+            diagnostic_stages.append(
+                {
+                    "title": "01 Source",
+                    "subtitle": "Resized input",
+                    "image": image_resized,
+                }
+            )
+        if bool(INPAINT_MODE) and image_out is not None:
+            diagnostic_previews.append(image_out)
+            diagnostic_stages.append(
+                {
+                    "title": "02 Mask Fill",
+                    "subtitle": effective_fill_mode,
+                    "image": image_out,
+                }
+            )
 
         diagnostic = make_diagnostic_payload(
             title="Pipe Create Image -Pipe-",
             node="CMK Pipe Create Image -Pipe-",
             previews=diagnostic_previews,
+            stages=diagnostic_stages,
             summary=summary,
             details=summary,
             mode="Create",
@@ -333,6 +582,7 @@ class CMKPipeCreateImage:
                 "target_width": width,
                 "target_height": height,
                 "inpaint_mode": bool(INPAINT_MODE),
+                "inpaint_process_mode": inpaint_process_mode,
                 "outpaint_on": bool(outpaint_on),
                 "swap_dimensions": bool(swap_dimensions),
                 "upscale_method": upscale_method,

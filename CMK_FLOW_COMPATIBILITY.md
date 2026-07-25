@@ -97,6 +97,12 @@ If an outer module must preserve `MODEL`, `PROCESS`, `IMAGE`, or `LOG`, that
 responsibility belongs to an explicit module boundary. Public results must come
 from that boundary; no alternative output may bypass it.
 
+The curated `50 FaceProcess` and `90 Upscale & Save` contracts preserve all
+four roles. FaceProcess serializes only its computed image/log cache payload
+while passing `MODEL` and `PROCESS` through read-only. The finish module accepts
+and returns the same four roles even though it is normally the last visible
+processing step.
+
 ### 3.2 Authoritative image
 
 `IMAGE` is the current workflow image. A module may use internal working copies,

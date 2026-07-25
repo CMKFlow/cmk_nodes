@@ -312,6 +312,15 @@ class CMKKSamplerPipe:
         scheduler = pipe.get("scheduler", "karras")
         denoise = float(pipe.get("denoise", 1.0))
 
+        if pipe.get("inpaint_process_mode") == "remove" and pipe.get("remove_result_image") is not None:
+            new_pipe = dict(pipe)
+            new_pipe["samples"] = latent_image
+            new_pipe["latent"] = latent_image
+            new_pipe["latent_image"] = latent_image
+            new_pipe["latent_1st_pass"] = latent_image
+            new_pipe["ksampler_log"] = "CMK KSampler -Pipe- | BYPASSED | Remove Object uses LaMa"
+            return (new_pipe,)
+
         try:
             from nodes import KSampler
         except Exception as exc:

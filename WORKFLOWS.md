@@ -88,7 +88,16 @@ CMK Flow · 50 FaceProcess
 CMK Flow · 90 Upscale & Save
 ```
 
-`CMK Flow · 90 Upscale & Save` ist der verbindliche Abschluss des Flow-Hauptwegs und wird unter `CMK/Flow/Finish` geführt.
+`CMK Flow · 90 Upscale & Save` ist der empfohlene Abschluss des
+Flow-Hauptwegs und wird unter `CMK/Flow/Finish` geführt. Sowohl `50 FaceProcess`
+als auch `90 Upscale & Save` führen den vollständigen öffentlichen Vertrag
+`MODEL`, `PROCESS`, `IMAGE` und `LOG` weiter. Dadurch bleiben auch abweichende
+fachlich sinnvolle Kombinationen möglich.
+
+Die Projektspeicherung verwendet den Pfad
+`OUTPUT FOLDER / Text2Image|Inpaint / Datum / PROJECT FOLDER`. Datum und
+Projektordner sind optional; der Verarbeitungsmodus wird aus `PROCESS`
+abgeleitet.
 
 Weitere Subgraphs kapseln Inpaint-, Conditioning-, Masken-, Video-, Dateinamen- und ältere Pipe-In/Pipe-Out-Funktionen.
 

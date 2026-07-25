@@ -1,3 +1,68 @@
+## 2026-07-25 — Freie Flow-Kombination und aufgabenbezogenes Inpainting
+
+- Browser-Screenshots, Showcase-Workflows und der überarbeitete Subgraph
+  `90 Upscale & Save` wurden aus dem abschließenden Testzyklus aktualisiert.
+- Die automatische Projektstruktur vermeidet nun doppelte Modusordner wie
+  `Text2Image/Text2Image` oder `Inpaint/Inpaint`, falls ein älterer Workflow
+  den automatisch ergänzten Modus noch in `OUTPUT FOLDER` gespeichert hat.
+- `CMK Flow · 01 START HERE · Create Image` besitzt nun die optionalen Eingänge
+  `PROCESS` und `LOG`. Vorhandene Prozessmetadaten werden übernommen und durch
+  den maßgeblichen Create-Image-Zustand aktualisiert; bestehende Log-Blöcke
+  bleiben erhalten und werden um die Bildvorbereitung ergänzt.
+- Die Größenwiederherstellung für CMK Image Compare greift nur noch bei
+  Modulen mit einem tatsächlich gerenderten Compare-Viewport. Subgraphen ohne
+  Bildvergleich – etwa `02 LoRA Stack` – behalten wieder ComfyUIs nativ
+  gespeicherte, manuell angepasste Größe.
+- Die in `Text2Image` verborgenen Inpaint-Einstellungen `outpaint_on`,
+  `mask_fill_holes`, `fill_masked_area` und `process_mode` sind im Promptvertrag
+  optional. Der Backend-Pfad verwendet beim Ausblenden dieselben Defaults,
+  statt die Ausführung wegen fehlender, fachlich irrelevanter Eingaben
+  abzulehnen.
+- `CMK Flow · 50 FaceProcess` und seine Advanced-Variante führen nun
+  `MODEL`, `PROCESS`, `IMAGE` und `LOG` vollständig über den verpflichtenden
+  Boundary weiter. Der persistente Cache bleibt auf berechnetes Bild und Log
+  beschränkt; Modell- und Prozess-Pipes werden read-only durchgereicht.
+- `CMK Flow · 90 Upscale & Save` akzeptiert und liefert denselben vollständigen
+  Transportvertrag. Alle eingebetteten Definitionen in Subgraphen,
+  Referenzworkflows und Showcases wurden mitsamt gespeicherten Portpositionen
+  migriert.
+- `CMK Save Project Image -Pipe-` speichert unter
+  `OUTPUT FOLDER / Text2Image|Inpaint / optionales Datum / optionales PROJECT FOLDER`.
+  Der Modus stammt aus `PROCESS`; alle Pfadkomponenten bleiben sicher unterhalb
+  von ComfyUIs Output-Verzeichnis.
+- `CMK Flow · 01 START HERE · Create Image` bündelt Inpaint-Aktivierung,
+  Aufgabenwahl (`custom`, `replace`, `remove`, `extend`) und den bestehenden
+  positiven Prompt an einem fachlich eindeutigen Ort.
+- Der frühere Schalter `INPAINT_MODE` ist sichtbar als Dropdown `MODE` mit
+  `Text2Image` als Standard und `Inpaint` ausgeführt. `Text2Image` blendet
+  sämtliche Inpaint-spezifischen Einstellungen dynamisch aus; bestehende
+  Boolean-Werte werden beim Laden kompatibel migriert.
+- Der Flow-Browser beschreibt `01 START HERE · Create Image` jetzt als
+  zentralen Einstieg für Text2Image und Inpaint einschließlich dynamischem
+  MODE, geführten Aufgaben, LaMa-Removal und tatsächlicher Diagnostic-Füllung.
+- Der Diagnostic-Ausgang von `01 START HERE` zeigt bei Inpainting neben dem
+  skalierten Ausgangsbild nun das tatsächlich weitergereichte Bild mit der
+  gewählten Maskenfüllung statt lediglich die Schwarz-Weiß-Maske.
+- `PROCESS MODE` erklärt die Wirkung des aktiven Presets unmittelbar über
+  `MODE INFO`; der Tooltip dokumentiert zusätzlich die technisch gesetzten
+  Werte und stellt klar, dass die Modi keine semantische Objekterkennung sind.
+- `CMK Sampler Prepare SDXL -Pipe-` liest die Aufgabenwahl aus `PROCESS` und
+  beschränkt seine Oberfläche auf die technischen Advanced-Steuerungen für
+  `denoise`, Noise-Mask und Context Reference.
+- `fill_masked_area` ist jetzt funktional: `original`, `neutral`, `lama`, `telea`,
+  `navier-stokes`, `black`, `white` und reproduzierbares `noise` werden vor
+  der Inpaint-Latent-Erzeugung tatsächlich angewandt.
+- Die geführten Inpaint-Modi liefern vollständige Aufgabenprofile:
+  `replace` bereitet mit deterministischem Rauschen, `denoise 1.00`, aktiver
+  Noise Mask und Context Reference neuen Inhalt vor, deaktiviert Outpaint und
+  behält Anwender-Prompt sowie LoRAs bei; `remove`
+  rekonstruiert die Maske lokal und promptfrei mit LaMa. KSampler und Refiner
+  sowie bestehende Anwender-Prompts, Source- und lokale LoRAs werden dabei
+  bewusst umgangen und diese Isolation bereits im Diagnostic ausgewiesen.
+  `extend` setzt die Umgebung mittels Navier-Stokes fort. Die zugehörigen
+  Werte für Denoise, Noise-Mask und Context Reference werden automatisch
+  gesetzt und über `MODE INFO` sowie Tooltip erklärt.
+
 ## 2026-07-20 — ControlNet-Parameter und konsistente Flow-Darstellung
 
 - `CMK Flow · 05 ControlNet (optional)` zeigt die technischen Advanced-Parameter wieder klein als `start_percent` und `end_percent` im verständlichen Bereich `0–100`; intern werden sie weiterhin auf ComfyUIs Bereich `0.0–1.0` normiert.

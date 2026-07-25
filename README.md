@@ -120,6 +120,16 @@ Face-Restore-Modelle. Fehlende Modelle blockieren nicht die Registrierung
 unbeteiligter CMK-Nodes, sondern erzeugen im gewählten Funktionspfad eine klare
 Laufzeitmeldung.
 
+`Remove Object` verwendet das lokal ausgeführte
+[LaMa-Modell](https://github.com/advimman/lama) für promptfreie
+Objektentfernung. Beim ersten Aufruf lädt CMK die TorchScript-Datei
+`big-lama.pt` einmalig nach `ComfyUI/models/inpaint/` und prüft ihre bekannte
+MD5-Prüfsumme. Danach arbeitet die Funktion vollständig lokal. Schlägt der
+Download fehl, bleibt der übrige Node-Pack verwendbar und der betroffene
+Funktionspfad nennt den erwarteten Zielpfad. LaMa und die verwendete
+[IOPaint-Modellverteilung](https://github.com/Sanster/IOPaint) stehen unter
+Apache License 2.0; deren Lizenz gilt unabhängig von CMKs GPL-Lizenz.
+
 ## FaceSwap ContentGuard
 
 Die öffentlichen CMK-FaceSwap-Pfade besitzen einen verpflichtenden lokalen

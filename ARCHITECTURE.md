@@ -314,6 +314,51 @@ Verbindliche Gründe:
 - `SAMPLED` ist der fachlich richtige Übergabetyp, weil der Refiner den First-Pass-Latent benötigt.
 - Der Sampler gibt kein Bild an den Refiner weiter; der Refiner dekodiert das First-Pass-Bild aus dem unveränderten Latent.
 
+Für Inpainting wählt der Anwender bereits in
+`CMK Flow · 01 START HERE · Create Image` einen von vier aufgabenbezogenen
+Modi:
+
+```text
+custom | replace | remove | extend
+```
+
+Der übergeordnete sichtbare `MODE` ist ein Dropdown mit `Text2Image` als
+Standard und `Inpaint`. Im Modus `Text2Image` blendet die Oberfläche sämtliche
+Inpaint-spezifischen Einstellungen aus; deren gespeicherte Werte bleiben für
+das spätere Zurückschalten erhalten. Alte Workflows mit dem früheren Boolean
+`INPAINT_MODE` werden beim Laden auf das Dropdown migriert.
+
+`01 START HERE` schreibt die Auswahl als `inpaint_process_mode` in `PROCESS`.
+Der bereits dort vorhandene positive Prompt beschreibt den gewünschten
+Bildinhalt; ein zweiter Inpaint-Prompt existiert bewusst nicht. Der Sampler
+führt die Aufgabe aus: `custom` übernimmt seine Advanced-Werte unverändert.
+Die geführten Modi setzen dagegen vollständige, aufgabenbezogene Lösungen:
+`replace` verwendet deterministisches Rauschen, damit die Silhouette des
+entfernten Objekts keine semantische Vorgabe für den neuen Inhalt bildet.
+Das Preset setzt `denoise` auf `1.00`, aktiviert Noise Mask und Context
+Reference, deaktiviert Outpaint und lässt Anwender-Prompt sowie LoRAs aktiv.
+`remove` rekonstruiert den maskierten Bereich lokal und promptfrei mit LaMa,
+und `extend` setzt die Umgebung mittels Navier-Stokes fort. Für die
+diffusionsbasierten Modi werden passende Kombinationen aus `denoise`,
+Noise-Mask und Context Reference gesetzt. `fill_masked_area` ist damit kein
+reiner Metadatenwert: `original`, `neutral`, `lama`, `telea`,
+`navier-stokes`, `black`, `white` und `noise` werden vor
+der Inpaint-Latent-Erzeugung tatsächlich auf das authoritative Eingangsbild
+angewandt. Diese Füllung entsteht bereits in `01 START HERE`; dessen
+Diagnostic-Vorschau und dessen öffentlicher `IMAGE`-Ausgang zeigen daher
+denselben tatsächlich weitergereichten Bildzustand. Der Sampler wendet die
+Füllung nicht nochmals an.
+
+Die vier Modi sind geführte Aufgabenlösungen und keine semantische
+Objekterkennung. Für `remove` genügt die vom Anwender gesetzte Maske. LaMa ist
+für große Masken und strukturelle Bildrekonstruktion trainiert und erzeugt das
+verbindliche Ergebnis unmittelbar aus dem Bildkontext. KSampler und Refiner
+werden für diesen Modus kontrolliert umgangen. Anwender-Prompts sowie Source-
+und lokale LoRAs werden nicht geladen. Das Log und bereits das Diagnostic von
+`01 START HERE` weisen Engine und Isolation vollständig aus.
+Die tatsächliche Wirkung und die gesetzten Werte sind über `MODE INFO` und den
+Tooltip von `PROCESS MODE` direkt in `01 START HERE` dokumentiert.
+
 ### 5.5 Refiner-Modul
 
 Öffentliche Moduloberfläche:
@@ -446,7 +491,7 @@ Alle öffentlichen Detailer-Ausgänge und der Comparer liegen hinter diesem Boun
 ```text
 MODEL + PROCESS + IMAGE + LOG + GLOBAL ENABLE
     ↓
-IMAGE + LOG
+MODEL + PROCESS + IMAGE + LOG
 ```
 
 Prepare:
@@ -492,18 +537,34 @@ kein unverändertes IMAGE-Ausgangskabel
 Der Modulabschluss ist ein verpflichtender `CMK Boundary Cache`:
 
 ```text
-zusammengesetztes IMAGE + zusammengeführtes LOG
+MODEL + PROCESS + zusammengesetztes IMAGE + zusammengeführtes LOG
     ↓
 CMK Boundary Cache
     ↓
 öffentliche FaceProcess-Ausgänge und interner Comparer
 ```
 
+Der FaceProcess-Boundary serialisiert weiterhin ausschließlich das berechnete
+Bild und das zusammengeführte Log. `MODEL` und `PROCESS` werden read-only durch
+den aktuellen ComfyUI-Prozess geführt und sind damit nach FaceProcess wieder
+frei mit jedem kompatiblen Flow-Modul kombinierbar.
+
 ### 5.8 Upscale und Save
 
-`CMK Upscale and Save -Pipe-` ist der verbindliche Abschluss des geschlossenen CMK-Flow-Hauptwegs. Der öffentliche Subgraph bündelt finales Upscaling, Ergebnisvorschau und Projektspeicherung. Er gehört deshalb zur Produktrolle `Flow/Finish` und nicht zu einer allgemeinen Save- oder Baukastenkategorie.
+`CMK Upscale and Save -Pipe-` ist der empfohlene Abschluss des geschlossenen
+CMK-Flow-Hauptwegs. Der öffentliche Subgraph bündelt finales Upscaling,
+Ergebnisvorschau und Projektspeicherung. Er gehört deshalb zur Produktrolle
+`Flow/Finish` und nicht zu einer allgemeinen Save- oder Baukastenkategorie.
 
-Nach diesem Modul existiert im normalen Flow kein weiterer bildverarbeitender Schritt. Einzelne offene Save- und Upscale-Nodes bleiben unabhängig davon im Baukasten verfügbar.
+Im normalen Flow folgt kein weiterer bildverarbeitender Schritt. Das Modul
+bewahrt dennoch den vollständigen Transportvertrag, damit eine abweichende
+fachlich sinnvolle Reihenfolge nicht künstlich verhindert wird:
+
+```text
+MODEL + PROCESS + IMAGE + LOG + Speicherparameter
+    ↓
+MODEL + PROCESS + IMAGE + LOG
+```
 
 `CMK Smart Upscaler -Pipe-`:
 
@@ -514,10 +575,21 @@ IMAGE + LOG → IMAGE + LOG + diagnostic
 `CMK Save Project Image -Pipe-`:
 
 ```text
-IMAGE + LOG + Speicherparameter → FULLPATH
+MODEL + PROCESS + IMAGE + LOG + Speicherparameter
+    → MODEL + PROCESS + IMAGE + LOG + FULLPATH
 ```
 
-Speichern ist ein Endpunkt. Es darf keine Bildverarbeitung rückwärts erzwingen, wenn die vorherige Modulgrenze unverändert ist.
+Der Zielpfad wird unterhalb von ComfyUIs Output-Verzeichnis in dieser Reihenfolge
+gebildet:
+
+```text
+OUTPUT FOLDER / Text2Image|Inpaint / optionales Datum / optionales PROJECT FOLDER
+```
+
+`Text2Image` beziehungsweise `Inpaint` stammt ausschließlich aus
+`PROCESS.boolean_inpaint_mode`. Relative Pfade werden bereinigt und dürfen das
+Output-Verzeichnis nicht verlassen. Speichern darf keine Bildverarbeitung
+rückwärts erzwingen, wenn die vorherige Modulgrenze unverändert ist.
 
 ### 5.9 Video-Segmentierung
 

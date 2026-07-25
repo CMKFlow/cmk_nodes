@@ -12,6 +12,12 @@ function isNativeCompare(node) {
     return node?.constructor?.comfyClass === "ImageCompare" || node?.type === "ImageCompare";
 }
 
+function ownsDynamicStartUi(node) {
+    return Boolean(
+        node?.widgets?.some?.((widget) => widget?.name === "INPAINT_MODE"),
+    );
+}
+
 function validSize(value) {
     return Array.isArray(value) && Number(value[0]) > 0 && Number(value[1]) > 0;
 }
@@ -33,6 +39,10 @@ function nodeForElement(element) {
 function restoreCmkSize(node, nodeElement) {
     if (!isCmkFlow(node)) return;
     nodeElement.classList.add("cmk-flow-node");
+    // 01 START HERE deliberately changes its visible widget set between
+    // Text2Image and Inpaint. Restoring cmkOuterSize on every resulting DOM
+    // mutation would overwrite the width selected manually by the user.
+    if (ownsDynamicStartUi(node)) return;
     node.properties ||= {};
     if (!validSize(node.properties.cmkOuterSize)) {
         node.properties.cmkOuterSize = [Number(node.size?.[0]) || 600, Number(node.size?.[1]) || 1225];
@@ -47,9 +57,12 @@ function restoreCmkSize(node, nodeElement) {
 function prepareNodeElement(nodeElement) {
     const node = nodeForElement(nodeElement);
     if (!node) return;
-    restoreCmkSize(node, nodeElement);
+    const compareViewports = nodeElement.querySelectorAll(VIEWPORT_SELECTOR);
+    if (compareViewports.length > 0) {
+        restoreCmkSize(node, nodeElement);
+    }
 
-    for (const viewport of nodeElement.querySelectorAll(VIEWPORT_SELECTOR)) {
+    for (const viewport of compareViewports) {
         if (isCmkFlow(node) || isNativeCompare(node)) {
             viewport.classList.add("cmk-hold-compare");
             viewport.title = "RESULT · Maustaste gedrückt halten für SOURCE";
@@ -99,6 +112,8 @@ function installDomBehavior() {
         if (!nodeElement || !resizeHandle || !/cursor-.*-resize/.test(String(resizeHandle.className))) return;
         const node = nodeForElement(nodeElement);
         if (!isCmkFlow(node)) return;
+        if (ownsDynamicStartUi(node)) return;
+        if (!nodeElement.querySelector(VIEWPORT_SELECTOR)) return;
 
         const remember = () => setTimeout(() => {
             if (!validSize(node.size)) return;
@@ -130,7 +145,7 @@ function installDomBehavior() {
 }
 
 app.registerExtension({
-    name: "cmk.image.compare.hold.v3",
+    name: "cmk.image.compare.hold.v5",
     setup() {
         installDomBehavior();
     },

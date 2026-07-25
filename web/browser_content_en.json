@@ -1,12 +1,14 @@
 {
   "flows": {
     "CMKPipeCreateImage": {
-      "description": "Prepares image, mask, and prompt for image generation.",
+      "description": "Central entry point for Text2Image and Inpaint: selects the task and prepares image, mask, prompts, and the complete PROCESS for the remaining flow.",
       "features": [
-        "Starts the image generation process",
-        "Accepts the prompt and an optional LoRA stack"
+        "MODE dropdown for Text2Image and Inpaint with a dynamic interface",
+        "Guided inpaint tasks: Replace Object, Remove Object, Extend Image, and Custom",
+        "Prompt-free local object removal with LaMa; KSampler, Refiner, and LoRAs are bypassed",
+        "Diagnostic shows the source image and the actual mask fill passed downstream"
       ],
-      "placementNote": "Place as the starting module before ControlNet or the first KSampler."
+      "placementNote": "Place as the central starting module before optional ControlNet or the first KSampler. Connect IMAGE and MASK for Inpaint; Remove Object only requires the mask."
     },
     "CMKCheckpointVAELoaderPipe": {
       "description": "Selects the image model and matching image decoder.",

@@ -15,6 +15,16 @@ from ..utils.cmk_diagnostic import make_diagnostic_payload
 
 SAMPLING_MODES = ["eps", "v_prediction", "lcm"]
 CMK_FIXED_SEED_WIDGET = {"default": 1565304366, "min": 0, "max": 0xffffffffffffffff, "control_after_generate": "fixed"}
+def _effective_inpaint_prompts(
+    prompt_pos: str,
+    prompt_neg: str,
+    inpaint_mode: bool,
+    process_mode: str,
+) -> tuple[str, str, str]:
+    """Remove Object is prompt-free because local LaMa owns the task."""
+    if bool(inpaint_mode) and str(process_mode).strip().lower() == "remove":
+        return "", "", "NOT USED (LAMA)"
+    return prompt_pos, prompt_neg, "SOURCE"
 
 
 def _get_node_class(*names: str):
@@ -307,8 +317,12 @@ class CMKSamplerPrepareSDXLPipe:
                 "scheduler": (SCHEDULERS, {"default": "karras"} if "karras" in SCHEDULERS else {}),
                 "seed": ("INT", dict(CMK_FIXED_SEED_WIDGET)),
 
-                "inpaint_noise_mask": ("BOOLEAN", {"default": False}),
-                "context_reference_enabled": ("BOOLEAN", {"default": True}),
+                "denoise": (
+                    "FLOAT",
+                    {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01, "advanced": True},
+                ),
+                "inpaint_noise_mask": ("BOOLEAN", {"default": False, "advanced": True}),
+                "context_reference_enabled": ("BOOLEAN", {"default": True, "advanced": True}),
                 "context_reference_expand": ("INT", {"default": 3, "min": -64, "max": 64, "step": 1, "advanced": True}),
                 "context_reference_blur": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 64.0, "step": 0.1, "advanced": True}),
             },
@@ -444,6 +458,7 @@ class CMKSamplerPrepareSDXLPipe:
         pag_scale,
         scheduler,
         seed,
+        denoise,
         inpaint_noise_mask,
         context_reference_enabled,
         context_reference_expand,
@@ -496,6 +511,52 @@ class CMKSamplerPrepareSDXLPipe:
         lora_stack = pipe.get("lora_stack")
         inpaint_mode = bool(pipe.get("boolean_inpaint_mode", False))
 
+        mode_key = str(pipe.get("inpaint_process_mode", "custom") or "custom").strip().lower()
+        requested_process_mode = {
+            "custom": "custom",
+            "replace": "replace",
+            "replace object": "replace",
+            "remove": "remove",
+            "remove object": "remove",
+            "extend": "extend",
+            "extend image": "extend",
+        }.get(mode_key, "custom")
+
+        effective_denoise = max(0.0, min(1.0, _float(denoise, 1.0)))
+        effective_noise_mask = bool(inpaint_noise_mask)
+        effective_context_reference = bool(context_reference_enabled)
+        effective_fill_mode = str(pipe.get("fill_masked_area", "neutral") or "neutral").lower()
+
+        if requested_process_mode == "replace":
+            effective_denoise = 1.00
+            effective_noise_mask = True
+            effective_context_reference = True
+            effective_fill_mode = "noise"
+        elif requested_process_mode == "remove":
+            effective_denoise = 0.00
+            effective_noise_mask = False
+            effective_context_reference = False
+            effective_fill_mode = "lama"
+        elif requested_process_mode == "extend":
+            effective_denoise = 1.00
+            effective_noise_mask = True
+            effective_context_reference = True
+            effective_fill_mode = "navier-stokes"
+
+        if not inpaint_mode:
+            # Inpaint controls must never weaken a normal empty-latent
+            # generation when a saved workflow retains their values.
+            effective_denoise = 1.00
+            effective_noise_mask = False
+            effective_context_reference = False
+
+        effective_prompt_pos, effective_prompt_neg, prompt_source = _effective_inpaint_prompts(
+            prompt_pos,
+            prompt_neg,
+            inpaint_mode,
+            requested_process_mode,
+        )
+
         # Build the shared MODEL/CLIP base before selecting the complete
         # NORMAL or INPAINT sampling state.
         prepared_clip = self._clip_set_last_layer(clip, _int(stop_at_clip_layer, -2))
@@ -515,13 +576,16 @@ class CMKSamplerPrepareSDXLPipe:
             prepared_clip = _unwrap_node_output(prepared_clip)
 
             # 3) Local explicit LoRA from original subgraph defaults
-            prepared_model, prepared_clip, loaded_single_lora = self._apply_single_lora(
-                prepared_model,
-                prepared_clip,
-                lora_name,
-                _float(strength_model, 1.0),
-                _float(strength_clip, 1.0),
-            )
+            if requested_process_mode == "remove":
+                loaded_single_lora = ""
+            else:
+                prepared_model, prepared_clip, loaded_single_lora = self._apply_single_lora(
+                    prepared_model,
+                    prepared_clip,
+                    lora_name,
+                    _float(strength_model, 1.0),
+                    _float(strength_clip, 1.0),
+                )
 
             # 4) Model modifiers
             prepared_model = _unwrap_node_output(prepared_model)
@@ -590,11 +654,15 @@ class CMKSamplerPrepareSDXLPipe:
 
         # 5) SDXL conditioning
         conditioning_pos = _validate_conditioning(
-            self._encode_sdxl_plus(prepared_clip, width, height, _int(size_cond_factor, 4), prompt_pos),
+            self._encode_sdxl_plus(
+                prepared_clip, width, height, _int(size_cond_factor, 4), effective_prompt_pos
+            ),
             "conditioning_pos",
         )
         conditioning_neg = _validate_conditioning(
-            self._encode_sdxl_plus(prepared_clip, width, height, _int(size_cond_factor, 4), prompt_neg),
+            self._encode_sdxl_plus(
+                prepared_clip, width, height, _int(size_cond_factor, 4), effective_prompt_neg
+            ),
             "conditioning_neg",
         )
 
@@ -604,7 +672,6 @@ class CMKSamplerPrepareSDXLPipe:
         # that same base state. Only the final state is selected.
         image = IMAGE
         mask = pipe.get("mask")
-
         try:
             batch_size = int(image.shape[0]) if image is not None and getattr(image, "shape", None) is not None else 1
         except Exception:
@@ -641,7 +708,7 @@ class CMKSamplerPrepareSDXLPipe:
                     mask,
                     head=str(fooocus_head),
                     patch=str(fooocus_patch),
-                    noise_mask=bool(inpaint_noise_mask),
+                    noise_mask=effective_noise_mask,
                 )
             )
             inpaint_model = _unwrap_node_output(inpaint_model)
@@ -663,7 +730,7 @@ class CMKSamplerPrepareSDXLPipe:
             fooocus_log = f"fooocus inpaint applied | head={fooocus_head} | patch={fooocus_patch}"
 
             # Context Reference exists only inside the INPAINT branch.
-            context_reference_active = bool(context_reference_enabled)
+            context_reference_active = effective_context_reference
             if context_reference_active:
                 inpaint_conditioning_pos, inpaint_latent, inpaint_mask = (
                     CMKContextReferenceLatentMask().prepare(
@@ -684,7 +751,7 @@ class CMKSamplerPrepareSDXLPipe:
                     f"blur={_float(context_reference_blur, 5.0)} | "
                     f"mask_only={bool(context_reference_mask_only)}"
                 )
-        elif bool(context_reference_enabled):
+        elif effective_context_reference:
             context_reference_log = "context reference forced OFF | INPAINT=OFF"
 
         # 7) Final Model + Conditioning + Latent switch, matching the old
@@ -695,7 +762,7 @@ class CMKSamplerPrepareSDXLPipe:
             selected_conditioning_neg = inpaint_conditioning_neg
             selected_latent = inpaint_latent
             selected_mask = inpaint_mask
-            latent_log = f"latent selected | INPAINT branch | noise_mask={bool(inpaint_noise_mask)}"
+            latent_log = f"latent selected | INPAINT branch | noise_mask={effective_noise_mask}"
         else:
             selected_model = normal_model
             selected_conditioning_pos = normal_conditioning_pos
@@ -771,6 +838,7 @@ class CMKSamplerPrepareSDXLPipe:
         new_pipe["sampler"] = sampler
         new_pipe["scheduler"] = scheduler
         new_pipe["seed"] = _int(seed, 0)
+        new_pipe["denoise"] = effective_denoise
         new_pipe["sdxl_width"] = width
         new_pipe["sdxl_height"] = height
         new_pipe["size_cond_factor"] = _int(size_cond_factor, 4)
@@ -779,8 +847,14 @@ class CMKSamplerPrepareSDXLPipe:
         new_pipe["boolean_inpaint_mode"] = inpaint_mode
         new_pipe["fooocus_head"] = str(fooocus_head)
         new_pipe["fooocus_patch"] = str(fooocus_patch)
-        new_pipe["inpaint_noise_mask"] = bool(inpaint_noise_mask)
-        new_pipe["context_reference_enabled"] = bool(context_reference_enabled)
+        new_pipe["inpaint_process_mode"] = requested_process_mode
+        new_pipe["effective_prompt_pos"] = effective_prompt_pos
+        new_pipe["effective_prompt_neg"] = effective_prompt_neg
+        new_pipe["prompt_source"] = prompt_source
+        new_pipe["remove_loras_bypassed"] = requested_process_mode == "remove"
+        new_pipe["fill_masked_area"] = effective_fill_mode
+        new_pipe["inpaint_noise_mask"] = effective_noise_mask
+        new_pipe["context_reference_enabled"] = effective_context_reference
         new_pipe["context_reference_active"] = bool(context_reference_active)
         new_pipe["context_reference_expand"] = _int(context_reference_expand, 3)
         new_pipe["context_reference_blur"] = _float(context_reference_blur, 5.0)
@@ -812,6 +886,10 @@ class CMKSamplerPrepareSDXLPipe:
             f"order={'MODEL > CLIPSetLastLayer > SOURCE LoRAs > LOCAL LoRA > PAG > ModelSamplingDiscrete > FreeU > SDXL+ pos/neg > EmptyLatentImage > ControlNet Apply' if not inpaint_mode else 'MODEL > CLIPSetLastLayer > CMKLoRATextLoader > LoraLoader > PAG > ModelSamplingDiscrete > FreeU_V2 > SDXL+ pos/neg > INPAINT > ControlNet'} | "
             f"{width}x{height} | steps={new_pipe['steps_1st_pass']} | cfg={new_pipe['cfg']} | "
             f"sampler={sampler} | scheduler={scheduler} | sampling={sampling} | "
+            f"process_mode={requested_process_mode} | denoise={effective_denoise:.2f} | "
+            f"masked_fill={effective_fill_mode} | noise_mask={effective_noise_mask} | "
+            f"prompt_source={prompt_source} | "
+            f"loras_bypassed={requested_process_mode == 'remove'} | "
             f"clip_layer={new_pipe['stop_at_clip_layer']} | size_cond_factor={new_pipe['size_cond_factor']} | "
             f"seed={new_pipe['seed']} | seed_mode=fixed | "
             f"latent={'ok' if latent_image is not None else 'missing'} | {fooocus_log} | {context_reference_log} | {controlnet_log}"
@@ -832,7 +910,11 @@ class CMKSamplerPrepareSDXLPipe:
             "context_reference_log": context_reference_log,
             "loaded_loras": loaded_loras,
         }
-        lora_source = "SOURCE + LOCAL" if loaded_single_lora else "SOURCE"
+        lora_source = (
+            "BYPASSED"
+            if requested_process_mode == "remove"
+            else ("SOURCE + LOCAL" if loaded_single_lora else "SOURCE")
+        )
         log_lines = [
             "STATUS          : PREPARED",
             "MODEL SOURCE    : MODEL",
@@ -844,12 +926,19 @@ class CMKSamplerPrepareSDXLPipe:
             f"SAMPLER         : {sampler}",
             f"SCHEDULER       : {scheduler}",
             f"SEED            : {new_pipe['seed']}",
+            f"PROCESS MODE    : {requested_process_mode.upper()}",
+            f"DENOISE         : {effective_denoise:.2f}",
+            f"MASKED AREA     : {effective_fill_mode}",
+            f"NOISE MASK      : {'ENABLED' if effective_noise_mask else 'DISABLED'}",
             f"FOOOCUS INPAINT : {'PREPARED' if inpaint_mode else 'DISABLED'}",
             f"CONTEXT REF.    : {'PREPARED' if context_reference_active else 'DISABLED'}",
             f"CONTROLNET      : {'PREPARED' if controlnet_applied else 'DISABLED'}",
-            "PROMPT SOURCE   : SOURCE",
+            f"PROMPT SOURCE   : {prompt_source}",
+            f"LORAS BYPASSED  : {'YES' if requested_process_mode == 'remove' else 'NO'}",
             f"LORA SOURCE     : {lora_source}",
         ]
+        if requested_process_mode == "remove":
+            log_lines.extend(["", "REMOVE ENGINE   : LAMA", "DIFFUSION       : BYPASSED"])
         if loaded_single_lora:
             log_lines.extend(["", "LOCAL LORAS:", cmk_format_loras(loaded_single_lora)])
         log_pipe = cmk_add_block(LOG, "Sampler Prepare", 40, log_lines, True)

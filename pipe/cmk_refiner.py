@@ -23,6 +23,10 @@ class CMKRefinerPipe:
     def run(self, REFINER):
         if REFINER is None:
             raise ValueError("CMK Refiner -Pipe-: REFINER is missing")
+        if REFINER.get("inpaint_process_mode") == "remove":
+            remove_image = REFINER.get("remove_result_image")
+            if remove_image is not None:
+                return (remove_image, remove_image)
 
         model = self._required(REFINER, "refiner_model")
         positive = self._required(REFINER, "refiner_conditioning_pos")
