@@ -1,6 +1,6 @@
 import { app } from "../../../scripts/app.js";
 
-const NODE_NAME = "CMKPreviewBoard";
+const NODE_NAMES = new Set(["CMKPreviewBoard", "CMKDiagnosticConcat"]);
 const MAX_INPUTS = 32;
 
 function isDiagnosticInput(input) {
@@ -55,7 +55,7 @@ function normalize(node) {
 app.registerExtension({
     name: "cmk.preview_board.dynamic_inputs",
     async beforeRegisterNodeDef(nodeType, nodeData) {
-        if (nodeData.name !== NODE_NAME) return;
+        if (!NODE_NAMES.has(nodeData.name)) return;
         for (const hook of ["onNodeCreated", "onConfigure", "onConnectionsChange"]) {
             const original = nodeType.prototype[hook];
             nodeType.prototype[hook] = function () {

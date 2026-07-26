@@ -89,6 +89,7 @@ from .nodes.utils.face_crop import CMKFaceCrop
 from .nodes.swap.face_select import CMKFaceSelect
 from .nodes.utils.preview_render import CMKPreviewRender
 from .nodes.utils.preview_board import CMKPreviewBoard
+from .nodes.utils.diagnostic_concat import CMKDiagnosticConcat
 from .nodes.utils.summary import CMKSummary
 from .nodes.utils.native_flow_helpers import (
     CMKImageCompare,
@@ -206,6 +207,7 @@ NODE_CLASS_MAPPINGS = {
         "CMKFaceSelect": CMKFaceSelect,
         "CMKPreviewRender": CMKPreviewRender,
         "CMKPreviewBoard": CMKPreviewBoard,
+        "CMKDiagnosticConcat": CMKDiagnosticConcat,
         "CMKSummary": CMKSummary,
         "CMKImageCompare": CMKImageCompare,
         "CMKSEGSPreview": CMKSEGSPreview,
@@ -315,6 +317,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
         "CMKFaceSelect": "CMK Face Select",
         "CMKPreviewRender": "CMK Preview Render",
         "CMKPreviewBoard": "CMK Preview Board",
+        "CMKDiagnosticConcat": "CMK Diagnostic Concat",
         "CMKSummary": "CMK Summary",
         "CMKFaceMask": "CMK Face Mask",
         "CMKFaceRestore": "CMK Face Restore",

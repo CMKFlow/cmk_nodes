@@ -150,14 +150,33 @@ class CMK_SmartUpscaler:
             output_height=output_height,
         )
 
+        input_mp = self._megapixels(input_width, input_height)
+        output_mp = self._megapixels(output_width, output_height)
         stages = [
-            {"title": "01 Source", "subtitle": self._size_text(input_width, input_height), "image": image},
-            {"title": "02 Final", "subtitle": self._size_text(output_width, output_height), "image": output_image},
+            {
+                "title": "01 Source",
+                "subtitle": self._size_text(input_width, input_height),
+                "image": image,
+                "summary": (
+                    "Mode: Auto\n"
+                    f"Reason: {reason}\n"
+                    f"Input Size: {self._size_text(input_width, input_height)}\n"
+                    f"Input Mp: {input_mp:.2f}"
+                ),
+            },
+            {
+                "title": "02 Final",
+                "subtitle": self._size_text(output_width, output_height),
+                "image": output_image,
+                "summary": (
+                    f"Output Size: {self._size_text(output_width, output_height)}\n"
+                    f"Output Mp: {output_mp:.2f}\n"
+                    f"Model: {selected_model}"
+                ),
+            },
         ]
 
         warnings = [warning] if warning else []
-        input_mp = self._megapixels(input_width, input_height)
-        output_mp = self._megapixels(output_width, output_height)
 
         return make_diagnostic_payload(
             title="Smart Upscaler",

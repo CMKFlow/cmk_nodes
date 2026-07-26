@@ -69,11 +69,17 @@ def _normalize_stages(raw_stages: Any) -> List[Dict[str, Any]]:
     for idx, stage in enumerate(raw_stages):
         title = f"Stage {idx + 1}"
         subtitle = ""
+        summary = ""
+        details = ""
+        metadata: Dict[str, Any] = {}
         image = None
 
         if isinstance(stage, dict):
             title = str(stage.get("title") or stage.get("label") or title)
             subtitle = str(stage.get("subtitle") or stage.get("note") or "")
+            summary = str(stage.get("summary") or "")
+            details = str(stage.get("details") or summary)
+            metadata = dict(stage.get("metadata") or {})
             image = stage.get("image")
             if image is None:
                 image = stage.get("preview")
@@ -93,6 +99,9 @@ def _normalize_stages(raw_stages: Any) -> List[Dict[str, Any]]:
             "title": title,
             "subtitle": subtitle,
             "image": normalized_image,
+            "summary": summary,
+            "details": details,
+            "metadata": metadata,
         })
 
     return stages
@@ -219,11 +228,18 @@ def select_preview_image(payload: Any, image_index: int = 0) -> np.ndarray:
     data = normalize_preview_payload(payload)
     stages = data.get("stages", []) or []
     if stages:
-        return stages[0]["image"]
+        idx = int(image_index)
+        if idx < 0:
+            idx = len(stages) + idx
+        idx = max(0, min(idx, len(stages) - 1))
+        return stages[idx]["image"]
     images: List[np.ndarray] = data.get("images", [])
     if not images:
         return np.zeros((64, 64, 3), dtype=np.uint8)
-    idx = max(0, min(int(image_index), len(images) - 1))
+    idx = int(image_index)
+    if idx < 0:
+        idx = len(images) + idx
+    idx = max(0, min(idx, len(images) - 1))
     return images[idx]
 
 

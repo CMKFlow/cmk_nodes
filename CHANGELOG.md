@@ -1,3 +1,16 @@
+## 2026-07-26 — Strukturierte Diagnostic-Timeline
+
+- `CMK Diagnostic Concat` verbindet bis zu 32 lokale
+  `CMK_DIAGNOSTIC`-Ausgaben zu einer einzigen chronologischen Diagnose.
+  Jeder Eingang wird als vollständiger, eigenständiger Diagnoseblock und ohne
+  inhaltliche Auswahl in der Anschlussreihenfolge angefügt. Zwischenbilder,
+  Stufen, Modulnamen, Zusammenfassungen und Warnungen bleiben ihrem jeweiligen
+  Prozess eindeutig zugeordnet; das Ergebnis kann an `CMK Preview Render`,
+  `CMK Summary` oder `CMK Preview Board` weitergegeben werden.
+- Die Diagnostic-Eingänge der Concat-Node werden wie beim Preview Board
+  dynamisch ergänzt, sodass umfangreiche modulare Flows mit nur den tatsächlich
+  benötigten Anschlüssen dargestellt werden.
+
 ## 2026-07-25 — Freie Flow-Kombination und aufgabenbezogenes Inpainting
 
 - Browser-Screenshots, Showcase-Workflows und der überarbeitete Subgraph

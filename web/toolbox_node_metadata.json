@@ -30,6 +30,12 @@
       ],
       "special": true
     },
+    "CMKDiagnosticConcat": {
+      "description": "Verbindet bis zu 32 CMK-Diagnosen zu einer einzigen strukturierten Diagnose. Jeder Eingang wird vollständig in Anschlussreihenfolge angefügt und kann an Preview Render, Summary oder Preview Board weitergegeben werden.",
+      "highlight": "Bündelt den visuellen Werdegang eines modularen CMK Flow ohne Auswahl oder Umordnung: Eingang 1 vollständig, danach Eingang 2 vollständig und so weiter.",
+      "highlight_en": "Bundles the visual history of a modular CMK Flow without selection or reordering: input 1 in full, followed by input 2 in full, and so on.",
+      "special": true
+    },
     "CMKSummary": {
       "description": "Verdichtet eine CMK-Diagnose zu einer übersichtlichen Zusammenfassung der ausgeführten Verarbeitung, ihrer Einstellungen und ihres Ergebnisses.",
       "highlight": "Macht die entscheidenden Angaben eines komplexen Verarbeitungsschritts sofort lesbar, ohne dass einzelne Diagnosebilder oder technische Rohdaten durchsucht werden müssen. Die Zusammenfassung kann zugleich als Text weitergegeben werden.",

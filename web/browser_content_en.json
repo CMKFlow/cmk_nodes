@@ -175,6 +175,7 @@
     }
   },
   "toolbox": {
+    "CMKDiagnosticConcat": "Appends up to 32 complete CMK diagnostics in input order for Preview Render, Summary, or Preview Board.",
     "CMKPreviewBoard": "Combines up to 32 CMK diagnostics into one visual overview and places multiple processing stages directly beside each other.",
     "CMKPreviewRender": "Turns one CMK diagnostic into a complete visual process view with intermediate images, captions, and the decisive settings.",
     "CMKSummary": "Condenses a CMK diagnostic into a clear summary of the processing performed, its settings, and its result.",

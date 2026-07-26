@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from ..nodes.swap.face_process import CMK_FaceProcess
 from ..nodes.swap.face_select import resolve_legacy_face_selection
+from ..utils.cmk_diagnostic import make_diagnostic_payload
 from ..utils.stable_segs import make_stable_segs, segs_with_image_crops
 from .cmk_log_pipe import cmk_block_to_string
 from .cmk_persistent_cache import (
@@ -120,7 +121,7 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
     CATEGORY = "CMK/Developer/Pipe/Execute"
 
     _CACHE_SCOPE = "faceprocess_branch"
-    _CACHE_SCHEMA = "cmk_faceprocess_branch_v4"
+    _CACHE_SCHEMA = "cmk_faceprocess_branch_v5"
 
     def _cache_key(self, prompt, unique_id):
         return build_node_fingerprint(
@@ -184,7 +185,18 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
             status="LOCAL DISABLED" if not enable else "GLOBAL DISABLED"
             lines=[f"STATUS          : {status}",f"PROCESS MODE    : {normalized_mode.upper()}","FACE DETECTION  : SKIPPED","PROCESSING      : SKIPPED","CACHE           : SKIPPED","RESULT          : PASSTHROUGH"]
             block=cmk_block_to_string("FaceProcess",90,lines,True)
-            diagnostic={"title":"FaceProcess -Pipe-","summary":"disabled passthrough","details":"\n".join(lines),"metadata":{"global_enabled":global_enable,"local_enabled":bool(enable)}}
+            diagnostic = make_diagnostic_payload(
+                title="FaceProcess -Pipe-",
+                node="CMK FaceProcess -Pipe-",
+                previews=[image],
+                summary="Disabled passthrough",
+                details="\n".join(lines),
+                mode=f"{normalized_mode} / passthrough",
+                metadata={
+                    "global_enabled": global_enable,
+                    "local_enabled": bool(enable),
+                },
+            )
             return (image,empty,empty,False,diagnostic,block)
         cache_key, cache_detail=self._cache_key(prompt,unique_id)
 
