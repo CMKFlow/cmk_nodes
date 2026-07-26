@@ -85,6 +85,61 @@ def resize_mask_tensor(mask, width, height):
     return resized
 
 
+def fill_mask_holes(mask):
+    """Fill background regions fully enclosed by a mask."""
+    if mask is None:
+        return mask
+
+    import cv2
+    import numpy as np
+    import torch
+
+    if not isinstance(mask, torch.Tensor):
+        return mask
+
+    original_shape = tuple(mask.shape)
+    work_mask = mask.float()
+    if work_mask.ndim == 2:
+        work_mask = work_mask.unsqueeze(0)
+    elif work_mask.ndim == 4:
+        if work_mask.shape[-1] == 1:
+            work_mask = work_mask[..., 0]
+        elif work_mask.shape[1] == 1:
+            work_mask = work_mask[:, 0]
+    if work_mask.ndim != 3:
+        return mask
+
+    filled_masks = []
+    for frame in work_mask:
+        source = frame.detach().cpu().numpy()
+        foreground = np.where(source > 0.5, 1, 0).astype(np.uint8)
+        background = 1 - foreground
+
+        # Padding supplies a guaranteed exterior seed even when the mask
+        # touches every edge. Anything not reached from that seed is a hole.
+        exterior = np.pad(background, 1, mode="constant", constant_values=1)
+        flood_mask = np.zeros(
+            (exterior.shape[0] + 2, exterior.shape[1] + 2),
+            dtype=np.uint8,
+        )
+        cv2.floodFill(exterior, flood_mask, (0, 0), 0)
+        holes = exterior[1:-1, 1:-1]
+        filled = np.maximum(source, holes.astype(source.dtype))
+        filled_masks.append(torch.from_numpy(filled))
+
+    result = torch.stack(filled_masks, dim=0).to(
+        device=mask.device,
+        dtype=mask.dtype,
+    )
+    if len(original_shape) == 2:
+        return result[0]
+    if len(original_shape) == 4 and original_shape[-1] == 1:
+        return result.unsqueeze(-1)
+    if len(original_shape) == 4 and original_shape[1] == 1:
+        return result.unsqueeze(1)
+    return result
+
+
 def apply_mask_fill(image, mask, fill_mode: str, seed: int = 0):
     """Return the exact IMAGE payload with CMK's selected mask fill applied."""
     if image is None or mask is None:
@@ -457,6 +512,8 @@ class CMKPipeCreateImage:
         # NORMAL/INPAINT branch selection.
         image_resized = resize_image_tensor(image, width, height, upscale_method)
         mask_process = resize_mask_tensor(mask, width, height)
+        if bool(INPAINT_MODE) and bool(mask_fill_holes):
+            mask_process = fill_mask_holes(mask_process)
         image_out = (
             apply_mask_fill(image_resized, mask_process, effective_fill_mode, seed=0)
             if bool(INPAINT_MODE)
