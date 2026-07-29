@@ -1,3 +1,36 @@
+## 2026-07-29 — Aspect-ratio-safe Create Image / Extend Image
+
+- `CMK Flow · 01 START HERE · Create Image` supports `Fit`, `Crop` and explicit
+  legacy-style `Stretch`, plus `Center`, `Top`, `Bottom`, `Left` and `Right`
+  positioning.
+- Image and input mask now use the same resize/crop/placement geometry.
+- `Fit` exposes uncovered target-canvas pixels as a generated mask.
+  `Extend Image` merges that mask with an optional transformed input mask, so
+  it can run as an outpainting workflow without a separately prepared canvas.
+- Active outpainting now expands its mask 32 pixels into the source image by
+  default. The configurable overlap removes the hard transition caused by a
+  mask beginning exactly at the former canvas edge.
+- Synthetic outpaint fills now cross-fade inside that overlap while the full
+  generation mask remains active. This specifically removes the persistent
+  seam produced by a binary `noise` fill boundary.
+- `outpaint_overlap` is available as a technical Advanced parameter.
+- `Create Image` now displays the final image from its existing diagnostic
+  timeline directly as a native preview on the executed node.
+- The inline preview no longer adds a diagnostic title frame.
+- Public Create Image controls and sockets use user-facing uppercase labels;
+  lowercase technical labels are reserved for Advanced controls.
+- Added the connection-only `opt_prompt_pos` input. Non-empty content is
+  appended after `PROMPT POS`.
+- `CMK Flow · 02 LoRA Stack` no longer accepts the redundant `txt_pos` input.
+  Its internal `CMK Prompt Concatenate` node was removed; filtered LoRA trigger
+  words now feed the existing prompt output directly.
+- Public prompt and LoRA connections now describe their destination:
+  `ACTIVE LORAS` carries LoRA metadata and `ADDITIONAL PROMPT` carries
+  filtered trigger words. Internal contract names remain unchanged.
+- The published Text2Image, Inpaint, ControlNet and Full Flow showcase
+  workflows were refreshed from the validated user workflows to use the
+  updated Create Image and LoRA Stack contracts.
+
 ## 2026-07-26 — Strukturierte Diagnostic-Timeline
 
 - `CMK Diagnostic Concat` verbindet bis zu 32 lokale

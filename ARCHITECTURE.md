@@ -322,6 +322,40 @@ Modi:
 custom | replace | remove | extend
 ```
 
+Die Bildvorbereitung bietet `Fit`, `Crop` und das ausdrücklich
+seitenverhältnisändernde `Stretch`. `Fit` und `Crop` erhalten das
+Quellseitenverhältnis; `Center`, `Top`, `Bottom`, `Left` oder `Right` bestimmen
+die Ausrichtung. Bild und Eingabemaske durchlaufen dieselbe Geometrie. Bei
+`Fit` wird die nicht vom Quellbild belegte Zielfläche als Maske erzeugt;
+`Extend Image` vereinigt sie mit einer optionalen Eingabemaske und kann daher
+die Ziel-Canvas selbst für Outpainting vorbereiten. Bei aktivem Outpaint wächst
+die Maske standardmäßig 32 Bildpixel in das Quellbild hinein. Diese
+Überlappungszone liefert der Diffusion Kontext beider Seiten und verhindert
+eine harte Naht an der ursprünglichen Canvas-Grenze; die Breite ist über
+über den Advanced-Parameter `outpaint_overlap` einstellbar.
+Synthetische Füllungen wie `noise`, `neutral`, `black` und `white` verwenden
+innerhalb dieser Überlappung eine weich auslaufende Füllmaske. Die
+authoritative Generationsmaske bleibt vollständig erweitert; nur der
+vorbereitende Bildinhalt wird überblendet, damit keine neue harte Füllkante in
+das Sampling gelangt.
+
+`01 START HERE · Create Image` zeigt das letzte Bild seines ohnehin erzeugten
+Diagnostic-Payloads zusätzlich als native Vorschau direkt auf der
+ausgeführten Node. Damit sind Fit-/Crop-Ergebnis und angewandte Maskenfüllung
+ohne separate Preview-Node sichtbar. Die vier fachlichen Ausgänge und der
+Diagnostic-Vertrag bleiben unverändert.
+
+Die direkte Vorschau enthält ausschließlich das Bild und keinen zusätzlichen
+Diagnostic-Titelrahmen. Öffentliche Parameter und Anschlüsse tragen
+anwenderverständliche Anzeigenamen in Großschrift; interne Anschlussnamen
+bleiben für gespeicherte Workflows stabil. Technische Bezeichnungen in
+Kleinschrift sind Advanced-Parametern vorbehalten.
+
+Der optionale STRING-Anschluss `opt_prompt_pos` besitzt kein Textfeld. Sein
+Inhalt wird – sofern angeschlossen und nicht leer – mit einem Zeilenumbruch
+hinter `PROMPT POS` angefügt und danach als gemeinsamer positiver Prompt durch
+den Flow geführt.
+
 Der übergeordnete sichtbare `MODE` ist ein Dropdown mit `Text2Image` als
 Standard und `Inpaint`. Im Modus `Text2Image` blendet die Oberfläche sämtliche
 Inpaint-spezifischen Einstellungen aus; deren gespeicherte Werte bleiben für
