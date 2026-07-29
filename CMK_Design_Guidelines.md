@@ -31,6 +31,12 @@ stop_at_clip_layer
 
 Standard und Advanced dürfen nicht dieselbe Entscheidung doppelt anbieten.
 
+Alle öffentlichen Zuordnungen müssen ohne Kenntnis des internen
+Implementierungsvertrags verständlich sein. Technische Feldnamen wie
+`lora_syntax`, `active_loras` oder `opt_prompt_pos` erhalten deshalb
+fachliche Anzeigenamen wie `ACTIVE LORAS` oder `ADDITIONAL PROMPT`.
+Interne Namen bleiben nur für Serialisierung und Kompatibilität bestehen.
+
 ## 2. Node-Namen
 
 - Jede sichtbare Node beginnt mit `CMK`.

@@ -18,6 +18,8 @@ RESOLUTION_PRESETS = [
 ]
 
 UPSCALE_METHODS = ["lanczos", "bicubic", "bilinear", "nearest"]
+RESIZE_MODES = ["Fit", "Crop", "Stretch"]
+CROP_POSITIONS = ["Center", "Top", "Bottom", "Left", "Right"]
 DEVICES = ["cpu", "mps", "cuda"]
 MASKED_AREA_FILL = [
     "neutral",
@@ -83,6 +85,186 @@ def resize_mask_tensor(mask, width, height):
     if original_dim == 4 and mask.shape[-1] == 1:
         return resized.movedim(1, -1)
     return resized
+
+
+def _normalize_mask_bhw(mask):
+    """Normalize the supported ComfyUI MASK layouts to [B,H,W]."""
+    if mask is None:
+        return None
+    if mask.ndim == 2:
+        return mask.unsqueeze(0)
+    if mask.ndim == 3:
+        return mask
+    if mask.ndim == 4 and mask.shape[-1] == 1:
+        return mask[..., 0]
+    if mask.ndim == 4 and mask.shape[1] == 1:
+        return mask[:, 0]
+    raise ValueError(f"Unsupported MASK shape: {tuple(mask.shape)}")
+
+
+def _position_offset(space, crop_position, axis):
+    position = str(crop_position or "Center").strip().lower()
+    if axis == "x" and position == "left":
+        return 0
+    if axis == "x" and position == "right":
+        return space
+    if axis == "y" and position == "top":
+        return 0
+    if axis == "y" and position == "bottom":
+        return space
+    return space // 2
+
+
+def prepare_image_and_mask(
+    image,
+    mask,
+    width,
+    height,
+    upscale_method,
+    resize_mode="Fit",
+    crop_position="Center",
+):
+    """Apply one shared transform to IMAGE and MASK.
+
+    Returns the prepared image, transformed source mask and a mask covering
+    canvas pixels which did not originate in the source image.
+    """
+    if image is None:
+        return None, resize_mask_tensor(mask, width, height), None
+
+    import torch
+
+    source_width, source_height = get_image_size(image)
+    mode = str(resize_mode or "Fit").strip().lower()
+    if mode == "stretch":
+        return (
+            resize_image_tensor(image, width, height, upscale_method),
+            resize_mask_tensor(mask, width, height),
+            torch.zeros(
+                (int(image.shape[0]), height, width),
+                device=image.device,
+                dtype=image.dtype,
+            ),
+        )
+
+    scale = (
+        max(width / source_width, height / source_height)
+        if mode == "crop"
+        else min(width / source_width, height / source_height)
+    )
+    scaled_width = max(1, int(round(source_width * scale)))
+    scaled_height = max(1, int(round(source_height * scale)))
+    scaled_image = resize_image_tensor(
+        image, scaled_width, scaled_height, upscale_method
+    )
+    scaled_mask = resize_mask_tensor(mask, scaled_width, scaled_height)
+    scaled_mask = _normalize_mask_bhw(scaled_mask) if scaled_mask is not None else None
+
+    if mode == "crop":
+        left = _position_offset(scaled_width - width, crop_position, "x")
+        top = _position_offset(scaled_height - height, crop_position, "y")
+        prepared_image = scaled_image[:, top:top + height, left:left + width, :]
+        prepared_mask = (
+            scaled_mask[:, top:top + height, left:left + width]
+            if scaled_mask is not None
+            else None
+        )
+        uncovered = torch.zeros(
+            (int(image.shape[0]), height, width),
+            device=image.device,
+            dtype=image.dtype,
+        )
+        return prepared_image, prepared_mask, uncovered
+
+    # Fit: preserve the complete source and expose the unused canvas as mask.
+    left = _position_offset(width - scaled_width, crop_position, "x")
+    top = _position_offset(height - scaled_height, crop_position, "y")
+    prepared_image = torch.zeros(
+        (int(image.shape[0]), height, width, int(image.shape[-1])),
+        device=image.device,
+        dtype=image.dtype,
+    )
+    prepared_image[:, top:top + scaled_height, left:left + scaled_width, :] = scaled_image
+    prepared_mask = None
+    if scaled_mask is not None:
+        prepared_mask = torch.zeros(
+            (int(scaled_mask.shape[0]), height, width),
+            device=scaled_mask.device,
+            dtype=scaled_mask.dtype,
+        )
+        prepared_mask[:, top:top + scaled_height, left:left + scaled_width] = scaled_mask
+    uncovered = torch.ones(
+        (int(image.shape[0]), height, width),
+        device=image.device,
+        dtype=image.dtype,
+    )
+    uncovered[:, top:top + scaled_height, left:left + scaled_width] = 0
+    return prepared_image, prepared_mask, uncovered
+
+
+def expand_mask_tensor(mask, amount):
+    """Grow a ComfyUI mask by ``amount`` image pixels on every side."""
+    if mask is None or int(amount) <= 0:
+        return mask
+
+    import torch.nn.functional as F
+
+    original_dim = mask.ndim
+    original_channel_last = original_dim == 4 and mask.shape[-1] == 1
+    original_channel_first = original_dim == 4 and mask.shape[1] == 1
+    work_mask = _normalize_mask_bhw(mask).float()
+    radius = int(amount)
+    expanded = F.max_pool2d(
+        work_mask.unsqueeze(1),
+        kernel_size=radius * 2 + 1,
+        stride=1,
+        padding=radius,
+    ).squeeze(1)
+    expanded = expanded.to(device=mask.device, dtype=mask.dtype)
+
+    if original_dim == 2:
+        return expanded[0]
+    if original_channel_last:
+        return expanded.unsqueeze(-1)
+    if original_channel_first:
+        return expanded.unsqueeze(1)
+    return expanded
+
+
+def feather_mask_tensor(mask, radius):
+    """Return a soft-edged copy while preserving the original mask layout."""
+    if mask is None or int(radius) <= 0:
+        return mask
+
+    import torch.nn.functional as F
+
+    original_dim = mask.ndim
+    original_channel_last = original_dim == 4 and mask.shape[-1] == 1
+    original_channel_first = original_dim == 4 and mask.shape[1] == 1
+    work_mask = _normalize_mask_bhw(mask).float().unsqueeze(1)
+    radius = int(radius)
+    work_mask = F.pad(
+        work_mask,
+        (radius, radius, radius, radius),
+        mode="replicate",
+    )
+    feathered = F.avg_pool2d(
+        work_mask,
+        kernel_size=radius * 2 + 1,
+        stride=1,
+    ).squeeze(1)
+    feathered = feathered.clamp(0.0, 1.0).to(
+        device=mask.device,
+        dtype=mask.dtype,
+    )
+
+    if original_dim == 2:
+        return feathered[0]
+    if original_channel_last:
+        return feathered.unsqueeze(-1)
+    if original_channel_first:
+        return feathered.unsqueeze(1)
+    return feathered
 
 
 def fill_mask_holes(mask):
@@ -281,13 +463,33 @@ def mask_to_preview_rgb(mask):
     gray = (arr * 255.0).round().astype(np.uint8)
     return np.repeat(gray[..., None], 3, axis=2)
 
+
+def image_node_preview(image):
+    """Return a native, uncaptioned ComfyUI preview for an IMAGE tensor."""
+    if image is None:
+        return None
+    try:
+        from nodes import PreviewImage
+
+        payload = PreviewImage().save_images(image)
+        if isinstance(payload, dict):
+            return payload.get("ui")
+    except Exception:
+        # A UI preview must never make the image pipeline fail.
+        pass
+    return None
+
+
 def build_image_log_block(
     resolution,
     width,
     height,
     boolean_inpaint_mode,
     outpaint_on,
+    outpaint_overlap,
     swap_dimensions,
+    resize_mode,
+    crop_position,
     upscale_method,
     device,
     mask_fill_holes,
@@ -303,7 +505,10 @@ def build_image_log_block(
         f"INPAINT MODE    : {cmk_bool(boolean_inpaint_mode)}",
         f"PROCESS MODE    : {str(inpaint_process_mode).upper()}",
         f"OUTPAINT        : {cmk_bool(outpaint_on)}",
+        f"OUTPAINT OVERLAP: {int(outpaint_overlap)} px",
         f"SWAP DIMENSIONS : {cmk_bool(swap_dimensions)}",
+        f"RESIZE MODE     : {resize_mode}",
+        f"CROP POSITION   : {crop_position}",
         f"UPSCALE METHOD  : {upscale_method}",
         f"IMAGE DEVICE    : {str(device).upper()}",
         f"MASK FILL HOLES : {cmk_bool(mask_fill_holes)}",
@@ -354,7 +559,7 @@ class CMKPipeCreateImage:
                 "resolution": (RESOLUTION_PRESETS, {"default": "SDXL 1152x832"}),
                 "swap_dimensions": ("BOOLEAN", {"default": False}),
                 "upscale_method": (UPSCALE_METHODS, {"default": "lanczos"}),
-                "device": (DEVICES, {"default": "cpu"}),
+                "device": (DEVICES, {"default": "cpu", "advanced": True}),
             },
             "optional": {
                 "PROCESS": (
@@ -367,7 +572,15 @@ class CMKPipeCreateImage:
                     },
                 ),
                 "IMAGE": ("IMAGE", {"tooltip": "Required only when INPAINT_MODE is enabled."}),
-                "MASK": ("MASK", {"tooltip": "Required only when INPAINT_MODE is enabled."}),
+                "MASK": (
+                    "MASK",
+                    {
+                        "tooltip": (
+                            "Required for Inpaint except Extend Image. Extend Image generates "
+                            "the uncovered Fit-canvas mask and merges an optional input mask."
+                        ),
+                    },
+                ),
                 "FILENAME STRING": ("STRING", {"forceInput": True, "default": "", "tooltip": "Required only when INPAINT_MODE is enabled; used by logging and project output."}),
                 "LOG": (
                     "CMK_LOG_PIPE",
@@ -385,6 +598,7 @@ class CMKPipeCreateImage:
                         "forceInput": True,
                         "default": "",
                         "multiline": True,
+                        "label": "ACTIVE LORAS",
                     },
                 ),
                 # Text2Image deliberately hides these widgets. They therefore
@@ -403,9 +617,53 @@ class CMKPipeCreateImage:
                             "noise mask ON, context reference ON and outpaint OFF; user prompt and LoRAs remain active. "
                             "Remove Object uses local LaMa "
                             "for prompt-free object removal; diffusion, existing prompts and all LoRAs are bypassed. "
-                            "Extend Image uses "
-                            "Navier-Stokes fill, denoise 1.00, noise mask ON and context reference ON; an outpaint "
-                            "mask/canvas is still required. Guided modes override fill_masked_area."
+                            "Extend Image uses Fit to create its outpaint canvas and mask, Navier-Stokes fill, "
+                            "denoise 1.00, noise mask ON and context reference ON. "
+                            "Guided modes override fill_masked_area."
+                        ),
+                    },
+                ),
+                # Appended after the legacy widget sequence so existing saved
+                # workflows keep their positional widget values.
+                "resize_mode": (
+                    RESIZE_MODES,
+                    {
+                        "default": "Fit",
+                        "tooltip": (
+                            "Fit preserves the complete image and masks the uncovered canvas. "
+                            "Crop fills the target without distortion. Stretch changes the aspect ratio."
+                        ),
+                    },
+                ),
+                "crop_position": (
+                    CROP_POSITIONS,
+                    {
+                        "default": "Center",
+                        "tooltip": "Anchors the image when Fit or Crop leaves an offset on one axis.",
+                    },
+                ),
+                "outpaint_overlap": (
+                    "INT",
+                    {
+                        "default": 32,
+                        "min": 0,
+                        "max": 256,
+                        "step": 1,
+                        "advanced": True,
+                        "tooltip": (
+                            "Grows an active Outpaint mask inward over the source image. "
+                            "This overlap gives diffusion enough context to remove hard canvas seams."
+                        ),
+                    },
+                ),
+                "opt_prompt_pos": (
+                    "STRING",
+                    {
+                        "forceInput": True,
+                        "label": "ADDITIONAL PROMPT",
+                        "tooltip": (
+                            "Optional additional positive prompt. When connected, "
+                            "it is appended after PROMPT POS."
                         ),
                     },
                 ),
@@ -431,7 +689,15 @@ class CMKPipeCreateImage:
         filename_string = str(inputs.get("FILENAME STRING", "") or "")
         lora_stack = inputs.get("lora_stack")
         lora_syntax = inputs.get("lora_syntax", "") or ""
-        prompt_pos = inputs.get("PROMPT POS", "") or ""
+        prompt_pos_primary = inputs.get("PROMPT POS", "") or ""
+        opt_prompt_pos = inputs.get("opt_prompt_pos", "") or ""
+        prompt_pos = "\n".join(
+            part for part in (
+                str(prompt_pos_primary).strip(),
+                str(opt_prompt_pos).strip(),
+            )
+            if part
+        )
         prompt_neg = inputs.get("PROMPT NEG", "") or ""
         raw_mode = inputs.get("INPAINT_MODE", "Text2Image")
         INPAINT_MODE = (
@@ -442,9 +708,12 @@ class CMKPipeCreateImage:
         process_mode = inputs.get("process_mode", "Custom")
         resolution = inputs.get("resolution", "SDXL 1152x832")
         swap_dimensions = inputs.get("swap_dimensions", False)
+        resize_mode = inputs.get("resize_mode", "Fit")
+        crop_position = inputs.get("crop_position", "Center")
         upscale_method = inputs.get("upscale_method", "lanczos")
         device = inputs.get("device", "cpu")
         outpaint_on = inputs.get("outpaint_on", False)
+        outpaint_overlap = max(0, min(256, int(inputs.get("outpaint_overlap", 32) or 0)))
         mask_fill_holes = inputs.get("mask_fill_holes", False)
         fill_masked_area = inputs.get("fill_masked_area", "neutral")
         mode_key = str(process_mode or "Custom").strip().lower()
@@ -457,6 +726,12 @@ class CMKPipeCreateImage:
             "extend": "extend",
             "extend image": "extend",
         }.get(mode_key, "custom")
+        requested_resize_mode = resize_mode
+        if bool(INPAINT_MODE) and inpaint_process_mode == "extend":
+            # Extending requires uncovered canvas. Make the guided preset a
+            # complete outpainting operation even when an older workflow has
+            # Crop or Stretch serialized.
+            resize_mode = "Fit"
         guided_fill_modes = {
             "replace": "noise",
             "remove": "lama",
@@ -485,12 +760,16 @@ class CMKPipeCreateImage:
             # Replacement happens inside the existing canvas. Noise removes
             # the semantic silhouette of the old object before diffusion.
             outpaint_on = False
+        elif bool(INPAINT_MODE) and inpaint_process_mode == "extend":
+            outpaint_on = True
 
         if bool(INPAINT_MODE):
             missing = []
             if image is None:
                 missing.append("IMAGE")
-            if mask is None:
+            # Extend Image creates its outpaint mask from the Fit canvas.
+            # An optional input mask is transformed and merged with it.
+            if mask is None and inpaint_process_mode != "extend":
                 missing.append("MASK")
             if not filename_string:
                 missing.append("FILENAME STRING")
@@ -510,12 +789,43 @@ class CMKPipeCreateImage:
         # This node prepares only the dedicated IMAGE cable and image-related
         # process metadata. The sampler owns LATENT creation and the final
         # NORMAL/INPAINT branch selection.
-        image_resized = resize_image_tensor(image, width, height, upscale_method)
-        mask_process = resize_mask_tensor(mask, width, height)
+        image_resized, mask_process, uncovered_mask = prepare_image_and_mask(
+            image,
+            mask,
+            width,
+            height,
+            upscale_method,
+            resize_mode=resize_mode,
+            crop_position=crop_position,
+        )
+        if bool(INPAINT_MODE) and uncovered_mask is not None:
+            mask_process = (
+                uncovered_mask
+                if mask_process is None
+                else mask_process.to(
+                    device=uncovered_mask.device,
+                    dtype=uncovered_mask.dtype,
+                ).maximum(uncovered_mask)
+            )
         if bool(INPAINT_MODE) and bool(mask_fill_holes):
             mask_process = fill_mask_holes(mask_process)
+        if bool(INPAINT_MODE) and bool(outpaint_on):
+            mask_process = expand_mask_tensor(mask_process, outpaint_overlap)
+        fill_mask_process = mask_process
+        if (
+            bool(INPAINT_MODE)
+            and bool(outpaint_on)
+            and effective_fill_mode in {"noise", "neutral", "black", "white"}
+        ):
+            # Keep the authoritative generation mask fully expanded, but
+            # cross-fade synthetic fills inside that overlap. Otherwise their
+            # binary edge remains visible even though diffusion has context.
+            fill_mask_process = feather_mask_tensor(
+                mask_process,
+                min(32, max(1, outpaint_overlap // 2)),
+            )
         image_out = (
-            apply_mask_fill(image_resized, mask_process, effective_fill_mode, seed=0)
+            apply_mask_fill(image_resized, fill_mask_process, effective_fill_mode, seed=0)
             if bool(INPAINT_MODE)
             else image_resized
         )
@@ -524,6 +834,7 @@ class CMKPipeCreateImage:
         pipe.update({
             "mask": mask_process,
             "mask_original": mask,
+            "mask_fill": fill_mask_process,
             "width": width,
             "height": height,
             "source_width": source_width,
@@ -532,9 +843,14 @@ class CMKPipeCreateImage:
             "target_height": height,
             "resolution": resolution,
             "swap_dimensions": swap_dimensions,
+            "resize_mode": resize_mode,
+            "requested_resize_mode": requested_resize_mode,
+            "crop_position": crop_position,
+            "uncovered_mask": uncovered_mask,
             "upscale_method": upscale_method,
             "device": device,
             "outpaint_on": outpaint_on,
+            "outpaint_overlap": outpaint_overlap,
             "mask_fill_holes": mask_fill_holes,
             "fill_masked_area": effective_fill_mode,
             "mask_fill_applied": bool(INPAINT_MODE and image_out is not None and mask_process is not None),
@@ -542,6 +858,8 @@ class CMKPipeCreateImage:
             "filename_string": filename_string,
             "file_name": filename_string,
             "prompt_pos": prompt_pos,
+            "prompt_pos_primary": prompt_pos_primary,
+            "opt_prompt_pos": opt_prompt_pos,
             "prompt_neg": prompt_neg,
             "lora_syntax": lora_syntax,
             # Compatibility field for Prepare nodes not yet migrated to lora_syntax.
@@ -565,7 +883,10 @@ class CMKPipeCreateImage:
             height=height,
             boolean_inpaint_mode=INPAINT_MODE,
             outpaint_on=outpaint_on,
+            outpaint_overlap=outpaint_overlap,
             swap_dimensions=swap_dimensions,
+            resize_mode=resize_mode,
+            crop_position=crop_position,
             upscale_method=upscale_method,
             device=device,
             mask_fill_holes=mask_fill_holes,
@@ -641,13 +962,20 @@ class CMKPipeCreateImage:
                 "inpaint_mode": bool(INPAINT_MODE),
                 "inpaint_process_mode": inpaint_process_mode,
                 "outpaint_on": bool(outpaint_on),
+                "outpaint_overlap": outpaint_overlap,
                 "swap_dimensions": bool(swap_dimensions),
+                "resize_mode": resize_mode,
+                "crop_position": crop_position,
                 "upscale_method": upscale_method,
                 "device": device,
             },
         )
 
-        return (pipe, image_out, log_pipe, diagnostic)
+        result = (pipe, image_out, log_pipe, diagnostic)
+        preview_ui = image_node_preview(image_out)
+        if preview_ui is None:
+            return result
+        return {"ui": preview_ui, "result": result}
 
 
 class CMKPipePeekPreprocessImage:

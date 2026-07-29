@@ -8,13 +8,13 @@ const MODE_INFO = {
     "custom": "Manual prompts and Advanced settings.",
     "replace object": "Prompt and LoRAs describe the replacement.",
     "remove object": "Prompt-free reconstruction from the surrounding image.",
-    "extend image": "Prompt describes the extension; outpaint mask required.",
+    "extend image": "Prompt describes the extension; Fit creates canvas and mask.",
 };
 const MODE_INFO_TOOLTIP = {
     "custom": "Uses the user prompts and the technical Sampler Advanced values without guided overrides.",
     "replace object": "Noise removes the old silhouette; user prompt and LoRAs describe the new content; denoise 1.00, noise mask ON, context reference ON; outpaint OFF.",
     "remove object": "Local LaMa reconstructs the masked area from the surrounding image. No prompt, LoRA, KSampler or Refiner is used.",
-    "extend image": "Navier-Stokes continues the surroundings as preparation; user prompt describes the extended scene; denoise 1.00, noise mask ON, context reference ON; outpaint mask required.",
+    "extend image": "Fit creates the outpaint canvas and mask. Navier-Stokes continues the surroundings as preparation; user prompt describes the extended scene; denoise 1.00, noise mask ON, context reference ON.",
 };
 const GUIDED_FILL = {
     "replace object": "noise",
@@ -26,13 +26,49 @@ const GUIDED_OUTPAINT = {
     "remove object": false,
     "extend image": true,
 };
+const GUIDED_RESIZE = {
+    "extend image": "Fit",
+};
 const INPAINT_ONLY_WIDGETS = new Set([
     "outpaint_on",
+    "outpaint_overlap",
     "mask_fill_holes",
     "fill_masked_area",
     "process_mode",
     MODE_INFO_NAME,
 ]);
+
+const CROP_POSITION_WIDGET = "crop_position";
+const USER_WIDGET_LABELS = {
+    "PROMPT POS": "PROMPT POS",
+    "PROMPT NEG": "PROMPT NEG",
+    "INPAINT_MODE": "MODE",
+    "resolution": "IMAGE SIZE",
+    "swap_dimensions": "SWAP WIDTH / HEIGHT",
+    "upscale_method": "RESIZE QUALITY",
+    "outpaint_on": "OUTPAINT",
+    "mask_fill_holes": "FILL MASK HOLES",
+    "fill_masked_area": "MASK FILL",
+    "process_mode": "PROCESS MODE",
+    "resize_mode": "IMAGE FIT",
+    "crop_position": "IMAGE POSITION",
+};
+const USER_INPUT_LABELS = {
+    "PROCESS": "PROCESS",
+    "IMAGE": "IMAGE",
+    "MASK": "MASK",
+    "FILENAME STRING": "FILENAME",
+    "LOG": "LOG",
+    "lora_stack": "LORA STACK",
+    "lora_syntax": "ACTIVE LORAS",
+    "opt_prompt_pos": "ADDITIONAL PROMPT",
+};
+const USER_OUTPUT_LABELS = {
+    "PROCESS": "PROCESS",
+    "IMAGE": "IMAGE",
+    "LOG": "LOG",
+    "diagnostic": "DIAGNOSTIC",
+};
 
 function isTarget(node) {
     return Boolean(node) && (
@@ -81,6 +117,13 @@ function rebuildModeWidgets(node, force = false) {
     try {
         node.widgets = state.canonicalOrder
             .filter((name) => mode === "inpaint" || !INPAINT_ONLY_WIDGETS.has(name))
+            .filter((name) => {
+                if (name !== CROP_POSITION_WIDGET) return true;
+                const resizeMode = String(
+                    state.widgetsByName.get("resize_mode")?.value ?? "Fit"
+                ).trim().toLowerCase();
+                return resizeMode !== "stretch";
+            })
             .map((name) => state.widgetsByName.get(name))
             .filter(Boolean);
         state.visibleMode = mode;
@@ -94,6 +137,23 @@ function rebuildModeWidgets(node, force = false) {
 function configure(node) {
     if (!isTarget(node) || typeof node.addWidget !== "function") return;
     captureWidgets(node);
+    for (const widget of node.widgets ?? []) {
+        if (USER_WIDGET_LABELS[widget?.name]) {
+            widget.label = USER_WIDGET_LABELS[widget.name];
+        }
+    }
+    for (const input of node.inputs ?? []) {
+        if (USER_INPUT_LABELS[input?.name]) {
+            input.label = USER_INPUT_LABELS[input.name];
+            input.localized_name = USER_INPUT_LABELS[input.name];
+        }
+    }
+    for (const output of node.outputs ?? []) {
+        if (USER_OUTPUT_LABELS[output?.name]) {
+            output.label = USER_OUTPUT_LABELS[output.name];
+            output.localized_name = USER_OUTPUT_LABELS[output.name];
+        }
+    }
     if (node.properties && "cmkStartPreferredWidth" in node.properties) {
         delete node.properties.cmkStartPreferredWidth;
     }
@@ -117,6 +177,17 @@ function configure(node) {
         }
     }
 
+    const resizeMode = getWidget(node, "resize_mode");
+    if (resizeMode && !resizeMode._cmkResizeVisibilityCallbackInstalled) {
+        const originalResizeCallback = resizeMode.callback;
+        resizeMode.callback = function () {
+            const result = originalResizeCallback?.apply(this, arguments);
+            rebuildModeWidgets(node, true);
+            return result;
+        };
+        resizeMode._cmkResizeVisibilityCallbackInstalled = true;
+    }
+
     const processMode = getWidget(node, "process_mode");
     if (processMode) {
         processMode.label = "PROCESS MODE";
@@ -127,7 +198,7 @@ function configure(node) {
             "Custom: Sampler Advanced values unchanged.",
             "Replace Object: noise fill, denoise 1.00, noise mask ON, context reference ON and outpaint OFF; user prompt and LoRAs remain active.",
             "Remove Object: local LaMa reconstructs from the image context. Diffusion, source prompts and all LoRAs are bypassed; no user prompt required.",
-            "Extend Image: Navier-Stokes fill, denoise 1.00, noise mask ON, context reference ON; outpaint mask required.",
+            "Extend Image: Fit creates canvas and mask; Navier-Stokes fill, denoise 1.00, noise mask ON, context reference ON.",
             "Guided modes override fill_masked_area. Custom leaves all technical values selectable.",
         ].join("\n");
         processMode.tooltip = processModeTooltip;
@@ -162,6 +233,17 @@ function configure(node) {
                         outpaintWidget.value = GUIDED_OUTPAINT[modeKey] ?? outpaintWidget.value;
                     }
                 }
+                const resizeWidget = getWidget(node, "resize_mode");
+                if (resizeWidget) {
+                    if (modeKey === "custom") {
+                        resizeWidget.value = node._cmkCustomResizeMode ?? resizeWidget.value;
+                    } else if (GUIDED_RESIZE[modeKey]) {
+                        if (node._cmkLastProcessMode === "custom") {
+                            node._cmkCustomResizeMode = resizeWidget.value;
+                        }
+                        resizeWidget.value = GUIDED_RESIZE[modeKey];
+                    }
+                }
                 node._cmkLastProcessMode = modeKey;
                 modeInfo.value = MODE_INFO[modeKey] ?? MODE_INFO.custom;
                 modeInfo.tooltip = MODE_INFO_TOOLTIP[modeKey] ?? MODE_INFO_TOOLTIP.custom;
@@ -192,6 +274,10 @@ function configure(node) {
     const outpaintWidget = getWidget(node, "outpaint_on");
     if (outpaintWidget && modeKey !== "custom") {
         outpaintWidget.value = GUIDED_OUTPAINT[modeKey] ?? outpaintWidget.value;
+    }
+    const resizeWidget = getWidget(node, "resize_mode");
+    if (resizeWidget && GUIDED_RESIZE[modeKey]) {
+        resizeWidget.value = GUIDED_RESIZE[modeKey];
     }
     node._cmkLastProcessMode = modeKey;
     modeInfo.value = MODE_INFO[modeKey] ?? MODE_INFO.custom;
@@ -227,7 +313,7 @@ function schedule(node) {
 }
 
 app.registerExtension({
-    name: "cmk.flow.start.guidance.v20",
+    name: "cmk.flow.start.guidance.v21",
 
     beforeRegisterNodeDef(nodeType, nodeData) {
         if (nodeData.name !== NODE_CLASS) return;
