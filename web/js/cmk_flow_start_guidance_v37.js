@@ -1,9 +1,8 @@
 import { app } from "../../../scripts/app.js";
 
 const NODE_CLASS = "CMKPipeCreateImage";
-const GUIDE_NAME = "NEXT STEP";
-const GUIDE_TEXT = "05 ControlNet (optional)  or  10 KSampler 1st Pass";
 const MODE_INFO_NAME = "MODE INFO";
+const FAMILY_TABS_NAME = "MODEL FAMILY TABS";
 const MODE_INFO = {
     "custom": "Manual prompts and Advanced settings.",
     "replace object": "Prompt and LoRAs describe the replacement.",
@@ -12,13 +11,13 @@ const MODE_INFO = {
 };
 const MODE_INFO_TOOLTIP = {
     "custom": "Uses the user prompts and the technical Sampler Advanced values without guided overrides.",
-    "replace object": "Noise removes the old silhouette; user prompt and LoRAs describe the new content; denoise 1.00, noise mask ON, context reference ON; outpaint OFF.",
-    "remove object": "Local LaMa reconstructs the masked area from the surrounding image. No prompt, LoRA, KSampler or Refiner is used.",
+    "replace object": "The masked subject is discarded before sampling; spatial inpaint guidance fits the prompt-driven replacement into the scene; denoise 1.00, noise mask ON; outpaint OFF.",
+    "remove object": "Noise discards the masked content; full-strength Fooocus reconstructs the background with internal person suppression. User prompts and LoRAs are ignored; the Refiner is bypassed.",
     "extend image": "Fit creates the outpaint canvas and mask. Navier-Stokes continues the surroundings as preparation; user prompt describes the extended scene; denoise 1.00, noise mask ON, context reference ON.",
 };
 const GUIDED_FILL = {
     "replace object": "noise",
-    "remove object": "lama",
+    "remove object": "noise",
     "extend image": "navier-stokes",
 };
 const GUIDED_OUTPAINT = {
@@ -37,9 +36,15 @@ const INPAINT_ONLY_WIDGETS = new Set([
     "process_mode",
     MODE_INFO_NAME,
 ]);
+const TEXT2IMAGE_HIDDEN_WIDGETS = new Set([
+    "upscale_method",
+    "resize_mode",
+    "crop_position",
+]);
 
 const CROP_POSITION_WIDGET = "crop_position";
 const USER_WIDGET_LABELS = {
+    "model_family": "MODEL FAMILY",
     "PROMPT POS": "PROMPT POS",
     "PROMPT NEG": "PROMPT NEG",
     "INPAINT_MODE": "MODE",
@@ -53,21 +58,52 @@ const USER_WIDGET_LABELS = {
     "resize_mode": "IMAGE FIT",
     "crop_position": "IMAGE POSITION",
 };
+const NEUTRAL_IMAGE_SIZES = [
+    "1024x1024",
+    "1152x832",
+    "832x1152",
+    "1216x832",
+    "832x1216",
+    "1344x768",
+    "768x1344",
+    "512x512",
+    "768x512",
+    "512x768",
+];
+const Z_IMAGE_HIDDEN_WIDGETS = new Set([
+    "PROMPT NEG",
+    "INPAINT_MODE",
+    "upscale_method",
+    "device",
+    "outpaint_on",
+    "outpaint_overlap",
+    "mask_fill_holes",
+    "fill_masked_area",
+    "process_mode",
+    "resize_mode",
+    "crop_position",
+    MODE_INFO_NAME,
+]);
 const USER_INPUT_LABELS = {
     "PROCESS": "PROCESS",
     "IMAGE": "IMAGE",
     "MASK": "MASK",
+    "FILENAME": "FILENAME",
     "FILENAME STRING": "FILENAME",
     "LOG": "LOG",
-    "lora_stack": "LORA STACK",
-    "lora_syntax": "ACTIVE LORAS",
+    "LORA STACK": "LORA STACK",
+    "lora_stack": "SDXL LORA STACK",
+    "ACTIVE LORAS": "ACTIVE LORAS",
+    "lora_syntax": "SDXL ACTIVE LORAS",
+    "ADDITIONAL PROMPT": "ADDITIONAL PROMPT",
     "opt_prompt_pos": "ADDITIONAL PROMPT",
 };
 const USER_OUTPUT_LABELS = {
     "PROCESS": "PROCESS",
     "IMAGE": "IMAGE",
     "LOG": "LOG",
-    "diagnostic": "DIAGNOSTIC",
+    "DIAGNOSTIC": "diagnostic",
+    "diagnostic": "diagnostic",
 };
 
 function isTarget(node) {
@@ -101,31 +137,171 @@ function getWidget(node, name) {
     return captureWidgets(node).widgetsByName.get(name) ?? null;
 }
 
+function setWidgetVisible(widget, visible) {
+    if (!widget) return;
+    widget._cmkVisibilityState ??= {
+        type: widget.type,
+        computeSize: widget.computeSize,
+        draw: widget.draw,
+        hidden: widget.hidden,
+    };
+    const original = widget._cmkVisibilityState;
+    if (visible) {
+        widget.type = original.type;
+        widget.computeSize = original.computeSize;
+        widget.draw = original.draw;
+        widget.hidden = original.hidden;
+        return;
+    }
+    widget.type = "converted-widget";
+    widget.computeSize = () => [0, -4];
+    widget.draw = () => {};
+    widget.hidden = true;
+}
+
+function installStableWidgetSerialization(node) {
+    if (node._cmkStableWidgetSerializationInstalled) return;
+    const originalOnSerialize = node.onSerialize;
+    node.onSerialize = function (data) {
+        const result = originalOnSerialize?.apply(this, arguments);
+        const state = this._cmkStartUi;
+        const widgets = state
+            ? state.canonicalOrder
+                .map((name) => state.widgetsByName.get(name))
+                .filter(Boolean)
+            : this.widgets;
+        if (this.serialize_widgets && Array.isArray(widgets)) {
+            data.widgets_values = widgets
+                .filter((widget) => widget?.serialize !== false)
+                .map((widget) => {
+                    const value = widget?.value;
+                    if (value == null || typeof value !== "object") return value ?? null;
+                    try { return JSON.parse(JSON.stringify(value)); } catch (_) { return value; }
+                });
+        }
+        return result;
+    };
+    node._cmkStableWidgetSerializationInstalled = true;
+}
+
+function installModelFamilyTabs(node) {
+    if (node._cmkModelFamilyTabsInstalled || typeof node.addDOMWidget !== "function") return;
+    const original = node.widgets?.find((widget) => widget?.name === "model_family");
+    if (!original) return;
+
+    const root = document.createElement("div");
+    root.style.display = "grid";
+    root.style.gridTemplateColumns = "1fr 1fr";
+    root.style.gap = "6px";
+    root.style.width = "100%";
+    root.style.boxSizing = "border-box";
+
+    const choices = ["SDXL", "Z-Image Turbo"];
+    const buttons = choices.map((value) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = value === "SDXL" ? "SDXL" : "Z-IMAGE TURBO";
+        button.style.height = "28px";
+        button.style.padding = "0 10px";
+        button.style.borderRadius = "5px";
+        button.style.cursor = "pointer";
+        button.style.appearance = "none";
+        button.style.webkitAppearance = "none";
+        button.style.boxShadow = "none";
+        button.style.textShadow = "none";
+        button.style.backgroundImage = "none";
+        button.style.outline = "none";
+        button.style.fontFamily = "inherit";
+        button.style.fontSize = "12px";
+        root.append(button);
+        return button;
+    });
+
+    const render = () => {
+        buttons.forEach((button, index) => {
+            const active = choices[index] === root._cmkValue;
+            button.style.border = active
+                ? "1px solid rgba(88,190,230,.75)"
+                : "1px solid rgba(255,255,255,.12)";
+            button.style.background = active
+                ? "rgba(44,132,166,.32)"
+                : "rgba(255,255,255,.035)";
+            button.style.color = active ? "#fff" : "var(--input-text, #ddd)";
+            button.style.fontWeight = active ? "650" : "450";
+        });
+    };
+
+    root._cmkValue = String(original.value ?? "SDXL");
+    const panel = node.addDOMWidget(FAMILY_TABS_NAME, "cmk_model_family_tabs", root, {
+        hideOnZoom: false,
+        getMinHeight: () => 34,
+        getHeight: () => 34,
+        getValue: () => root._cmkValue,
+        setValue: (value) => {
+            root._cmkValue = String(value ?? "SDXL");
+            render();
+        },
+    });
+    panel.serialize = false;
+    panel.computeSize = (width) => [Math.max(Number(width) || 420, 420), 34];
+
+    const panelIndex = node.widgets.indexOf(panel);
+    if (panelIndex >= 0) node.widgets.splice(panelIndex, 1);
+    node.widgets.unshift(panel);
+    setWidgetVisible(original, false);
+
+    buttons.forEach((button, index) => {
+        button.addEventListener("click", () => {
+            root._cmkValue = choices[index];
+            original.value = root._cmkValue;
+            render();
+            try { original.callback?.(root._cmkValue, node, original); } catch (_) {}
+            try { node.onWidgetChanged?.("model_family", root._cmkValue, original, original); } catch (_) {}
+            rebuildModeWidgets(node, true);
+            node.setDirtyCanvas?.(true, true);
+        });
+    });
+    render();
+    node._cmkModelFamilyTabsInstalled = true;
+}
+
 function isInpaintMode(node) {
     const value = getWidget(node, "INPAINT_MODE")?.value;
     if (typeof value === "boolean") return value;
     return String(value ?? "Text2Image").trim().toLowerCase() === "inpaint";
 }
 
+function isZImage(node) {
+    return String(getWidget(node, "model_family")?.value ?? "SDXL")
+        .trim()
+        .toLowerCase()
+        .includes("z-image");
+}
+
 function rebuildModeWidgets(node, force = false) {
     const state = captureWidgets(node);
     if (state.rebuilding) return;
-    const mode = isInpaintMode(node) ? "inpaint" : "text2image";
+    const mode = isZImage(node)
+        ? "z-image"
+        : (isInpaintMode(node) ? "inpaint" : "text2image");
     if (!force && state.visibleMode === mode) return;
 
     state.rebuilding = true;
     try {
+        const resizeMode = String(
+            state.widgetsByName.get("resize_mode")?.value ?? "Fit"
+        ).trim().toLowerCase();
         node.widgets = state.canonicalOrder
+            .filter((name) => mode !== "z-image" || !Z_IMAGE_HIDDEN_WIDGETS.has(name))
             .filter((name) => mode === "inpaint" || !INPAINT_ONLY_WIDGETS.has(name))
-            .filter((name) => {
-                if (name !== CROP_POSITION_WIDGET) return true;
-                const resizeMode = String(
-                    state.widgetsByName.get("resize_mode")?.value ?? "Fit"
-                ).trim().toLowerCase();
-                return resizeMode !== "stretch";
-            })
+            .filter((name) => mode !== "text2image" || !TEXT2IMAGE_HIDDEN_WIDGETS.has(name))
+            .filter((name) => name !== CROP_POSITION_WIDGET || resizeMode !== "stretch")
             .map((name) => state.widgetsByName.get(name))
             .filter(Boolean);
+        // The technical family widget must remain in node.widgets so ComfyUI
+        // includes the declared model_family input in the execution prompt.
+        // It stays layout-invisible; the DOM tabs are its only UI.
+        setWidgetVisible(state.widgetsByName.get("model_family"), false);
         state.visibleMode = mode;
         node.setDirtyCanvas?.(true, true);
         app.graph?.setDirtyCanvas?.(true, true);
@@ -136,24 +312,38 @@ function rebuildModeWidgets(node, force = false) {
 
 function configure(node) {
     if (!isTarget(node) || typeof node.addWidget !== "function") return;
+    installStableWidgetSerialization(node);
+    try {
+        installModelFamilyTabs(node);
+    } catch (error) {
+        console.warn("[CMK Create Image] model-family tabs unavailable", error);
+    }
     captureWidgets(node);
     for (const widget of node.widgets ?? []) {
         if (USER_WIDGET_LABELS[widget?.name]) {
             widget.label = USER_WIDGET_LABELS[widget.name];
         }
     }
-    for (const input of node.inputs ?? []) {
-        if (USER_INPUT_LABELS[input?.name]) {
-            input.label = USER_INPUT_LABELS[input.name];
-            input.localized_name = USER_INPUT_LABELS[input.name];
-        }
+    if (Array.isArray(node.inputs)) {
+        node.inputs = node.inputs.map((input) => {
+            const label = USER_INPUT_LABELS[input?.name];
+            return label ? { ...input, label, localized_name: label } : input;
+        });
     }
-    for (const output of node.outputs ?? []) {
-        if (USER_OUTPUT_LABELS[output?.name]) {
-            output.label = USER_OUTPUT_LABELS[output.name];
-            output.localized_name = USER_OUTPUT_LABELS[output.name];
-        }
+    if (Array.isArray(node.outputs)) {
+        node.outputs = node.outputs.map((output) => {
+            const label = USER_OUTPUT_LABELS[output?.name];
+            return label ? { ...output, label, localized_name: label } : output;
+        });
     }
+    node.graph?.trigger?.("node:slot-label:changed", {
+        nodeId: node.id,
+        slotType: 1,
+    });
+    node.graph?.trigger?.("node:slot-label:changed", {
+        nodeId: node.id,
+        slotType: 2,
+    });
     if (node.properties && "cmkStartPreferredWidth" in node.properties) {
         delete node.properties.cmkStartPreferredWidth;
     }
@@ -163,6 +353,9 @@ function configure(node) {
         flowMode.label = "MODE";
         if (typeof flowMode.value === "boolean") {
             flowMode.value = flowMode.value ? "Inpaint" : "Text2Image";
+        }
+        if (!["text2image", "inpaint"].includes(String(flowMode.value).trim().toLowerCase())) {
+            flowMode.value = "Text2Image";
         }
         if (!flowMode._cmkModeVisibilityCallbackInstalled) {
             const originalModeCallback = flowMode.callback;
@@ -175,6 +368,34 @@ function configure(node) {
             };
             flowMode._cmkModeVisibilityCallbackInstalled = true;
         }
+    }
+
+    const modelFamily = getWidget(node, "model_family");
+    if (modelFamily && !modelFamily._cmkFamilyVisibilityCallbackInstalled) {
+        const originalFamilyCallback = modelFamily.callback;
+        modelFamily.callback = function () {
+            const result = originalFamilyCallback?.apply(this, arguments);
+            rebuildModeWidgets(node, true);
+            return result;
+        };
+        modelFamily._cmkFamilyVisibilityCallbackInstalled = true;
+    }
+
+    const resolution = getWidget(node, "resolution");
+    if (resolution) {
+        const sizeToken = String(resolution.value ?? "1152x832").trim().split(/\s+/).at(-1);
+        resolution.value = NEUTRAL_IMAGE_SIZES.includes(sizeToken) ? sizeToken : "1152x832";
+        resolution.options = {
+            ...(resolution.options ?? {}),
+            values: NEUTRAL_IMAGE_SIZES,
+        };
+    }
+
+    const upscaleMethod = getWidget(node, "upscale_method");
+    if (upscaleMethod && !["lanczos", "bicubic", "bilinear", "nearest"].includes(
+        String(upscaleMethod.value).trim().toLowerCase()
+    )) {
+        upscaleMethod.value = "lanczos";
     }
 
     const resizeMode = getWidget(node, "resize_mode");
@@ -196,8 +417,8 @@ function configure(node) {
         const processModeTooltip = [
             "Guided inpaint preset; no semantic object recognition.",
             "Custom: Sampler Advanced values unchanged.",
-            "Replace Object: noise fill, denoise 1.00, noise mask ON, context reference ON and outpaint OFF; user prompt and LoRAs remain active.",
-            "Remove Object: local LaMa reconstructs from the image context. Diffusion, source prompts and all LoRAs are bypassed; no user prompt required.",
+            "Replace Object: masked content is discarded before sampling; spatial inpaint guidance uses the normal SDXL prompt; noise fill, denoise 1.00, noise mask ON, context reference OFF and outpaint OFF; user prompt and LoRAs remain active.",
+            "Remove Object: noise fill plus full-strength Fooocus background reconstruction with internal person suppression. Source prompts and all LoRAs are bypassed; the Refiner is bypassed; no user prompt required.",
             "Extend Image: Fit creates canvas and mask; Navier-Stokes fill, denoise 1.00, noise mask ON, context reference ON.",
             "Guided modes override fill_masked_area. Custom leaves all technical values selectable.",
         ].join("\n");
@@ -290,19 +511,6 @@ function configure(node) {
         tooltip: modeInfo.tooltip,
     };
 
-    let guide = getWidget(node, GUIDE_NAME);
-    if (!guide) {
-        guide = node.addWidget("text", GUIDE_NAME, GUIDE_TEXT, () => {}, {
-            serialize: false,
-        });
-        captureWidgets(node);
-    }
-
-    guide.value = GUIDE_TEXT;
-    guide.label = "NEXT STEP →";
-    guide.disabled = true;
-    guide.serialize = false;
-
     rebuildModeWidgets(node, true);
     node.setDirtyCanvas?.(true, true);
     app.graph?.setDirtyCanvas?.(true, true);
@@ -313,7 +521,7 @@ function schedule(node) {
 }
 
 app.registerExtension({
-    name: "cmk.flow.start.guidance.v21",
+    name: "cmk.flow.start.guidance.v37",
 
     beforeRegisterNodeDef(nodeType, nodeData) {
         if (nodeData.name !== NODE_CLASS) return;

@@ -199,6 +199,7 @@ def apply_fooocus_inpaint(
     model: ModelPatcher,
     patch: tuple[InpaintHead, dict[str, Tensor]],
     latent: dict[str, Any],
+    strength: float = 1.0,
 ) -> ModelPatcher:
     if not isinstance(latent, dict) or "samples" not in latent or "noise_mask" not in latent:
         raise ValueError("Fooocus Inpaint requires latent with 'samples' and 'noise_mask'")
@@ -213,7 +214,8 @@ def apply_fooocus_inpaint(
     inpaint_head_model.to(device=feed.device, dtype=feed.dtype)
 
     block_patch = InpaintBlockPatch()
-    block_patch.inpaint_head_feature = inpaint_head_model(feed)
+    spatial_strength = max(0.0, min(1.0, float(strength)))
+    block_patch.inpaint_head_feature = inpaint_head_model(feed) * spatial_strength
 
     lora_keys = comfy.lora.model_lora_keys_unet(model.model, {})
     lora_keys.update({key: key for key in base_model.state_dict().keys()})
@@ -221,7 +223,7 @@ def apply_fooocus_inpaint(
 
     patched_model = model.clone()
     patched_model.set_model_input_block_patch(block_patch)
-    patched = patched_model.add_patches(loaded_lora, 1.0)
+    patched = patched_model.add_patches(loaded_lora, spatial_strength)
     not_patched_count = sum(1 for key in loaded_lora if key not in patched)
     if not_patched_count > 0:
         print(f"[CMK Fooocus Inpaint] Failed to patch {not_patched_count} keys")
@@ -250,6 +252,8 @@ class CMKFooocusInpaintPipeline:
         head: str = "fooocus_inpaint_head.pth",
         patch: str = "inpaint_v25.fooocus.patch",
         noise_mask: bool = False,
+        replace_masked_content: bool = False,
+        spatial_strength: float = 1.0,
     ):
         if model is None or not hasattr(model, "clone"):
             raise TypeError("CMK Fooocus Inpaint requires a valid ComfyUI MODEL")
@@ -299,16 +303,24 @@ class CMKFooocusInpaintPipeline:
         # - patch_latent uses the masked/neutral concat latent. This prevents
         #   the Fooocus inpaint head from seeing and reconstructing the original
         #   content underneath the mask.
-        # - sampler_latent keeps the original latent and optionally carries the
-        #   noise mask so unmasked regions remain protected during sampling.
+        # - sampler_latent normally keeps the original latent. Replace Object
+        #   instead starts from the masked/neutral latent so the old subject
+        #   cannot steer its own reconstruction.
         patch_latent = {
             "samples": concat_latent,
             "noise_mask": resized_mask.round(),
         }
         inpaint_patch = load_fooocus_inpaint(head, patch)
-        patched_model = apply_fooocus_inpaint(model, inpaint_patch, patch_latent)
+        patched_model = apply_fooocus_inpaint(
+            model,
+            inpaint_patch,
+            patch_latent,
+            strength=spatial_strength,
+        )
 
-        sampler_latent = {"samples": original_latent}
+        sampler_latent = {
+            "samples": concat_latent if replace_masked_content else original_latent
+        }
         if noise_mask:
             sampler_latent["noise_mask"] = resized_mask.round()
 

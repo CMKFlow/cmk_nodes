@@ -33,7 +33,7 @@ Die Registrierung liegt direkt in der jeweiligen Datei unter `extra.CMKFlow`:
     "CMKFlow": {
       "schemaVersion": 2,
       "published": true,
-      "displayName": "10 KSampler 1st Pass",
+      "displayName": "10 KSampler SDXL 1st Pass",
       "category": "Process",
       "domain": "Image Generation",
       "description": "Kurze, anwenderorientierte Beschreibung.",
@@ -71,28 +71,52 @@ Der geführte Hauptworkflow wird insbesondere aus diesen Subgraphs zusammengeset
 ```text
 CMK Flow · 01 START HERE · Create Image
     ↑
-CMK Flow · 02 LoRA Stack + Prompt/Image source
+CMK Flow · 02 SDXL LoRA Stack + Prompt/Image source
     ↓
-CMK Flow · 05 ControlNet (optional)
+CMK Flow · 05 ControlNet SDXL (optional)
     ↓
-CMK Flow · 10 KSampler 1st Pass
+CMK Flow · 10 KSampler SDXL 1st Pass
     ↓
-CMK Flow · 20 Refiner
+CMK Flow · 20 Refiner SDXL
     ↓
-CMK Flow · 30 Detailer
+CMK Flow · 25 Detailer SDXL
+    ↓
+CMK Flow · 30 FaceProcess SDXL
+    ↓
+CMK Flow · 35 Active Family Result (optional; nur bei parallelen Familien)
     ↓
 CMK Flow · 40 FaceSwap (optional)
-    ↓
-CMK Flow · 50 FaceProcess
     ↓
 CMK Flow · 90 Upscale & Save
 ```
 
+Der parallele Z-Image-Turbo-Weg bleibt bewusst kompakt und führt nach dem
+Text2Image-Einstieg direkt in die gemeinsamen Bildmodule:
+
+```text
+CMK Flow · 01 START HERE · Create Image (Z-IMAGE TURBO)
+    ↓
+CMK Flow · 10 KSampler Z-Image Turbo
+    ↓
+CMK Flow · 35 Active Family Result (optional; nur bei parallelen Familien)
+    ↓
+CMK Flow · 40 FaceSwap (optional)
+    ↓
+CMK Flow · 90 Upscale & Save
+```
+
+`10 KSampler Z-Image Turbo` enthält den nativen Diffusionsmodell-, Lumina2-
+Textencoder- und VAE-Loader, das Z-Image-Conditioning, AuraFlow-Sampling, den
+generischen CMK-KSampler und das VAE-Decoding. Der Subgraph gibt deshalb direkt
+`MODEL`, `PROCESS`, `IMAGE`, `LOG` und `diagnostic` aus; SDXL-Refiner und
+SDXL-LoRA-Stack, Refiner, Detailer und FaceProcess gehören nicht zu diesem Pfad.
+
 `CMK Flow · 90 Upscale & Save` ist der empfohlene Abschluss des
-Flow-Hauptwegs und wird unter `CMK/Flow/Finish` geführt. Sowohl `50 FaceProcess`
+Flow-Hauptwegs und wird unter `CMK/Flow/Finish` geführt. Sowohl `30 FaceProcess SDXL`
 als auch `90 Upscale & Save` führen den vollständigen öffentlichen Vertrag
-`MODEL`, `PROCESS`, `IMAGE` und `LOG` weiter. Dadurch bleiben auch abweichende
-fachlich sinnvolle Kombinationen möglich.
+`MODEL`, `PROCESS`, `IMAGE` und `LOG` weiter. `40 FaceSwap` und `90 Upscale &
+Save` sind die einzigen gemeinsam genutzten Verarbeitungsmodule; `35` dient
+ausschließlich als Zusammenführung paralleler Familienzweige.
 
 Die Projektspeicherung verwendet den Pfad
 `OUTPUT FOLDER / Text2Image|Inpaint / Datum / PROJECT FOLDER`. Datum und

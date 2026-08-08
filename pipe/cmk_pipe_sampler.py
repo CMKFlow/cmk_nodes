@@ -1,4 +1,5 @@
 from ..cmk_common import SAMPLERS, SCHEDULERS
+from ..utils.cmk_timing import cmk_timed
 
 
 class CMKPipeSetSampler:
@@ -326,19 +327,57 @@ class CMKKSamplerPipe:
         except Exception as exc:
             raise RuntimeError(f"CMK KSampler -Pipe-: ComfyUI KSampler unavailable: {exc}") from exc
 
-        result = KSampler().sample(
-            model,
-            seed,
-            steps,
-            cfg,
-            sampler_name,
-            scheduler,
-            positive,
-            negative,
-            latent_image,
-            denoise,
-        )
-        samples = result[0] if isinstance(result, (tuple, list)) else result
+        if pipe.get("suppress_sampler_preview", False):
+            # Mirrors ComfyUI's common_ksampler but deliberately omits the
+            # latent-preview callback. The final decoded PreviewImage remains.
+            import comfy.sample
+            import comfy.utils
+
+            latent_tensor = latent_image["samples"]
+            latent_tensor = comfy.sample.fix_empty_latent_channels(
+                model,
+                latent_tensor,
+                latent_image.get("downscale_ratio_spacial"),
+                latent_image.get("downscale_ratio_temporal"),
+            )
+            batch_inds = latent_image.get("batch_index")
+            noise = comfy.sample.prepare_noise(latent_tensor, seed, batch_inds)
+            with cmk_timed("10 KSAMPLER SAMPLE", f"{steps} steps"):
+                sampled_tensor = comfy.sample.sample(
+                    model,
+                    noise,
+                    steps,
+                    cfg,
+                    sampler_name,
+                    scheduler,
+                    positive,
+                    negative,
+                    latent_tensor,
+                    denoise=denoise,
+                    noise_mask=latent_image.get("noise_mask"),
+                    callback=None,
+                    disable_pbar=not comfy.utils.PROGRESS_BAR_ENABLED,
+                    seed=seed,
+                )
+            samples = latent_image.copy()
+            samples.pop("downscale_ratio_spacial", None)
+            samples.pop("downscale_ratio_temporal", None)
+            samples["samples"] = sampled_tensor
+        else:
+            with cmk_timed("10 KSAMPLER SAMPLE", f"{steps} steps"):
+                result = KSampler().sample(
+                    model,
+                    seed,
+                    steps,
+                    cfg,
+                    sampler_name,
+                    scheduler,
+                    positive,
+                    negative,
+                    latent_image,
+                    denoise,
+                )
+            samples = result[0] if isinstance(result, (tuple, list)) else result
 
         new_pipe = dict(pipe)
         new_pipe["samples"] = samples
@@ -350,4 +389,20 @@ class CMKKSamplerPipe:
             f"seed={seed} | steps={steps} | cfg={cfg} | sampler={sampler_name} | "
             f"scheduler={scheduler} | denoise={denoise}"
         )
+        if str(pipe.get("model_family", "")).lower() == "z_image_turbo":
+            vae = pipe.get("vae")
+            if vae is not None:
+                try:
+                    from nodes import VAEDecode
+                    from .cmk_final_preview import send_final_preview
+
+                    decoded = VAEDecode().decode(vae, samples)
+                    image = decoded[0] if isinstance(decoded, (tuple, list)) else decoded
+                    new_pipe["image"] = image
+                    send_final_preview(image)
+                    return (new_pipe,)
+                except Exception:
+                    # Sampling remains valid even if the optional UI preview
+                    # cannot be produced; Finalize will still decode it.
+                    pass
         return (new_pipe,)

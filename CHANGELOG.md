@@ -1,4 +1,35 @@
+## 2026-08-01 — Mechanische Trennung der Modellfamilien
+
+- `01 START HERE` besitzt nun die inkompatiblen Ausgänge `PROCESS SDXL` und
+  `PROCESS Z-IMAGE`; nur der in 01 gewählte Familienausgang liefert einen
+  Prozesswert.
+- Die technischen Verträge `CMK_PROCESS_SDXL` und
+  `CMK_PROCESS_Z_IMAGE` verhindern Kreuzverkabelungen bereits im Editor.
+- `05 ControlNet SDXL`, `10 KSampler SDXL 1st Pass`, `20 Refiner SDXL`,
+  `25 Detailer SDXL` und `30 FaceProcess SDXL` sind einschließlich ihrer
+  internen Übergabeknoten an den SDXL-Vertrag gebunden und eindeutig benannt.
+- `10 KSampler Z-Image Turbo` akzeptiert und exportiert ausschließlich den
+  Z-Image-Vertrag.
+- `CMK Flow · 35 Active Family Result` übernimmt lazy genau die in 01 gewählte
+  Vierergruppe `MODEL / PROCESS / IMAGE / LOG`; der inaktive Familienzweig
+  wird nicht angefordert.
+- `40 FaceSwap` und `90 Upscale & Save` sind die einzigen gemeinsam genutzten,
+  familienneutralen Verarbeitungsmodule. Ein einzelner Familienzweig darf sie
+  direkt speisen; nur parallele SDXL-/ZIT-Aufbauten benötigen zuvor 35.
+- Die frühere Nummerierung wurde der tatsächlichen Reihenfolge angepasst:
+  Detailer wechselte von 30 auf 25, FaceProcess von 50 auf 30.
+
 ## 2026-07-29 — Aspect-ratio-safe Create Image / Extend Image
+
+- Began the native Z-Image Turbo path. `Create Image` now stores an explicit
+  SDXL/Z-Image model family and exposes adjacent family tabs; Z-Image currently
+  presents a Text2Image-only interface with the established neutral size list.
+- Added a combined ComfyUI-Core Z-Image loader for diffusion model, Lumina2
+  text encoder and VAE.
+- Added Z-Image Turbo sampler preparation using CLIP text encoding,
+  `ConditioningZeroOut`, `EmptySD3LatentImage` and
+  `ModelSamplingAuraFlow`, plus a minimal VAE decode/finalize node that rejoins
+  the common IMAGE post-processing flow.
 
 - `CMK Flow · 01 START HERE · Create Image` supports `Fit`, `Crop` and explicit
   legacy-style `Stretch`, plus `Center`, `Top`, `Bottom`, `Left` and `Right`
@@ -64,7 +95,7 @@
   optional. Der Backend-Pfad verwendet beim Ausblenden dieselben Defaults,
   statt die Ausführung wegen fehlender, fachlich irrelevanter Eingaben
   abzulehnen.
-- `CMK Flow · 50 FaceProcess` und seine Advanced-Variante führen nun
+- `CMK Flow · 30 FaceProcess SDXL` und seine Advanced-Variante führen nun
   `MODEL`, `PROCESS`, `IMAGE` und `LOG` vollständig über den verpflichtenden
   Boundary weiter. Der persistente Cache bleibt auf berechnetes Bild und Log
   beschränkt; Modell- und Prozess-Pipes werden read-only durchgereicht.
@@ -158,9 +189,9 @@
 - FaceSwap Standard und Advanced nach erfolgreichem Praxistest von `BETA` auf `STABLE` gesetzt. Browser-Texte beschreiben die zentrale Modulaktivierung und die getrennten FaceSwap-Zweige für bis zu drei Zielpersonen nun anwenderorientierter.
 - Detailer nach derselben Produktlogik getrennt: `CMK Flow · 30 Detailer` enthält einen Smart-Detailer mit direktem `IMAGE PROCEED`-Weg; `CMK Flow · 30 Detailer · Advanced` übernimmt den funktionalen Doppelzweig aus Flow v3 und führt beide `SEGS PROCEED` gemeinsam zusammen. Advanced besitzt eine eigene UUID und erscheint nur als Variante des Haupteintrags. Beide neu geschnittenen Fassungen bleiben bis zum Praxistest `BETA`.
 - Detailer Standard und Advanced haben den Standalone-Praxistest bestanden und wurden als getestete User-Subgraphen übernommen. Standard verwendet einen Segment-Detailer; Advanced kombiniert Hand- und Personen-Detailer. Beide stehen nun auf `STABLE`, behalten ihre kanonischen UUIDs, enthalten keine internen Pins und besitzen reale, getrennte Aufbau-Screenshots.
-- FaceProcess analog getrennt: `50 FaceProcess` besitzt einen Execute-Zweig mit direktem `IMAGE PROCEED`; `50 FaceProcess · Advanced` besitzt zwei getrennt ausgewählte Gesichts-Zweige mit gemeinsamer `SEGS PROCESSED`-Zusammenführung und eigener UUID. Beide beginnen bis zum Standalone-Test als `BETA`. Die Modulnummern wurden als verbindlicher Bestandteil von Namen und Suche dokumentiert.
-- Die getesteten User-Fassungen von `50 FaceProcess` und `50 FaceProcess · Advanced` übernommen. Advanced wurde kongruent zu `40 FaceSwap · Advanced` auf drei Zweige für `Leftmost`, `Center` und `Rightmost` erweitert; der mittlere Zweig startet deaktiviert. Beide Varianten haben ihre Standalone-Tests bestanden, stehen auf `STABLE`, behalten ihre kanonischen UUIDs und besitzen reale Aufbau-Screenshots.
-- Der neue Standard-Aufbau-Screenshot von `50 FaceProcess` verwendet einen eindeutigen Asset-Namen, damit ComfyUI nicht die frühere Grafik aus dem Browsercache anzeigt.
+- FaceProcess analog getrennt: `30 FaceProcess SDXL` besitzt einen Execute-Zweig mit direktem `IMAGE PROCEED`; `30 FaceProcess SDXL · Advanced` besitzt zwei getrennt ausgewählte Gesichts-Zweige mit gemeinsamer `SEGS PROCESSED`-Zusammenführung und eigener UUID. Beide beginnen bis zum Standalone-Test als `BETA`. Die Modulnummern wurden als verbindlicher Bestandteil von Namen und Suche dokumentiert.
+- Die getesteten User-Fassungen von `30 FaceProcess SDXL` und `30 FaceProcess SDXL · Advanced` übernommen. Advanced wurde kongruent zu `40 FaceSwap · Advanced` auf drei Zweige für `Leftmost`, `Center` und `Rightmost` erweitert; der mittlere Zweig startet deaktiviert. Beide Varianten haben ihre Standalone-Tests bestanden, stehen auf `STABLE`, behalten ihre kanonischen UUIDs und besitzen reale Aufbau-Screenshots.
+- Der neue Standard-Aufbau-Screenshot von `30 FaceProcess SDXL` verwendet einen eindeutigen Asset-Namen, damit ComfyUI nicht die frühere Grafik aus dem Browsercache anzeigt.
 - Auch der neue Standard-Aufbau-Screenshot von `30 Detailer` verwendet einen eindeutigen Asset-Namen und kann dadurch nicht mehr mit der früheren Grafik aus dem Browsercache verwechselt werden.
 
 ## 2026-07-17 — ControlNet-Bildauswahl

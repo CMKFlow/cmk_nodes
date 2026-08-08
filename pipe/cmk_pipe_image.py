@@ -4,7 +4,19 @@ from comfy.utils import common_upscale
 
 
 
-RESOLUTION_PRESETS = [
+NEUTRAL_RESOLUTION_PRESETS = [
+    "1024x1024",
+    "1152x832",
+    "832x1152",
+    "1216x832",
+    "832x1216",
+    "1344x768",
+    "768x1344",
+    "512x512",
+    "768x512",
+    "512x768",
+]
+LEGACY_RESOLUTION_PRESETS = [
     "SDXL 1024x1024",
     "SDXL 1152x832",
     "SDXL 832x1152",
@@ -16,6 +28,8 @@ RESOLUTION_PRESETS = [
     "SD15 768x512",
     "SD15 512x768",
 ]
+RESOLUTION_PRESETS = NEUTRAL_RESOLUTION_PRESETS + LEGACY_RESOLUTION_PRESETS
+MODEL_FAMILIES = ["SDXL", "Z-Image Turbo"]
 
 UPSCALE_METHODS = ["lanczos", "bicubic", "bilinear", "nearest"]
 RESIZE_MODES = ["Fit", "Crop", "Stretch"]
@@ -481,6 +495,7 @@ def image_node_preview(image):
 
 
 def build_image_log_block(
+    model_family,
     resolution,
     width,
     height,
@@ -500,7 +515,8 @@ def build_image_log_block(
     inpaint_process_mode,
 ):
     lines = [
-        f"SDXL PRESET     : {resolution}",
+        f"MODEL FAMILY    : {str(model_family).upper()}",
+        f"IMAGE SIZE      : {resolution}",
         f"PROCESS SIZE    : {width} × {height}",
         f"INPAINT MODE    : {cmk_bool(boolean_inpaint_mode)}",
         f"PROCESS MODE    : {str(inpaint_process_mode).upper()}",
@@ -535,15 +551,21 @@ def build_image_log_block(
 
 class CMKPipeCreateImage:
     DESCRIPTION = (
-        "CMK FLOW START. Creates the authoritative PROCESS, IMAGE and LOG lines. "
-        "Continue with 'CMK Flow · 05 ControlNet (optional)' or connect PROCESS, "
-        "IMAGE and LOG directly to 'CMK Flow · 10 KSampler 1st Pass'."
+        "CMK FLOW START. Selects SDXL or Z-Image Turbo and creates exactly one "
+        "active, family-bound PROCESS together with IMAGE and LOG. Continue the "
+        "SDXL path with '05 ControlNet SDXL' or '10 KSampler SDXL 1st Pass'; "
+        "continue the Z path with '10 KSampler Z-Image Turbo'."
     )
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "required": {
+            "required": {},
+            "optional": {
+                # Keep the complete legacy widget order while making hidden
+                # family/mode controls optional in ComfyUI's prompt contract.
+                # The frontend may omit them for Z-Image; create_image supplies
+                # the authoritative defaults below.
                 "PROMPT POS": ("STRING", {"default": "", "multiline": True, "tooltip": "Positive prompt for the complete Flow."}),
                 "PROMPT NEG": ("STRING", {"default": "", "multiline": True, "tooltip": "Negative prompt for the complete Flow."}),
                 "INPAINT_MODE": (
@@ -556,12 +578,10 @@ class CMKPipeCreateImage:
                         ),
                     },
                 ),
-                "resolution": (RESOLUTION_PRESETS, {"default": "SDXL 1152x832"}),
+                "resolution": (RESOLUTION_PRESETS, {"default": "1152x832"}),
                 "swap_dimensions": ("BOOLEAN", {"default": False}),
                 "upscale_method": (UPSCALE_METHODS, {"default": "lanczos"}),
                 "device": (DEVICES, {"default": "cpu", "advanced": True}),
-            },
-            "optional": {
                 "PROCESS": (
                     "CMK_PIPE",
                     {
@@ -581,7 +601,7 @@ class CMKPipeCreateImage:
                         ),
                     },
                 ),
-                "FILENAME STRING": ("STRING", {"forceInput": True, "default": "", "tooltip": "Required only when INPAINT_MODE is enabled; used by logging and project output."}),
+                "FILENAME": ("STRING", {"forceInput": True, "default": "", "tooltip": "Required only when INPAINT_MODE is enabled; used by logging and project output."}),
                 "LOG": (
                     "CMK_LOG_PIPE",
                     {
@@ -591,14 +611,21 @@ class CMKPipeCreateImage:
                         ),
                     },
                 ),
-                "lora_stack": ("LORA_STACK", {"tooltip": "Connect 'CMK Flow · 02 LoRA Stack'."}),
-                "lora_syntax": (
+                "LORA STACK": (
+                    "LORA_STACK",
+                    {
+                        "label": "SDXL LORA STACK",
+                        "tooltip": "SDXL only. Connect 'CMK Flow · 02 SDXL LoRA Stack'.",
+                    },
+                ),
+                "ACTIVE LORAS": (
                     "STRING",
                     {
                         "forceInput": True,
                         "default": "",
                         "multiline": True,
-                        "label": "ACTIVE LORAS",
+                        "label": "SDXL ACTIVE LORAS",
+                        "tooltip": "SDXL only. Human-readable list of the active LoRAs.",
                     },
                 ),
                 # Text2Image deliberately hides these widgets. They therefore
@@ -613,10 +640,13 @@ class CMKPipeCreateImage:
                         "default": "Custom",
                         "tooltip": (
                             "Selects a guided inpaint preset; it does not perform semantic object recognition. "
-                            "Custom keeps the Sampler Advanced values. Replace Object uses noise fill, denoise 1.00, "
-                            "noise mask ON, context reference ON and outpaint OFF; user prompt and LoRAs remain active. "
-                            "Remove Object uses local LaMa "
-                            "for prompt-free object removal; diffusion, existing prompts and all LoRAs are bypassed. "
+                            "Custom keeps the Sampler Advanced values. Replace Object discards the masked content "
+                            "before sampling and uses spatial inpaint guidance with the normal SDXL prompt, noise "
+                            "fill, denoise 1.00, noise mask ON, context reference OFF and outpaint OFF; user prompt "
+                            "and LoRAs remain active. "
+                            "Remove Object uses noise fill and full-strength Fooocus inpaint guidance for "
+                            "prompt-free background reconstruction; "
+                            "existing prompts and all LoRAs are bypassed. "
                             "Extend Image uses Fit to create its outpaint canvas and mask, Navier-Stokes fill, "
                             "denoise 1.00, noise mask ON and context reference ON. "
                             "Guided modes override fill_masked_area."
@@ -656,7 +686,7 @@ class CMKPipeCreateImage:
                         ),
                     },
                 ),
-                "opt_prompt_pos": (
+                "ADDITIONAL PROMPT": (
                     "STRING",
                     {
                         "forceInput": True,
@@ -667,13 +697,39 @@ class CMKPipeCreateImage:
                         ),
                     },
                 ),
+                # Appended to preserve positional values in existing workflows.
+                # The frontend moves this selector to the first visible row.
+                "model_family": (
+                    MODEL_FAMILIES,
+                    {
+                        "default": "SDXL",
+                        "label": "MODEL FAMILY",
+                        "tooltip": (
+                            "SDXL exposes the complete current CMK workflow. "
+                            "Z-Image Turbo currently supports Text2Image."
+                        ),
+                    },
+                ),
             },
         }
 
-    RETURN_TYPES = ("CMK_PIPE", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
-    RETURN_NAMES = ("PROCESS", "IMAGE", "LOG", "diagnostic")
+    RETURN_TYPES = (
+        "CMK_PROCESS_SDXL",
+        "CMK_PROCESS_Z_IMAGE",
+        "IMAGE",
+        "CMK_LOG_PIPE",
+        "CMK_DIAGNOSTIC",
+    )
+    RETURN_NAMES = (
+        "PROCESS SDXL",
+        "PROCESS ZIT",
+        "IMAGE",
+        "LOG",
+        "diagnostic",
+    )
     OUTPUT_TOOLTIPS = (
-        "Continue to CMK Flow · 05 ControlNet (optional) or CMK Flow · 10 KSampler 1st Pass.",
+        "SDXL only. Continue to CMK Flow · 05 ControlNet (optional) or CMK Flow · 10 KSampler SDXL.",
+        "ZIT only. Continue to CMK Flow · 10 KSampler Z-Image Turbo.",
         "Authoritative image; route it beside PROCESS and LOG to the next Flow module.",
         "Structured Flow log; route it beside PROCESS and IMAGE to the next Flow module.",
         "Optional diagnostic information for troubleshooting.",
@@ -686,11 +742,29 @@ class CMKPipeCreateImage:
         incoming_log = inputs.get("LOG")
         image = inputs.get("IMAGE")
         mask = inputs.get("MASK")
-        filename_string = str(inputs.get("FILENAME STRING", "") or "")
-        lora_stack = inputs.get("lora_stack")
-        lora_syntax = inputs.get("lora_syntax", "") or ""
+        filename_string = str(
+            inputs.get("FILENAME", inputs.get("FILENAME STRING", "")) or ""
+        )
+        lora_stack = inputs.get("LORA STACK", inputs.get("lora_stack"))
+        lora_syntax = inputs.get(
+            "ACTIVE LORAS", inputs.get("lora_syntax", "")
+        ) or ""
         prompt_pos_primary = inputs.get("PROMPT POS", "") or ""
-        opt_prompt_pos = inputs.get("opt_prompt_pos", "") or ""
+        opt_prompt_pos = inputs.get(
+            "ADDITIONAL PROMPT", inputs.get("opt_prompt_pos", "")
+        ) or ""
+        raw_model_family = str(
+            inputs.get(
+                "model_family",
+                inputs.get("MODEL FAMILY TABS", "SDXL"),
+            )
+            or "SDXL"
+        ).strip().lower()
+        model_family = "z_image_turbo" if raw_model_family in {
+            "z-image turbo",
+            "z image turbo",
+            "z_image_turbo",
+        } else "sdxl"
         prompt_pos = "\n".join(
             part for part in (
                 str(prompt_pos_primary).strip(),
@@ -705,6 +779,8 @@ class CMKPipeCreateImage:
             if isinstance(raw_mode, bool)
             else str(raw_mode or "Text2Image").strip().lower() == "inpaint"
         )
+        if model_family == "z_image_turbo":
+            INPAINT_MODE = False
         process_mode = inputs.get("process_mode", "Custom")
         resolution = inputs.get("resolution", "SDXL 1152x832")
         swap_dimensions = inputs.get("swap_dimensions", False)
@@ -734,7 +810,7 @@ class CMKPipeCreateImage:
             resize_mode = "Fit"
         guided_fill_modes = {
             "replace": "noise",
-            "remove": "lama",
+            "remove": "noise",
             "extend": "navier-stokes",
         }
         effective_fill_mode = (
@@ -746,11 +822,13 @@ class CMKPipeCreateImage:
         source_prompt_neg = prompt_neg
         source_lora_syntax = lora_syntax
         source_lora_stack = lora_stack
-        remove_isolated = bool(INPAINT_MODE) and inpaint_process_mode == "remove"
-        if remove_isolated:
-            # Remove Object is a complete CMK task, not another prompt/LoRA
-            # variation. Existing workflow styling must not recreate the
-            # masked subject.
+        remove_mode = bool(INPAINT_MODE) and inpaint_process_mode == "remove"
+        # Compatibility flag retained for old downstream nodes. Guided Remove
+        # now uses diffusion and therefore is no longer an isolated LaMa task.
+        remove_isolated = False
+        if remove_mode:
+            # Remove Object is prompt-free. Existing workflow styling must not
+            # recreate the masked subject.
             prompt_pos = ""
             prompt_neg = ""
             lora_syntax = ""
@@ -772,7 +850,7 @@ class CMKPipeCreateImage:
             if mask is None and inpaint_process_mode != "extend":
                 missing.append("MASK")
             if not filename_string:
-                missing.append("FILENAME STRING")
+                missing.append("FILENAME")
             if missing:
                 raise ValueError(
                     "CMK Flow · Create Image: INPAINT_MODE requires "
@@ -824,11 +902,16 @@ class CMKPipeCreateImage:
                 mask_process,
                 min(32, max(1, outpaint_overlap // 2)),
             )
-        image_out = (
+        filled_image = (
             apply_mask_fill(image_resized, fill_mask_process, effective_fill_mode, seed=0)
             if bool(INPAINT_MODE)
             else image_resized
         )
+        # Remove performs noise injection in latent space. Feeding the visible
+        # noise prefill into a soft sampler edge leaves the painted mask stroke
+        # behind. Keep the untouched source on the IMAGE cable and use the
+        # filled variant only as diagnostics for this guided mode.
+        image_out = image_resized if remove_mode else filled_image
 
         pipe = dict(incoming_process) if isinstance(incoming_process, dict) else {}
         pipe.update({
@@ -842,6 +925,10 @@ class CMKPipeCreateImage:
             "target_width": width,
             "target_height": height,
             "resolution": resolution,
+            "model_family": model_family,
+            "generation_mode": "text2image" if model_family == "z_image_turbo" else (
+                "inpaint" if INPAINT_MODE else "text2image"
+            ),
             "swap_dimensions": swap_dimensions,
             "resize_mode": resize_mode,
             "requested_resize_mode": requested_resize_mode,
@@ -878,6 +965,7 @@ class CMKPipeCreateImage:
         })
 
         log_lines = build_image_log_block(
+            model_family=model_family,
             resolution=resolution,
             width=width,
             height=height,
@@ -898,12 +986,12 @@ class CMKPipeCreateImage:
         )
         if filename_string:
             log_lines.insert(0, f"FILE NAME       : {filename_string}")
-        if remove_isolated:
+        if remove_mode:
             log_lines.extend(
                 [
                     "",
-                    "REMOVE ENGINE   : LaMa",
-                    "DIFFUSION       : Bypassed",
+                    "REMOVE ENGINE   : Fooocus reconstruction",
+                    "DIFFUSION       : Enabled",
                     "SOURCE PROMPTS  : Ignored",
                     "SOURCE LORAS    : Ignored",
                 ]
@@ -935,13 +1023,13 @@ class CMKPipeCreateImage:
                     "image": image_resized,
                 }
             )
-        if bool(INPAINT_MODE) and image_out is not None:
-            diagnostic_previews.append(image_out)
+        if bool(INPAINT_MODE) and filled_image is not None:
+            diagnostic_previews.append(filled_image)
             diagnostic_stages.append(
                 {
                     "title": "02 Mask Fill",
                     "subtitle": effective_fill_mode,
-                    "image": image_out,
+                    "image": filled_image,
                 }
             )
 
@@ -955,6 +1043,7 @@ class CMKPipeCreateImage:
             mode="Create",
             metadata={
                 "resolution": resolution,
+                "model_family": model_family,
                 "source_width": source_width,
                 "source_height": source_height,
                 "target_width": width,
@@ -971,7 +1060,26 @@ class CMKPipeCreateImage:
             },
         )
 
-        result = (pipe, image_out, log_pipe, diagnostic)
+        # Both typed outputs remain cheaply evaluable.  ``None`` cannot be
+        # used as the inactive signal because ComfyUI also uses it for a lazy
+        # input that has not been evaluated yet.
+        process_sdxl = dict(pipe)
+        process_sdxl.update({
+            "model_family": "sdxl",
+            "family_active": model_family == "sdxl",
+        })
+        process_z_image = dict(pipe)
+        process_z_image.update({
+            "model_family": "z_image_turbo",
+            "family_active": model_family == "z_image_turbo",
+        })
+        result = (
+            process_sdxl,
+            process_z_image,
+            image_out,
+            log_pipe,
+            diagnostic,
+        )
         preview_ui = image_node_preview(image_out)
         if preview_ui is None:
             return result

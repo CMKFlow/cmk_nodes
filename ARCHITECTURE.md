@@ -90,7 +90,7 @@ Der normale pixelbasierte CMK-Workflow verwendet vier semantisch getrennte Leitu
 | Sichtbarer Name | Typ | Verantwortung | Darf nicht enthalten oder bewirken |
 |---|---|---|---|
 | `MODEL` | `CMK_MODEL_PIPE` | gemeinsame, unveränderte Modellressourcen und kleine Loader-Metadaten | Modulzustand, Bilder, Latents, Logs, lokale Patches |
-| `PROCESS` | `CMK_PIPE` | nicht-pixelbasierter Prozesskontext, Masken, Dimensionen, Prompts, LoRA-Angebote und Workflow-Zustand | das authoritative Ergebnisbild, Modellressourcen, Dokumentationslogik |
+| `PROCESS SDXL` / `PROCESS Z-IMAGE` | `CMK_PROCESS_SDXL` / `CMK_PROCESS_Z_IMAGE` | familiengebundener, nicht-pixelbasierter Prozesskontext, Masken, Dimensionen, Prompts, LoRA-Angebote und Workflow-Zustand | das authoritative Ergebnisbild, Modellressourcen, Dokumentationslogik oder Wechsel in die andere Modellfamilie |
 | `IMAGE` | `IMAGE` | authoritative Pixelinformation zwischen Bildmodulen | versteckte Zustands- oder Logfunktion |
 | `LOG` | `CMK_LOG_PIPE` | strukturierte Dokumentation bereits getroffener Entscheidungen und ausgeführter Schritte | Steuerung, Bildveränderung, Modellpatching, Modulaktivierung |
 
@@ -114,6 +114,33 @@ LOG     → Was wurde dokumentiert?
 - Ein Bild muss nicht durch eine Node geleitet werden, die es fachlich gar nicht verarbeitet.
 
 Interne Arbeits-Pipes dürfen zur Ausführung ein Bild referenzieren. Das ändert nicht den öffentlichen Vertrag: Zwischen Modulen bleibt `IMAGE` authoritative.
+
+### 3.2 Modellfamilien sind mechanisch getrennte Verträge
+
+`01 START HERE` ist der gemeinsame Einstieg und die einzige sichtbare
+Modellfamilien-Weiche. Danach gelten zwei inkompatible PROCESS-Typen:
+
+```text
+PROCESS SDXL    → CMK_PROCESS_SDXL
+PROCESS Z-IMAGE → CMK_PROCESS_Z_IMAGE
+```
+
+Die Trennung ist bewusst nominell: Auch bei intern ähnlichen Python-Objekten
+darf ComfyUI keine Verbindung zwischen einem SDXL- und einem Z-Image-Modul
+zulassen. Der nicht ausgewählte Ausgang von `01 START HERE` liefert keinen
+Prozess. Eine spätere Zusammenführung darf erst nach Abschluss der
+familienabhängigen Verarbeitung über einen eigenen neutralen Ergebnisvertrag
+erfolgen und genau einen aktiven Zweig anfordern.
+
+`CMK Flow · 35 Active Family Result` erhält jeweils
+`MODEL / PROCESS / IMAGE / LOG` beider Familien. Die Wahl aus 01 ist bereits
+im einzig aktiven PROCESS enthalten; ein separates Routing-Kabel existiert
+nicht. 35 fordert zunächst nur beide leichtgewichtigen PROCESS-Durchgänge und
+anschließend ausschließlich `MODEL / IMAGE / LOG` des aktiven Zweigs an. Die
+vier Ausgänge `CMK_RESULT_MODEL`, `CMK_RESULT_PROCESS`, `CMK_RESULT_IMAGE` und
+`CMK_RESULT_LOG` sind familien-neutral. Bei parallel aufgebauten Familien sind
+sie die einzig zulässige Übergabe an FaceSwap und 90; ein einzelner SDXL- oder
+ZIT-Zweig darf diese beiden gemeinsamen Module auch direkt speisen.
 
 ## 4. Proprietäre Arbeits- und Übergabetypen
 
@@ -142,12 +169,12 @@ IMAGE + MASK + FILENAME STRING
 + PROMPT POS + PROMPT NEG
 + Bild-/Maskenparameter
     ↓
-PROCESS + IMAGE + LOG + diagnostic
+PROCESS SDXL + PROCESS Z-IMAGE + IMAGE + LOG + diagnostic
 ```
 
 Verantwortung:
 
-- erzeugt den initialen nicht-pixelbasierten `PROCESS`-Kontext;
+- erzeugt genau einen aktiven, familiengebundenen `PROCESS`-Kontext;
 - gibt das skalierte authoritative `IMAGE` separat aus;
 - erzeugt den ersten strukturierten `LOG`;
 - erstellt noch kein Sampler-Latent.
@@ -321,6 +348,29 @@ Modi:
 ```text
 custom | replace | remove | extend
 ```
+
+`01 START HERE` besitzt oberhalb der übrigen Einstellungen die zwei
+Modellfamilien-Reiter `SDXL` und `Z-IMAGE TURBO`. Der gespeicherte
+Backend-Vertrag lautet `model_family = sdxl | z_image_turbo`. SDXL zeigt den
+vollständigen bestehenden Text2Image-/Inpaint-Vertrag. Z-Image Turbo ist im
+ersten Entwicklungsstand bewusst auf Text2Image begrenzt und blendet
+SDXL-spezifische Parameter aus. Beide Familien verwenden dieselben
+modellneutral dargestellten Größenpresets.
+
+Der Z-Image-Pfad besteht aus einem kombinierten, ausschließlich auf
+ComfyUI-Core aufbauenden Loader für Diffusionsmodell, Lumina2-Textencoder und
+VAE, `CMK Sampler Prepare Z-Image Turbo -Pipe-`, dem vorhandenen generischen
+`CMK KSampler -Pipe-` und `CMK Z-Image Turbo Finalize -Pipe-`. Prepare erzeugt
+positives Conditioning, `ConditioningZeroOut`, `EmptySD3LatentImage` und das
+über `ModelSamplingAuraFlow` mit Shift 3 gepatchte Modell. Finalize dekodiert
+das Ergebnis und führt es als normales `IMAGE` in die gemeinsamen Module
+`30/40/50/90`.
+
+Der dazugehörige kompakte Subgraph `CMK Flow · 10 KSampler Z-Image Turbo`
+kapselt diese vier Stufen vollständig. Sein öffentlicher Vertrag lautet
+`PROCESS + LOG -> MODEL + PROCESS + IMAGE + LOG + diagnostic`. Dadurch bleibt
+der Z-Pfad frei von SDXL-Refiner- und SDXL-LoRA-Abhängigkeiten und kann nach dem
+Decode unmittelbar in die modellneutralen Nachbearbeitungsmodule wechseln.
 
 Die Bildvorbereitung bietet `Fit`, `Crop` und das ausdrücklich
 seitenverhältnisändernde `Stretch`. `Fit` und `Crop` erhalten das

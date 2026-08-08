@@ -8,6 +8,7 @@ from PIL import Image
 import folder_paths
 
 from ...pipe.cmk_log_pipe import cmk_render_log
+from ...utils.cmk_timing import cmk_timed
 
 
 class CMK_SaveProjectImage:
@@ -109,15 +110,17 @@ class CMK_SaveProjectImage:
                 break
             counter += 1
 
-        img = IMAGE[0].cpu().numpy()
-        img = np.clip(img * 255.0, 0, 255).astype(np.uint8)
-        Image.fromarray(img).save(str(full_path))
+        with cmk_timed("90 PNG SAVE", str(full_path)):
+            img = IMAGE[0].cpu().numpy()
+            img = np.clip(img * 255.0, 0, 255).astype(np.uint8)
+            Image.fromarray(img).save(str(full_path))
 
         log_text = cmk_render_log(LOG)
         if log_text:
             text_path = os.path.splitext(str(full_path))[0] + ".txt"
-            with open(text_path, "w", encoding="utf-8") as file:
-                file.write(log_text)
+            with cmk_timed("90 LOG SAVE", str(text_path)):
+                with open(text_path, "w", encoding="utf-8") as file:
+                    file.write(log_text)
 
         return {
             "ui": {"text": [str(full_path)]},

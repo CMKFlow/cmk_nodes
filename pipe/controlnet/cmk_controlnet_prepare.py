@@ -35,7 +35,7 @@ class CMKControlNetPreparePipe:
 
         return {
             "required": {
-                "PROCESS": ("CMK_PIPE",),
+                "PROCESS": ("CMK_PROCESS_SDXL",),
                 "IMAGE": ("IMAGE",),
                 "ENABLE": ("BOOLEAN", {"default": False}),
                 "CONTROLNET MODEL": (controlnet_models,),
@@ -72,7 +72,12 @@ class CMKControlNetPreparePipe:
             },
         }
 
-    RETURN_TYPES = ("CMK_PIPE", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
+    RETURN_TYPES = (
+        "CMK_PROCESS_SDXL",
+        "IMAGE",
+        "CMK_LOG_PIPE",
+        "CMK_DIAGNOSTIC",
+    )
     RETURN_NAMES = ("PROCESS", "IMAGE", "LOG", "diagnostic")
     FUNCTION = "prepare_controlnet_pipe"
     CATEGORY = "CMK/Flow/Process"

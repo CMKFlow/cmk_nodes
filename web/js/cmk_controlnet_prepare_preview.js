@@ -9,6 +9,7 @@ import { api } from "../../../scripts/api.js";
 const CMK_NODE_CLASSES = new Set([
     "CMKControlNetPrepare",
     "CMKControlNetPreparePipe",
+    "CMKZITControlNetPreparePipe",
 ]);
 const BUTTON_WIDGET_NAME = "select_reference_image";
 
@@ -214,11 +215,87 @@ function normalizePickerValue(node, values) {
     return [...head, null, applyMask, preprocessor, strength, resolution, start, end, invert];
 }
 
+function normalizeZITPickerValue(node, values) {
+    if (!Array.isArray(values)) return values;
+
+    const pickerIndex = node?.widgets?.findIndex(
+        (widget) => widget?.name === BUTTON_WIDGET_NAME
+    ) ?? -1;
+    if (pickerIndex < 0) return values;
+
+    const functionalCount = node.widgets.length - 1;
+    if (values.length === functionalCount) {
+        const normalized = [...values];
+        // Recover the first ZIT draft, where the picker occupied one value
+        // position during configure. Its visible signature is unambiguous:
+        // resolution=STRENGTH, low_threshold=resolution,
+        // high_threshold=low_threshold, MODEL PATCH=high_threshold.
+        if (
+            functionalCount === 9 &&
+            typeof normalized[8] === "number" &&
+            typeof normalized[6] === "number" &&
+            normalized[6] > 1
+        ) {
+            normalized[5] = normalized[6];
+            normalized[6] = normalized[7];
+            normalized[7] = normalized[8];
+            normalized[8] = "Z-Image-Turbo-Fun-Controlnet-Union.safetensors";
+        }
+        normalized.splice(pickerIndex, 0, null);
+        return normalized;
+    }
+
+    if (values.length === node.widgets.length && values.at(-1) == null) {
+        const normalized = [...values];
+        normalized.pop();
+        normalized.splice(pickerIndex, 0, null);
+        return normalized;
+    }
+
+    return values;
+}
+
 app.registerExtension({
     name: "cmk.controlnet.prepare.reference_picker.v33",
 
     beforeRegisterNodeDef(nodeType, nodeData) {
         if (!CMK_NODE_CLASSES.has(nodeData.name)) return;
+        // The SDXL node has a long-lived positional migration contract. ZIT
+        // shares the reference picker and preview UX, but has its own smaller
+        // canonical widget list and must never receive SDXL value migrations.
+        if (nodeData.name === "CMKZITControlNetPreparePipe") {
+            const originalOnConfigure = nodeType.prototype.onConfigure;
+            nodeType.prototype.onConfigure = function(info) {
+                if (Array.isArray(info?.widgets_values)) {
+                    info = {
+                        ...info,
+                        widgets_values: normalizeZITPickerValue(
+                            this,
+                            info.widgets_values
+                        ),
+                    };
+                }
+                return originalOnConfigure?.call(this, info);
+            };
+
+            const originalOnSerialize = nodeType.prototype.onSerialize;
+            nodeType.prototype.onSerialize = function(info) {
+                const result = originalOnSerialize?.call(this, info);
+                const pickerIndex = this.widgets?.findIndex(
+                    (widget) => widget?.name === BUTTON_WIDGET_NAME
+                ) ?? -1;
+                if (
+                    pickerIndex >= 0 &&
+                    Array.isArray(info?.widgets_values) &&
+                    info.widgets_values.length === this.widgets.length
+                ) {
+                    info.widgets_values.splice(pickerIndex, 1);
+                }
+                return result;
+            };
+
+            return;
+        }
         clarifyPercentSchema(nodeData);
 
         const originalOnConfigure = nodeType.prototype.onConfigure;

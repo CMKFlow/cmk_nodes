@@ -7,6 +7,7 @@ import comfy.sd
 import comfy.utils
 
 from ..pipe.cmk_log_pipe import cmk_add_block, cmk_bool
+from ..utils.cmk_timing import cmk_timed
 
 
 class CMKCheckpointVAELoader:
@@ -29,12 +30,13 @@ class CMKCheckpointVAELoader:
 
     def load_checkpoint_vae(self, ckpt_name, vae_name, checkpoint_vae):
         ckpt_path = folder_paths.get_full_path_or_raise("checkpoints", ckpt_name)
-        checkpoint_data = comfy.sd.load_checkpoint_guess_config(
-            ckpt_path,
-            output_vae=True,
-            output_clip=True,
-            embedding_directory=folder_paths.get_folder_paths("embeddings"),
-        )
+        with cmk_timed("CHECKPOINT LOAD", str(ckpt_name)):
+            checkpoint_data = comfy.sd.load_checkpoint_guess_config(
+                ckpt_path,
+                output_vae=True,
+                output_clip=True,
+                embedding_directory=folder_paths.get_folder_paths("embeddings"),
+            )
         model = checkpoint_data[0]
         clip = checkpoint_data[1]
         checkpoint_vae_obj = checkpoint_data[2]
@@ -62,12 +64,13 @@ class CMKCheckpointVAELoader:
 def load_checkpoint_vae_resources(ckpt_name, vae_name, checkpoint_vae):
     """Load shared model resources without coupling them to a PROCESS pipe."""
     ckpt_path = folder_paths.get_full_path_or_raise("checkpoints", ckpt_name)
-    checkpoint_data = comfy.sd.load_checkpoint_guess_config(
-        ckpt_path,
-        output_vae=True,
-        output_clip=True,
-        embedding_directory=folder_paths.get_folder_paths("embeddings"),
-    )
+    with cmk_timed("CHECKPOINT LOAD", str(ckpt_name)):
+        checkpoint_data = comfy.sd.load_checkpoint_guess_config(
+            ckpt_path,
+            output_vae=True,
+            output_clip=True,
+            embedding_directory=folder_paths.get_folder_paths("embeddings"),
+        )
     model = checkpoint_data[0]
     clip = checkpoint_data[1]
     checkpoint_vae_obj = checkpoint_data[2]

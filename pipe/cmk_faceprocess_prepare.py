@@ -48,7 +48,7 @@ class CMKFaceProcessPreparePipe:
         return {
             "required": {
                 "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
-                "PROCESS": ("CMK_PIPE", {"lazy": True}),
+                "PROCESS": ("CMK_PROCESS_SDXL", {"lazy": True}),
                 "IMAGE": ("IMAGE", {"lazy": True}),
 
                 "sam_model_name": sam_model_spec,
@@ -141,7 +141,7 @@ class CMKFaceProcessPreparePipe:
     @staticmethod
     def _encode(clip, text):
         helper = CMKSamplerPrepareSDXLPipe()
-        # Standard CLIP Text Encode on purpose: FaceProcess is not SDXL-specific.
+        # Standard CLIP Text Encode is the intended encoder for this SDXL-only module.
         try:
             from .cmk_sampler_prepare import _call_node
 
@@ -237,11 +237,15 @@ class CMKFaceProcessPreparePipe:
             raise TypeError("CMK FaceProcess Prepare -Pipe-: MODEL must be a CMK model pipe")
         if not isinstance(PROCESS, dict):
             raise TypeError("CMK FaceProcess Prepare -Pipe-: PROCESS must be a CMK process pipe")
+        if str(PROCESS.get("model_family", "sdxl")).strip().lower() != "sdxl":
+            raise ValueError("CMK FaceProcess Prepare -Pipe- accepts only PROCESS SDXL")
 
         source_pipe = dict(PROCESS)
         model_base = MODEL.get("model")
         clip_base = MODEL.get("clip")
         vae = MODEL.get("vae")
+        if str(MODEL.get("model_family", "sdxl")).strip().lower() != "sdxl":
+            raise ValueError("CMK FaceProcess Prepare -Pipe- accepts only an SDXL MODEL")
 
         missing = [
             name

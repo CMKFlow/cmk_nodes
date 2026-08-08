@@ -18,14 +18,15 @@ Es wurden keine byte-identischen Subgraph-Dubletten gefunden. Ähnliche Namen st
 
 | Subgraph | UUID | Rolle | Empfehlung |
 |---|---|---|---|
-| `CMK Flow · 02 LoRA Stack` | `b9fa321e-d7fb-48ee-8f06-0a74b492ce96` | Prompt- und LoRA-Stack des Flow-Frontends | eigenständig versioniert behalten |
-| `CMK Flow · 10 KSampler 1st Pass` | `0cfdb7a5-24a1-47a1-a070-b1e778474284` | erster Sampling-Pass | unverändert behalten |
-| `CMK Flow · 20 Refiner` | `2565ad34-d9fd-4be0-94e0-5f24b17879ea` | Refiner-Pass | unverändert behalten |
-| `CMK Flow · 30 Detailer` | `14a5af49-a274-4a82-8c0b-fe4f49721eed` | paralleles Detailer-Modul | unverändert behalten |
-| `CMK Flow · 40 FaceSwap` | `c33298e6-bd6f-4e82-abcd-a73d51178b90` | eingeschleiftes FaceSwap-Modul | unverändert behalten |
+| `CMK Flow · 02 SDXL LoRA Stack` | `b9fa321e-d7fb-48ee-8f06-0a74b492ce96` | Prompt- und LoRA-Stack des Flow-Frontends | eigenständig versioniert behalten |
+| `CMK Flow · 10 KSampler SDXL 1st Pass` | `b9c63c18-5314-4f7c-b47d-b12f03249857` | erster SDXL-Sampling-Pass | familiengebunden behalten |
+| `CMK Flow · 10 KSampler Z-Image Turbo` | `29a47c62-8fd9-4614-864f-e155b84038ed` | getesteter nativer Z-Image-Turbo-Text2Image-Pass mit direktem IMAGE-Ausgang | als Basis der weiteren Z-Entwicklung behalten |
+| `CMK Flow · 20 Refiner SDXL` | `d4b8a6e3-9d91-4573-afc7-9b5e9241b5c4` | SDXL-Refiner-Pass | familiengebunden behalten |
+| `CMK Flow · 25 Detailer SDXL` | `3b19b6b4-853d-432f-82bb-64f174cffc6a` | SDXL-Detailer-Modul | ausschließlich im SDXL-Zweig behalten |
+| `CMK Flow · 30 FaceProcess SDXL` | `6e6466c2-7052-4fdc-b72f-8d8562a3c621` | SDXL-FaceProcess-Modul | ausschließlich im SDXL-Zweig behalten |
+| `CMK Flow · 40 FaceSwap` | `b4a00621-453d-4186-b783-2b8aaaa84f2b` | gemeinsam genutztes, familienneutrales FaceSwap-Modul | für SDXL und ZIT behalten |
 | `CMK Toolbox · FaceSwap Image` | `de0cadaa-2b43-4c6a-91dc-95e793d104b5` | eigenständiger FaceSwap-Baustein; nicht Teil der geführten Flow-Reihenfolge | als vollständig funktionsfähigen Toolbox-Baustein behalten; spätere Anpassungen separat planen |
-| `CMK Flow · 50 FaceProcess` | `3638560f-0975-4df3-8a3b-1d22af32b336` | paralleles FaceProcess-Modul | unverändert behalten |
-| `CMK Flow · 90 Upscale & Save` | `ee5e7e66-78b4-47ff-9e6f-b0b1c55fb039` | verbindlicher Abschluss des Flow-Hauptwegs (`Flow/Finish`) | unverändert behalten |
+| `CMK Flow · 90 Upscale & Save` | `a7bf2c5a-7242-4c0b-9092-bb63f85db8c7` | gemeinsam genutzter, familienneutraler Abschluss (`Flow/Finish`) | für SDXL und ZIT behalten |
 
 Der aktuelle Referenzworkflow verwendet für die Bild-/Prozessquelle direkt die Python-Node `CMKPipeCreateImage`. Der frühere Entwicklungs-Subgraph `CMK Pipe Create Image v2` wurde deshalb entfernt.
 
@@ -60,7 +61,7 @@ Der aktuelle Referenzworkflow verwendet für die Bild-/Prozessquelle direkt die 
 
 - `CMK Pipe Create Image v2` war ein Entwicklungsartefakt und wurde entfernt.
 - Der alte `SwapFace` war die frühere Bezeichnung von `CMK Face Swap Image -Pipe-` und wurde entfernt. Damit ist die UUID-Kollision aufgelöst.
-- Der bisher nur eingebettete LoRA-Stack wurde mit unveränderter UUID als `subgraphs/CMK Flow · 02 LoRA Stack.json` exportiert.
+- Der bisher nur eingebettete LoRA-Stack wurde mit unveränderter UUID als `subgraphs/CMK Flow · 02 SDXL LoRA Stack.json` exportiert.
 
 ## Empfohlene Reihenfolge
 

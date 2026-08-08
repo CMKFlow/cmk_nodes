@@ -3,8 +3,19 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import threading
 from pathlib import Path
 from typing import Any
+
+from ..utils.cmk_timing import cmk_timed_call
+
+
+try:
+    from comfy_execution.graph_utils import ExecutionBlocker
+except ImportError:
+    class ExecutionBlocker:
+        def __init__(self, message):
+            self.message = message
 
 
 _CACHE_SCHEMA = "cmk_refiner_boundary_cache_v3"
@@ -13,6 +24,14 @@ _MAX_DISK_ENTRIES = 16
 # MODEL cannot be serialized safely. MODEL and PROCESS remain available for
 # the current ComfyUI process; both IMAGE tensors and LOG are materialized.
 _SESSION_STATE: dict[str, tuple[Any, dict]] = {}
+
+# ComfyUI may ask the same lazy boundary for its status several times while it
+# incrementally resolves the graph.  The expanded prompt is immutable for that
+# execution, so canonicalizing both complete image branches more than once is
+# wasted work.  Keep the memo strictly scoped to the current prompt object.
+_FINGERPRINT_MEMO_LOCK = threading.RLock()
+_FINGERPRINT_MEMO_PROMPT_ID = None
+_FINGERPRINT_MEMO: dict[str, tuple[str | None, str]] = {}
 
 
 def _lookup_node(prompt: dict, node_id: Any):
@@ -111,11 +130,18 @@ def _canonical_node(prompt: dict, node_id: Any, memo: dict, stack: set):
         else:
             canonical_inputs[str(input_name)] = _canonical_scalar(value)
 
-    result = {
+    payload = {
         "class_type": str(node.get("class_type", "")),
         "inputs": canonical_inputs,
     }
     stack.remove(key)
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    result = {"sha256": hashlib.sha256(encoded).hexdigest()}
     memo[key] = result
     return result
 
@@ -124,12 +150,26 @@ def build_refiner_fingerprint(prompt: Any, unique_id: Any) -> tuple[str | None, 
     if not isinstance(prompt, dict):
         return None, "PROMPT is unavailable"
 
+    global _FINGERPRINT_MEMO_PROMPT_ID, _FINGERPRINT_MEMO
+    prompt_id = id(prompt)
+    memo_key = str(unique_id)
+    with _FINGERPRINT_MEMO_LOCK:
+        if _FINGERPRINT_MEMO_PROMPT_ID != prompt_id:
+            _FINGERPRINT_MEMO_PROMPT_ID = prompt_id
+            _FINGERPRINT_MEMO = {}
+        cached = _FINGERPRINT_MEMO.get(memo_key)
+        if cached is not None:
+            return cached
+
     resolved_id, current = _resolve_current_node(prompt, unique_id)
     if not isinstance(current, dict):
-        return None, (
+        result = (None, (
             "boundary node not found in expanded prompt "
             f"(unique_id={unique_id!r})"
-        )
+        ))
+        with _FINGERPRINT_MEMO_LOCK:
+            _FINGERPRINT_MEMO[memo_key] = result
+        return result
 
     inputs = current.get("inputs", {}) or {}
     first_link = inputs.get("IMAGE_1ST_PASS")
@@ -174,7 +214,13 @@ def build_refiner_fingerprint(prompt: Any, unique_id: Any) -> tuple[str | None, 
         separators=(",", ":"),
         ensure_ascii=False,
     ).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest(), f"resolved_id={resolved_id!r}"
+    result = (
+        hashlib.sha256(encoded).hexdigest(),
+        f"resolved_id={resolved_id!r}",
+    )
+    with _FINGERPRINT_MEMO_LOCK:
+        _FINGERPRINT_MEMO[memo_key] = result
+    return result
 
 
 def _cache_directory() -> Path:
@@ -353,7 +399,7 @@ class CMKRefinerBoundaryCache:
         return {
             "required": {
                 "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
-                "PROCESS": ("CMK_PIPE", {"lazy": True}),
+                "PROCESS": ("CMK_PROCESS_SDXL", {"lazy": True}),
                 "IMAGE_1ST_PASS": ("IMAGE", {"lazy": True}),
                 "IMAGE_REFINED": ("IMAGE", {"lazy": True}),
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
@@ -366,7 +412,7 @@ class CMKRefinerBoundaryCache:
 
     RETURN_TYPES = (
         "CMK_MODEL_PIPE",
-        "CMK_PIPE",
+        "CMK_PROCESS_SDXL",
         "IMAGE",
         "IMAGE",
         "CMK_LOG_PIPE",
@@ -382,6 +428,7 @@ class CMKRefinerBoundaryCache:
     CATEGORY = "CMK/Developer/Boundary & Cache"
     DEV_ONLY = True
 
+    @cmk_timed_call("LAZY 20 REFINER BOUNDARY")
     def check_lazy_status(
         self,
         MODEL=None,
@@ -392,6 +439,10 @@ class CMKRefinerBoundaryCache:
         prompt=None,
         unique_id=None,
     ):
+        if PROCESS is None:
+            return ["PROCESS"]
+        if isinstance(PROCESS, dict) and not PROCESS.get("family_active", True):
+            return []
         cache_key, detail = build_refiner_fingerprint(
             prompt,
             unique_id,
@@ -418,17 +469,18 @@ class CMKRefinerBoundaryCache:
             )
             return []
 
-        needed = []
-        for name, value in (
-            ("MODEL", MODEL),
-            ("PROCESS", PROCESS),
-            ("IMAGE_1ST_PASS", IMAGE_1ST_PASS),
-            ("IMAGE_REFINED", IMAGE_REFINED),
-            ("LOG", LOG),
-        ):
-            if value is None:
-                needed.append(name)
-        return needed
+        # MODEL arrives through the sampled family gate. Request it before the
+        # image stages; asking for it last can reopen that gate and execute
+        # module 10 a second time within the same prompt.
+        if MODEL is None:
+            return ["MODEL"]
+        if IMAGE_1ST_PASS is None:
+            return ["IMAGE_1ST_PASS"]
+        if IMAGE_REFINED is None:
+            return ["IMAGE_REFINED"]
+        if LOG is None:
+            return ["LOG"]
+        return []
 
     def boundary(
         self,
@@ -440,6 +492,9 @@ class CMKRefinerBoundaryCache:
         prompt=None,
         unique_id=None,
     ):
+        if isinstance(PROCESS, dict) and not PROCESS.get("family_active", True):
+            blocked = ExecutionBlocker(None)
+            return (blocked, PROCESS, blocked, blocked, blocked)
         cache_key, detail = build_refiner_fingerprint(
             prompt,
             unique_id,
@@ -449,11 +504,10 @@ class CMKRefinerBoundaryCache:
             cache_key
             and cache_key in _SESSION_STATE
             and _disk_available(cache_key)
-            and all(
+            and any(
                 value is None
                 for value in (
                     MODEL,
-                    PROCESS,
                     IMAGE_1ST_PASS,
                     IMAGE_REFINED,
                     LOG,

@@ -118,11 +118,22 @@ def _canonical_node(
         else:
             inputs[str(input_name)] = _canonical_scalar(value)
 
-    result = {
+    payload = {
         "class_type": str(node.get("class_type", "")),
         "inputs": inputs,
     }
     stack.remove(key)
+    # Return a content address instead of embedding the complete upstream
+    # object. Expanded CMK graphs are DAGs with many converging pipe links.
+    # Reusing nested Python objects still makes json.dumps expand every path,
+    # which turned a 46-node FaceSwap prompt into minutes of serialization.
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    result = {"sha256": hashlib.sha256(encoded).hexdigest()}
     memo[key] = result
     return result
 

@@ -1,3 +1,5 @@
+import gc
+
 import torch
 import folder_paths
 import comfy.utils
@@ -6,6 +8,7 @@ import comfy_extras.chainner_models.model_loading as model_loading
 
 from ...pipe.cmk_log_pipe import cmk_add_block
 from ...utils.cmk_diagnostic import make_diagnostic_payload
+from ...utils.cmk_timing import cmk_timed
 
 
 class CMK_SmartUpscaler:
@@ -320,6 +323,17 @@ class CMK_SmartUpscalerPipe(CMK_SmartUpscaler):
             needed.append("LOG")
         return needed
 
+    @staticmethod
+    def _release_diffusion_memory():
+        """Unload diffusion models before allocating the upscale network."""
+        model_management.unload_all_models()
+        model_management.soft_empty_cache(True)
+        gc.collect()
+        print(
+            "[CMK Smart Upscaler] diffusion models unloaded; "
+            "MPS cache cleared before upscale model load"
+        )
+
     def run_pipe(self, IMAGE, LOG, enable, limit_4x_mp, limit_2x_mp, model_4x, model_2x):
         if not isinstance(LOG, dict):
             raise ValueError("CMK Smart Upscaler -Pipe-: LOG is missing or invalid")
@@ -403,8 +417,15 @@ class CMK_SmartUpscalerPipe(CMK_SmartUpscaler):
             )
             return (image, result_log, diagnostic)
 
-        model = self.load_upscale_model(selected_model)
-        upscaled = self.upscale(image, model)
+        # This module is the terminal image stage. Keeping SDXL/Refiner weights
+        # resident while Spandrel constructs RealESRGAN can exceed unified
+        # memory and trigger macOS libmalloc VM-reclaim assertions.
+        with cmk_timed("90 MEMORY BARRIER"):
+            self._release_diffusion_memory()
+        with cmk_timed("90 UPSCALE MODEL LOAD", str(selected_model)):
+            model = self.load_upscale_model(selected_model)
+        with cmk_timed("90 UPSCALE INFERENCE", f"{input_width}x{input_height} x{scale_factor}"):
+            upscaled = self.upscale(image, model)
         output_height = int(upscaled.shape[1])
         output_width = int(upscaled.shape[2])
 

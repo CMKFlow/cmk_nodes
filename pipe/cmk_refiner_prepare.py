@@ -14,6 +14,7 @@ from .cmk_sampler_prepare import (
     CMKSamplerPrepareSDXLPipe,
 )
 from ..utils.cmk_diagnostic import make_diagnostic_payload
+from ..utils.cmk_timing import cmk_timed_call
 
 
 def _safe_default(items, preferred):
@@ -46,9 +47,9 @@ class CMKRefinerPrepareSDXLPipe:
 
         return {
             "required": {
-                "MODEL": ("CMK_MODEL_PIPE",),
-                "PROCESS": ("CMK_PIPE",),
-                "SAMPLED": ("CMK_SAMPLED_PIPE",),
+                "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
+                "PROCESS": ("CMK_PROCESS_SDXL", {"lazy": True}),
+                "SAMPLED": ("CMK_SAMPLED_PIPE", {"lazy": True}),
                 "use_prompt_lora_from_sampler": ("BOOLEAN", {"default": False}),
                 "lora_name": (loras, {"default": default_lora}),
                 "strength_model": ("FLOAT", {"default": 1.00, "min": -20.0, "max": 20.0, "step": 0.01, "advanced": True}),
@@ -65,7 +66,7 @@ class CMKRefinerPrepareSDXLPipe:
                 "scheduler": (SCHEDULERS, {"default": "simple"} if "simple" in SCHEDULERS else {}),
             },
             "optional": {
-                "LOG": ("CMK_LOG_PIPE",),
+                "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
             },
         }
 
@@ -74,6 +75,28 @@ class CMKRefinerPrepareSDXLPipe:
     FUNCTION = "prepare"
     CATEGORY = "CMK/Developer/Pipe/Prepare"
 
+    def check_lazy_status(
+        self,
+        MODEL=None,
+        PROCESS=None,
+        SAMPLED=None,
+        LOG=None,
+        **kwargs,
+    ):
+        # Complete the first pass before loading the separate Refiner model.
+        # On unified-memory systems, resolving both branches in one lazy round
+        # retains two multi-gigabyte SDXL model families at the same time.
+        if SAMPLED is None:
+            return ["SAMPLED"]
+        if LOG is None:
+            return ["LOG"]
+        if PROCESS is None:
+            return ["PROCESS"]
+        if MODEL is None:
+            return ["MODEL"]
+        return []
+
+    @cmk_timed_call("20 REFINER PREPARE")
     def prepare(
         self,
         MODEL,

@@ -100,6 +100,93 @@ class CreateImageMaskTests(unittest.TestCase):
         self.assertEqual(pipe["prompt_pos_primary"], "primary")
         self.assertEqual(pipe["opt_prompt_pos"], "additional")
 
+    def test_z_image_family_is_text_to_image_only(self):
+        result = self.module.CMKPipeCreateImage().create_image(
+            **{
+                "PROMPT POS": "photo",
+                "PROMPT NEG": "must not activate inpaint",
+                "INPAINT_MODE": "Inpaint",
+                "model_family": "Z-Image Turbo",
+                "resolution": "1024x1024",
+            }
+        )
+        self.assertFalse(result[0]["family_active"])
+        pipe = result[1]
+        self.assertTrue(pipe["family_active"])
+        self.assertEqual(pipe["model_family"], "z_image_turbo")
+        self.assertEqual(pipe["generation_mode"], "text2image")
+        self.assertFalse(pipe["boolean_inpaint_mode"])
+
+    def test_visible_family_tabs_drive_backend_when_technical_widget_is_hidden(self):
+        result = self.module.CMKPipeCreateImage().create_image(
+            **{
+                "PROMPT POS": "photo",
+                "MODEL FAMILY TABS": "Z-Image Turbo",
+                "resolution": "1024x1024",
+            }
+        )
+        self.assertFalse(result[0]["family_active"])
+        pipe = result[1]
+        self.assertTrue(pipe["family_active"])
+        self.assertEqual(pipe["model_family"], "z_image_turbo")
+        self.assertEqual(pipe["generation_mode"], "text2image")
+
+    def test_public_optional_input_names_are_self_explanatory(self):
+        optional = self.module.CMKPipeCreateImage.INPUT_TYPES()["optional"]
+        self.assertEqual(self.module.CMKPipeCreateImage.INPUT_TYPES()["required"], {})
+        self.assertIn("PROMPT POS", optional)
+        self.assertIn("PROMPT NEG", optional)
+        self.assertIn("INPAINT_MODE", optional)
+        self.assertIn("upscale_method", optional)
+        self.assertIn("device", optional)
+        self.assertIn("FILENAME", optional)
+        self.assertIn("LORA STACK", optional)
+        self.assertIn("ACTIVE LORAS", optional)
+        self.assertIn("ADDITIONAL PROMPT", optional)
+
+    def test_model_family_outputs_are_mechanically_separated(self):
+        node = self.module.CMKPipeCreateImage
+        self.assertEqual(
+            node.RETURN_TYPES[:2],
+            ("CMK_PROCESS_SDXL", "CMK_PROCESS_Z_IMAGE"),
+        )
+        self.assertEqual(
+            node.RETURN_NAMES[:2],
+            ("PROCESS SDXL", "PROCESS ZIT"),
+        )
+
+        sdxl = node().create_image(**{"PROMPT POS": "photo"})
+        self.assertIsInstance(sdxl[0], dict)
+        self.assertTrue(sdxl[0]["family_active"])
+        self.assertIsInstance(sdxl[1], dict)
+        self.assertFalse(sdxl[1]["family_active"])
+
+    def test_remove_uses_prompt_free_diffusion_instead_of_lama_bypass(self):
+        image = torch.zeros((1, 16, 16, 3))
+        mask = torch.zeros((1, 16, 16))
+        mask[:, 4:12, 4:12] = 1
+
+        pipe, *_ = self.module.CMKPipeCreateImage().create_image(
+            **{
+                "PROMPT POS": "must be ignored",
+                "PROMPT NEG": "must also be ignored",
+                "INPAINT_MODE": "Inpaint",
+                "process_mode": "Remove Object",
+                "resolution": "512x512",
+                "IMAGE": image,
+                "MASK": mask,
+                "FILENAME": "test.png",
+                "ACTIVE LORAS": "must be ignored",
+            }
+        )
+
+        self.assertEqual(pipe["prompt_pos"], "")
+        self.assertEqual(pipe["prompt_neg"], "")
+        self.assertEqual(pipe["active_loras"], "")
+        self.assertEqual(pipe["fill_masked_area"], "noise")
+        self.assertFalse(pipe["remove_isolated"])
+        self.assertIsNone(pipe["remove_result_image"])
+
 
 if __name__ == "__main__":
     unittest.main()

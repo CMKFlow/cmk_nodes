@@ -165,7 +165,7 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
 
     def run_pipe(
         self,
-        FACE,
+        FACE=None,
         enable=True,
         process_mode="restore",
         select_face="Largest",
@@ -173,46 +173,16 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
         unique_id=None,
         **kwargs,
     ):
-        face_pipe=FACE
-        if not isinstance(face_pipe,dict): raise ValueError("CMK FaceProcess -Pipe-: FACE is missing")
-        image=face_pipe.get("face_image")
-        if image is None: raise ValueError("CMK FaceProcess -Pipe-: no image found in face_pipe")
-        global_enable=bool(face_pipe.get("face_global_enable",False))
-        effective_enable=bool(global_enable and enable)
-        normalized_mode="Detailer" if str(process_mode).strip().lower()=="detailer" else "Restore"
-        if not effective_enable:
-            empty=self._empty_segs(image)
-            status="LOCAL DISABLED" if not enable else "GLOBAL DISABLED"
-            lines=[f"STATUS          : {status}",f"PROCESS MODE    : {normalized_mode.upper()}","FACE DETECTION  : SKIPPED","PROCESSING      : SKIPPED","CACHE           : SKIPPED","RESULT          : PASSTHROUGH"]
-            block=cmk_block_to_string("FaceProcess",90,lines,True)
-            diagnostic = make_diagnostic_payload(
-                title="FaceProcess -Pipe-",
-                node="CMK FaceProcess -Pipe-",
-                previews=[image],
-                summary="Disabled passthrough",
-                details="\n".join(lines),
-                mode=f"{normalized_mode} / passthrough",
-                metadata={
-                    "global_enabled": global_enable,
-                    "local_enabled": bool(enable),
-                },
-            )
-            return (image,empty,empty,False,diagnostic,block)
-        cache_key, cache_detail=self._cache_key(prompt,unique_id)
+        cache_key, cache_detail = self._cache_key(prompt, unique_id)
 
-        if (
-            cache_key
-            and pickle_available(self._CACHE_SCOPE, cache_key)
-        ):
+        # A lazy cache hit deliberately does not request FACE. Load the complete
+        # materialized branch before validating live inputs; otherwise ComfyUI
+        # calls this method without FACE exactly as check_lazy_status permits.
+        if cache_key and pickle_available(self._CACHE_SCOPE, cache_key):
             try:
-                payload = load_pickle(
-                    self._CACHE_SCOPE,
-                    cache_key,
-                )
+                payload = load_pickle(self._CACHE_SCOPE, cache_key)
                 if not isinstance(payload, dict):
-                    raise TypeError(
-                        "cached FaceProcess payload is invalid"
-                    )
+                    raise TypeError("cached FaceProcess payload is invalid")
 
                 write_status(
                     self._CACHE_SCOPE,
@@ -245,6 +215,31 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
                     f"{cache_key[:12]}: {exc}"
                 )
 
+        face_pipe=FACE
+        if not isinstance(face_pipe,dict): raise ValueError("CMK FaceProcess -Pipe-: FACE is missing")
+        image=face_pipe.get("face_image")
+        if image is None: raise ValueError("CMK FaceProcess -Pipe-: no image found in face_pipe")
+        global_enable=bool(face_pipe.get("face_global_enable",False))
+        effective_enable=bool(global_enable and enable)
+        normalized_mode="Detailer" if str(process_mode).strip().lower()=="detailer" else "Restore"
+        if not effective_enable:
+            empty=self._empty_segs(image)
+            status="LOCAL DISABLED" if not enable else "GLOBAL DISABLED"
+            lines=[f"STATUS          : {status}",f"PROCESS MODE    : {normalized_mode.upper()}","FACE DETECTION  : SKIPPED","PROCESSING      : SKIPPED","CACHE           : SKIPPED","RESULT          : PASSTHROUGH"]
+            block=cmk_block_to_string("FaceProcess",90,lines,True)
+            diagnostic = make_diagnostic_payload(
+                title="FaceProcess -Pipe-",
+                node="CMK FaceProcess -Pipe-",
+                previews=[image],
+                summary="Disabled passthrough",
+                details="\n".join(lines),
+                mode=f"{normalized_mode} / passthrough",
+                metadata={
+                    "global_enabled": global_enable,
+                    "local_enabled": bool(enable),
+                },
+            )
+            return (image,empty,empty,False,diagnostic,block)
         refine_mode = kwargs.pop("refine_mode", "Off")
 
         selection = resolve_legacy_face_selection(image, select_face)
