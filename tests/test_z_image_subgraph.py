@@ -17,7 +17,7 @@ class ZImageSubgraphTests(unittest.TestCase):
     def test_public_contract_rejoins_common_image_flow(self):
         self.assertEqual(
             [item["name"] for item in self.definition["inputs"]],
-            ["PROCESS", "LOG"],
+            ["PROCESS", "IMAGE", "LOG"],
         )
         self.assertEqual(
             [item["name"] for item in self.definition["outputs"]],
@@ -42,8 +42,27 @@ class ZImageSubgraphTests(unittest.TestCase):
         prepare = nodes["CMKSamplerPrepareZImageTurboPipe"]
         self.assertEqual(
             prepare["widgets_values"],
-            [1565304366, "fixed", 8, "res_multistep", "simple", 1, 3],
+            [
+                1565304366,
+                "fixed",
+                8,
+                "res_multistep",
+                "simple",
+                1,
+                3,
+                "Z-Image-Turbo-Fun-Controlnet-Union-2.1.safetensors",
+            ],
         )
+
+        image_input = next(
+            item for item in prepare["inputs"] if item["name"] == "IMAGE"
+        )
+        image_link = next(
+            link for link in self.definition["links"]
+            if link["id"] == image_input["link"]
+        )
+        self.assertEqual(image_link["origin_id"], -10)
+        self.assertEqual(image_link["origin_slot"], 1)
 
     def test_loader_is_hard_gated_by_the_direct_z_process_signal(self):
         loader = next(
@@ -104,6 +123,7 @@ class ZImageSubgraphTests(unittest.TestCase):
         self.assertTrue(metadata["published"])
         self.assertEqual(metadata["status"], "BETA")
         self.assertEqual(metadata["compatibility"], ["Z-Image Turbo"])
+        self.assertIn("Experimentelles maskiertes Inpaint", metadata["features"])
         self.assertEqual(
             metadata["recommendedAfter"],
             [
@@ -112,6 +132,22 @@ class ZImageSubgraphTests(unittest.TestCase):
                 "90 Upscale & Save",
             ],
         )
+
+    def test_zit_inpaint_ui_exposes_mask_hole_fill(self):
+        source = (
+            Path(__file__).resolve().parents[1]
+            / "web"
+            / "js"
+            / "cmk_flow_start_guidance_v37.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"z-image-inpaint"', source)
+        self.assertIn('ZIT_INPAINT_DEFAULT_SIZE = "768x512"', source)
+        self.assertIn('"MODE · INPAINT EXPERIMENTAL"', source)
+        hidden_block = source[
+            source.index("const Z_IMAGE_HIDDEN_WIDGETS"):
+            source.index("const USER_INPUT_LABELS")
+        ]
+        self.assertNotIn('"mask_fill_holes"', hidden_block)
 
 
 if __name__ == "__main__":

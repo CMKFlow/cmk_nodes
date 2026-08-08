@@ -574,7 +574,8 @@ class CMKPipeCreateImage:
                         "default": "Text2Image",
                         "tooltip": (
                             "Text2Image creates a new image. Inpaint uses IMAGE and MASK "
-                            "and reveals the task-specific inpaint settings."
+                            "and reveals the task-specific inpaint settings. "
+                            "Z-Image Turbo Inpaint is experimental."
                         ),
                     },
                 ),
@@ -706,7 +707,7 @@ class CMKPipeCreateImage:
                         "label": "MODEL FAMILY",
                         "tooltip": (
                             "SDXL exposes the complete current CMK workflow. "
-                            "Z-Image Turbo currently supports Text2Image."
+                            "Z-Image Turbo supports Text2Image and experimental masked Inpaint."
                         ),
                     },
                 ),
@@ -779,8 +780,6 @@ class CMKPipeCreateImage:
             if isinstance(raw_mode, bool)
             else str(raw_mode or "Text2Image").strip().lower() == "inpaint"
         )
-        if model_family == "z_image_turbo":
-            INPAINT_MODE = False
         process_mode = inputs.get("process_mode", "Custom")
         resolution = inputs.get("resolution", "SDXL 1152x832")
         swap_dimensions = inputs.get("swap_dimensions", False)
@@ -926,9 +925,7 @@ class CMKPipeCreateImage:
             "target_height": height,
             "resolution": resolution,
             "model_family": model_family,
-            "generation_mode": "text2image" if model_family == "z_image_turbo" else (
-                "inpaint" if INPAINT_MODE else "text2image"
-            ),
+            "generation_mode": "inpaint" if INPAINT_MODE else "text2image",
             "swap_dimensions": swap_dimensions,
             "resize_mode": resize_mode,
             "requested_resize_mode": requested_resize_mode,

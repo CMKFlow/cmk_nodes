@@ -100,22 +100,30 @@ class CreateImageMaskTests(unittest.TestCase):
         self.assertEqual(pipe["prompt_pos_primary"], "primary")
         self.assertEqual(pipe["opt_prompt_pos"], "additional")
 
-    def test_z_image_family_is_text_to_image_only(self):
+    def test_z_image_family_preserves_inpaint_image_and_mask_contract(self):
+        image = torch.zeros((1, 16, 16, 3))
+        mask = torch.zeros((1, 16, 16))
+        mask[:, 4:12, 4:12] = 1
         result = self.module.CMKPipeCreateImage().create_image(
             **{
                 "PROMPT POS": "photo",
-                "PROMPT NEG": "must not activate inpaint",
+                "PROMPT NEG": "",
                 "INPAINT_MODE": "Inpaint",
                 "model_family": "Z-Image Turbo",
-                "resolution": "1024x1024",
+                "resolution": "512x512",
+                "IMAGE": image,
+                "MASK": mask,
+                "FILENAME": "zit-inpaint.png",
             }
         )
         self.assertFalse(result[0]["family_active"])
         pipe = result[1]
         self.assertTrue(pipe["family_active"])
         self.assertEqual(pipe["model_family"], "z_image_turbo")
-        self.assertEqual(pipe["generation_mode"], "text2image")
-        self.assertFalse(pipe["boolean_inpaint_mode"])
+        self.assertEqual(pipe["generation_mode"], "inpaint")
+        self.assertTrue(pipe["boolean_inpaint_mode"])
+        self.assertEqual(tuple(pipe["mask"].shape), (1, 512, 512))
+        self.assertEqual(tuple(result[2].shape), (1, 512, 512, 3))
 
     def test_visible_family_tabs_drive_backend_when_technical_widget_is_hidden(self):
         result = self.module.CMKPipeCreateImage().create_image(

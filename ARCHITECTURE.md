@@ -352,23 +352,29 @@ custom | replace | remove | extend
 `01 START HERE` besitzt oberhalb der übrigen Einstellungen die zwei
 Modellfamilien-Reiter `SDXL` und `Z-IMAGE TURBO`. Der gespeicherte
 Backend-Vertrag lautet `model_family = sdxl | z_image_turbo`. SDXL zeigt den
-vollständigen bestehenden Text2Image-/Inpaint-Vertrag. Z-Image Turbo ist im
-ersten Entwicklungsstand bewusst auf Text2Image begrenzt und blendet
-SDXL-spezifische Parameter aus. Beide Familien verwenden dieselben
-modellneutral dargestellten Größenpresets.
+vollständigen bestehenden Text2Image-/Inpaint-Vertrag. Z-Image Turbo bietet
+Text2Image sowie ein eindeutig als experimentell gekennzeichnetes, allgemeines
+maskiertes Inpaint. Die aufgabenbezogenen SDXL-Inpaint-Modi sind für ZIT nicht
+implementiert. Beide Familien verwenden dieselben modellneutral dargestellten
+Größenpresets; beim Wechsel vom generischen Standard auf ZIT-Inpaint wird
+wegen des zusätzlichen Union-2.1-Patches 768x512 als sichere Ausgangsgröße
+gewählt. Eine ausdrücklich gewählte andere Größe bleibt erhalten.
 
 Der Z-Image-Pfad besteht aus einem kombinierten, ausschließlich auf
 ComfyUI-Core aufbauenden Loader für Diffusionsmodell, Lumina2-Textencoder und
 VAE, `CMK Sampler Prepare Z-Image Turbo -Pipe-`, dem vorhandenen generischen
 `CMK KSampler -Pipe-` und `CMK Z-Image Turbo Finalize -Pipe-`. Prepare erzeugt
-positives Conditioning, `ConditioningZeroOut`, `EmptySD3LatentImage` und das
-über `ModelSamplingAuraFlow` mit Shift 3 gepatchte Modell. Finalize dekodiert
+positives Conditioning, `ConditioningZeroOut`, im Text2Image-Pfad ein
+`EmptySD3LatentImage` und das über `ModelSamplingAuraFlow` mit Shift 3 gepatchte
+Modell. Experimentelles Inpaint verwendet IMAGE und MASK mit
+`InpaintModelConditioning` sowie dem Union-2.1-Modellpatch. Finalize dekodiert
 das Ergebnis und führt es als normales `IMAGE` in die gemeinsamen Module
-`30/40/50/90`.
+`40/90`.
 
 Der dazugehörige kompakte Subgraph `CMK Flow · 10 KSampler Z-Image Turbo`
 kapselt diese vier Stufen vollständig. Sein öffentlicher Vertrag lautet
-`PROCESS + LOG -> MODEL + PROCESS + IMAGE + LOG + diagnostic`. Dadurch bleibt
+`PROCESS + IMAGE + LOG -> MODEL + PROCESS + IMAGE + LOG + diagnostic`. IMAGE
+wird nur beim experimentellen Inpaint lazy angefordert. Dadurch bleibt
 der Z-Pfad frei von SDXL-Refiner- und SDXL-LoRA-Abhängigkeiten und kann nach dem
 Decode unmittelbar in die modellneutralen Nachbearbeitungsmodule wechseln.
 

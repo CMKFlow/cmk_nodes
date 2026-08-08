@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import folder_paths
+
 from comfy_execution.graph_utils import ExecutionBlocker
 
 from ..cmk_common import SAMPLERS, SCHEDULERS
@@ -18,6 +20,19 @@ from .cmk_sampler_prepare import (
 
 def _preferred(values, name):
     return {"default": name} if name in values else {}
+
+
+DEFAULT_ZIT_INPAINT_PATCH = (
+    "Z-Image-Turbo-Fun-Controlnet-Union-2.1.safetensors"
+)
+
+
+def _inpaint_patch_choices():
+    values = list(folder_paths.get_filename_list("model_patches"))
+    if DEFAULT_ZIT_INPAINT_PATCH in values:
+        values.remove(DEFAULT_ZIT_INPAINT_PATCH)
+        values.insert(0, DEFAULT_ZIT_INPAINT_PATCH)
+    return values or [DEFAULT_ZIT_INPAINT_PATCH]
 
 
 class CMKSamplerPrepareZImageTurboPipe:
@@ -61,9 +76,18 @@ class CMKSamplerPrepareZImageTurboPipe:
                         "advanced": True,
                     },
                 ),
+                "inpaint_model_patch": (
+                    _inpaint_patch_choices(),
+                    {
+                        "default": DEFAULT_ZIT_INPAINT_PATCH,
+                        "advanced": True,
+                        "label": "INPAINT MODEL PATCH",
+                    },
+                ),
             },
             "optional": {
                 "LOG": ("CMK_LOG_PIPE",),
+                "IMAGE": ("IMAGE", {"lazy": True}),
             },
         }
 
@@ -71,6 +95,15 @@ class CMKSamplerPrepareZImageTurboPipe:
     RETURN_NAMES = ("SAMPLER", "LOG", "diagnostic")
     FUNCTION = "prepare"
     CATEGORY = "CMK/Developer/Pipe/Prepare"
+
+    def check_lazy_status(self, PROCESS=None, IMAGE=None, **kwargs):
+        if PROCESS is None:
+            return ["PROCESS"]
+        if not isinstance(PROCESS, dict) or not PROCESS.get("family_active", True):
+            return []
+        if bool(PROCESS.get("boolean_inpaint_mode", False)) and IMAGE is None:
+            return ["IMAGE"]
+        return []
 
     def prepare(
         self,
@@ -82,7 +115,9 @@ class CMKSamplerPrepareZImageTurboPipe:
         scheduler="simple",
         cfg=1.0,
         model_shift=3.0,
+        inpaint_model_patch=DEFAULT_ZIT_INPAINT_PATCH,
         LOG=None,
+        IMAGE=None,
     ):
         if PROCESS is None or (
             isinstance(PROCESS, dict) and not PROCESS.get("family_active", True)
@@ -134,6 +169,8 @@ class CMKSamplerPrepareZImageTurboPipe:
             _unwrap_node_output(_call_node(("ConditioningZeroOut",), positive)),
             "z_image_conditioning_neg",
         )
+        inpaint_enabled = bool(PROCESS.get("boolean_inpaint_mode", False))
+        mask = PROCESS.get("mask")
         controlnet_enabled = bool(PROCESS.get("boolean_controlnet_enable", False))
         if controlnet_enabled:
             control_image = PROCESS.get("zit_controlnet_image")
@@ -159,11 +196,64 @@ class CMKSamplerPrepareZImageTurboPipe:
             width = int(control_image.shape[2])
             height = int(control_image.shape[1])
 
+        if inpaint_enabled:
+            if IMAGE is None:
+                raise ValueError(
+                    "CMK Z-Image Turbo Inpaint requires IMAGE from Create Image."
+                )
+            if mask is None:
+                raise ValueError(
+                    "CMK Z-Image Turbo Inpaint requires MASK in PROCESS."
+                )
+            patch_name = str(inpaint_model_patch or "").strip()
+            if not patch_name:
+                raise ValueError(
+                    "CMK Z-Image Turbo Inpaint requires an INPAINT MODEL PATCH."
+                )
+            model_patch = _unwrap_node_output(
+                _call_node_kwargs(("ModelPatchLoader",), name=patch_name)
+            )
+            model = _unwrap_node_output(
+                _call_node_kwargs(
+                    ("ZImageFunControlnet",),
+                    model=model,
+                    model_patch=model_patch,
+                    vae=vae,
+                    inpaint_image=IMAGE,
+                    mask=mask,
+                    strength=1.0,
+                )
+            )
+            conditioned = _call_node_kwargs(
+                ("InpaintModelConditioning",),
+                positive=positive,
+                negative=negative,
+                vae=vae,
+                pixels=IMAGE,
+                mask=mask,
+                noise_mask=True,
+            )
+            if not isinstance(conditioned, (tuple, list)) or len(conditioned) < 3:
+                raise TypeError(
+                    "CMK Z-Image Turbo Inpaint: InpaintModelConditioning "
+                    "returned an invalid result."
+                )
+            positive = _validate_conditioning(
+                conditioned[0], "z_image_inpaint_conditioning_pos"
+            )
+            negative = _validate_conditioning(
+                conditioned[1], "z_image_inpaint_conditioning_neg"
+            )
+            latent = conditioned[2]
+            width = int(IMAGE.shape[2])
+            height = int(IMAGE.shape[1])
+        else:
+            latent = _unwrap_node_output(
+                _call_node(("EmptySD3LatentImage",), width, height, 1)
+            )
+
         patched_model = _unwrap_node_output(
             _call_node(("ModelSamplingAuraFlow",), model, float(model_shift))
-        )
-        latent = _unwrap_node_output(
-            _call_node(("EmptySD3LatentImage",), width, height, 1)
         )
         if not isinstance(latent, dict) or "samples" not in latent:
             raise TypeError(
@@ -191,15 +281,21 @@ class CMKSamplerPrepareZImageTurboPipe:
                 "denoise": 1.0,
                 "model_family": "z_image_turbo",
                 "model_shift": float(model_shift),
-                "boolean_inpaint_mode": False,
-                "inpaint_process_mode": "text2image",
+                "boolean_inpaint_mode": inpaint_enabled,
+                "inpaint_process_mode": (
+                    str(PROCESS.get("inpaint_process_mode", "custom"))
+                    if inpaint_enabled else "text2image"
+                ),
+                "inpaint_model_patch": (
+                    str(inpaint_model_patch) if inpaint_enabled else None
+                ),
                 "boolean_controlnet_enable": controlnet_enabled,
             }
         )
         lines = [
             "STATUS          : PREPARED",
             "MODEL FAMILY    : ZIT",
-            f"MODE            : {'CONTROLNET' if controlnet_enabled else 'TEXT2IMAGE'}",
+            f"MODE            : {'INPAINT (EXPERIMENTAL)' if inpaint_enabled else ('CONTROLNET' if controlnet_enabled else 'TEXT2IMAGE')}",
             f"SIZE            : {width} × {height}",
             f"STEPS           : {int(steps)}",
             f"CFG             : {float(cfg):g}",
@@ -211,6 +307,8 @@ class CMKSamplerPrepareZImageTurboPipe:
             "POSITIVE PROMPT:",
             prompt,
         ]
+        if inpaint_enabled:
+            lines.insert(3, f"INPAINT PATCH   : {inpaint_model_patch}")
         log = cmk_add_block(LOG, "Z-Image Turbo Prepare", 40, lines, True)
         summary = "\n".join(lines)
         diagnostic = make_diagnostic_payload(
@@ -219,7 +317,10 @@ class CMKSamplerPrepareZImageTurboPipe:
             previews=[],
             summary=f"{width}x{height} | {int(steps)} steps | CFG {float(cfg):g}",
             details=summary,
-            mode="ControlNet" if controlnet_enabled else "Text2Image",
+            mode=(
+                "Inpaint (Experimental)" if inpaint_enabled
+                else ("ControlNet" if controlnet_enabled else "Text2Image")
+            ),
             metadata={
                 "model_family": "z_image_turbo",
                 "width": width,
@@ -230,6 +331,10 @@ class CMKSamplerPrepareZImageTurboPipe:
                 "scheduler": str(scheduler),
                 "model_shift": float(model_shift),
                 "seed": int(seed),
+                "inpaint": inpaint_enabled,
+                "inpaint_model_patch": (
+                    str(inpaint_model_patch) if inpaint_enabled else None
+                ),
             },
         )
         return (sampler_pipe, log, diagnostic)
@@ -304,10 +409,14 @@ class CMKZImageTurboFinalizePipe:
             )
 
         process = dict(PROCESS)
+        generation_mode = (
+            "inpaint" if bool(PROCESS.get("boolean_inpaint_mode", False))
+            else "text2image"
+        )
         process.update(
             {
                 "model_family": "z_image_turbo",
-                "generation_mode": "text2image",
+                "generation_mode": generation_mode,
                 "z_image_sampled": True,
             }
         )
@@ -330,7 +439,11 @@ class CMKZImageTurboFinalizePipe:
             ],
             summary="Z-Image Turbo sampled and decoded",
             details="\n".join(lines),
-            mode="Text2Image",
+            mode=(
+                "Inpaint (Experimental)"
+                if generation_mode == "inpaint"
+                else "Text2Image"
+            ),
             metadata={"model_family": "z_image_turbo"},
         )
         return (MODEL, process, image, log, diagnostic)

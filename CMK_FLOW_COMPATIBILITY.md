@@ -177,6 +177,15 @@ A compatible module should include:
 - a real screenshot or preview when visual distinction is useful;
 - status `STABLE`, `BETA`, or `EXPERIMENTAL`.
 
+### 6.1 Experimental Z-Image Turbo Inpaint
+
+Z-Image Turbo Inpaint is currently an experimental CMK capability. It provides
+only general masked inpainting; the guided SDXL modes for replacing, removing,
+or extending content are not part of its contract. The Union-2.1 patch has very
+high memory requirements, and successful execution does not imply Text2Image-
+equivalent quality. Workflows and integrations must preserve this experimental
+label and must not advertise ZIT outpainting or task-specific Inpaint modes.
+
 ## 7. Discovery metadata
 
 Flow metadata belongs next to the published module or in an equivalent registry

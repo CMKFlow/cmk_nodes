@@ -65,10 +65,14 @@ class ZITControlNetTests(unittest.TestCase):
             'controlnet_enabled = bool(PROCESS.get("boolean_controlnet_enable", False))',
             self.sampler_source,
         )
-        self.assertIn(
-            'mode="ControlNet" if controlnet_enabled else "Text2Image"',
-            self.sampler_source,
-        )
+        self.assertIn('else ("ControlNet" if controlnet_enabled else "Text2Image")', self.sampler_source)
+
+    def test_inpaint_path_uses_native_conditioning_and_zit_patch(self):
+        self.assertIn('("InpaintModelConditioning",)', self.sampler_source)
+        self.assertIn('("ZImageFunControlnet",)', self.sampler_source)
+        self.assertIn("inpaint_image=IMAGE", self.sampler_source)
+        self.assertIn("mask=mask", self.sampler_source)
+        self.assertIn('return ["IMAGE"]', self.sampler_source)
 
     def test_flow_browser_metadata_is_registered(self):
         metadata = json.loads(

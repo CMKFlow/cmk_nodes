@@ -1,3 +1,15 @@
+# 2026-08-08 — Experimentelles ZIT-Inpaint eingefroren
+
+- `10 KSampler Z-Image Turbo` unterstützt einen allgemeinen maskierten
+  Inpaint-Pfad über `InpaintModelConditioning` und den Union-2.1-Modellpatch.
+- ZIT-Inpaint ist in UI, Diagnose und Flow-Metadaten eindeutig als
+  `EXPERIMENTAL` gekennzeichnet. Aufgabenbezogene Inpaint-Modi sind nicht
+  implementiert.
+- 768x512 dient beim Wechsel vom generischen Größenstandard zu ZIT-Inpaint als
+  speichersichere Ausgangsgröße; ausdrückliche Alternativen bleiben erhalten.
+- Der technisch bestätigte Stand wird aufgrund sehr hoher Speicher- und
+  Laufzeitanforderungen vorerst ohne weitere Qualitätsoptimierung eingefroren.
+
 ## 2026-08-01 — Mechanische Trennung der Modellfamilien
 
 - `01 START HERE` besitzt nun die inkompatiblen Ausgänge `PROCESS SDXL` und

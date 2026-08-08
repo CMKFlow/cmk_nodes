@@ -70,14 +70,13 @@ const NEUTRAL_IMAGE_SIZES = [
     "768x512",
     "512x768",
 ];
+const ZIT_INPAINT_DEFAULT_SIZE = "768x512";
 const Z_IMAGE_HIDDEN_WIDGETS = new Set([
     "PROMPT NEG",
-    "INPAINT_MODE",
     "upscale_method",
     "device",
     "outpaint_on",
     "outpaint_overlap",
-    "mask_fill_holes",
     "fill_masked_area",
     "process_mode",
     "resize_mode",
@@ -282,18 +281,38 @@ function rebuildModeWidgets(node, force = false) {
     const state = captureWidgets(node);
     if (state.rebuilding) return;
     const mode = isZImage(node)
-        ? "z-image"
+        ? (isInpaintMode(node) ? "z-image-inpaint" : "z-image")
         : (isInpaintMode(node) ? "inpaint" : "text2image");
     if (!force && state.visibleMode === mode) return;
 
     state.rebuilding = true;
     try {
+        const flowModeWidget = state.widgetsByName.get("INPAINT_MODE");
+        if (flowModeWidget) {
+            flowModeWidget.label = mode === "z-image-inpaint"
+                ? "MODE · INPAINT EXPERIMENTAL"
+                : "MODE";
+        }
+        const resolutionWidget = state.widgetsByName.get("resolution");
+        if (
+            mode === "z-image-inpaint"
+            && state.visibleMode !== mode
+            && resolutionWidget
+            && String(resolutionWidget.value ?? "").trim() === "1152x832"
+        ) {
+            // 1152x832 is the shared generic default. ZIT Inpaint additionally
+            // loads the 6.3 GB Union 2.1 patch, so use the proven safe baseline
+            // when entering this mode. Explicit alternative sizes are retained.
+            resolutionWidget.value = ZIT_INPAINT_DEFAULT_SIZE;
+        }
         const resizeMode = String(
             state.widgetsByName.get("resize_mode")?.value ?? "Fit"
         ).trim().toLowerCase();
+        const zImageMode = mode.startsWith("z-image");
+        const inpaintMode = mode.endsWith("inpaint");
         node.widgets = state.canonicalOrder
-            .filter((name) => mode !== "z-image" || !Z_IMAGE_HIDDEN_WIDGETS.has(name))
-            .filter((name) => mode === "inpaint" || !INPAINT_ONLY_WIDGETS.has(name))
+            .filter((name) => !zImageMode || !Z_IMAGE_HIDDEN_WIDGETS.has(name))
+            .filter((name) => inpaintMode || !INPAINT_ONLY_WIDGETS.has(name))
             .filter((name) => mode !== "text2image" || !TEXT2IMAGE_HIDDEN_WIDGETS.has(name))
             .filter((name) => name !== CROP_POSITION_WIDGET || resizeMode !== "stretch")
             .map((name) => state.widgetsByName.get(name))
