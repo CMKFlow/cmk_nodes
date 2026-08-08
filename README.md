@@ -135,14 +135,17 @@ Apache License 2.0; deren Lizenz gilt unabhängig von CMKs GPL-Lizenz.
 Die öffentlichen CMK-FaceSwap-Pfade besitzen einen verpflichtenden lokalen
 ContentGuard. Er prüft Quell- und Zielbilder vor dem Swap; im Videopfad wird
 jedes Ziel-Frame geprüft. Explizite Inhalte, ein geschätztes Alter unter 18,
-ein nicht sicher als erwachsen bestätigtes Alter unter 25 sowie fehlende oder
+ein Source-Alter unter der konservativen 25er-Grenze sowie fehlende oder
 fehlerhafte Schutzmodelle führen zu einem harten Abbruch. Es gibt in der
 öffentlichen Oberfläche keine Umgehungsoption. Deaktivierte FaceSwap-Nodes
 bleiben echte Pass-through-Pfade und laden den Guard nicht.
 
 Der Guard arbeitet vollständig lokal mit NudeNet zur Erkennung expliziter
-Bildinhalte und dem Altersmodell des installierten InsightFace-Pakets. Er ist
-eine technische Risikobegrenzung, keine Altersbestätigung, keine
+Inhalte und InsightFace zur Altersschätzung. Für Target-Gesichter gilt die
+Erwachsenen-Grenze 18, um instabile Schätzungen
+bei generierten oder stilisierten Gesichtern nicht fälschlich zu sperren.
+Die Bewertung hängt von den Bildinhalten und dem Altersmodell des installierten
+InsightFace-Pakets ab. Sie ist eine technische Risikobegrenzung, keine
 Einwilligungsprüfung und keine Garantie gegen Fehlklassifikationen. Details zur
 Policy und zu den neutralen Diagnosecodes stehen in
 [`CONTENT_GUARD.md`](CONTENT_GUARD.md).

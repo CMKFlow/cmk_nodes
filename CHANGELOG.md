@@ -1,5 +1,9 @@
 # 2026-08-08 — Experimentelles ZIT-Inpaint eingefroren
 
+- Der FaceSwap ContentGuard bewertet Alter rollenabhängig: Source weiterhin
+  konservativ ab 25, Target ab 18. Minderjährige, fehlende und ungültige
+  Alterswerte bleiben fail-closed; die neue Guard-Version invalidiert alte
+  Video-Swap-Caches.
 - `05 ControlNet ZIT` reicht das authoritative IMAGE unverändert an `10 ZIT`
   weiter. Damit bleibt auch ZIT-Inpaint hinter dem optionalen ControlNet-Modul
   eine vollständig lineare `PROCESS / IMAGE / LOG`-Kette.

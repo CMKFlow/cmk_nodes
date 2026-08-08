@@ -11,11 +11,12 @@ Erwachsenenklassifikation erlaubt.
 
 - Quelle und Ziel werden vor jedem tatsächlichen Swap geprüft.
 - Im Videopfad wird jedes decodierte Ziel-Frame auf explizite Inhalte geprüft.
-- Jedes tatsächlich ausgewählte Quell- und Zielgesicht benötigt eine gültige
-  lokale Altersschätzung von mindestens 25 Jahren.
+- Jedes tatsächlich ausgewählte Gesicht benötigt eine gültige lokale
+  Altersschätzung. Für Quellgesichter gilt die konservative Grenze 25, für
+  Zielgesichter die Erwachsenen-Grenze 18.
 - Altersschätzungen unter 18 werden mit `CG_AGE_MINOR` blockiert.
-- Altersschätzungen von 18 bis 24 werden konservativ mit
-  `CG_AGE_UNCERTAIN` blockiert.
+- Altersschätzungen von 18 bis 24 werden nur für die Source-Rolle konservativ
+  mit `CG_AGE_UNCERTAIN` blockiert. Für Targets sind sie zulässig.
 - Fehlende oder ungültige Altersschätzungen werden blockiert.
 - NudeNet-Treffer ab `0.35` für entblößte Genitalien, Anus, Gesäß oder weibliche
   Brust werden mit `CG_EXPLICIT_CONTENT` blockiert.
@@ -43,7 +44,7 @@ Körperteile oder geschätzten Alterswerte aus.
 | Code | Bedeutung |
 |---|---|
 | `CG_AGE_MINOR` | Altersschätzung unter 18 |
-| `CG_AGE_UNCERTAIN` | Altersschätzung zwischen 18 und 24 |
+| `CG_AGE_UNCERTAIN` | Source-Altersschätzung zwischen 18 und 24 |
 | `CG_AGE_UNAVAILABLE` | keine verwertbare Altersschätzung |
 | `CG_AGE_INVALID` | Altersschätzung außerhalb des gültigen Bereichs |
 | `CG_EXPLICIT_CONTENT` | expliziter Inhalt oberhalb der Policy-Schwelle |
@@ -57,7 +58,8 @@ Körperteile oder geschätzten Alterswerte aus.
 Der ContentGuard ist keine verlässliche Altersfeststellung, keine
 Identitätsprüfung und keine Einwilligungsprüfung. Lokale ML-Modelle können
 falsch-positive und falsch-negative Ergebnisse liefern. Die konservative
-25-Jahre-Grenze reduziert Unsicherheit, beseitigt sie aber nicht. Anwender sind
+25-Jahre-Grenze für Sources und die 18-Jahre-Grenze für Targets reduzieren
+rollenbezogen Unsicherheit, beseitigen sie aber nicht. Anwender sind
 weiterhin selbst für eine rechtmäßige, einvernehmliche und verantwortungsvolle
 Nutzung verantwortlich.
 

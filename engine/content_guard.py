@@ -8,8 +8,9 @@ from typing import Any
 import numpy as np
 
 
-GUARD_VERSION = "cmk-content-guard-v1"
-MIN_CONFIRMED_ADULT_AGE = 25
+GUARD_VERSION = "cmk-content-guard-v2-role-age-thresholds"
+MIN_SOURCE_AGE = 25
+MIN_TARGET_AGE = 18
 EXPLICIT_SCORE_THRESHOLD = 0.35
 EXPLICIT_CLASSES = frozenset(
     {
@@ -68,7 +69,11 @@ def _estimated_age(face: Any, role: str) -> int:
         raise ContentGuardBlocked("CG_AGE_INVALID", role)
     if age < 18:
         raise ContentGuardBlocked("CG_AGE_MINOR", role)
-    if age < MIN_CONFIRMED_ADULT_AGE:
+    # The identity donor remains deliberately conservative. Generated and
+    # stylised target faces fluctuate strongly around InsightFace's 25-year
+    # estimate, so a confirmed adult target uses the legal adult boundary.
+    minimum_age = MIN_TARGET_AGE if str(role) == "target" else MIN_SOURCE_AGE
+    if age < minimum_age:
         raise ContentGuardBlocked("CG_AGE_UNCERTAIN", role)
     return age
 
