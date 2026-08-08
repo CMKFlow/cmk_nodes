@@ -371,6 +371,11 @@ Modell. Experimentelles Inpaint verwendet IMAGE und MASK mit
 das Ergebnis und führt es als normales `IMAGE` in die gemeinsamen Module
 `40/90`.
 
+Das optionale `05 ControlNet ZIT` gibt neben PROCESS und LOG das unveränderte
+authoritative IMAGE aus. Das intern erzeugte Canny-Kontrollbild verbleibt im
+PROCESS. Dadurch kann `10 ZIT` sein Inpaint-Bild linear vom vorherigen Modul
+beziehen, ohne eine parallele Umgehungsleitung von `01 START HERE`.
+
 Der dazugehörige kompakte Subgraph `CMK Flow · 10 KSampler Z-Image Turbo`
 kapselt diese vier Stufen vollständig. Sein öffentlicher Vertrag lautet
 `PROCESS + IMAGE + LOG -> MODEL + PROCESS + IMAGE + LOG + diagnostic`. IMAGE

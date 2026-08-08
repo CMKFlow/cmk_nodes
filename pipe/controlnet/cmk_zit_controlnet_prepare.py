@@ -94,10 +94,17 @@ class CMKZITControlNetPreparePipe:
 
     RETURN_TYPES = (
         "CMK_PROCESS_Z_IMAGE",
+        "IMAGE",
         "CMK_LOG_PIPE",
         "CMK_DIAGNOSTIC",
     )
-    RETURN_NAMES = ("PROCESS", "LOG", "diagnostic")
+    RETURN_NAMES = ("PROCESS", "IMAGE", "LOG", "diagnostic")
+    OUTPUT_TOOLTIPS = (
+        "ZIT process with optional ControlNet preparation.",
+        "Unchanged authoritative IMAGE for the following ZIT module.",
+        "Structured Flow log.",
+        "Optional diagnostic information.",
+    )
     FUNCTION = "prepare"
     CATEGORY = "CMK/Flow/Process/ZIT"
     OUTPUT_NODE = True
@@ -111,11 +118,15 @@ class CMKZITControlNetPreparePipe:
             return ["PROCESS"]
         if not isinstance(PROCESS, dict) or not PROCESS.get("family_active", True):
             return []
-        if not bool(kwargs.get("ENABLE", False)):
-            return []
         requested = []
-        if kwargs.get("IMAGE SOURCE", "Reference Image") == "Base Image" and kwargs.get("IMAGE") is None:
+        image_required = bool(PROCESS.get("boolean_inpaint_mode", False)) or (
+            bool(kwargs.get("ENABLE", False))
+            and kwargs.get("IMAGE SOURCE", "Reference Image") == "Base Image"
+        )
+        if image_required and kwargs.get("IMAGE") is None:
             requested.append("IMAGE")
+        if not bool(kwargs.get("ENABLE", False)):
+            return requested
         if kwargs.get("LOG") is None:
             requested.append("LOG")
         return requested
@@ -129,7 +140,7 @@ class CMKZITControlNetPreparePipe:
         enabled = bool(kwargs.get("ENABLE", False))
         if not PROCESS.get("family_active", True):
             blocked = ExecutionBlocker(None)
-            return (PROCESS, blocked, blocked)
+            return (PROCESS, blocked, blocked, blocked)
 
         process = dict(PROCESS)
         if not enabled:
@@ -143,7 +154,12 @@ class CMKZITControlNetPreparePipe:
             blocked = ExecutionBlocker(None)
             return {
                 "ui": {"images": _empty_controlnet_ui_placeholder()},
-                "result": (process, kwargs.get("LOG"), blocked),
+                "result": (
+                    process,
+                    kwargs.get("IMAGE"),
+                    kwargs.get("LOG"),
+                    blocked,
+                ),
             }
 
         image_source = str(kwargs.get("IMAGE SOURCE", "Reference Image"))
@@ -220,5 +236,5 @@ class CMKZITControlNetPreparePipe:
         )
         return {
             "ui": {"images": _tensor_image_to_temp_ui(image, "cmk_zit_controlnet")},
-            "result": (process, log, diagnostic),
+            "result": (process, kwargs.get("IMAGE"), log, diagnostic),
         }

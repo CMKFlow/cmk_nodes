@@ -1,5 +1,8 @@
 # 2026-08-08 — Experimentelles ZIT-Inpaint eingefroren
 
+- `05 ControlNet ZIT` reicht das authoritative IMAGE unverändert an `10 ZIT`
+  weiter. Damit bleibt auch ZIT-Inpaint hinter dem optionalen ControlNet-Modul
+  eine vollständig lineare `PROCESS / IMAGE / LOG`-Kette.
 - `10 KSampler Z-Image Turbo` unterstützt einen allgemeinen maskierten
   Inpaint-Pfad über `InpaintModelConditioning` und den Union-2.1-Modellpatch.
 - ZIT-Inpaint ist in UI, Diagnose und Flow-Metadaten eindeutig als

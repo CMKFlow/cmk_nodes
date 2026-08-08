@@ -21,11 +21,25 @@ class ZITControlNetTests(unittest.TestCase):
     def test_public_node_is_zit_typed_and_optional_by_default(self):
         self.assertIn('"PROCESS": ("CMK_PROCESS_Z_IMAGE",)', self.prepare_source)
         self.assertIn(
-            'RETURN_NAMES = ("PROCESS", "LOG", "diagnostic")',
+            'RETURN_NAMES = ("PROCESS", "IMAGE", "LOG", "diagnostic")',
             self.prepare_source,
         )
         self.assertIn('"ENABLE": ("BOOLEAN", {"default": False})', self.prepare_source)
         self.assertNotIn("CMK_PROCESS_SDXL", self.prepare_source)
+
+    def test_authoritative_image_is_forwarded_for_zit_inpaint(self):
+        self.assertIn(
+            'bool(PROCESS.get("boolean_inpaint_mode", False))',
+            self.prepare_source,
+        )
+        self.assertIn(
+            '"result": (process, kwargs.get("IMAGE"), log, diagnostic)',
+            self.prepare_source,
+        )
+        self.assertIn(
+            '"Unchanged authoritative IMAGE for the following ZIT module."',
+            self.prepare_source,
+        )
 
     def test_ui_follows_sdxl_controlnet_source_pattern(self):
         for field in (
