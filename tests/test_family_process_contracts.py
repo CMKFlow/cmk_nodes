@@ -161,7 +161,9 @@ class FamilyProcessContractTests(unittest.TestCase):
         first_pos = boundary_lazy.index("if IMAGE_1ST_PASS is None:")
         refined_pos = boundary_lazy.index("if IMAGE_REFINED is None:")
         public_model_pos = boundary_lazy.index("if MODEL is None:")
+        log_pos = boundary_lazy.index("if LOG is None:")
         self.assertLess(public_model_pos, first_pos)
+        self.assertLess(log_pos, first_pos)
         self.assertLess(first_pos, refined_pos)
 
     def test_pipe_upscaler_releases_diffusion_memory_before_model_load(self):

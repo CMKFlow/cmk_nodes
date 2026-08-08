@@ -469,17 +469,18 @@ class CMKRefinerBoundaryCache:
             )
             return []
 
-        # MODEL arrives through the sampled family gate. Request it before the
-        # image stages; asking for it last can reopen that gate and execute
-        # module 10 a second time within the same prompt.
+        # MODEL and LOG both arrive through preparation paths that depend on
+        # the sampled family gate. Materialize them before either Refiner image;
+        # requesting LOG after Refiner sampling can reopen module 10 after the
+        # base model has been displaced by the Refiner model.
         if MODEL is None:
             return ["MODEL"]
+        if LOG is None:
+            return ["LOG"]
         if IMAGE_1ST_PASS is None:
             return ["IMAGE_1ST_PASS"]
         if IMAGE_REFINED is None:
             return ["IMAGE_REFINED"]
-        if LOG is None:
-            return ["LOG"]
         return []
 
     def boundary(
