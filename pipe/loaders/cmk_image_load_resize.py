@@ -82,15 +82,16 @@ class CMKImageLoadAndResizePipe:
 
     Public contract:
         image file + resize/crop parameters
-        -> optional MODEL SDXL passthrough + PROCESS SDXL + IMAGE + LOG + diagnostic
+        -> optional MODEL SDXL input, then MODEL + PROCESS SDXL + IMAGE + LOG + diagnostic
 
     IMAGE is the only authoritative pixel transport. PROCESS contains only
     source/target/crop metadata required by downstream CMK Prepare nodes, but
     carries the typed SDXL contract required by the standalone Detailer and
     FaceProcess reference paths. An optionally connected MODEL SDXL is passed
-    through unchanged. Without it, pixel-only modules use PROCESS, IMAGE and
-    LOG and no artificial model placeholder is created. This node provides no
-    mask, prompt, LoRA, inpaint, outpaint or latent preparation.
+    through unchanged as the ordinary downstream MODEL. Without it, pixel-only
+    modules use PROCESS, IMAGE and LOG and no artificial model placeholder is
+    created. This node provides no mask, prompt, LoRA, inpaint, outpaint or
+    latent preparation.
     """
 
     @classmethod
@@ -141,7 +142,7 @@ class CMKImageLoadAndResizePipe:
         "CMK_LOG_PIPE",
         "CMK_DIAGNOSTIC",
     )
-    RETURN_NAMES = ("MODEL SDXL", "PROCESS", "IMAGE", "LOG", "diagnostic")
+    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "diagnostic")
     FUNCTION = "load_and_resize"
     CATEGORY = "CMK/Flow/Input"
 

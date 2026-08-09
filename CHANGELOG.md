@@ -5,7 +5,7 @@
   Input-Normalisierung darf beide Dimensionen nur noch vergrößern.
 - `CMK Flow · Checkpoint & VAE` benennt seinen Ausgang eindeutig als
   `MODEL SDXL`. `CMK Flow · Image Input` übernimmt ihn optional und reicht ihn
-  am gleichnamigen Ausgang unverändert weiter. Dadurch besteht der schlanke
+  am regulären Ausgang `MODEL` unverändert weiter. Dadurch besteht der schlanke
   Standalone-Aufbau aus Checkpoint, Image Input und 25/30 ohne `01 START HERE`.
 - Ohne angeschlossenen Checkpoint erzeugt Image Input keinen künstlichen
   MODEL-Ersatz. 40 FaceSwap und 90 Upscale & Save akzeptieren den vollständigen
@@ -13,7 +13,7 @@
   Der frühere sichtbare Typ `CMK_PIXEL_MODEL` entfällt.
 - Der PROCESS-Ausgang von Image Input bleibt bewusst als `CMK_PROCESS_SDXL`
   typisiert. Die sichtbaren Ausgänge folgen
-  `MODEL SDXL / PROCESS / IMAGE / LOG / diagnostic`.
+  `MODEL / PROCESS / IMAGE / LOG / diagnostic`.
 - `01 START HERE` zeigt bei `Remove Object` die noise-gefüllte Maske in der
   Node-Vorschau, während der authoritative IMAGE-Ausgang weiterhin das
   unveränderte Kontextbild und PROCESS weiterhin die echte Maske transportiert.

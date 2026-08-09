@@ -144,8 +144,8 @@ ZIT-Zweig darf diese beiden gemeinsamen Module auch direkt speisen.
 
 Ein rein pixelbasierter Workflow beginnt mit `CMK Image Load and Resize
 -Pipe-`. Sein öffentlicher Ausgangsvertrag folgt der CMK-Reihenfolge
-`MODEL SDXL / PROCESS / IMAGE / LOG / diagnostic`. Der optionale Eingang
-`MODEL SDXL` wird unverändert zum gleichnamigen Ausgang durchgereicht; ohne
+`MODEL / PROCESS / IMAGE / LOG / diagnostic`. Der optionale Eingang
+`MODEL SDXL` wird unverändert zum regulären Ausgang `MODEL` durchgereicht; ohne
 angeschlossenen Checkpoint bleibt dieser Wert leer. PROCESS wird als
 `family_neutral` mit `source_model_family = image` gekennzeichnet. Der
 öffentliche PROCESS-Port trägt dennoch den
@@ -952,7 +952,7 @@ CMK Checkpoint VAE Loader -Pipe- → MODEL
 CMK Load Image -Pipe-            → PROCESS + IMAGE + LOG
 CMK Checkpoint VAE Loader -Pipe- → MODEL SDXL (optional)
                                       ↓
-CMK Image Load and Resize -Pipe- → MODEL SDXL + PROCESS SDXL + IMAGE + LOG + diagnostic
+CMK Image Load and Resize -Pipe- → MODEL + PROCESS SDXL + IMAGE + LOG + diagnostic
 ```
 
 Daraus können `CMK Detailer Prepare -Pipe-` beziehungsweise `CMK FaceProcess

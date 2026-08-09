@@ -56,7 +56,7 @@ class FamilyProcessContractTests(unittest.TestCase):
             ROOT / "pipe" / "loaders" / "cmk_image_load_resize.py"
         ).read_text(encoding="utf-8")
         self.assertIn(
-            'RETURN_NAMES = ("MODEL SDXL", "PROCESS", "IMAGE", "LOG", "diagnostic")',
+            'RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "diagnostic")',
             loader_source,
         )
         self.assertNotIn('"CMK_PIXEL_MODEL"', loader_source)
