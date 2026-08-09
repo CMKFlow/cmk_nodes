@@ -775,12 +775,6 @@
                 ]
               },
               {
-                "localized_name": "PROCESS",
-                "name": "PROCESS",
-                "type": "CMK_PROCESS_SDXL",
-                "links": []
-              },
-              {
                 "localized_name": "IMAGE REFINED",
                 "name": "IMAGE",
                 "type": "IMAGE",
@@ -969,7 +963,7 @@
           {
             "id": 12239,
             "origin_id": 5042,
-            "origin_slot": 3,
+            "origin_slot": 2,
             "target_id": -20,
             "target_slot": 3,
             "type": "CMK_LOG_PIPE"
@@ -985,7 +979,7 @@
           {
             "id": 12242,
             "origin_id": 5042,
-            "origin_slot": 2,
+            "origin_slot": 1,
             "target_id": -20,
             "target_slot": 2,
             "type": "IMAGE"

@@ -45,11 +45,10 @@ class _CMKFamilyBranchGate:
 
     RETURN_TYPES = (
         "CMK_MODEL_PIPE",
-        "CMK_PROCESS_SDXL",
         "IMAGE",
         "CMK_LOG_PIPE",
     )
-    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG")
+    RETURN_NAMES = ("MODEL", "IMAGE", "LOG")
     FUNCTION = "gate"
     CATEGORY = "CMK/Developer/Boundary & Cache"
     DEV_ONLY = True
@@ -75,7 +74,7 @@ class _CMKFamilyBranchGate:
             isinstance(PROCESS, dict) and not PROCESS.get("family_active", True)
         ):
             blocked = ExecutionBlocker(None)
-            return (blocked, PROCESS, blocked, blocked)
+            return (blocked, blocked, blocked)
         if not isinstance(PROCESS, dict):
             raise TypeError("CMK Family Branch Gate requires a CMK process pipe")
         result_process = inputs.get("RESULT PROCESS") or PROCESS
@@ -94,7 +93,6 @@ class _CMKFamilyBranchGate:
             )
         return (
             inputs["MODEL"],
-            result_process,
             inputs["IMAGE"],
             inputs["LOG"],
         )
@@ -109,7 +107,6 @@ class CMKFamilyBranchGateZImage(_CMKFamilyBranchGate):
     FAMILY = "z_image_turbo"
     RETURN_TYPES = (
         "CMK_MODEL_PIPE",
-        "CMK_PROCESS_Z_IMAGE",
         "IMAGE",
         "CMK_LOG_PIPE",
     )
@@ -129,11 +126,10 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
 
     RETURN_TYPES = (
         "CMK_MODEL_PIPE",
-        "CMK_PROCESS_SDXL",
         "CMK_SAMPLED_PIPE",
         "CMK_LOG_PIPE",
     )
-    RETURN_NAMES = ("MODEL", "PROCESS", "SAMPLED", "LOG")
+    RETURN_NAMES = ("MODEL", "SAMPLED", "LOG")
 
     @cmk_timed_call("LAZY SDXL SAMPLED GATE")
     def check_lazy_status(self, PROCESS=None, **inputs):
@@ -158,7 +154,7 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
             isinstance(PROCESS, dict) and not PROCESS.get("family_active", True)
         ):
             blocked = ExecutionBlocker(None)
-            return (blocked, PROCESS, blocked, blocked)
+            return (blocked, blocked, blocked)
         if not isinstance(PROCESS, dict):
             raise TypeError("CMK SDXL Sampler Branch Gate requires a CMK process pipe")
         actual = str(PROCESS.get("model_family", "sdxl")).strip().lower()
@@ -173,7 +169,7 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
                 "CMK SDXL Sampler Branch Gate is missing " + ", ".join(missing)
             )
         return (
-            inputs["MODEL"], PROCESS, inputs["SAMPLED"], inputs["LOG"],
+            inputs["MODEL"], inputs["SAMPLED"], inputs["LOG"],
         )
 
 

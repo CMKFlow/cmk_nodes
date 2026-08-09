@@ -426,11 +426,23 @@ class FamilyProcessContractTests(unittest.TestCase):
                 gate = gate_class()
                 self.assertEqual(gate.check_lazy_status(PROCESS=None), [])
                 result = gate.gate(PROCESS=None)
-                self.assertIsNone(result[1])
                 self.assertTrue(all(
                     isinstance(value, module.ExecutionBlocker)
-                    for index, value in enumerate(result) if index != 1
+                    for value in result
                 ))
+
+    def test_family_gates_do_not_expose_a_redundant_process_output(self):
+        path = ROOT / "pipe" / "cmk_family_result.py"
+        spec = importlib.util.spec_from_file_location("cmk_family_ports_test", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        for gate_class in (
+            module.CMKFamilyBranchGateSDXL,
+            module.CMKFamilyBranchGateSDXLSampled,
+            module.CMKFamilyBranchGateZImage,
+        ):
+            with self.subTest(gate=gate_class.__name__):
+                self.assertNotIn("PROCESS", gate_class.RETURN_NAMES)
 
     def test_merge_requests_only_the_selected_lazy_branch(self):
         path = ROOT / "pipe" / "cmk_family_result.py"

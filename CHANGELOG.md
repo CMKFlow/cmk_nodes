@@ -1,7 +1,10 @@
 # 2026-08-08 — Experimentelles ZIT-Inpaint eingefroren
 
 - Family Gates transportieren ausschließlich die autoritativen Familienwerte
-  MODEL / PROCESS / IMAGE beziehungsweise SAMPLED / LOG. Die öffentlichen
+  MODEL / IMAGE beziehungsweise SAMPLED / LOG. PROCESS wird als leichtes
+  Steuersignal nur am Eingang gelesen und ausschließlich über die kanonischen
+  Forward-/Boundary-Pfade öffentlich ausgegeben; der irreführende unbenutzte
+  PROCESS-Ausgang der Dev-Gates wurde entfernt. Die öffentlichen
   `diagnostic`-Ausgänge werden direkt aus den vollständigen Diagnostic-Quellen
   gespeist. Dadurch bleiben sämtliche Stufen erhalten und das spätere Anzeigen
   eines Diagnostics kann den teuren Samplerpfad nicht erneut über den Gate
