@@ -60,9 +60,10 @@ class FamilyProcessContractTests(unittest.TestCase):
             loader_source,
         )
         self.assertNotIn('"CMK_PIXEL_MODEL"', loader_source)
-        self.assertIn('"MODEL SDXL": ("CMK_MODEL_PIPE",)', loader_source)
+        self.assertIn('"MODEL SDXL (opt)": ("CMK_MODEL_PIPE",)', loader_source)
         self.assertIn('"CMK_MODEL_PIPE"', loader_source)
         self.assertIn('"CMK_PROCESS_SDXL"', loader_source)
+        self.assertIn('inputs.get("MODEL SDXL (opt)")', loader_source)
         self.assertIn('"result_contract": "family_neutral"', loader_source)
         self.assertIn('"source_model_family": "image"', loader_source)
         self.assertNotIn('"pixel_only": True', loader_source)

@@ -31,6 +31,8 @@
   `MODEL SDXL`. `CMK Flow · Image Input` übernimmt ihn optional und reicht ihn
   am regulären Ausgang `MODEL` unverändert weiter. Dadurch besteht der schlanke
   Standalone-Aufbau aus Checkpoint, Image Input und 25/30 ohne `01 START HERE`.
+- Der nur für diese Standalone-Verarbeitung benötigte Image-Input-Anschluss ist
+  sichtbar als `MODEL SDXL (opt)` gekennzeichnet.
 - Ohne angeschlossenen Checkpoint erzeugt Image Input keinen künstlichen
   MODEL-Ersatz. 40 FaceSwap und 90 Upscale & Save akzeptieren den vollständigen
   `family_neutral/image`-Pfad über PROCESS / IMAGE / LOG mit optionalem MODEL.

@@ -82,12 +82,12 @@ class CMKImageLoadAndResizePipe:
 
     Public contract:
         image file + resize/crop parameters
-        -> optional MODEL SDXL input, then MODEL + PROCESS SDXL + IMAGE + LOG + diagnostic
+        -> optional MODEL SDXL (opt) input, then MODEL + PROCESS SDXL + IMAGE + LOG + diagnostic
 
     IMAGE is the only authoritative pixel transport. PROCESS contains only
     source/target/crop metadata required by downstream CMK Prepare nodes, but
     carries the typed SDXL contract required by the standalone Detailer and
-    FaceProcess reference paths. An optionally connected MODEL SDXL is passed
+    FaceProcess reference paths. An optionally connected MODEL SDXL (opt) is passed
     through unchanged as the ordinary downstream MODEL. Without it, pixel-only
     modules use PROCESS, IMAGE and LOG and no artificial model placeholder is
     created. This node provides no mask, prompt, LoRA, inpaint, outpaint or
@@ -131,7 +131,7 @@ class CMKImageLoadAndResizePipe:
                 ),
             },
             "optional": {
-                "MODEL SDXL": ("CMK_MODEL_PIPE",),
+                "MODEL SDXL (opt)": ("CMK_MODEL_PIPE",),
             },
         }
 
@@ -215,7 +215,7 @@ class CMKImageLoadAndResizePipe:
         )
 
     def load_and_resize(self, **inputs):
-        model_sdxl = inputs.get("MODEL SDXL")
+        model_sdxl = inputs.get("MODEL SDXL (opt)")
         image_name = str(inputs.get("IMAGE", "") or "")
         resolution = str(inputs.get("RESOLUTION", "SDXL 1152x832") or "SDXL 1152x832")
         swap_dimensions = bool(inputs.get("SWAP DIMENSIONS", False))
