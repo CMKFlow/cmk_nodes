@@ -142,7 +142,7 @@ function addStyles() {
     .cmk-flow-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0 0 18px; }
     .cmk-flow-meta-item { padding: 10px 11px; border-left: 2px solid #34444a; background: rgba(19,26,31,.65); }
     .cmk-flow-meta-label { display: block; color: #7f8d94; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
-    .cmk-flow-meta-value { display: block; margin-top: 3px; overflow: hidden; color: #d2d9dc; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    .cmk-flow-meta-value { display: block; margin-top: 3px; color: #d2d9dc; font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; white-space: normal; }
     .cmk-flow-interface { margin-bottom: 20px; }
     .cmk-flow-sequence { margin-bottom: 20px; padding: 14px 16px; border: 1px solid #304047; border-radius: 10px; background: rgba(20,31,36,.82); }
     .cmk-flow-sequence-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

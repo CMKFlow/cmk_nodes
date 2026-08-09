@@ -98,6 +98,12 @@ class FlowBrowserCatalogTests(unittest.TestCase):
         self.assertIn('metadata.version || "1.0.0"', source)
         self.assertIn("metadata.author ||", source)
         self.assertIn("metadata.compatibility", source)
+        self.assertIn(".cmk-flow-meta-value", source)
+        self.assertIn("overflow-wrap: anywhere", source)
+        self.assertNotIn(
+            ".cmk-flow-meta-value { display: block; margin-top: 3px; overflow: hidden",
+            source,
+        )
 
 
 if __name__ == "__main__":
