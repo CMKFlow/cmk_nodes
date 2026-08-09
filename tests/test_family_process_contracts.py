@@ -59,6 +59,7 @@ class FamilyProcessContractTests(unittest.TestCase):
             'RETURN_NAMES = ("PROCESS", "IMAGE", "LOG", "diagnostic", "MODEL")',
             loader_source,
         )
+        self.assertIn('"CMK_PIXEL_MODEL"', loader_source)
         self.assertIn('"result_contract": "family_neutral"', loader_source)
         self.assertIn('"source_model_family": "image"', loader_source)
         self.assertIn('"pixel_only": True', loader_source)
@@ -70,6 +71,20 @@ class FamilyProcessContractTests(unittest.TestCase):
         self.assertIn('family == "image"', result_source)
         self.assertIn('MODEL.get("pixel_only") is True', result_source)
         self.assertIn("complete CMK image-input path", result_source)
+
+        for filename in (
+            "CMK Flow · 25 Detailer SDXL.json",
+            "CMK Flow · 30 FaceProcess SDXL.json",
+        ):
+            with self.subTest(filename=filename):
+                definition = json.loads(
+                    (ROOT / "subgraphs" / filename).read_text(encoding="utf-8")
+                )["definitions"]["subgraphs"][0]
+                model_input = next(
+                    item for item in definition["inputs"] if item["name"] == "MODEL"
+                )
+                self.assertEqual(model_input["type"], "CMK_MODEL_PIPE")
+                self.assertNotEqual(model_input["type"], "CMK_PIXEL_MODEL")
 
     def test_curated_processing_order_and_family_boundary_are_explicit(self):
         expected = {

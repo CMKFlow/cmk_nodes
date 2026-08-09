@@ -134,7 +134,7 @@ class CMKImageLoadAndResizePipe:
         "IMAGE",
         "CMK_LOG_PIPE",
         "CMK_DIAGNOSTIC",
-        "CMK_MODEL_PIPE",
+        "CMK_PIXEL_MODEL",
     )
     RETURN_NAMES = ("PROCESS", "IMAGE", "LOG", "diagnostic", "MODEL")
     FUNCTION = "load_and_resize"

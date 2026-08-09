@@ -149,6 +149,9 @@ modellfreien MODEL-Kontext und kennzeichnet PROCESS als `family_neutral` mit
 90 einen vollständigen Bildbearbeitungspfad validieren, ohne einen unbenutzten
 SDXL- oder ZIT-Checkpoint zu laden. Der neutrale Vertrag ist ausschließlich
 für diesen eindeutig markierten CMK-Bildeingang zulässig.
+Der dazugehörige nominale Typ `CMK_PIXEL_MODEL` ist nicht mit
+`CMK_MODEL_PIPE` kompatibel. Der Editor verhindert dadurch eine Verbindung des
+modellfreien Kontexts mit den SDXL-Modulen 25 und 30.
 
 ## 4. Proprietäre Arbeits- und Übergabetypen
 
