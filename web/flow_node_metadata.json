@@ -2,6 +2,12 @@
   "schemaVersion": 2,
   "nodes": {
     "CMKPipeCreateImage": {
+      "category": "Input",
+      "domain": "Image Generation",
+      "compatibility": ["SDXL", "Z-Image Turbo"],
+      "version": "1.0.0",
+      "author": "CMK Nodes",
+      "status": "STABLE",
       "description": "Zentraler Einstieg für Text2Image und Inpaint: wählt die Aufgabe und bereitet Bild, Maske, Prompts sowie den vollständigen PROCESS für den weiteren Flow vor.",
       "features": [
         "MODE-Dropdown für Text2Image und Inpaint mit dynamischer Oberfläche",
@@ -19,6 +25,12 @@
       "previewAlt": "CMK Flow Create Image Node"
     },
     "CMKCheckpointVAELoaderPipe": {
+      "category": "Input",
+      "domain": "Model Setup",
+      "compatibility": ["SDXL"],
+      "version": "1.0.0",
+      "author": "CMK Nodes",
+      "status": "STABLE",
       "description": "Wählt das Bildmodell und die passende Bilddecodierung für die Erzeugung aus.",
       "features": ["Stellt das Modell für Sampler oder Refiner bereit"],
       "placementNote": "Vor dem KSampler oder Refiner platzieren und den MODEL-Ausgang mit dessen MODEL-Eingang verbinden.",
@@ -29,6 +41,12 @@
       "previewAlt": "CMK Flow Checkpoint und VAE Node"
     },
     "CMKLoadImage": {
+      "category": "Input",
+      "domain": "Image Input",
+      "compatibility": ["Image"],
+      "version": "1.0.0",
+      "author": "CMK Nodes",
+      "status": "STABLE",
       "description": "Lädt ein Bild unverändert in den Flow.",
       "features": ["Kompakter Bild-Loader ohne zusätzliche Größenanpassung"],
       "placementNote": "Vor einem Baustein platzieren, der ein vorhandenes Bild verarbeiten soll.",
@@ -39,6 +57,12 @@
       "previewAlt": "CMK Flow Load Image Node"
     },
     "CMKImageLoadAndResizePipe": {
+      "category": "Input",
+      "domain": "Image Input",
+      "compatibility": ["Image", "SDXL"],
+      "version": "1.0.0",
+      "author": "CMK Nodes",
+      "status": "STABLE",
       "description": "Lädt ein Bild und passt es bei Bedarf an die gewünschte Arbeitsgröße an.",
       "features": ["Bild laden", "Größe und Ausrichtung für den weiteren Flow vorbereiten"],
       "placementNote": "Am Anfang eines bildbasierten Flows vor Create Image oder einem Verarbeitungsmodul platzieren.",
@@ -49,6 +73,12 @@
       "previewAlt": "CMK Flow Image Input Node"
     },
     "CMKSwapImageLoaderPipe": {
+      "category": "Input",
+      "domain": "Face Processing",
+      "compatibility": ["CMK Native FaceSwap"],
+      "version": "1.0.0",
+      "author": "CMK Nodes",
+      "status": "STABLE",
       "description": "Lädt Ziel- und Quellbild für einen FaceSwap.",
       "features": ["Bereitet beide benötigten Bilder gemeinsam vor"],
       "placementNote": "Direkt vor FaceSwap Image platzieren.",
@@ -59,6 +89,12 @@
       "previewAlt": "CMK Flow FaceSwap Image Input mit Ziel- und Quellbild-Auswahl"
     },
     "CMKControlNetPreparePipe": {
+      "category": "Process",
+      "domain": "Image Guidance",
+      "compatibility": ["SDXL"],
+      "version": "1.0.0",
+      "author": "CMK Nodes",
+      "status": "STABLE",
       "description": "Ergänzt optional eine Bildführung für die nachfolgende Bilderzeugung.",
       "features": ["Kann Aufbau oder Konturen eines Bildes als Orientierung verwenden"],
       "placementNote": "Zwischen Create Image und dem ersten KSampler platzieren. Wenn keine Bildführung gewünscht ist, kann der Baustein entfallen.",
@@ -70,6 +106,12 @@
       "previewAlt": "CMK Flow ControlNet Node"
     },
     "CMKZITControlNetPreparePipe": {
+      "category": "Process",
+      "domain": "Image Guidance",
+      "compatibility": ["Z-Image Turbo"],
+      "version": "0.1.0",
+      "author": "CMK Nodes",
+      "status": "BETA",
       "description": "Ergänzt optional eine Canny-Bildführung für ZIT.",
       "features": ["Nutzt Konturen eines Bildes als Orientierung für ZIT"],
       "placementNote": "Zwischen Create Image und dem ZIT KSampler platzieren. Wenn keine Bildführung gewünscht ist, kann der Baustein entfallen.",
@@ -81,6 +123,12 @@
       "previewAlt": "CMK Flow ControlNet ZIT Node"
     },
     "CMKFamilyResultMergePipe": {
+      "category": "Process",
+      "domain": "Flow Control",
+      "compatibility": ["SDXL", "Z-Image Turbo"],
+      "version": "1.0.0",
+      "author": "CMK Nodes",
+      "status": "STABLE",
       "description": "Führt parallele SDXL- und ZIT-Familienzweige anhand der in 01 gewählten aktiven Modellfamilie zusammen.",
       "features": [
         "Wählt ausschließlich den aktiven Familienzweig aus",
@@ -105,6 +153,12 @@
       "previewAlt": "CMK Flow Active Family Result Node"
     },
     "CMK_SaveProjectImage": {
+      "category": "Finish",
+      "domain": "Output",
+      "compatibility": ["Image"],
+      "version": "1.0.0",
+      "author": "CMK Nodes",
+      "status": "STABLE",
       "description": "Speichert das fertige Bild mit Projektname und optionalem Datumsordner.",
       "features": ["Speichert das Ergebnis am Ende der Verarbeitung"],
       "placementNote": "Als letzten Baustein hinter der gewünschten Bildbearbeitung platzieren.",

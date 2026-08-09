@@ -259,7 +259,7 @@ function discoverCuratedNodes(nodeRegistry, nodeMetadata, englishContent) {
     .map(([nodeType, nodeDef]) => {
       const metadata = { ...(nodeMetadata[nodeType] || {}), ...(language === "en" ? englishContent.flows?.[nodeType] : {}) };
       const displayName = nodeDef.display_name || nodeDef.name || nodeType;
-      const category = nodeDef.category.split("/").at(-1);
+      const category = metadata.category || nodeDef.category.split("/").at(-1);
       const numericPrefix = Number(displayName.match(/(?:·\s*)?(\d{1,2})\b/)?.[1]);
       const categoryOrder = { Input: 4, Process: 70, Finish: 95 }[category] ?? 80;
       const required = Object.entries(nodeDef.input?.required || {}).filter(([, spec]) => isCableInput(spec)).map(([name]) => name);
@@ -277,12 +277,12 @@ function discoverCuratedNodes(nodeRegistry, nodeMetadata, englishContent) {
         name: displayName,
         displayName: displayName.replace(/^CMK Flow\s*·\s*/, ""),
         category,
-        domain: "Flow Node",
+        domain: metadata.domain || "Flow Node",
         description: metadata.description || nodeDef.description || "Ein direkt einsetzbarer Baustein für CMK Flow.",
-        status: "STABLE",
-        version: "—",
-        author: "CMK Nodes",
-        compatibility: [],
+        status: String(metadata.status || "STABLE").toUpperCase(),
+        version: metadata.version || "1.0.0",
+        author: metadata.author || "CMK Nodes",
+        compatibility: Array.isArray(metadata.compatibility) ? metadata.compatibility : [],
         features: Array.isArray(metadata.features) ? metadata.features : ["Direkt als einzelne Node einsetzbar"],
         inputs: [...required, ...optional.map((name) => `${name} (optional)`) ],
         inputDetails,

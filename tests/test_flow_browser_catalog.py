@@ -46,6 +46,17 @@ class FlowBrowserCatalogTests(unittest.TestCase):
                 for feature in metadata["CMKPipeCreateImage"]["features"]
             )
         )
+        required_catalog_fields = {
+            "category", "compatibility", "version", "author", "status"
+        }
+        for node_name, entry in metadata.items():
+            self.assertTrue(
+                required_catalog_fields.issubset(entry),
+                f"{node_name}: incomplete catalog column metadata",
+            )
+            self.assertTrue(entry["compatibility"], node_name)
+            self.assertNotEqual(entry["version"], "—", node_name)
+            self.assertTrue(entry["author"], node_name)
         for node_name, entry in metadata.items():
             for preview in entry.get("previews", []):
                 asset = ROOT / "web" / preview["src"]
@@ -65,6 +76,15 @@ class FlowBrowserCatalogTests(unittest.TestCase):
         )
         create_features = english["flows"]["CMKPipeCreateImage"]["features"]
         self.assertFalse(any("LaMa" in str(feature) for feature in create_features))
+
+    def test_flow_browser_uses_custom_node_catalog_metadata(self):
+        source = (ROOT / "web" / "js" / "cmk_flow_browser.js").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("metadata.category || nodeDef.category", source)
+        self.assertIn('metadata.version || "1.0.0"', source)
+        self.assertIn("metadata.author ||", source)
+        self.assertIn("metadata.compatibility", source)
 
 
 if __name__ == "__main__":
