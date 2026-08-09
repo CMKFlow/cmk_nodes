@@ -404,15 +404,22 @@ class CMKResultUnpackPipe:
                 PROCESS.get("model_family", ""),
             )
         ).strip().lower()
-        if family not in {"sdxl", "z_image_turbo"}:
+        neutral_image_path = (
+            PROCESS.get("result_contract") == "family_neutral"
+            and family == "image"
+            and PROCESS.get("pipe_origin") == "CMK Image Load and Resize -Pipe-"
+            and MODEL.get("pixel_only") is True
+            and str(MODEL.get("model_family", "")).strip().lower() == "image"
+        )
+        if family not in {"sdxl", "z_image_turbo"} and not neutral_image_path:
             raise ValueError(
                 "CMK 90 accepts only a complete SDXL path, a complete ZIT path, "
-                "or the output of module 35"
+                "the output of module 35, or a complete CMK image-input path"
             )
         model_family = str(MODEL.get("model_family", family)).strip().lower()
         if model_family and model_family != family:
             raise ValueError("CMK 90 received MODEL and PROCESS from different families")
-        if PROCESS.get("family_active") is False:
+        if not neutral_image_path and PROCESS.get("family_active") is False:
             raise ValueError("CMK 90 received the inactive family path")
 
         normalized = dict(PROCESS)

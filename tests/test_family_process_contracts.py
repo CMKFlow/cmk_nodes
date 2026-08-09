@@ -51,6 +51,26 @@ class FamilyProcessContractTests(unittest.TestCase):
     def test_family_contract_names_are_distinct(self):
         self.assertNotEqual("CMK_PROCESS_SDXL", "CMK_PROCESS_Z_IMAGE")
 
+    def test_standalone_image_input_has_complete_neutral_result_contract(self):
+        loader_source = (
+            ROOT / "pipe" / "loaders" / "cmk_image_load_resize.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            'RETURN_NAMES = ("PROCESS", "IMAGE", "LOG", "diagnostic", "MODEL")',
+            loader_source,
+        )
+        self.assertIn('"result_contract": "family_neutral"', loader_source)
+        self.assertIn('"source_model_family": "image"', loader_source)
+        self.assertIn('"pixel_only": True', loader_source)
+
+        result_source = (ROOT / "pipe" / "cmk_family_result.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("neutral_image_path = (", result_source)
+        self.assertIn('family == "image"', result_source)
+        self.assertIn('MODEL.get("pixel_only") is True', result_source)
+        self.assertIn("complete CMK image-input path", result_source)
+
     def test_curated_processing_order_and_family_boundary_are_explicit(self):
         expected = {
             "CMK Flow · 20 Refiner SDXL.json": 20,

@@ -142,6 +142,14 @@ vier Ausgänge `CMK_RESULT_MODEL`, `CMK_RESULT_PROCESS`, `CMK_RESULT_IMAGE` und
 sie die einzig zulässige Übergabe an FaceSwap und 90; ein einzelner SDXL- oder
 ZIT-Zweig darf diese beiden gemeinsamen Module auch direkt speisen.
 
+Ein rein pixelbasierter Workflow beginnt mit `CMK Image Load and Resize
+-Pipe-`. Dieser Input erzeugt neben PROCESS, IMAGE und LOG einen leichten,
+modellfreien MODEL-Kontext und kennzeichnet PROCESS als `family_neutral` mit
+`source_model_family = image`. Damit können die modellneutralen Module 40 und
+90 einen vollständigen Bildbearbeitungspfad validieren, ohne einen unbenutzten
+SDXL- oder ZIT-Checkpoint zu laden. Der neutrale Vertrag ist ausschließlich
+für diesen eindeutig markierten CMK-Bildeingang zulässig.
+
 ## 4. Proprietäre Arbeits- und Übergabetypen
 
 Die folgenden Typen sind keine zusätzlichen allgemeinen Workflow-Leitungen. Sie schützen konkrete Modulgrenzen:

@@ -1,5 +1,9 @@
 # 2026-08-08 — Experimentelles ZIT-Inpaint eingefroren
 
+- Eigenständige Bildbearbeitungsflows erhalten von `CMK Image Load and Resize`
+  einen leichten neutralen MODEL-Kontext. 40 FaceSwap und 90 Upscale & Save
+  akzeptieren diesen vollständigen `family_neutral/image`-Pfad, sodass der
+  reine FaceSwap-Workflow keinen unbenutzten SDXL-Checkpoint mehr laden muss.
 - `01 START HERE` zeigt bei `Remove Object` die noise-gefüllte Maske in der
   Node-Vorschau, während der authoritative IMAGE-Ausgang weiterhin das
   unveränderte Kontextbild und PROCESS weiterhin die echte Maske transportiert.
