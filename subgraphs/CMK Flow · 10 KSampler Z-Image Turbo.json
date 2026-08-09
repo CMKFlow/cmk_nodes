@@ -1,14 +1,14 @@
 {
   "revision": 0,
-  "last_node_id": 5073,
+  "last_node_id": 5092,
   "last_link_id": 0,
   "nodes": [
     {
-      "id": 5073,
-      "type": "29a47c62-8fd9-4614-864f-e155b84038ed",
+      "id": 5092,
+      "type": "f0ecaa55-9ffe-4648-85b4-0205fa84ee18",
       "pos": [
-        8684.200562576269,
-        -397.9574605442215
+        14876.312950948755,
+        -2775.0287158621186
       ],
       "size": [
         599.109375,
@@ -31,7 +31,6 @@
         },
         {
           "name": "LOG",
-          "shape": 7,
           "type": "CMK_LOG_PIPE",
           "link": null
         }
@@ -87,11 +86,11 @@
   "definitions": {
     "subgraphs": [
       {
-        "id": "29a47c62-8fd9-4614-864f-e155b84038ed",
+        "id": "f0ecaa55-9ffe-4648-85b4-0205fa84ee18",
         "version": 1,
         "state": {
           "lastGroupId": 117,
-          "lastNodeId": 5081,
+          "lastNodeId": 5092,
           "lastLinkId": 12354,
           "lastRerouteId": 0
         },
@@ -104,14 +103,14 @@
             0,
             0,
             128,
-            88
+            108
           ]
         },
         "outputNode": {
           "id": -20,
           "bounding": [
-            2500.7335395057517,
-            -70.61795753786822,
+            1970.3073640336838,
+            1156.5936519934426,
             128,
             148
           ]
@@ -167,8 +166,8 @@
               12335
             ],
             "pos": [
-              2524.7335395057517,
-              -46.61795753786822
+              1994.3073640336838,
+              1180.5936519934426
             ]
           },
           {
@@ -179,8 +178,8 @@
               12337
             ],
             "pos": [
-              2524.7335395057517,
-              -26.61795753786822
+              1994.3073640336838,
+              1200.5936519934426
             ]
           },
           {
@@ -191,8 +190,8 @@
               12345
             ],
             "pos": [
-              2524.7335395057517,
-              -6.617957537868222
+              1994.3073640336838,
+              1220.5936519934426
             ]
           },
           {
@@ -203,8 +202,8 @@
               12341
             ],
             "pos": [
-              2524.7335395057517,
-              13.382042462131778
+              1994.3073640336838,
+              1240.5936519934426
             ]
           },
           {
@@ -215,8 +214,8 @@
               12343
             ],
             "pos": [
-              2524.7335395057517,
-              33.38204246213178
+              1994.3073640336838,
+              1260.5936519934426
             ]
           }
         ],
@@ -238,6 +237,12 @@
             "mode": 0,
             "showAdvanced": false,
             "inputs": [
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "CMK_PROCESS_Z_IMAGE",
+                "link": 12344
+              },
               {
                 "localized_name": "LOG",
                 "name": "LOG",
@@ -289,12 +294,6 @@
                   "name": "clip_device"
                 },
                 "link": null
-              },
-              {
-                "localized_name": "PROCESS",
-                "name": "PROCESS",
-                "type": "CMK_PROCESS_Z_IMAGE",
-                "link": 12344
               }
             ],
             "outputs": [
@@ -516,8 +515,8 @@
             "id": 4,
             "type": "CMKZImageTurboFinalizePipe",
             "pos": [
-              1638.4278493774418,
-              -16.095176191459018
+              1644.3177618300635,
+              764.0632872717632
             ],
             "size": [
               290.296875,
@@ -606,17 +605,17 @@
             "id": 5078,
             "type": "CMKZImageProcessForwardPipe",
             "pos": [
-              2210,
-              80
+              1644.442190752184,
+              635.3315326874939
             ],
             "size": [
-              225,
+              309.03125,
               8
             ],
             "flags": {
               "collapsed": true
             },
-            "order": 5,
+            "order": 4,
             "mode": 0,
             "inputs": [
               {
@@ -628,6 +627,7 @@
               {
                 "localized_name": "RESULT PROCESS",
                 "name": "RESULT PROCESS",
+                "shape": 7,
                 "type": "CMK_PROCESS_Z_IMAGE",
                 "link": 12353
               }
@@ -651,22 +651,23 @@
             "id": 5079,
             "type": "CMKFamilyBranchGateZImage",
             "pos": [
-              2200.7335395057517,
-              -70.61795753786822
+              1644.1469808475754,
+              1167.0459059617283
             ],
             "size": [
-              240,
+              258.296875,
               8
             ],
             "flags": {
               "collapsed": true
             },
-            "order": 6,
+            "order": 5,
             "mode": 0,
             "inputs": [
               {
                 "localized_name": "MODEL",
                 "name": "MODEL",
+                "shape": 7,
                 "type": "CMK_MODEL_PIPE",
                 "link": 12334
               },
@@ -679,12 +680,14 @@
               {
                 "localized_name": "IMAGE",
                 "name": "IMAGE",
+                "shape": 7,
                 "type": "IMAGE",
                 "link": 12338
               },
               {
                 "localized_name": "LOG",
                 "name": "LOG",
+                "shape": 7,
                 "type": "CMK_LOG_PIPE",
                 "link": 12340
               }
@@ -724,40 +727,45 @@
             "id": 5081,
             "type": "CMKZImageBoundaryCache",
             "pos": [
-              1950,
-              -20
+              1644.7386039781818,
+              965.5842278134254
             ],
             "size": [
-              240,
+              225,
               8
             ],
             "flags": {
               "collapsed": true
             },
-            "order": 4,
+            "order": 6,
             "mode": 0,
             "inputs": [
               {
+                "localized_name": "MODEL",
                 "name": "MODEL",
                 "type": "CMK_MODEL_PIPE",
                 "link": 12346
               },
               {
+                "localized_name": "PROCESS",
                 "name": "PROCESS",
                 "type": "CMK_PROCESS_Z_IMAGE",
                 "link": 12347
               },
               {
+                "localized_name": "IMAGE",
                 "name": "IMAGE",
                 "type": "IMAGE",
                 "link": 12348
               },
               {
+                "localized_name": "LOG",
                 "name": "LOG",
                 "type": "CMK_LOG_PIPE",
                 "link": 12349
               },
               {
+                "localized_name": "diagnostic",
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "link": 12342
@@ -765,6 +773,7 @@
             ],
             "outputs": [
               {
+                "localized_name": "MODEL",
                 "name": "MODEL",
                 "type": "CMK_MODEL_PIPE",
                 "links": [
@@ -772,6 +781,7 @@
                 ]
               },
               {
+                "localized_name": "PROCESS",
                 "name": "PROCESS",
                 "type": "CMK_PROCESS_Z_IMAGE",
                 "links": [
@@ -779,6 +789,7 @@
                 ]
               },
               {
+                "localized_name": "IMAGE",
                 "name": "IMAGE",
                 "type": "IMAGE",
                 "links": [
@@ -786,6 +797,7 @@
                 ]
               },
               {
+                "localized_name": "LOG",
                 "name": "LOG",
                 "type": "CMK_LOG_PIPE",
                 "links": [
@@ -793,6 +805,7 @@
                 ]
               },
               {
+                "localized_name": "diagnostic",
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
@@ -803,7 +816,6 @@
             "properties": {
               "Node name for S&R": "CMKZImageBoundaryCache"
             },
-            "widgets_values": [],
             "shape": 1
           }
         ],
@@ -903,16 +915,16 @@
             "origin_id": -10,
             "origin_slot": 2,
             "target_id": 1,
-            "target_slot": 0,
+            "target_slot": 1,
             "type": "CMK_LOG_PIPE"
           },
           {
             "id": 12334,
             "origin_id": 5081,
             "origin_slot": 0,
-            "type": "CMK_MODEL_PIPE",
             "target_id": 5079,
-            "target_slot": 0
+            "target_slot": 0,
+            "type": "CMK_MODEL_PIPE"
           },
           {
             "id": 12335,
@@ -934,17 +946,17 @@
             "id": 12338,
             "origin_id": 5081,
             "origin_slot": 2,
-            "type": "IMAGE",
             "target_id": 5079,
-            "target_slot": 2
+            "target_slot": 2,
+            "type": "IMAGE"
           },
           {
             "id": 12340,
             "origin_id": 5081,
             "origin_slot": 3,
-            "type": "CMK_LOG_PIPE",
             "target_id": 5079,
-            "target_slot": 3
+            "target_slot": 3,
+            "type": "CMK_LOG_PIPE"
           },
           {
             "id": 12341,
@@ -958,9 +970,9 @@
             "id": 12342,
             "origin_id": 4,
             "origin_slot": 4,
-            "type": "CMK_DIAGNOSTIC",
             "target_id": 5081,
-            "target_slot": 4
+            "target_slot": 4,
+            "type": "CMK_DIAGNOSTIC"
           },
           {
             "id": 12343,
@@ -975,7 +987,7 @@
             "origin_id": -10,
             "origin_slot": 0,
             "target_id": 1,
-            "target_slot": 6,
+            "target_slot": 0,
             "type": "CMK_PROCESS_Z_IMAGE"
           },
           {
@@ -1092,7 +1104,17 @@
         "40 FaceSwap",
         "90 Upscale & Save"
       ],
-      "placementNote": "Nach 01 oder dem optionalen ZIT-ControlNet platzieren; der IMAGE-Ausgang führt direkt in die gemeinsamen Nachbearbeitungsmodule."
+      "placementNote": "Nach 01 oder dem optionalen ZIT-ControlNet platzieren; der IMAGE-Ausgang führt direkt in die gemeinsamen Nachbearbeitungsmodule.",
+      "previews": [
+        {
+          "src": "assets/previews/ksampler-zit-outer.png",
+          "label": "Modul"
+        },
+        {
+          "src": "assets/previews/ksampler-zit-inner.png",
+          "label": "Aufbau"
+        }
+      ]
     }
   }
 }

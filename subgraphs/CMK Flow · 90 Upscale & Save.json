@@ -1,14 +1,14 @@
 {
   "revision": 0,
-  "last_node_id": 5059,
+  "last_node_id": 5165,
   "last_link_id": 0,
   "nodes": [
     {
-      "id": 5059,
-      "type": "a7bf2c5a-7242-4c0b-9092-bb63f85db8c7",
+      "id": 5165,
+      "type": "846ec4c4-0693-4453-916b-93adac6763c3",
       "pos": [
-        15987.447100258794,
-        -513.8214484713538
+        25180.380749647193,
+        -5612.963897098951
       ],
       "size": [
         600,
@@ -20,26 +20,31 @@
       "inputs": [
         {
           "name": "MODEL (opt)",
+          "shape": 7,
           "type": "*",
           "link": null
         },
         {
           "name": "PROCESS",
+          "shape": 7,
           "type": "*",
           "link": null
         },
         {
           "name": "IMAGE",
+          "shape": 7,
           "type": "*",
           "link": null
         },
         {
           "name": "LOG",
+          "shape": 7,
           "type": "*",
           "link": null
         },
         {
           "name": "SAVE ENABLED",
+          "shape": 7,
           "type": "BOOLEAN",
           "widget": {
             "name": "SAVE ENABLED"
@@ -48,6 +53,7 @@
         },
         {
           "name": "FILENAME PREFIX",
+          "shape": 7,
           "type": "STRING",
           "widget": {
             "name": "FILENAME PREFIX"
@@ -56,6 +62,7 @@
         },
         {
           "name": "OUTPUT FOLDER",
+          "shape": 7,
           "type": "STRING",
           "widget": {
             "name": "OUTPUT FOLDER"
@@ -64,6 +71,7 @@
         },
         {
           "name": "USE DATE FOLDER",
+          "shape": 7,
           "type": "BOOLEAN",
           "widget": {
             "name": "USE DATE FOLDER"
@@ -151,12 +159,12 @@
   "definitions": {
     "subgraphs": [
       {
-        "id": "a7bf2c5a-7242-4c0b-9092-bb63f85db8c7",
+        "id": "846ec4c4-0693-4453-916b-93adac6763c3",
         "version": 1,
         "state": {
           "lastGroupId": 114,
-          "lastNodeId": 5062,
-          "lastLinkId": 12299,
+          "lastNodeId": 5165,
+          "lastLinkId": 12370,
           "lastRerouteId": 0
         },
         "revision": 0,
@@ -537,30 +545,35 @@
               {
                 "localized_name": "MODEL (opt)",
                 "name": "MODEL (opt)",
+                "shape": 7,
                 "type": "CMK_MODEL_PIPE",
                 "link": 12217
               },
               {
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
+                "shape": 7,
                 "type": "CMK_PIPE",
                 "link": 12291
               },
               {
                 "localized_name": "IMAGE",
                 "name": "IMAGE",
+                "shape": 7,
                 "type": "IMAGE",
                 "link": 12034
               },
               {
                 "localized_name": "LOG",
                 "name": "LOG",
+                "shape": 7,
                 "type": "CMK_LOG_PIPE",
                 "link": 12035
               },
               {
                 "localized_name": "SAVE ENABLED",
                 "name": "SAVE ENABLED",
+                "shape": 7,
                 "type": "BOOLEAN",
                 "widget": {
                   "name": "SAVE ENABLED"
@@ -570,6 +583,7 @@
               {
                 "localized_name": "FILENAME PREFIX",
                 "name": "FILENAME PREFIX",
+                "shape": 7,
                 "type": "STRING",
                 "widget": {
                   "name": "FILENAME PREFIX"
@@ -579,6 +593,7 @@
               {
                 "localized_name": "OUTPUT FOLDER",
                 "name": "OUTPUT FOLDER",
+                "shape": 7,
                 "type": "STRING",
                 "widget": {
                   "name": "OUTPUT FOLDER"
@@ -588,6 +603,7 @@
               {
                 "localized_name": "USE DATE FOLDER",
                 "name": "USE DATE FOLDER",
+                "shape": 7,
                 "type": "BOOLEAN",
                 "widget": {
                   "name": "USE DATE FOLDER"
@@ -597,6 +613,7 @@
               {
                 "localized_name": "PROJECT FOLDER",
                 "name": "PROJECT FOLDER",
+                "shape": 7,
                 "type": "STRING",
                 "widget": {
                   "name": "PROJECT FOLDER"
@@ -666,40 +683,44 @@
             "id": 5061,
             "type": "CMKResultUnpackPipe",
             "pos": [
-              11789.399223976861,
-              -572.0450216168146
+              11797.197160381118,
+              -609.0170557572791
             ],
             "size": [
-              225,
+              233.78125,
               8
             ],
             "flags": {
               "collapsed": true
             },
-            "order": 0,
+            "order": 3,
             "mode": 0,
             "inputs": [
               {
                 "localized_name": "MODEL (opt)",
                 "name": "MODEL (opt)",
+                "shape": 7,
                 "type": "*",
                 "link": 12292
               },
               {
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
+                "shape": 7,
                 "type": "*",
                 "link": 12293
               },
               {
                 "localized_name": "IMAGE",
                 "name": "IMAGE",
+                "shape": 7,
                 "type": "*",
                 "link": 12294
               },
               {
                 "localized_name": "LOG",
                 "name": "LOG",
+                "shape": 7,
                 "type": "*",
                 "link": 12295
               }
@@ -748,8 +769,8 @@
             "id": 5062,
             "type": "CMKResultPackPipe",
             "pos": [
-              13375.047345977366,
-              -561.9716056237254
+              13296.569363885867,
+              -612.3245305494846
             ],
             "size": [
               225,
@@ -764,24 +785,28 @@
               {
                 "localized_name": "MODEL (opt)",
                 "name": "MODEL (opt)",
+                "shape": 7,
                 "type": "CMK_MODEL_PIPE",
                 "link": 12220
               },
               {
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
+                "shape": 7,
                 "type": "CMK_PIPE",
                 "link": 12221
               },
               {
                 "localized_name": "IMAGE",
                 "name": "IMAGE",
+                "shape": 7,
                 "type": "IMAGE",
                 "link": 12222
               },
               {
                 "localized_name": "LOG",
                 "name": "LOG",
+                "shape": 7,
                 "type": "CMK_LOG_PIPE",
                 "link": 12223
               }

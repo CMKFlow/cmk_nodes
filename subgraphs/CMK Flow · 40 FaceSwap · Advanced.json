@@ -1,14 +1,14 @@
 {
   "revision": 0,
-  "last_node_id": 5054,
+  "last_node_id": 5164,
   "last_link_id": 0,
   "nodes": [
     {
-      "id": 5054,
-      "type": "035bf47e-c307-4f5e-992d-645063d1ee03",
+      "id": 5164,
+      "type": "a9cb839c-6963-4010-983c-3e6c15b0448c",
       "pos": [
-        10472.027308696397,
-        -1142.9061992929783
+        24265.45550902219,
+        -5538.569315848951
       ],
       "size": [
         600,
@@ -20,27 +20,32 @@
       "inputs": [
         {
           "name": "MODEL (opt)",
+          "shape": 7,
           "type": "*",
           "link": null
         },
         {
           "name": "PROCESS",
+          "shape": 7,
           "type": "*",
           "link": null
         },
         {
           "name": "IMAGE_TARGET",
+          "shape": 7,
           "type": "*",
           "link": null
         },
         {
           "name": "LOG",
+          "shape": 7,
           "type": "*",
           "link": null
         },
         {
           "label": "faceswap_global_enable",
           "name": "ENABLE",
+          "shape": 7,
           "type": "BOOLEAN",
           "widget": {
             "name": "ENABLE"
@@ -111,12 +116,12 @@
   "definitions": {
     "subgraphs": [
       {
-        "id": "035bf47e-c307-4f5e-992d-645063d1ee03",
+        "id": "a9cb839c-6963-4010-983c-3e6c15b0448c",
         "version": 1,
         "state": {
           "lastGroupId": 114,
-          "lastNodeId": 5056,
-          "lastLinkId": 12270,
+          "lastNodeId": 5164,
+          "lastLinkId": 12370,
           "lastRerouteId": 0
         },
         "revision": 1,
@@ -125,8 +130,8 @@
         "inputNode": {
           "id": -10,
           "bounding": [
-            505,
-            570,
+            489.43534801759404,
+            512.1754324429747,
             186.673828125,
             148
           ]
@@ -134,8 +139,8 @@
         "outputNode": {
           "id": -20,
           "bounding": [
-            3051.6294162567515,
-            525.1265572916669,
+            3074.98874712876,
+            1295.1964911805883,
             128,
             148
           ]
@@ -149,8 +154,8 @@
               12260
             ],
             "pos": [
-              667.673828125,
-              594
+              652.109176142594,
+              536.1754324429747
             ]
           },
           {
@@ -161,8 +166,8 @@
               12261
             ],
             "pos": [
-              667.673828125,
-              614
+              652.109176142594,
+              556.1754324429747
             ]
           },
           {
@@ -173,8 +178,8 @@
               12262
             ],
             "pos": [
-              667.673828125,
-              634
+              652.109176142594,
+              576.1754324429747
             ]
           },
           {
@@ -185,8 +190,8 @@
               12263
             ],
             "pos": [
-              667.673828125,
-              654
+              652.109176142594,
+              596.1754324429747
             ]
           },
           {
@@ -200,8 +205,8 @@
             ],
             "label": "faceswap_global_enable",
             "pos": [
-              667.673828125,
-              674
+              652.109176142594,
+              616.1754324429747
             ]
           }
         ],
@@ -214,8 +219,8 @@
               12264
             ],
             "pos": [
-              3075.6294162567515,
-              549.1265572916669
+              3098.98874712876,
+              1319.1964911805883
             ]
           },
           {
@@ -226,8 +231,8 @@
               12265
             ],
             "pos": [
-              3075.6294162567515,
-              569.1265572916669
+              3098.98874712876,
+              1339.1964911805883
             ]
           },
           {
@@ -238,8 +243,8 @@
               12266
             ],
             "pos": [
-              3075.6294162567515,
-              589.1265572916669
+              3098.98874712876,
+              1359.1964911805883
             ]
           },
           {
@@ -250,8 +255,8 @@
               12267
             ],
             "pos": [
-              3075.6294162567515,
-              609.1265572916669
+              3098.98874712876,
+              1379.1964911805883
             ]
           },
           {
@@ -262,8 +267,8 @@
               12259
             ],
             "pos": [
-              3075.6294162567515,
-              629.1265572916669
+              3098.98874712876,
+              1399.1964911805883
             ]
           }
         ],
@@ -294,12 +299,21 @@
               {
                 "localized_name": "IMAGE_SOURCE",
                 "name": "IMAGE_SOURCE",
+                "shape": 7,
                 "type": "IMAGE",
                 "link": 3
               },
               {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "shape": 7,
+                "type": "CMK_PIPE",
+                "link": 12268
+              },
+              {
                 "localized_name": "GLOBAL ENABLE",
                 "name": "GLOBAL ENABLE",
+                "shape": 7,
                 "type": "BOOLEAN",
                 "widget": {
                   "name": "GLOBAL ENABLE"
@@ -309,6 +323,7 @@
               {
                 "localized_name": "ENABLE",
                 "name": "ENABLE",
+                "shape": 7,
                 "type": "BOOLEAN",
                 "widget": {
                   "name": "ENABLE"
@@ -318,6 +333,7 @@
               {
                 "localized_name": "SWAP MODEL",
                 "name": "SWAP MODEL",
+                "shape": 7,
                 "type": "COMBO",
                 "widget": {
                   "name": "SWAP MODEL"
@@ -327,6 +343,7 @@
               {
                 "localized_name": "DETECT MODEL",
                 "name": "DETECT MODEL",
+                "shape": 7,
                 "type": "COMBO",
                 "widget": {
                   "name": "DETECT MODEL"
@@ -336,6 +353,7 @@
               {
                 "localized_name": "TARGET FACE",
                 "name": "TARGET FACE",
+                "shape": 7,
                 "type": "COMBO",
                 "widget": {
                   "name": "TARGET FACE"
@@ -345,6 +363,7 @@
               {
                 "localized_name": "SOURCE FACE",
                 "name": "SOURCE FACE",
+                "shape": 7,
                 "type": "COMBO",
                 "widget": {
                   "name": "SOURCE FACE"
@@ -354,6 +373,7 @@
               {
                 "localized_name": "FACE ENHANCER",
                 "name": "FACE ENHANCER",
+                "shape": 7,
                 "type": "COMBO",
                 "widget": {
                   "name": "FACE ENHANCER"
@@ -363,6 +383,7 @@
               {
                 "localized_name": "BLEND",
                 "name": "BLEND",
+                "shape": 7,
                 "type": "FLOAT",
                 "widget": {
                   "name": "BLEND"
@@ -372,6 +393,7 @@
               {
                 "localized_name": "bbox_dilation",
                 "name": "bbox_dilation",
+                "shape": 7,
                 "type": "INT",
                 "widget": {
                   "name": "bbox_dilation"
@@ -381,6 +403,7 @@
               {
                 "localized_name": "crop_factor",
                 "name": "crop_factor",
+                "shape": 7,
                 "type": "FLOAT",
                 "widget": {
                   "name": "crop_factor"
@@ -390,6 +413,7 @@
               {
                 "localized_name": "drop_size",
                 "name": "drop_size",
+                "shape": 7,
                 "type": "INT",
                 "widget": {
                   "name": "drop_size"
@@ -399,6 +423,7 @@
               {
                 "localized_name": "feather",
                 "name": "feather",
+                "shape": 7,
                 "type": "INT",
                 "widget": {
                   "name": "feather"
@@ -408,6 +433,7 @@
               {
                 "localized_name": "IDENTITY STRENGTH",
                 "name": "IDENTITY STRENGTH",
+                "shape": 7,
                 "type": "FLOAT",
                 "widget": {
                   "name": "IDENTITY STRENGTH"
@@ -415,17 +441,14 @@
                 "link": null
               },
               {
+                "localized_name": "QUALITY PROFILE",
                 "name": "QUALITY PROFILE",
+                "shape": 7,
                 "type": "COMBO",
                 "widget": {
                   "name": "QUALITY PROFILE"
                 },
                 "link": null
-              },
-              {
-                "name": "PROCESS",
-                "type": "CMK_PIPE",
-                "link": 12268
               }
             ],
             "outputs": [
@@ -562,8 +585,8 @@
             "id": 5049,
             "type": "CMKFaceSwapBoundaryCache",
             "pos": [
-              2812.7551268697493,
-              638.4366462331807
+              2819.666248447568,
+              1117.8786391899725
             ],
             "size": [
               225,
@@ -578,24 +601,28 @@
               {
                 "localized_name": "MODEL (opt)",
                 "name": "MODEL (opt)",
+                "shape": 7,
                 "type": "CMK_MODEL_PIPE",
                 "link": 26
               },
               {
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
+                "shape": 7,
                 "type": "CMK_PIPE",
                 "link": 12072
               },
               {
                 "localized_name": "IMAGE",
                 "name": "IMAGE",
+                "shape": 7,
                 "type": "IMAGE",
                 "link": 12073
               },
               {
                 "localized_name": "LOG",
                 "name": "LOG",
+                "shape": 7,
                 "type": "CMK_LOG_PIPE",
                 "link": 12079
               }
@@ -696,8 +723,8 @@
             "id": 5051,
             "type": "CMKLogConcat",
             "pos": [
-              2809.5159142135094,
-              549.9143671880336
+              2819.68430005331,
+              915.9307467425474
             ],
             "size": [
               225,
@@ -985,12 +1012,21 @@
               {
                 "localized_name": "IMAGE_SOURCE",
                 "name": "IMAGE_SOURCE",
+                "shape": 7,
                 "type": "IMAGE",
                 "link": 12071
               },
               {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "shape": 7,
+                "type": "CMK_PIPE",
+                "link": 12269
+              },
+              {
                 "localized_name": "GLOBAL ENABLE",
                 "name": "GLOBAL ENABLE",
+                "shape": 7,
                 "type": "BOOLEAN",
                 "widget": {
                   "name": "GLOBAL ENABLE"
@@ -1000,6 +1036,7 @@
               {
                 "localized_name": "ENABLE",
                 "name": "ENABLE",
+                "shape": 7,
                 "type": "BOOLEAN",
                 "widget": {
                   "name": "ENABLE"
@@ -1009,6 +1046,7 @@
               {
                 "localized_name": "SWAP MODEL",
                 "name": "SWAP MODEL",
+                "shape": 7,
                 "type": "COMBO",
                 "widget": {
                   "name": "SWAP MODEL"
@@ -1018,6 +1056,7 @@
               {
                 "localized_name": "DETECT MODEL",
                 "name": "DETECT MODEL",
+                "shape": 7,
                 "type": "COMBO",
                 "widget": {
                   "name": "DETECT MODEL"
@@ -1027,6 +1066,7 @@
               {
                 "localized_name": "TARGET FACE",
                 "name": "TARGET FACE",
+                "shape": 7,
                 "type": "COMBO",
                 "widget": {
                   "name": "TARGET FACE"
@@ -1036,6 +1076,7 @@
               {
                 "localized_name": "SOURCE FACE",
                 "name": "SOURCE FACE",
+                "shape": 7,
                 "type": "COMBO",
                 "widget": {
                   "name": "SOURCE FACE"
@@ -1045,6 +1086,7 @@
               {
                 "localized_name": "FACE ENHANCER",
                 "name": "FACE ENHANCER",
+                "shape": 7,
                 "type": "COMBO",
                 "widget": {
                   "name": "FACE ENHANCER"
@@ -1054,6 +1096,7 @@
               {
                 "localized_name": "BLEND",
                 "name": "BLEND",
+                "shape": 7,
                 "type": "FLOAT",
                 "widget": {
                   "name": "BLEND"
@@ -1063,6 +1106,7 @@
               {
                 "localized_name": "bbox_dilation",
                 "name": "bbox_dilation",
+                "shape": 7,
                 "type": "INT",
                 "widget": {
                   "name": "bbox_dilation"
@@ -1072,6 +1116,7 @@
               {
                 "localized_name": "crop_factor",
                 "name": "crop_factor",
+                "shape": 7,
                 "type": "FLOAT",
                 "widget": {
                   "name": "crop_factor"
@@ -1081,6 +1126,7 @@
               {
                 "localized_name": "drop_size",
                 "name": "drop_size",
+                "shape": 7,
                 "type": "INT",
                 "widget": {
                   "name": "drop_size"
@@ -1090,6 +1136,7 @@
               {
                 "localized_name": "feather",
                 "name": "feather",
+                "shape": 7,
                 "type": "INT",
                 "widget": {
                   "name": "feather"
@@ -1099,6 +1146,7 @@
               {
                 "localized_name": "IDENTITY STRENGTH",
                 "name": "IDENTITY STRENGTH",
+                "shape": 7,
                 "type": "FLOAT",
                 "widget": {
                   "name": "IDENTITY STRENGTH"
@@ -1106,17 +1154,14 @@
                 "link": null
               },
               {
+                "localized_name": "QUALITY PROFILE",
                 "name": "QUALITY PROFILE",
+                "shape": 7,
                 "type": "COMBO",
                 "widget": {
                   "name": "QUALITY PROFILE"
                 },
                 "link": null
-              },
-              {
-                "name": "PROCESS",
-                "type": "CMK_PIPE",
-                "link": 12269
               }
             ],
             "outputs": [
@@ -1253,8 +1298,8 @@
             "id": 4937,
             "type": "CMK_SEGSConcate",
             "pos": [
-              2809.8645925824735,
-              593.3977784987364
+              2820.715638596941,
+              681.135864757119
             ],
             "size": [
               225,
@@ -1643,12 +1688,21 @@
               {
                 "localized_name": "IMAGE_SOURCE",
                 "name": "IMAGE_SOURCE",
+                "shape": 7,
                 "type": "IMAGE",
                 "link": 12083
               },
               {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "shape": 7,
+                "type": "CMK_PIPE",
+                "link": 12270
+              },
+              {
                 "localized_name": "GLOBAL ENABLE",
                 "name": "GLOBAL ENABLE",
+                "shape": 7,
                 "type": "BOOLEAN",
                 "widget": {
                   "name": "GLOBAL ENABLE"
@@ -1658,6 +1712,7 @@
               {
                 "localized_name": "ENABLE",
                 "name": "ENABLE",
+                "shape": 7,
                 "type": "BOOLEAN",
                 "widget": {
                   "name": "ENABLE"
@@ -1667,6 +1722,7 @@
               {
                 "localized_name": "SWAP MODEL",
                 "name": "SWAP MODEL",
+                "shape": 7,
                 "type": "COMBO",
                 "widget": {
                   "name": "SWAP MODEL"
@@ -1676,6 +1732,7 @@
               {
                 "localized_name": "DETECT MODEL",
                 "name": "DETECT MODEL",
+                "shape": 7,
                 "type": "COMBO",
                 "widget": {
                   "name": "DETECT MODEL"
@@ -1685,6 +1742,7 @@
               {
                 "localized_name": "TARGET FACE",
                 "name": "TARGET FACE",
+                "shape": 7,
                 "type": "COMBO",
                 "widget": {
                   "name": "TARGET FACE"
@@ -1694,6 +1752,7 @@
               {
                 "localized_name": "SOURCE FACE",
                 "name": "SOURCE FACE",
+                "shape": 7,
                 "type": "COMBO",
                 "widget": {
                   "name": "SOURCE FACE"
@@ -1703,6 +1762,7 @@
               {
                 "localized_name": "FACE ENHANCER",
                 "name": "FACE ENHANCER",
+                "shape": 7,
                 "type": "COMBO",
                 "widget": {
                   "name": "FACE ENHANCER"
@@ -1712,6 +1772,7 @@
               {
                 "localized_name": "BLEND",
                 "name": "BLEND",
+                "shape": 7,
                 "type": "FLOAT",
                 "widget": {
                   "name": "BLEND"
@@ -1721,6 +1782,7 @@
               {
                 "localized_name": "bbox_dilation",
                 "name": "bbox_dilation",
+                "shape": 7,
                 "type": "INT",
                 "widget": {
                   "name": "bbox_dilation"
@@ -1730,6 +1792,7 @@
               {
                 "localized_name": "crop_factor",
                 "name": "crop_factor",
+                "shape": 7,
                 "type": "FLOAT",
                 "widget": {
                   "name": "crop_factor"
@@ -1739,6 +1802,7 @@
               {
                 "localized_name": "drop_size",
                 "name": "drop_size",
+                "shape": 7,
                 "type": "INT",
                 "widget": {
                   "name": "drop_size"
@@ -1748,6 +1812,7 @@
               {
                 "localized_name": "feather",
                 "name": "feather",
+                "shape": 7,
                 "type": "INT",
                 "widget": {
                   "name": "feather"
@@ -1757,6 +1822,7 @@
               {
                 "localized_name": "IDENTITY STRENGTH",
                 "name": "IDENTITY STRENGTH",
+                "shape": 7,
                 "type": "FLOAT",
                 "widget": {
                   "name": "IDENTITY STRENGTH"
@@ -1764,17 +1830,14 @@
                 "link": null
               },
               {
+                "localized_name": "QUALITY PROFILE",
                 "name": "QUALITY PROFILE",
+                "shape": 7,
                 "type": "COMBO",
                 "widget": {
                   "name": "QUALITY PROFILE"
                 },
                 "link": null
-              },
-              {
-                "name": "PROCESS",
-                "type": "CMK_PIPE",
-                "link": 12270
               }
             ],
             "outputs": [
@@ -1834,8 +1897,8 @@
             "id": 5053,
             "type": "CMKDiagnosticConcat",
             "pos": [
-              2811.909152490564,
-              683.4198716091491
+              2819.404111055859,
+              1470.519251169548
             ],
             "size": [
               225,
@@ -2107,40 +2170,44 @@
             "id": 5055,
             "type": "CMKResultUnpackPipe",
             "pos": [
-              685,
-              570
+              708.5940359415836,
+              451.7437531712693
             ],
             "size": [
-              225,
+              233.78125,
               8
             ],
             "flags": {
               "collapsed": true
             },
-            "order": 0,
+            "order": 11,
             "mode": 0,
             "inputs": [
               {
                 "localized_name": "MODEL (opt)",
                 "name": "MODEL (opt)",
+                "shape": 7,
                 "type": "*",
                 "link": 12260
               },
               {
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
+                "shape": 7,
                 "type": "*",
                 "link": 12261
               },
               {
                 "localized_name": "IMAGE",
                 "name": "IMAGE",
+                "shape": 7,
                 "type": "*",
                 "link": 12262
               },
               {
                 "localized_name": "LOG",
                 "name": "LOG",
+                "shape": 7,
                 "type": "*",
                 "link": 12263
               }
@@ -2192,8 +2259,8 @@
             "id": 5056,
             "type": "CMKResultPackPipe",
             "pos": [
-              2791.6294162567515,
-              525.1265572916669
+              2819.156224956964,
+              1293.488540438827
             ],
             "size": [
               225,
@@ -2208,24 +2275,28 @@
               {
                 "localized_name": "MODEL (opt)",
                 "name": "MODEL (opt)",
+                "shape": 7,
                 "type": "CMK_MODEL_PIPE",
                 "link": 21
               },
               {
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
+                "shape": 7,
                 "type": "CMK_PIPE",
                 "link": 22
               },
               {
                 "localized_name": "IMAGE",
                 "name": "IMAGE",
+                "shape": 7,
                 "type": "IMAGE",
                 "link": 23
               },
               {
                 "localized_name": "LOG",
                 "name": "LOG",
+                "shape": 7,
                 "type": "CMK_LOG_PIPE",
                 "link": 24
               }
@@ -2362,7 +2433,7 @@
             "origin_id": -10,
             "origin_slot": 4,
             "target_id": 5047,
-            "target_slot": 2,
+            "target_slot": 3,
             "type": "BOOLEAN"
           },
           {
@@ -2466,7 +2537,7 @@
             "origin_id": -10,
             "origin_slot": 4,
             "target_id": 5052,
-            "target_slot": 2,
+            "target_slot": 3,
             "type": "BOOLEAN"
           },
           {
@@ -2474,7 +2545,7 @@
             "origin_id": -10,
             "origin_slot": 4,
             "target_id": 4939,
-            "target_slot": 2,
+            "target_slot": 3,
             "type": "BOOLEAN"
           },
           {
@@ -2522,7 +2593,7 @@
             "origin_id": 4939,
             "origin_slot": 3,
             "target_id": 5053,
-            "target_slot": 3,
+            "target_slot": 2,
             "type": "CMK_DIAGNOSTIC"
           },
           {
@@ -2602,7 +2673,7 @@
             "origin_id": 5055,
             "origin_slot": 1,
             "target_id": 5047,
-            "target_slot": 16,
+            "target_slot": 2,
             "type": "CMK_PIPE"
           },
           {
@@ -2610,7 +2681,7 @@
             "origin_id": 5055,
             "origin_slot": 1,
             "target_id": 5052,
-            "target_slot": 16,
+            "target_slot": 2,
             "type": "CMK_PIPE"
           },
           {
@@ -2618,7 +2689,7 @@
             "origin_id": 5055,
             "origin_slot": 1,
             "target_id": 4939,
-            "target_slot": 16,
+            "target_slot": 2,
             "type": "CMK_PIPE"
           }
         ],
@@ -2670,7 +2741,7 @@
       "previewAlt": "CMK Flow FaceSwap Advanced mit drei parallelen FaceSwap-Zweigen",
       "previews": [
         {
-          "src": "assets/previews/faceswap-outer.png",
+          "src": "assets/previews/faceswap-advanced-outer.png",
           "label": "Modul"
         },
         {

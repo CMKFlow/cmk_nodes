@@ -1,14 +1,14 @@
 {
   "revision": 0,
-  "last_node_id": 5040,
+  "last_node_id": 5159,
   "last_link_id": 0,
   "nodes": [
     {
-      "id": 5040,
-      "type": "d4b8a6e3-9d91-4573-afc7-9b5e9241b5c4",
+      "id": 5159,
+      "type": "0c39fee8-4553-4580-aa5d-cfdef92e47e4",
       "pos": [
-        11377.483770280101,
-        -523.727100594535
+        22081.116227187398,
+        -4348.745015149146
       ],
       "size": [
         600,
@@ -86,12 +86,12 @@
   "definitions": {
     "subgraphs": [
       {
-        "id": "d4b8a6e3-9d91-4573-afc7-9b5e9241b5c4",
+        "id": "0c39fee8-4553-4580-aa5d-cfdef92e47e4",
         "version": 1,
         "state": {
           "lastGroupId": 114,
-          "lastNodeId": 5043,
-          "lastLinkId": 12242,
+          "lastNodeId": 5159,
+          "lastLinkId": 12370,
           "lastRerouteId": 0
         },
         "revision": 0,
@@ -109,8 +109,8 @@
         "outputNode": {
           "id": -20,
           "bounding": [
-            12850,
-            160,
+            11988.413158658452,
+            1366.0601929476911,
             139.62890625,
             148
           ]
@@ -177,8 +177,8 @@
               12233
             ],
             "pos": [
-              12874,
-              184
+              12012.413158658452,
+              1390.0601929476911
             ]
           },
           {
@@ -189,8 +189,8 @@
               12235
             ],
             "pos": [
-              12874,
-              204
+              12012.413158658452,
+              1410.0601929476911
             ]
           },
           {
@@ -201,8 +201,8 @@
               12242
             ],
             "pos": [
-              12874,
-              224
+              12012.413158658452,
+              1430.0601929476911
             ]
           },
           {
@@ -213,8 +213,8 @@
               12239
             ],
             "pos": [
-              12874,
-              244
+              12012.413158658452,
+              1450.0601929476911
             ]
           },
           {
@@ -225,8 +225,8 @@
               12241
             ],
             "pos": [
-              12874,
-              264
+              12012.413158658452,
+              1470.0601929476911
             ]
           }
         ],
@@ -243,9 +243,7 @@
               490,
               235
             ],
-            "flags": {
-              "pinned": true
-            },
+            "flags": {},
             "order": 0,
             "mode": 0,
             "inputs": [],
@@ -269,12 +267,17 @@
               700,
               165
             ],
-            "flags": {
-              "pinned": true
-            },
+            "flags": {},
             "order": 1,
             "mode": 0,
             "inputs": [
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "shape": 7,
+                "type": "CMK_PROCESS_SDXL",
+                "link": null
+              },
               {
                 "localized_name": "ckpt_name",
                 "name": "ckpt_name",
@@ -305,8 +308,8 @@
             ],
             "outputs": [
               {
-                "localized_name": "MODEL",
-                "name": "MODEL",
+                "localized_name": "MODEL SDXL",
+                "name": "MODEL SDXL",
                 "type": "CMK_MODEL_PIPE",
                 "links": [
                   11929
@@ -338,9 +341,7 @@
               705,
               500
             ],
-            "flags": {
-              "pinned": true
-            },
+            "flags": {},
             "order": 2,
             "mode": 0,
             "showAdvanced": false,
@@ -556,8 +557,7 @@
               1275
             ],
             "flags": {
-              "collapsed": false,
-              "pinned": true
+              "collapsed": false
             },
             "order": 3,
             "mode": 0,
@@ -596,18 +596,17 @@
             "id": 4920,
             "type": "CMKRefinerBoundaryCache",
             "pos": [
-              12600,
-              185
+              11712.667682598818,
+              1178.031754483642
             ],
             "size": [
-              232.578125,
+              225,
               8
             ],
             "flags": {
-              "collapsed": true,
-              "pinned": true
+              "collapsed": true
             },
-            "order": 5,
+            "order": 4,
             "mode": 0,
             "inputs": [
               {
@@ -688,17 +687,17 @@
             "id": 5041,
             "type": "CMKProcessForwardPipe",
             "pos": [
-              12570,
-              200
+              11710.634252233405,
+              1071.7457252885004
             ],
             "size": [
-              225,
+              249.765625,
               8
             ],
             "flags": {
               "collapsed": true
             },
-            "order": 6,
+            "order": 5,
             "mode": 0,
             "inputs": [
               {
@@ -727,40 +726,44 @@
             "id": 5042,
             "type": "CMKFamilyBranchGateSDXL",
             "pos": [
-              12550,
-              160
+              11714.019582056018,
+              1380.545202642473
             ],
             "size": [
-              240,
+              244.9375,
               8
             ],
             "flags": {
               "collapsed": true
             },
-            "order": 7,
+            "order": 6,
             "mode": 0,
             "inputs": [
               {
                 "localized_name": "MODEL",
                 "name": "MODEL",
+                "shape": 7,
                 "type": "CMK_MODEL_PIPE",
                 "link": 12232
               },
               {
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
+                "shape": 7,
                 "type": "CMK_PROCESS_SDXL",
                 "link": 12234
               },
               {
-                "localized_name": "IMAGE REFINED",
+                "localized_name": "IMAGE",
                 "name": "IMAGE",
+                "shape": 7,
                 "type": "IMAGE",
                 "link": 12236
               },
               {
                 "localized_name": "LOG",
                 "name": "LOG",
+                "shape": 7,
                 "type": "CMK_LOG_PIPE",
                 "link": 12238
               }
@@ -775,7 +778,7 @@
                 ]
               },
               {
-                "localized_name": "IMAGE REFINED",
+                "localized_name": "IMAGE",
                 "name": "IMAGE",
                 "type": "IMAGE",
                 "links": [
@@ -916,9 +919,9 @@
             "id": 12232,
             "origin_id": 4920,
             "origin_slot": 0,
-            "type": "CMK_MODEL_PIPE",
             "target_id": 5042,
-            "target_slot": 0
+            "target_slot": 0,
+            "type": "CMK_MODEL_PIPE"
           },
           {
             "id": 12233,
@@ -932,9 +935,9 @@
             "id": 12234,
             "origin_id": -10,
             "origin_slot": 1,
-            "type": "CMK_PROCESS_SDXL",
             "target_id": 5042,
-            "target_slot": 1
+            "target_slot": 1,
+            "type": "CMK_PROCESS_SDXL"
           },
           {
             "id": 12235,
@@ -948,17 +951,17 @@
             "id": 12236,
             "origin_id": 4920,
             "origin_slot": 3,
-            "type": "IMAGE",
             "target_id": 5042,
-            "target_slot": 2
+            "target_slot": 2,
+            "type": "IMAGE"
           },
           {
             "id": 12238,
             "origin_id": 4920,
             "origin_slot": 4,
-            "type": "CMK_LOG_PIPE",
             "target_id": 5042,
-            "target_slot": 3
+            "target_slot": 3,
+            "type": "CMK_LOG_PIPE"
           },
           {
             "id": 12239,

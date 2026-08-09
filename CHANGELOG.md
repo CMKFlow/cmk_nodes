@@ -1,5 +1,14 @@
 # 2026-08-08 — Experimentelles ZIT-Inpaint eingefroren
 
+- Die elf im User-Verzeichnis geprüften Flow-Subgraphen wurden als neue
+  Paketfassungen übernommen und vollständig als veröffentlichte Flow-Browser-
+  Einträge registriert. Beim Import werden die kuratierten Katalogmetadaten
+  bewahrt und gespeicherte Port-Slots gegen die tatsächlichen Node-Schnittstellen
+  normalisiert.
+- Der Reiter `Flow` verwendet die aktuellen Screenshots für alle elf
+  Subgraphen. Zusätzlich wurden die Customnode-Vorschauen für 01, beide
+  ControlNet-Familien, 35, Checkpoint & VAE, Image Input, Load Image,
+  FaceSwap Image Input und Save Project Image ersetzt beziehungsweise ergänzt.
 - Family Gates transportieren ausschließlich die autoritativen Familienwerte
   MODEL / IMAGE beziehungsweise SAMPLED / LOG. PROCESS wird als leichtes
   Steuersignal nur am Eingang gelesen und ausschließlich über die kanonischen

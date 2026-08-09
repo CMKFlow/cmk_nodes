@@ -10,11 +10,12 @@
         "Diagnostic zeigt Quellbild und die tatsächlich weitergereichte Maskenfüllung"
       ],
       "placementNote": "Als zentrales Startmodul vor dem optionalen ControlNet oder dem ersten KSampler platzieren. Für Inpaint IMAGE und MASK anschließen; Remove Object benötigt nur die Maske.",
-      "recommendedBefore": ["02 LoRA Stack (optional)", "Image Input (optional)"],
+      "recommendedBefore": ["02 SDXL LoRA Stack (optional)", "Image Input (optional)"],
       "recommendedAfter": ["05 ControlNet SDXL (optional)", "05 ControlNet ZIT (optional)", "10 KSampler SDXL 1st Pass", "10 KSampler Z-Image Turbo"],
       "previews": [
-        { "src": "assets/previews/create-image-text2image-20260725.png", "label": "Text2Image" },
-        { "src": "assets/previews/create-image-inpaint-20260725.png", "label": "Inpaint" }
+        { "src": "assets/previews/create-image-sdxl-text2image.png", "label": "SDXL · Text2Image" },
+        { "src": "assets/previews/create-image-sdxl-inpaint.png", "label": "SDXL · Inpaint" },
+        { "src": "assets/previews/create-image-zit-text2image.png", "label": "ZIT · Text2Image" }
       ],
       "previewAlt": "CMK Flow Create Image Node"
     },
@@ -24,7 +25,7 @@
       "placementNote": "Vor dem KSampler oder Refiner platzieren und den MODEL-Ausgang mit dessen MODEL-Eingang verbinden.",
       "recommendedAfter": ["10 KSampler SDXL 1st Pass", "20 Refiner SDXL"],
       "previews": [
-        { "src": "assets/previews/checkpoint-vae-v2.png", "label": "Node" }
+        { "src": "assets/previews/checkpoint-vae.png", "label": "Node" }
       ],
       "previewAlt": "CMK Flow Checkpoint und VAE Node"
     },
@@ -65,7 +66,7 @@
       "recommendedBefore": ["01 START HERE · Create Image"],
       "recommendedAfter": ["10 KSampler SDXL 1st Pass"],
       "previews": [
-        { "src": "assets/previews/controlnet.png", "label": "Node" }
+        { "src": "assets/previews/controlnet-sdxl.png", "label": "SDXL" }
       ],
       "previewAlt": "CMK Flow ControlNet Node"
     },
@@ -76,7 +77,7 @@
       "recommendedBefore": ["01 START HERE · Create Image"],
       "recommendedAfter": ["10 KSampler Z-Image Turbo"],
       "previews": [
-        {"src": "assets/previews/controlnet.png", "label": "Node"}
+        {"src": "assets/previews/controlnet-zit.png", "label": "ZIT"}
       ],
       "previewAlt": "CMK Flow ControlNet ZIT Node"
     },
@@ -98,7 +99,11 @@
       "recommendedAfter": [
         "40 FaceSwap",
         "90 Upscale & Save"
-      ]
+      ],
+      "previews": [
+        { "src": "assets/previews/active-family-result.png", "label": "Node" }
+      ],
+      "previewAlt": "CMK Flow Active Family Result Node"
     },
     "CMK_SaveProjectImage": {
       "description": "Speichert das fertige Bild mit Projektname und optionalem Datumsordner.",
