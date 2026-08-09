@@ -687,12 +687,6 @@
                 "name": "LOG",
                 "type": "CMK_LOG_PIPE",
                 "link": 12340
-              },
-              {
-                "localized_name": "RESULT PROCESS",
-                "name": "RESULT PROCESS",
-                "type": "CMK_PROCESS_Z_IMAGE",
-                "link": 12336
               }
             ],
             "outputs": [
@@ -781,7 +775,6 @@
                 "name": "PROCESS",
                 "type": "CMK_PROCESS_Z_IMAGE",
                 "links": [
-                  12336,
                   12353
                 ]
               },
@@ -928,14 +921,6 @@
             "target_id": -20,
             "target_slot": 0,
             "type": "CMK_MODEL_PIPE"
-          },
-          {
-            "id": 12336,
-            "origin_id": 5081,
-            "origin_slot": 1,
-            "type": "CMK_PROCESS_Z_IMAGE",
-            "target_id": 5079,
-            "target_slot": 4
           },
           {
             "id": 12337,

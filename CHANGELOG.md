@@ -9,6 +9,9 @@
   gespeist. Dadurch bleiben sämtliche Stufen erhalten und das spätere Anzeigen
   eines Diagnostics kann den teuren Samplerpfad nicht erneut über den Gate
   expandieren.
+- Der dadurch ebenfalls funktionslose Gate-Eingang `RESULT PROCESS` wurde
+  entfernt. ZIT führt seinen berechneten PROCESS weiterhin ausschließlich über
+  den dafür vorgesehenen `CMK Z-Image Process Forward` zum öffentlichen Port.
 - Die gespeicherte Eingangsreihenfolge aller Family Gates entspricht wieder
   exakt der Runtime-Schnittstelle (`PROCESS` zuerst). Dadurch bleibt das
   leichte PROCESS-Steuersignal beim Laden oder Ersetzen eines Subgraphen am

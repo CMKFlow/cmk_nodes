@@ -333,17 +333,6 @@ class FamilyProcessContractTests(unittest.TestCase):
                         and link["target_slot"] == boundary_process_slot
                     )
                     self.assertNotEqual(boundary_link["origin_id"], -10)
-                    result_process_slot = next(
-                        index for index, item in enumerate(gate["inputs"])
-                        if item["name"] == "RESULT PROCESS"
-                    )
-                    result_process_link = next(
-                        link for link in definition["links"]
-                        if link["target_id"] == gate["id"]
-                        and link["target_slot"] == result_process_slot
-                    )
-                    self.assertEqual(result_process_link["origin_id"], boundary["id"])
-                    self.assertEqual(result_process_link["origin_slot"], 1)
                 else:
                     self.assertEqual(process_link["origin_id"], -10)
                     self.assertEqual(process_link["origin_slot"], process_slot)
@@ -443,6 +432,10 @@ class FamilyProcessContractTests(unittest.TestCase):
         ):
             with self.subTest(gate=gate_class.__name__):
                 self.assertNotIn("PROCESS", gate_class.RETURN_NAMES)
+                self.assertNotIn(
+                    "RESULT PROCESS",
+                    gate_class.INPUT_TYPES().get("optional", {}),
+                )
 
     def test_family_gate_saved_input_order_matches_runtime_contract(self):
         for filename, gate_type in self.FAMILY_GATED_SUBGRAPHS.items():
@@ -458,8 +451,6 @@ class FamilyProcessContractTests(unittest.TestCase):
                     if gate_type == "CMKFamilyBranchGateSDXLSampled"
                     else ["PROCESS", "MODEL", "IMAGE", "LOG"]
                 )
-                if any(item["name"] == "RESULT PROCESS" for item in gate["inputs"]):
-                    expected.append("RESULT PROCESS")
                 self.assertEqual([item["name"] for item in gate["inputs"]], expected)
                 for slot, item in enumerate(gate["inputs"]):
                     if item.get("link") is None:

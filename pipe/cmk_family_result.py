@@ -39,7 +39,6 @@ class _CMKFamilyBranchGate:
                 "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
                 "IMAGE": ("IMAGE", {"lazy": True}),
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
-                "RESULT PROCESS": (cls.PROCESS_TYPE, {"lazy": True}),
             },
         }
 
@@ -65,8 +64,6 @@ class _CMKFamilyBranchGate:
         ]
         if needed:
             return needed
-        if "RESULT PROCESS" in inputs and inputs.get("RESULT PROCESS") is None:
-            return ["RESULT PROCESS"]
         return []
 
     def gate(self, PROCESS=None, **inputs):
@@ -77,10 +74,7 @@ class _CMKFamilyBranchGate:
             return (blocked, blocked, blocked)
         if not isinstance(PROCESS, dict):
             raise TypeError("CMK Family Branch Gate requires a CMK process pipe")
-        result_process = inputs.get("RESULT PROCESS") or PROCESS
-        if not isinstance(result_process, dict):
-            raise TypeError("CMK Family Branch Gate requires a valid result PROCESS")
-        actual = str(result_process.get("model_family", self.FAMILY)).strip().lower()
+        actual = str(PROCESS.get("model_family", self.FAMILY)).strip().lower()
         if actual != self.FAMILY:
             raise ValueError("CMK Family Branch Gate received the wrong model family")
         missing = [

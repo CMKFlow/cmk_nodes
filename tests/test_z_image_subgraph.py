@@ -116,7 +116,14 @@ class ZImageSubgraphTests(unittest.TestCase):
                 if link["origin_id"] == boundary["id"]
                 and link["origin_slot"] == slot
             )
-            self.assertEqual(boundary_link["target_id"], gate["id"])
+            if slot == 1:
+                process_forward = next(
+                    node for node in nodes.values()
+                    if node["type"] == "CMKZImageProcessForwardPipe"
+                )
+                self.assertEqual(boundary_link["target_id"], process_forward["id"])
+            else:
+                self.assertEqual(boundary_link["target_id"], gate["id"])
 
         diagnostic_link = next(
             link for link in self.definition["links"]
