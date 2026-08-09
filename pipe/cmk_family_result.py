@@ -20,13 +20,15 @@ class _CMKAnyType(str):
 CMK_FINISH_INPUT = _CMKAnyType("*")
 
 
-def _gate_diagnostic(value, image, family):
-    """Return a renderable diagnostic without resolving an observational branch."""
+def _gate_diagnostic(value, image, family, *, connected=False):
+    """Preserve a connected diagnostic; synthesize only for an empty socket."""
     if isinstance(value, dict) and value.get("type") in {
         "CMK_DIAGNOSTIC",
         "CMK_PREVIEW",
     }:
         return value
+    if connected:
+        raise TypeError("CMK Family Branch Gate requires a valid diagnostic payload")
     family_label = "SDXL" if family == "sdxl" else "Z-Image Turbo"
     return {
         "type": "CMK_DIAGNOSTIC",
@@ -90,16 +92,20 @@ class _CMKFamilyBranchGate:
             return []
         if isinstance(PROCESS, dict) and not PROCESS.get("family_active", True):
             return []
-        # diagnostic is observational only. Requesting it as a mandatory lazy
-        # input can reopen the complete implementation behind a boundary hit
-        # (for example Refiner Prepare -> SAMPLED -> module 10).
         needed = [
             name for name in ("MODEL", "IMAGE", "LOG")
             if inputs.get(name) is None
         ]
+        if needed:
+            return needed
         if "RESULT PROCESS" in inputs and inputs.get("RESULT PROCESS") is None:
-            needed.append("RESULT PROCESS")
-        return needed
+            return ["RESULT PROCESS"]
+        # Resolve the observational path last. This preserves the complete
+        # Diagnostic Concat while the authoritative MODEL / IMAGE / LOG and
+        # optional result PROCESS have already crossed their boundaries.
+        if "diagnostic" in inputs and inputs.get("diagnostic") is None:
+            return ["diagnostic"]
+        return []
 
     def gate(self, PROCESS=None, **inputs):
         if PROCESS is None or (
@@ -129,7 +135,10 @@ class _CMKFamilyBranchGate:
             inputs["IMAGE"],
             inputs["LOG"],
             _gate_diagnostic(
-                inputs.get("diagnostic"), inputs["IMAGE"], self.FAMILY
+                inputs.get("diagnostic"),
+                inputs["IMAGE"],
+                self.FAMILY,
+                connected="diagnostic" in inputs,
             ),
         )
 
@@ -188,6 +197,8 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
             return ["SAMPLED"]
         if inputs.get("LOG") is None:
             return ["LOG"]
+        if "diagnostic" in inputs and inputs.get("diagnostic") is None:
+            return ["diagnostic"]
         return []
 
     def gate(self, PROCESS=None, **inputs):
@@ -212,7 +223,10 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
         return (
             inputs["MODEL"], PROCESS, inputs["SAMPLED"], inputs["LOG"],
             _gate_diagnostic(
-                inputs.get("diagnostic"), inputs["SAMPLED"].get("image"), self.FAMILY
+                inputs.get("diagnostic"),
+                inputs["SAMPLED"].get("image"),
+                self.FAMILY,
+                connected="diagnostic" in inputs,
             ),
         )
 

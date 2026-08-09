@@ -454,7 +454,7 @@ class FamilyProcessContractTests(unittest.TestCase):
             ["MODEL ZIT", "IMAGE ZIT", "LOG ZIT"],
         )
 
-    def test_family_gates_never_reopen_compute_for_optional_diagnostic(self):
+    def test_family_gates_resolve_connected_diagnostic_last(self):
         path = ROOT / "pipe" / "cmk_family_result.py"
         spec = importlib.util.spec_from_file_location("cmk_family_diagnostic_test", path)
         module = importlib.util.module_from_spec(spec)
@@ -470,7 +470,7 @@ class FamilyProcessContractTests(unittest.TestCase):
                 LOG={},
                 diagnostic=None,
             ),
-            [],
+            ["diagnostic"],
         )
 
     def test_sampled_family_gate_resolves_converging_inputs_sequentially(self):
@@ -500,7 +500,7 @@ class FamilyProcessContractTests(unittest.TestCase):
                 LOG={},
                 diagnostic=None,
             ),
-            [],
+            ["diagnostic"],
         )
 
     def test_family_gate_always_returns_a_renderable_diagnostic(self):
@@ -515,14 +515,17 @@ class FamilyProcessContractTests(unittest.TestCase):
             MODEL={"model_family": "sdxl"},
             IMAGE=image,
             LOG={"blocks": []},
-            diagnostic=None,
         )
         diagnostic = result[4]
         self.assertEqual(diagnostic["type"], "CMK_DIAGNOSTIC")
         self.assertIs(diagnostic["preview"][0], image)
         self.assertTrue(diagnostic["metadata"]["gate_fallback"])
 
-        existing = {"type": "CMK_DIAGNOSTIC", "preview": [image]}
+        existing = {
+            "type": "CMK_DIAGNOSTIC",
+            "preview": [image],
+            "stages": [{"title": "Prepare"}, {"title": "Detailer"}],
+        }
         result = module.CMKFamilyBranchGateSDXL().gate(
             PROCESS={"model_family": "sdxl", "family_active": True},
             MODEL={"model_family": "sdxl"},
@@ -531,6 +534,7 @@ class FamilyProcessContractTests(unittest.TestCase):
             diagnostic=existing,
         )
         self.assertIs(result[4], existing)
+        self.assertEqual(len(result[4]["stages"]), 2)
 
     def test_faceprocess_branch_loads_lazy_cache_before_requiring_face(self):
         source = (ROOT / "pipe" / "cmk_faceprocess.py").read_text(encoding="utf-8")
