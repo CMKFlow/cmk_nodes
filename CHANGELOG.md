@@ -1,5 +1,8 @@
 # 2026-08-08 — Experimentelles ZIT-Inpaint eingefroren
 
+- `01 START HERE` zeigt bei `Remove Object` die noise-gefüllte Maske in der
+  Node-Vorschau, während der authoritative IMAGE-Ausgang weiterhin das
+  unveränderte Kontextbild und PROCESS weiterhin die echte Maske transportiert.
 - Die Refiner-Boundary materialisiert MODEL und LOG vor den beiden
   Refiner-Bildern. Damit kann das Refiner-LOG den bereits ausgeführten
   SDXL-First-Pass nach dem Modellwechsel nicht erneut öffnen.

@@ -1077,7 +1077,12 @@ class CMKPipeCreateImage:
             log_pipe,
             diagnostic,
         )
-        preview_ui = image_node_preview(image_out)
+        # Remove keeps the authoritative IMAGE cable untouched so Fooocus can
+        # encode the real scene context. Its node preview still needs to expose
+        # the selected mask like the other guided modes; show the deterministic
+        # noise preparation without changing the returned IMAGE payload.
+        preview_image = filled_image if remove_mode else image_out
+        preview_ui = image_node_preview(preview_image)
         if preview_ui is None:
             return result
         return {"ui": preview_ui, "result": result}

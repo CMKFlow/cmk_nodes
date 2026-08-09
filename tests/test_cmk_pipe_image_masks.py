@@ -195,6 +195,36 @@ class CreateImageMaskTests(unittest.TestCase):
         self.assertFalse(pipe["remove_isolated"])
         self.assertIsNone(pipe["remove_result_image"])
 
+    def test_remove_preview_shows_noise_mask_but_image_output_stays_original(self):
+        image = torch.full((1, 16, 16, 3), 0.25)
+        mask = torch.zeros((1, 16, 16))
+        mask[:, 4:12, 4:12] = 1
+        captured = {}
+        original_preview = self.module.image_node_preview
+        def capture_preview(value):
+            captured["image"] = value.clone()
+            return None
+        self.module.image_node_preview = capture_preview
+        try:
+            result = self.module.CMKPipeCreateImage().create_image(
+                **{
+                    "INPAINT_MODE": "Inpaint",
+                    "process_mode": "Remove Object",
+                    "resolution": "512x512",
+                    "IMAGE": image,
+                    "MASK": mask,
+                    "FILENAME": "remove-preview.png",
+                }
+            )
+        finally:
+            self.module.image_node_preview = original_preview
+
+        process = result[0]
+        image_output = result[2]
+        self.assertGreater(float(process["mask"].sum()), 0.0)
+        self.assertTrue(torch.allclose(image_output, torch.full_like(image_output, 0.25)))
+        self.assertFalse(torch.allclose(captured["image"], image_output))
+
 
 if __name__ == "__main__":
     unittest.main()
