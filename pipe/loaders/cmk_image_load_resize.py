@@ -82,7 +82,7 @@ class CMKImageLoadAndResizePipe:
 
     Public contract:
         image file + resize/crop parameters
-        -> PROCESS + IMAGE + LOG + diagnostic + neutral MODEL
+        -> neutral MODEL + PROCESS + IMAGE + LOG + diagnostic
 
     IMAGE is the only authoritative pixel transport. PROCESS contains only
     source/target/crop metadata required by downstream CMK Prepare nodes. This
@@ -128,15 +128,14 @@ class CMKImageLoadAndResizePipe:
             }
         }
 
-    # MODEL is appended so existing saved output-slot indices remain stable.
     RETURN_TYPES = (
+        "CMK_PIXEL_MODEL",
         "CMK_PIPE",
         "IMAGE",
         "CMK_LOG_PIPE",
         "CMK_DIAGNOSTIC",
-        "CMK_PIXEL_MODEL",
     )
-    RETURN_NAMES = ("PROCESS", "IMAGE", "LOG", "diagnostic", "MODEL")
+    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "diagnostic")
     FUNCTION = "load_and_resize"
     CATEGORY = "CMK/Flow/Input"
 
@@ -339,7 +338,7 @@ class CMKImageLoadAndResizePipe:
             "pixel_only": True,
             "pipe_origin": "CMK Image Load and Resize -Pipe-",
         }
-        return process, resized_image, log_pipe, diagnostic, neutral_model
+        return neutral_model, process, resized_image, log_pipe, diagnostic
 
     @classmethod
     def IS_CHANGED(cls, **inputs):
