@@ -1390,7 +1390,8 @@
       "domain": "Face Processing",
       "compatibility": [
         "SDXL",
-        "ReActor"
+        "Z-Image Turbo",
+        "CMK Native FaceSwap"
       ],
       "version": "1.0.0",
       "author": "CMK Nodes",

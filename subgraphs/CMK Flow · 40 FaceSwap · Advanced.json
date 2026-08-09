@@ -2716,6 +2716,7 @@
       "domain": "Face Processing",
       "compatibility": [
         "SDXL",
+        "Z-Image Turbo",
         "CMK Native FaceSwap"
       ],
       "version": "1.0.0",
