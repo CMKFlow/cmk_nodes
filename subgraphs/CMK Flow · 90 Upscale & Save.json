@@ -19,6 +19,11 @@
       "mode": 0,
       "inputs": [
         {
+          "name": "MODEL (opt)",
+          "type": "*",
+          "link": null
+        },
+        {
           "name": "PROCESS",
           "type": "*",
           "link": null
@@ -30,11 +35,6 @@
         },
         {
           "name": "LOG",
-          "type": "*",
-          "link": null
-        },
-        {
-          "name": "MODEL",
           "type": "*",
           "link": null
         },
@@ -182,6 +182,18 @@
         },
         "inputs": [
           {
+            "id": "bd3dc9ea-370a-4341-9f76-cb060df31627",
+            "name": "MODEL (opt)",
+            "type": "*",
+            "linkIds": [
+              12292
+            ],
+            "pos": [
+              11746.918755226861,
+              -548.0450216168146
+            ]
+          },
+          {
             "id": "c69a745b-a59c-40ad-9797-833321dd8a8a",
             "name": "PROCESS",
             "type": "*",
@@ -215,18 +227,6 @@
             "pos": [
               11746.918755226861,
               -488.04502161681455
-            ]
-          },
-          {
-            "id": "bd3dc9ea-370a-4341-9f76-cb060df31627",
-            "name": "MODEL",
-            "type": "*",
-            "linkIds": [
-              12292
-            ],
-            "pos": [
-              11746.918755226861,
-              -548.0450216168146
             ]
           },
           {
@@ -535,6 +535,12 @@
             "mode": 0,
             "inputs": [
               {
+                "localized_name": "MODEL (opt)",
+                "name": "MODEL (opt)",
+                "type": "CMK_MODEL_PIPE",
+                "link": 12217
+              },
+              {
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
                 "type": "CMK_PIPE",
@@ -596,12 +602,6 @@
                   "name": "PROJECT FOLDER"
                 },
                 "link": null
-              },
-              {
-                "localized_name": "MODEL",
-                "name": "MODEL",
-                "type": "CMK_MODEL_PIPE",
-                "link": 12217
               }
             ],
             "outputs": [
@@ -680,6 +680,12 @@
             "mode": 0,
             "inputs": [
               {
+                "localized_name": "MODEL (opt)",
+                "name": "MODEL (opt)",
+                "type": "*",
+                "link": 12292
+              },
+              {
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
                 "type": "*",
@@ -696,12 +702,6 @@
                 "name": "LOG",
                 "type": "*",
                 "link": 12295
-              },
-              {
-                "localized_name": "MODEL",
-                "name": "MODEL",
-                "type": "*",
-                "link": 12292
               }
             ],
             "outputs": [
@@ -762,6 +762,12 @@
             "mode": 0,
             "inputs": [
               {
+                "localized_name": "MODEL (opt)",
+                "name": "MODEL (opt)",
+                "type": "CMK_MODEL_PIPE",
+                "link": 12220
+              },
+              {
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
                 "type": "CMK_PIPE",
@@ -778,12 +784,6 @@
                 "name": "LOG",
                 "type": "CMK_LOG_PIPE",
                 "link": 12223
-              },
-              {
-                "localized_name": "MODEL",
-                "name": "MODEL",
-                "type": "CMK_MODEL_PIPE",
-                "link": 12220
               }
             ],
             "outputs": [
@@ -861,7 +861,7 @@
             "origin_id": 4913,
             "origin_slot": 0,
             "target_id": 4919,
-            "target_slot": 1,
+            "target_slot": 2,
             "type": "IMAGE"
           },
           {
@@ -869,7 +869,7 @@
             "origin_id": 4913,
             "origin_slot": 1,
             "target_id": 4919,
-            "target_slot": 2,
+            "target_slot": 3,
             "type": "CMK_LOG_PIPE"
           },
           {
@@ -877,7 +877,7 @@
             "origin_id": -10,
             "origin_slot": 4,
             "target_id": 4919,
-            "target_slot": 3,
+            "target_slot": 4,
             "type": "BOOLEAN"
           },
           {
@@ -885,7 +885,7 @@
             "origin_id": -10,
             "origin_slot": 5,
             "target_id": 4919,
-            "target_slot": 4,
+            "target_slot": 5,
             "type": "STRING"
           },
           {
@@ -893,7 +893,7 @@
             "origin_id": -10,
             "origin_slot": 6,
             "target_id": 4919,
-            "target_slot": 5,
+            "target_slot": 6,
             "type": "STRING"
           },
           {
@@ -909,7 +909,7 @@
             "origin_id": 5061,
             "origin_slot": 0,
             "target_id": 4919,
-            "target_slot": 8,
+            "target_slot": 0,
             "type": "CMK_MODEL_PIPE"
           },
           {
@@ -917,7 +917,7 @@
             "origin_id": 4919,
             "origin_slot": 0,
             "target_id": 5062,
-            "target_slot": 3,
+            "target_slot": 0,
             "type": "CMK_MODEL_PIPE"
           },
           {
@@ -925,7 +925,7 @@
             "origin_id": 4919,
             "origin_slot": 1,
             "target_id": 5062,
-            "target_slot": 0,
+            "target_slot": 1,
             "type": "CMK_PIPE"
           },
           {
@@ -933,7 +933,7 @@
             "origin_id": 4919,
             "origin_slot": 2,
             "target_id": 5062,
-            "target_slot": 1,
+            "target_slot": 2,
             "type": "IMAGE"
           },
           {
@@ -941,7 +941,7 @@
             "origin_id": 4919,
             "origin_slot": 3,
             "target_id": 5062,
-            "target_slot": 2,
+            "target_slot": 3,
             "type": "CMK_LOG_PIPE"
           },
           {
@@ -949,7 +949,7 @@
             "origin_id": -10,
             "origin_slot": 7,
             "target_id": 4919,
-            "target_slot": 6,
+            "target_slot": 7,
             "type": "BOOLEAN"
           },
           {
@@ -965,19 +965,11 @@
             "origin_id": 5061,
             "origin_slot": 1,
             "target_id": 4919,
-            "target_slot": 0,
+            "target_slot": 1,
             "type": "CMK_PIPE"
           },
           {
             "id": 12292,
-            "origin_id": -10,
-            "origin_slot": 3,
-            "target_id": 5061,
-            "target_slot": 3,
-            "type": "*"
-          },
-          {
-            "id": 12293,
             "origin_id": -10,
             "origin_slot": 0,
             "target_id": 5061,
@@ -985,7 +977,7 @@
             "type": "*"
           },
           {
-            "id": 12294,
+            "id": 12293,
             "origin_id": -10,
             "origin_slot": 1,
             "target_id": 5061,
@@ -993,11 +985,19 @@
             "type": "*"
           },
           {
-            "id": 12295,
+            "id": 12294,
             "origin_id": -10,
             "origin_slot": 2,
             "target_id": 5061,
             "target_slot": 2,
+            "type": "*"
+          },
+          {
+            "id": 12295,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 5061,
+            "target_slot": 3,
             "type": "*"
           },
           {

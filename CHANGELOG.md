@@ -12,21 +12,15 @@
 - Der dadurch ebenfalls funktionslose Gate-Eingang `RESULT PROCESS` wurde
   entfernt. ZIT führt seinen berechneten PROCESS weiterhin ausschließlich über
   den dafür vorgesehenen `CMK Z-Image Process Forward` zum öffentlichen Port.
-- Die gespeicherte Eingangsreihenfolge aller Family Gates entspricht wieder
-  exakt der Runtime-Schnittstelle (`PROCESS` zuerst). Dadurch bleibt das
-  leichte PROCESS-Steuersignal beim Laden oder Ersetzen eines Subgraphen am
-  korrekten Eingang verkabelt.
-- Die gespeicherten Portreihenfolgen von Result Unpack, Result Pack, FaceSwap
-  Boundary und Save Project entsprechen nun ebenfalls ihren Runtime-Verträgen
-  mit optionalem MODEL (`PROCESS / IMAGE / LOG / MODEL`). Damit validieren
-  direkte ZIT- und SDXL-Wege zu 40/90 LOG wieder am richtigen Slot.
-- Auch die sichtbaren Subgraph-Eingänge von 40, 40 Advanced und 90 folgen nun
-  dieser Reihenfolge: zuerst der vollständige Ergebnisweg aus PROCESS, IMAGE
-  und LOG, danach das optionale MODEL. Damit stimmen äußere Ports, innere
-  Verkabelung und Runtime-Vertrag überein.
-- Der Refiner Boundary Cache in 20 verwendet nun ebenfalls durchgängig
-  `PROCESS / MODEL / IMAGE / LOG`; Ein- und Ausgänge sowie gespeicherte
-  Link-Slots folgen derselben Reihenfolge wie das anschließende Family Gate.
+- Family Gates und der Refiner Boundary Cache folgen wieder dem verbindlichen
+  CMK-Schnittstellenvertrag `MODEL / PROCESS / IMAGE beziehungsweise SAMPLED /
+  LOG`. Die Runtime fordert PROCESS weiterhin zuerst lazy an, ohne dessen
+  sichtbaren Port an die erste Stelle zu verschieben.
+- Result Unpack, Result Pack, FaceSwap Boundary und Save Project lösen die
+  technische Optionalität des Modells intern. Ihre sichtbare und gespeicherte
+  Reihenfolge bleibt deshalb ebenfalls kanonisch; bei 40 und 90 lautet sie
+  `MODEL (opt) / PROCESS / IMAGE / LOG`. Alle Link-Slots entsprechen dieser
+  Schnittstelle.
 - Das Preview Board bewahrt beim erneuten Laden eines Workflows nun neben der
   manuellen Breite auch die manuell gesetzte Höhe. Die dynamische
   Input-Normalisierung darf beide Dimensionen nur noch vergrößern.

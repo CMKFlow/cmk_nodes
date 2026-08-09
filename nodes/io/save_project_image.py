@@ -34,7 +34,8 @@ class CMK_SaveProjectImage:
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "required": {
+            "optional": {
+                "MODEL (opt)": ("CMK_MODEL_PIPE",),
                 "PROCESS": ("CMK_PIPE",),
                 "IMAGE": ("IMAGE",),
                 "LOG": ("CMK_LOG_PIPE",),
@@ -43,9 +44,6 @@ class CMK_SaveProjectImage:
                 "OUTPUT FOLDER": ("STRING", {"default": ""}),
                 "USE DATE FOLDER": ("BOOLEAN", {"default": True}),
                 "PROJECT FOLDER": ("STRING", {"default": ""}),
-            },
-            "optional": {
-                "MODEL": ("CMK_MODEL_PIPE",),
             },
         }
 
@@ -58,12 +56,12 @@ class CMK_SaveProjectImage:
 
     def run(
         self,
-        PROCESS,
-        IMAGE,
-        LOG,
-        MODEL=None,
+        PROCESS=None,
+        IMAGE=None,
+        LOG=None,
         **kwargs,
     ):
+        MODEL = kwargs.get("MODEL (opt)")
         save_enabled = bool(kwargs.get("SAVE ENABLED", True))
         filename_prefix = str(kwargs.get("FILENAME PREFIX", "image"))
         output_folder = str(kwargs.get("OUTPUT FOLDER", ""))

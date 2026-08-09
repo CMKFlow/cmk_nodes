@@ -1140,13 +1140,11 @@ class CMKFaceSwapBoundaryCache:
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "required": {
+            "optional": {
+                "MODEL (opt)": ("CMK_MODEL_PIPE", {"lazy": True}),
                 "PROCESS": ("CMK_PIPE", {"lazy": True}),
                 "IMAGE": ("IMAGE", {"lazy": True}),
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
-            },
-            "optional": {
-                "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
             },
             "hidden": {
                 "prompt": "PROMPT",
@@ -1182,12 +1180,12 @@ class CMKFaceSwapBoundaryCache:
     @cmk_timed_call("LAZY 40 FACESWAP BOUNDARY")
     def check_lazy_status(
         self,
-        MODEL=None,
         PROCESS=None,
         IMAGE=None,
         LOG=None,
         prompt=None,
         unique_id=None,
+        **kwargs,
     ):
         cache_key, detail = self._cache_key(prompt, unique_id)
         if cache_key and _faceswap_disk_available(self._SCOPE, cache_key):
@@ -1212,13 +1210,14 @@ class CMKFaceSwapBoundaryCache:
 
     def boundary(
         self,
-        MODEL=None,
         PROCESS=None,
         IMAGE=None,
         LOG=None,
         prompt=None,
         unique_id=None,
+        **kwargs,
     ):
+        MODEL = kwargs.get("MODEL (opt)")
         cache_key, detail = self._cache_key(prompt, unique_id)
 
         if (

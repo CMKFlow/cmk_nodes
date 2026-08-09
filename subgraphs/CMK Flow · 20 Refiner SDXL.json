@@ -611,16 +611,16 @@
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "PROCESS",
-                "name": "PROCESS",
-                "type": "CMK_PROCESS_SDXL",
-                "link": 12045
-              },
-              {
                 "localized_name": "MODEL",
                 "name": "MODEL",
                 "type": "CMK_MODEL_PIPE",
                 "link": 12044
+              },
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "CMK_PROCESS_SDXL",
+                "link": 12045
               },
               {
                 "localized_name": "IMAGE_1ST_PASS",
@@ -643,18 +643,18 @@
             ],
             "outputs": [
               {
-                "localized_name": "PROCESS",
-                "name": "PROCESS",
-                "type": "CMK_PROCESS_SDXL",
-                "links": []
-              },
-              {
                 "localized_name": "MODEL",
                 "name": "MODEL",
                 "type": "CMK_MODEL_PIPE",
                 "links": [
                   12232
                 ]
+              },
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "CMK_PROCESS_SDXL",
+                "links": []
               },
               {
                 "localized_name": "IMAGE 1ST PASS",
@@ -741,16 +741,16 @@
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "PROCESS",
-                "name": "PROCESS",
-                "type": "CMK_PROCESS_SDXL",
-                "link": 12234
-              },
-              {
                 "localized_name": "MODEL",
                 "name": "MODEL",
                 "type": "CMK_MODEL_PIPE",
                 "link": 12232
+              },
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "CMK_PROCESS_SDXL",
+                "link": 12234
               },
               {
                 "localized_name": "IMAGE REFINED",
@@ -893,7 +893,7 @@
             "origin_id": -10,
             "origin_slot": 0,
             "target_id": 4920,
-            "target_slot": 1,
+            "target_slot": 0,
             "type": "CMK_MODEL_PIPE"
           },
           {
@@ -901,7 +901,7 @@
             "origin_id": -10,
             "origin_slot": 1,
             "target_id": 4920,
-            "target_slot": 0,
+            "target_slot": 1,
             "type": "CMK_PROCESS_SDXL"
           },
           {
@@ -915,10 +915,10 @@
           {
             "id": 12232,
             "origin_id": 4920,
-            "origin_slot": 1,
+            "origin_slot": 0,
             "type": "CMK_MODEL_PIPE",
             "target_id": 5042,
-            "target_slot": 1
+            "target_slot": 0
           },
           {
             "id": 12233,
@@ -934,7 +934,7 @@
             "origin_slot": 1,
             "type": "CMK_PROCESS_SDXL",
             "target_id": 5042,
-            "target_slot": 0
+            "target_slot": 1
           },
           {
             "id": 12235,

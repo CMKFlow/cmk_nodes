@@ -68,6 +68,10 @@ Advancedparameter
 
 Ausgänge folgen derselben semantischen Reihenfolge, soweit der konkrete Node-Vertrag diese Rollen tatsächlich ausgibt.
 
+Ein optionales MODEL behält seine kanonische erste Position und wird sichtbar
+als `MODEL (opt)` bezeichnet. Technische Optionalität darf die Socket-Reihenfolge
+nicht verändern.
+
 Ein Compute-Knoten darf keine unveränderten Transportwerte allein aus optischen Gründen durchschleifen.
 
 ## 4. Dynamische Eingänge

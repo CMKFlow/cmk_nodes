@@ -120,29 +120,29 @@ class FamilyProcessContractTests(unittest.TestCase):
         result_source = (ROOT / "pipe" / "cmk_family_result.py").read_text(
             encoding="utf-8"
         )
-        self.assertIn('"optional": {\n                "MODEL": (CMK_FINISH_INPUT,)', result_source)
-        self.assertIn('def unpack(MODEL=None, PROCESS=None, IMAGE=None, LOG=None):', result_source)
-        self.assertIn('def pack(MODEL=None, PROCESS=None, IMAGE=None, LOG=None):', result_source)
+        self.assertIn('"optional": {\n                "MODEL (opt)": (CMK_FINISH_INPUT,)', result_source)
+        self.assertIn('MODEL = kwargs.get("MODEL (opt)", MODEL)', result_source)
 
         boundary_source = (
             ROOT / "pipe" / "cmk_module_boundary_cache.py"
         ).read_text(encoding="utf-8")
         face_start = boundary_source.index("class CMKFaceSwapBoundaryCache:")
         face_boundary = boundary_source[face_start:]
-        self.assertIn('"optional": {\n                "MODEL": ("CMK_MODEL_PIPE", {"lazy": True})', face_boundary)
+        self.assertIn('"optional": {\n                "MODEL (opt)": ("CMK_MODEL_PIPE", {"lazy": True})', face_boundary)
         self.assertNotIn('(\"MODEL\", MODEL),\n            (\"PROCESS\", PROCESS)', face_boundary)
 
         save_source = (ROOT / "nodes" / "io" / "save_project_image.py").read_text(
             encoding="utf-8"
         )
-        self.assertIn('"optional": {\n                "MODEL": ("CMK_MODEL_PIPE",)', save_source)
+        self.assertIn('"optional": {\n                "MODEL (opt)": ("CMK_MODEL_PIPE",)', save_source)
 
     def test_optional_model_nodes_use_runtime_input_order_in_saved_subgraphs(self):
         expected = {
-            "CMKResultUnpackPipe": ["PROCESS", "IMAGE", "LOG", "MODEL"],
-            "CMKResultPackPipe": ["PROCESS", "IMAGE", "LOG", "MODEL"],
-            "CMKFaceSwapBoundaryCache": ["PROCESS", "IMAGE", "LOG", "MODEL"],
+            "CMKResultUnpackPipe": ["MODEL (opt)", "PROCESS", "IMAGE", "LOG"],
+            "CMKResultPackPipe": ["MODEL (opt)", "PROCESS", "IMAGE", "LOG"],
+            "CMKFaceSwapBoundaryCache": ["MODEL (opt)", "PROCESS", "IMAGE", "LOG"],
             "CMK_SaveProjectImage": [
+                "MODEL (opt)",
                 "PROCESS",
                 "IMAGE",
                 "LOG",
@@ -151,7 +151,6 @@ class FamilyProcessContractTests(unittest.TestCase):
                 "OUTPUT FOLDER",
                 "USE DATE FOLDER",
                 "PROJECT FOLDER",
-                "MODEL",
             ],
         }
         for filename in (
@@ -179,16 +178,16 @@ class FamilyProcessContractTests(unittest.TestCase):
                         )
                         self.assertEqual(link["target_slot"], slot)
 
-    def test_shared_module_public_inputs_place_optional_model_after_result_path(self):
+    def test_shared_module_public_inputs_keep_optional_model_first(self):
         expected = {
             "CMK Flow · 40 FaceSwap.json": [
-                "PROCESS", "IMAGE_TARGET", "LOG", "MODEL", "ENABLE"
+                "MODEL (opt)", "PROCESS", "IMAGE_TARGET", "LOG", "ENABLE"
             ],
             "CMK Flow · 40 FaceSwap · Advanced.json": [
-                "PROCESS", "IMAGE_TARGET", "LOG", "MODEL", "ENABLE"
+                "MODEL (opt)", "PROCESS", "IMAGE_TARGET", "LOG", "ENABLE"
             ],
             "CMK Flow · 90 Upscale & Save.json": [
-                "PROCESS", "IMAGE", "LOG", "MODEL", "SAVE ENABLED",
+                "MODEL (opt)", "PROCESS", "IMAGE", "LOG", "SAVE ENABLED",
                 "FILENAME PREFIX", "OUTPUT FOLDER", "USE DATE FOLDER", "enable",
             ],
         }
@@ -330,17 +329,17 @@ class FamilyProcessContractTests(unittest.TestCase):
         self.assertLess(log_pos, first_pos)
         self.assertLess(first_pos, refined_pos)
 
-    def test_refiner_boundary_uses_process_first_port_order(self):
+    def test_refiner_boundary_uses_model_first_port_order(self):
         source = (ROOT / "pipe" / "cmk_refiner_boundary_cache.py").read_text(
             encoding="utf-8"
         )
         class_source = source[source.index("class CMKRefinerBoundaryCache:"):]
         self.assertLess(
-            class_source.index('"PROCESS": ("CMK_PROCESS_SDXL"'),
             class_source.index('"MODEL": ("CMK_MODEL_PIPE"'),
+            class_source.index('"PROCESS": ("CMK_PROCESS_SDXL"'),
         )
         self.assertIn(
-            'RETURN_NAMES = (\n        "PROCESS",\n        "MODEL",', class_source
+            'RETURN_NAMES = (\n        "MODEL",\n        "PROCESS",', class_source
         )
 
         definition = json.loads(
@@ -354,11 +353,11 @@ class FamilyProcessContractTests(unittest.TestCase):
         )
         self.assertEqual(
             [item["name"] for item in node["inputs"]],
-            ["PROCESS", "MODEL", "IMAGE_1ST_PASS", "IMAGE_REFINED", "LOG"],
+            ["MODEL", "PROCESS", "IMAGE_1ST_PASS", "IMAGE_REFINED", "LOG"],
         )
         self.assertEqual(
             [item["name"] for item in node["outputs"]],
-            ["PROCESS", "MODEL", "IMAGE 1ST PASS", "IMAGE REFINED", "LOG"],
+            ["MODEL", "PROCESS", "IMAGE 1ST PASS", "IMAGE REFINED", "LOG"],
         )
         for slot, item in enumerate(node["inputs"]):
             if item.get("link") is None:
@@ -532,7 +531,7 @@ class FamilyProcessContractTests(unittest.TestCase):
         ):
             with self.subTest(gate=gate_class.__name__):
                 gate = gate_class()
-                self.assertEqual(gate.check_lazy_status(PROCESS=None), [])
+                self.assertEqual(gate.check_lazy_status(PROCESS=None), ["PROCESS"])
                 result = gate.gate(PROCESS=None)
                 self.assertTrue(all(
                     isinstance(value, module.ExecutionBlocker)
@@ -566,9 +565,9 @@ class FamilyProcessContractTests(unittest.TestCase):
                     node for node in definition["nodes"] if node["type"] == gate_type
                 )
                 expected = (
-                    ["PROCESS", "MODEL", "SAMPLED", "LOG"]
+                    ["MODEL", "PROCESS", "SAMPLED", "LOG"]
                     if gate_type == "CMKFamilyBranchGateSDXLSampled"
-                    else ["PROCESS", "MODEL", "IMAGE", "LOG"]
+                    else ["MODEL", "PROCESS", "IMAGE", "LOG"]
                 )
                 self.assertEqual([item["name"] for item in gate["inputs"]], expected)
                 for slot, item in enumerate(gate["inputs"]):

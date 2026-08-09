@@ -21,6 +21,11 @@
       "mode": 0,
       "inputs": [
         {
+          "name": "MODEL (opt)",
+          "type": "*",
+          "link": null
+        },
+        {
           "name": "PROCESS",
           "type": "*",
           "link": null
@@ -32,11 +37,6 @@
         },
         {
           "name": "LOG",
-          "type": "*",
-          "link": null
-        },
-        {
-          "name": "MODEL",
           "type": "*",
           "link": null
         },
@@ -140,6 +140,18 @@
         },
         "inputs": [
           {
+            "id": "1ae3c975-9243-4d4e-8cb0-cdaaef8e1bbe",
+            "name": "MODEL (opt)",
+            "type": "*",
+            "linkIds": [
+              12290
+            ],
+            "pos": [
+              688.38671875,
+              519
+            ]
+          },
+          {
             "id": "ea787d21-8f57-458c-8737-12b7ec21305d",
             "name": "PROCESS",
             "type": "*",
@@ -173,18 +185,6 @@
             "pos": [
               688.38671875,
               579
-            ]
-          },
-          {
-            "id": "1ae3c975-9243-4d4e-8cb0-cdaaef8e1bbe",
-            "name": "MODEL",
-            "type": "*",
-            "linkIds": [
-              12290
-            ],
-            "pos": [
-              688.38671875,
-              519
             ]
           },
           {
@@ -581,6 +581,12 @@
             "mode": 0,
             "inputs": [
               {
+                "localized_name": "MODEL (opt)",
+                "name": "MODEL (opt)",
+                "type": "CMK_MODEL_PIPE",
+                "link": 26
+              },
+              {
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
                 "type": "CMK_PIPE",
@@ -597,12 +603,6 @@
                 "name": "LOG",
                 "type": "CMK_LOG_PIPE",
                 "link": 12071
-              },
-              {
-                "localized_name": "MODEL",
-                "name": "MODEL",
-                "type": "CMK_MODEL_PIPE",
-                "link": 26
               }
             ],
             "outputs": [
@@ -981,6 +981,12 @@
             "mode": 0,
             "inputs": [
               {
+                "localized_name": "MODEL (opt)",
+                "name": "MODEL (opt)",
+                "type": "*",
+                "link": 12290
+              },
+              {
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
                 "type": "*",
@@ -997,12 +1003,6 @@
                 "name": "LOG",
                 "type": "*",
                 "link": 12293
-              },
-              {
-                "localized_name": "MODEL",
-                "name": "MODEL",
-                "type": "*",
-                "link": 12290
               }
             ],
             "outputs": [
@@ -1063,6 +1063,12 @@
             "mode": 0,
             "inputs": [
               {
+                "localized_name": "MODEL (opt)",
+                "name": "MODEL (opt)",
+                "type": "CMK_MODEL_PIPE",
+                "link": 21
+              },
+              {
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
                 "type": "CMK_PIPE",
@@ -1079,12 +1085,6 @@
                 "name": "LOG",
                 "type": "CMK_LOG_PIPE",
                 "link": 24
-              },
-              {
-                "localized_name": "MODEL",
-                "name": "MODEL",
-                "type": "CMK_MODEL_PIPE",
-                "link": 21
               }
             ],
             "outputs": [
@@ -1171,7 +1171,7 @@
             "origin_id": 5062,
             "origin_slot": 0,
             "target_id": 5064,
-            "target_slot": 1,
+            "target_slot": 2,
             "type": "IMAGE"
           },
           {
@@ -1179,7 +1179,7 @@
             "origin_id": 5064,
             "origin_slot": 0,
             "target_id": 5081,
-            "target_slot": 3,
+            "target_slot": 0,
             "type": "CMK_MODEL_PIPE"
           },
           {
@@ -1187,7 +1187,7 @@
             "origin_id": 5064,
             "origin_slot": 1,
             "target_id": 5081,
-            "target_slot": 0,
+            "target_slot": 1,
             "type": "CMK_PIPE"
           },
           {
@@ -1195,7 +1195,7 @@
             "origin_id": 5064,
             "origin_slot": 2,
             "target_id": 5081,
-            "target_slot": 1,
+            "target_slot": 2,
             "type": "IMAGE"
           },
           {
@@ -1203,7 +1203,7 @@
             "origin_id": 5064,
             "origin_slot": 3,
             "target_id": 5081,
-            "target_slot": 2,
+            "target_slot": 3,
             "type": "CMK_LOG_PIPE"
           },
           {
@@ -1211,7 +1211,7 @@
             "origin_id": 5080,
             "origin_slot": 0,
             "target_id": 5064,
-            "target_slot": 3,
+            "target_slot": 0,
             "type": "CMK_MODEL_PIPE"
           },
           {
@@ -1235,7 +1235,7 @@
             "origin_id": 5080,
             "origin_slot": 1,
             "target_id": 5064,
-            "target_slot": 0,
+            "target_slot": 1,
             "type": "CMK_PIPE"
           },
           {
@@ -1259,7 +1259,7 @@
             "origin_id": 5066,
             "origin_slot": 0,
             "target_id": 5064,
-            "target_slot": 2,
+            "target_slot": 3,
             "type": "CMK_LOG_PIPE"
           },
           {
@@ -1273,21 +1273,13 @@
           {
             "id": 12290,
             "origin_id": -10,
-            "origin_slot": 3,
-            "target_id": 5080,
-            "target_slot": 3,
-            "type": "*"
-          },
-          {
-            "id": 12291,
-            "origin_id": -10,
             "origin_slot": 0,
             "target_id": 5080,
             "target_slot": 0,
             "type": "*"
           },
           {
-            "id": 12292,
+            "id": 12291,
             "origin_id": -10,
             "origin_slot": 1,
             "target_id": 5080,
@@ -1295,11 +1287,19 @@
             "type": "*"
           },
           {
-            "id": 12293,
+            "id": 12292,
             "origin_id": -10,
             "origin_slot": 2,
             "target_id": 5080,
             "target_slot": 2,
+            "type": "*"
+          },
+          {
+            "id": 12293,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 5080,
+            "target_slot": 3,
             "type": "*"
           },
           {

@@ -34,9 +34,9 @@ class _CMKFamilyBranchGate:
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "required": {"PROCESS": (cls.PROCESS_TYPE,)},
             "optional": {
                 "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
+                "PROCESS": (cls.PROCESS_TYPE, {"lazy": True}),
                 "IMAGE": ("IMAGE", {"lazy": True}),
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
             },
@@ -55,7 +55,7 @@ class _CMKFamilyBranchGate:
     @cmk_timed_call("LAZY FAMILY BRANCH GATE")
     def check_lazy_status(self, PROCESS=None, **inputs):
         if PROCESS is None:
-            return []
+            return ["PROCESS"]
         if isinstance(PROCESS, dict) and not PROCESS.get("family_active", True):
             return []
         needed = [
@@ -110,9 +110,9 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "required": {"PROCESS": (cls.PROCESS_TYPE,)},
             "optional": {
                 "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
+                "PROCESS": (cls.PROCESS_TYPE, {"lazy": True}),
                 "SAMPLED": ("CMK_SAMPLED_PIPE", {"lazy": True}),
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
             },
@@ -128,7 +128,7 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
     @cmk_timed_call("LAZY SDXL SAMPLED GATE")
     def check_lazy_status(self, PROCESS=None, **inputs):
         if PROCESS is None:
-            return []
+            return ["PROCESS"]
         if isinstance(PROCESS, dict) and not PROCESS.get("family_active", True):
             return []
         # Resolve converging branches one at a time. Requesting MODEL and
@@ -357,13 +357,11 @@ class CMKResultUnpackPipe:
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "required": {
+            "optional": {
+                "MODEL (opt)": (CMK_FINISH_INPUT,),
                 "PROCESS": (CMK_FINISH_INPUT,),
                 "IMAGE": (CMK_FINISH_INPUT,),
                 "LOG": (CMK_FINISH_INPUT,),
-            },
-            "optional": {
-                "MODEL": (CMK_FINISH_INPUT,),
             },
         }
 
@@ -374,7 +372,8 @@ class CMKResultUnpackPipe:
     DEV_ONLY = True
 
     @staticmethod
-    def unpack(MODEL=None, PROCESS=None, IMAGE=None, LOG=None):
+    def unpack(MODEL=None, PROCESS=None, IMAGE=None, LOG=None, **kwargs):
+        MODEL = kwargs.get("MODEL (opt)", MODEL)
         if not isinstance(PROCESS, dict):
             raise TypeError("CMK 90 requires a CMK PROCESS from SDXL, ZIT or module 35")
         if IMAGE is None:
@@ -418,13 +417,11 @@ class CMKResultPackPipe:
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "required": {
+            "optional": {
+                "MODEL (opt)": ("CMK_MODEL_PIPE",),
                 "PROCESS": ("CMK_PIPE",),
                 "IMAGE": ("IMAGE",),
                 "LOG": ("CMK_LOG_PIPE",),
-            },
-            "optional": {
-                "MODEL": ("CMK_MODEL_PIPE",),
             },
         }
 
@@ -440,7 +437,8 @@ class CMKResultPackPipe:
     DEV_ONLY = True
 
     @staticmethod
-    def pack(MODEL=None, PROCESS=None, IMAGE=None, LOG=None):
+    def pack(MODEL=None, PROCESS=None, IMAGE=None, LOG=None, **kwargs):
+        MODEL = kwargs.get("MODEL (opt)", MODEL)
         if not isinstance(PROCESS, dict) or PROCESS.get("result_contract") != "family_neutral":
             raise ValueError("CMK Result Pack requires a family-neutral PROCESS")
         if MODEL is not None and not isinstance(MODEL, dict):

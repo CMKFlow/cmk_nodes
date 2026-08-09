@@ -261,7 +261,7 @@ Regeln:
 Das eingeschleifte FaceSwap-Modul verwendet dieselbe Execute-Node mit einem internen Source-Loader:
 
 ```text
-MODEL + PROCESS + IMAGE_TARGET + LOG + ENABLE
+MODEL (opt) + PROCESS + IMAGE_TARGET + LOG + ENABLE
     ↓
 [CMK Load Image -Pipe- nur für IMAGE_SOURCE]
     ↓
@@ -672,7 +672,7 @@ bewahrt dennoch den vollständigen Transportvertrag, damit eine abweichende
 fachlich sinnvolle Reihenfolge nicht künstlich verhindert wird:
 
 ```text
-MODEL + PROCESS + IMAGE + LOG + Speicherparameter
+MODEL (opt) + PROCESS + IMAGE + LOG + Speicherparameter
     ↓
 MODEL + PROCESS + IMAGE + LOG
 ```
@@ -686,7 +686,7 @@ IMAGE + LOG → IMAGE + LOG + diagnostic
 `CMK Save Project Image -Pipe-`:
 
 ```text
-MODEL + PROCESS + IMAGE + LOG + Speicherparameter
+MODEL (opt) + PROCESS + IMAGE + LOG + Speicherparameter
     → MODEL + PROCESS + IMAGE + LOG + FULLPATH
 ```
 

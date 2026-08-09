@@ -665,16 +665,16 @@
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "PROCESS",
-                "name": "PROCESS",
-                "type": "CMK_PROCESS_Z_IMAGE",
-                "link": 12351
-              },
-              {
                 "localized_name": "MODEL",
                 "name": "MODEL",
                 "type": "CMK_MODEL_PIPE",
                 "link": 12334
+              },
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "CMK_PROCESS_Z_IMAGE",
+                "link": 12351
               },
               {
                 "localized_name": "IMAGE",
@@ -912,7 +912,7 @@
             "origin_slot": 0,
             "type": "CMK_MODEL_PIPE",
             "target_id": 5079,
-            "target_slot": 1
+            "target_slot": 0
           },
           {
             "id": 12335,
@@ -1023,7 +1023,7 @@
             "origin_id": -10,
             "origin_slot": 0,
             "target_id": 5079,
-            "target_slot": 0,
+            "target_slot": 1,
             "type": "CMK_PROCESS_Z_IMAGE"
           },
           {
