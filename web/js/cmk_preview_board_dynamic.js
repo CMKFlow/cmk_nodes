@@ -48,7 +48,13 @@ function normalize(node) {
 
     applyLabels(node);
     const size = node.computeSize();
-    node.setSize([Math.max(node.size[0], size[0]), size[1]]);
+    // onConfigure receives the workflow's persisted node.size. Dynamic input
+    // normalization may increase the minimum dimensions, but must never reset
+    // a height the user resized manually. Width already followed this rule.
+    node.setSize([
+        Math.max(node.size[0], size[0]),
+        Math.max(node.size[1], size[1]),
+    ]);
     node.setDirtyCanvas?.(true, true);
 }
 

@@ -1,5 +1,8 @@
 # 2026-08-08 — Experimentelles ZIT-Inpaint eingefroren
 
+- Das Preview Board bewahrt beim erneuten Laden eines Workflows nun neben der
+  manuellen Breite auch die manuell gesetzte Höhe. Die dynamische
+  Input-Normalisierung darf beide Dimensionen nur noch vergrößern.
 - Eigenständige Bildbearbeitungsflows erhalten von `CMK Image Load and Resize`
   einen leichten neutralen MODEL-Kontext. 40 FaceSwap und 90 Upscale & Save
   akzeptieren diesen vollständigen `family_neutral/image`-Pfad, sodass der
