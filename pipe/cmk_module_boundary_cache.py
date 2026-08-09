@@ -1141,10 +1141,12 @@ class CMKFaceSwapBoundaryCache:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
                 "PROCESS": ("CMK_PIPE", {"lazy": True}),
                 "IMAGE": ("IMAGE", {"lazy": True}),
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
+            },
+            "optional": {
+                "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
             },
             "hidden": {
                 "prompt": "PROMPT",
@@ -1196,11 +1198,10 @@ class CMKFaceSwapBoundaryCache:
                 detail=detail,
                 unique_id=unique_id,
             )
-            return ["MODEL"] if MODEL is None else []
+            return []
 
         needed = []
         for name, value in (
-            ("MODEL", MODEL),
             ("PROCESS", PROCESS),
             ("IMAGE", IMAGE),
             ("LOG", LOG),
@@ -1222,7 +1223,6 @@ class CMKFaceSwapBoundaryCache:
 
         if (
             cache_key
-            and MODEL is not None
             and _faceswap_disk_available(self._SCOPE, cache_key)
         ):
             try:
@@ -1254,7 +1254,6 @@ class CMKFaceSwapBoundaryCache:
         missing = [
             name
             for name, value in (
-                ("MODEL", MODEL),
                 ("PROCESS", PROCESS),
                 ("IMAGE", IMAGE),
                 ("LOG", LOG),
@@ -1267,7 +1266,7 @@ class CMKFaceSwapBoundaryCache:
                 + ", ".join(missing)
             )
 
-        if not isinstance(MODEL, dict):
+        if MODEL is not None and not isinstance(MODEL, dict):
             raise TypeError("MODEL is not a CMK model pipe")
         if not isinstance(PROCESS, dict):
             raise TypeError("PROCESS is not a CMK process pipe")

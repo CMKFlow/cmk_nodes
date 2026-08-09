@@ -56,21 +56,23 @@ class FamilyProcessContractTests(unittest.TestCase):
             ROOT / "pipe" / "loaders" / "cmk_image_load_resize.py"
         ).read_text(encoding="utf-8")
         self.assertIn(
-            'RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "diagnostic")',
+            'RETURN_NAMES = ("MODEL SDXL", "PROCESS", "IMAGE", "LOG", "diagnostic")',
             loader_source,
         )
-        self.assertIn('"CMK_PIXEL_MODEL"', loader_source)
+        self.assertNotIn('"CMK_PIXEL_MODEL"', loader_source)
+        self.assertIn('"MODEL SDXL": ("CMK_MODEL_PIPE",)', loader_source)
+        self.assertIn('"CMK_MODEL_PIPE"', loader_source)
         self.assertIn('"CMK_PROCESS_SDXL"', loader_source)
         self.assertIn('"result_contract": "family_neutral"', loader_source)
         self.assertIn('"source_model_family": "image"', loader_source)
-        self.assertIn('"pixel_only": True', loader_source)
+        self.assertNotIn('"pixel_only": True', loader_source)
 
         result_source = (ROOT / "pipe" / "cmk_family_result.py").read_text(
             encoding="utf-8"
         )
         self.assertIn("neutral_image_path = (", result_source)
         self.assertIn('family == "image"', result_source)
-        self.assertIn('MODEL.get("pixel_only") is True', result_source)
+        self.assertNotIn('MODEL.get("pixel_only") is True', result_source)
         self.assertIn("complete CMK image-input path", result_source)
 
         for filename in (
@@ -85,14 +87,13 @@ class FamilyProcessContractTests(unittest.TestCase):
                     item for item in definition["inputs"] if item["name"] == "MODEL"
                 )
                 self.assertEqual(model_input["type"], "CMK_MODEL_PIPE")
-                self.assertNotEqual(model_input["type"], "CMK_PIXEL_MODEL")
 
     def test_standalone_image_input_process_connects_to_sdxl_processors(self):
         loader_source = (
             ROOT / "pipe" / "loaders" / "cmk_image_load_resize.py"
         ).read_text(encoding="utf-8")
         self.assertIn(
-            '"CMK_PIXEL_MODEL",\n        "CMK_PROCESS_SDXL",',
+            '"CMK_MODEL_PIPE",\n        "CMK_PROCESS_SDXL",',
             loader_source,
         )
 
@@ -108,6 +109,32 @@ class FamilyProcessContractTests(unittest.TestCase):
                     item for item in definition["inputs"] if item["name"] == "PROCESS"
                 )
                 self.assertEqual(process_input["type"], "CMK_PROCESS_SDXL")
+
+    def test_pixel_only_finish_path_does_not_require_a_model_placeholder(self):
+        checkpoint_source = (
+            ROOT / "pipe" / "loaders" / "checkpoint_vae_loader.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('RETURN_NAMES = ("MODEL SDXL",)', checkpoint_source)
+
+        result_source = (ROOT / "pipe" / "cmk_family_result.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('"optional": {\n                "MODEL": (CMK_FINISH_INPUT,)', result_source)
+        self.assertIn('def unpack(MODEL=None, PROCESS=None, IMAGE=None, LOG=None):', result_source)
+        self.assertIn('def pack(MODEL=None, PROCESS=None, IMAGE=None, LOG=None):', result_source)
+
+        boundary_source = (
+            ROOT / "pipe" / "cmk_module_boundary_cache.py"
+        ).read_text(encoding="utf-8")
+        face_start = boundary_source.index("class CMKFaceSwapBoundaryCache:")
+        face_boundary = boundary_source[face_start:]
+        self.assertIn('"optional": {\n                "MODEL": ("CMK_MODEL_PIPE", {"lazy": True})', face_boundary)
+        self.assertNotIn('(\"MODEL\", MODEL),\n            (\"PROCESS\", PROCESS)', face_boundary)
+
+        save_source = (ROOT / "nodes" / "io" / "save_project_image.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('"optional": {\n                "MODEL": ("CMK_MODEL_PIPE",)', save_source)
 
     def test_curated_processing_order_and_family_boundary_are_explicit(self):
         expected = {
@@ -523,6 +550,44 @@ class FamilyProcessContractTests(unittest.TestCase):
                 )
                 self.assertEqual(process["result_contract"], "family_neutral")
                 self.assertEqual(process["source_model_family"], family)
+
+        model, process, image, log = unpack(
+            None,
+            {
+                "result_contract": "family_neutral",
+                "source_model_family": "image",
+                "pipe_origin": "CMK Image Load and Resize -Pipe-",
+            },
+            object(),
+            {"blocks": []},
+        )
+        self.assertIsNone(model)
+        self.assertEqual(process["source_model_family"], "image")
+
+        model, process, image, log = unpack(
+            {"model_family": "sdxl"},
+            {
+                "result_contract": "family_neutral",
+                "source_model_family": "image",
+                "pipe_origin": "CMK Image Load and Resize -Pipe-",
+            },
+            object(),
+            {"blocks": []},
+        )
+        self.assertEqual(model["model_family"], "sdxl")
+        self.assertEqual(process["source_model_family"], "image")
+
+        with self.assertRaisesRegex(ValueError, "different families"):
+            unpack(
+                {"model_family": "z_image_turbo"},
+                {
+                    "result_contract": "family_neutral",
+                    "source_model_family": "image",
+                    "pipe_origin": "CMK Image Load and Resize -Pipe-",
+                },
+                object(),
+                {"blocks": []},
+            )
 
     def test_faceswap_accepts_direct_family_and_outputs_neutral_contract(self):
         for filename in (

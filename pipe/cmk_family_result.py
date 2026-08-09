@@ -374,12 +374,16 @@ class CMKResultUnpackPipe:
 
     @classmethod
     def INPUT_TYPES(cls):
-        return {"required": {
-            "MODEL": (CMK_FINISH_INPUT,),
-            "PROCESS": (CMK_FINISH_INPUT,),
-            "IMAGE": (CMK_FINISH_INPUT,),
-            "LOG": (CMK_FINISH_INPUT,),
-        }}
+        return {
+            "required": {
+                "PROCESS": (CMK_FINISH_INPUT,),
+                "IMAGE": (CMK_FINISH_INPUT,),
+                "LOG": (CMK_FINISH_INPUT,),
+            },
+            "optional": {
+                "MODEL": (CMK_FINISH_INPUT,),
+            },
+        }
 
     RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_PIPE", "IMAGE", "CMK_LOG_PIPE")
     RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG")
@@ -388,9 +392,7 @@ class CMKResultUnpackPipe:
     DEV_ONLY = True
 
     @staticmethod
-    def unpack(MODEL, PROCESS, IMAGE, LOG):
-        if not isinstance(MODEL, dict):
-            raise TypeError("CMK 90 requires a CMK MODEL from SDXL, ZIT or module 35")
+    def unpack(MODEL=None, PROCESS=None, IMAGE=None, LOG=None):
         if not isinstance(PROCESS, dict):
             raise TypeError("CMK 90 requires a CMK PROCESS from SDXL, ZIT or module 35")
         if IMAGE is None:
@@ -408,17 +410,19 @@ class CMKResultUnpackPipe:
             PROCESS.get("result_contract") == "family_neutral"
             and family == "image"
             and PROCESS.get("pipe_origin") == "CMK Image Load and Resize -Pipe-"
-            and MODEL.get("pixel_only") is True
-            and str(MODEL.get("model_family", "")).strip().lower() == "image"
         )
+        if not neutral_image_path and not isinstance(MODEL, dict):
+            raise TypeError("CMK 90 requires a CMK MODEL from SDXL, ZIT or module 35")
         if family not in {"sdxl", "z_image_turbo"} and not neutral_image_path:
             raise ValueError(
                 "CMK 90 accepts only a complete SDXL path, a complete ZIT path, "
                 "the output of module 35, or a complete CMK image-input path"
             )
-        model_family = str(MODEL.get("model_family", family)).strip().lower()
-        if model_family and model_family != family:
-            raise ValueError("CMK 90 received MODEL and PROCESS from different families")
+        if isinstance(MODEL, dict):
+            model_family = str(MODEL.get("model_family", family)).strip().lower()
+            valid_neutral_model = neutral_image_path and model_family in {"", "sdxl"}
+            if model_family and model_family != family and not valid_neutral_model:
+                raise ValueError("CMK 90 received MODEL and PROCESS from different families")
         if not neutral_image_path and PROCESS.get("family_active") is False:
             raise ValueError("CMK 90 received the inactive family path")
 
@@ -431,12 +435,16 @@ class CMKResultUnpackPipe:
 class CMKResultPackPipe:
     @classmethod
     def INPUT_TYPES(cls):
-        return {"required": {
-            "MODEL": ("CMK_MODEL_PIPE",),
-            "PROCESS": ("CMK_PIPE",),
-            "IMAGE": ("IMAGE",),
-            "LOG": ("CMK_LOG_PIPE",),
-        }}
+        return {
+            "required": {
+                "PROCESS": ("CMK_PIPE",),
+                "IMAGE": ("IMAGE",),
+                "LOG": ("CMK_LOG_PIPE",),
+            },
+            "optional": {
+                "MODEL": ("CMK_MODEL_PIPE",),
+            },
+        }
 
     RETURN_TYPES = (
         "CMK_RESULT_MODEL",
@@ -450,9 +458,11 @@ class CMKResultPackPipe:
     DEV_ONLY = True
 
     @staticmethod
-    def pack(MODEL, PROCESS, IMAGE, LOG):
+    def pack(MODEL=None, PROCESS=None, IMAGE=None, LOG=None):
         if not isinstance(PROCESS, dict) or PROCESS.get("result_contract") != "family_neutral":
             raise ValueError("CMK Result Pack requires a family-neutral PROCESS")
-        if not isinstance(MODEL, dict) or IMAGE is None or not isinstance(LOG, dict):
+        if MODEL is not None and not isinstance(MODEL, dict):
+            raise TypeError("CMK Result Pack received an invalid MODEL")
+        if IMAGE is None or not isinstance(LOG, dict):
             raise TypeError("CMK Result Pack received an incomplete result")
         return (MODEL, dict(PROCESS), IMAGE, LOG)

@@ -3,16 +3,17 @@
 - Das Preview Board bewahrt beim erneuten Laden eines Workflows nun neben der
   manuellen Breite auch die manuell gesetzte Höhe. Die dynamische
   Input-Normalisierung darf beide Dimensionen nur noch vergrößern.
-- Eigenständige Bildbearbeitungsflows erhalten von `CMK Image Load and Resize`
-  einen leichten neutralen MODEL-Kontext. 40 FaceSwap und 90 Upscale & Save
-  akzeptieren diesen vollständigen `family_neutral/image`-Pfad, sodass der
-  reine FaceSwap-Workflow keinen unbenutzten SDXL-Checkpoint mehr laden muss.
-  Der eigene Typ `CMK_PIXEL_MODEL` verhindert zugleich eine irreführende
-  Verbindung dieses modellfreien Ausgangs mit 25 oder 30 SDXL.
-  Der PROCESS-Ausgang bleibt dagegen bewusst als `CMK_PROCESS_SDXL` typisiert,
-  damit der schlanke Standalone-Aufbau aus Image Input, Checkpoint und 25/30
-  ohne `01 START HERE` verkabelt werden kann.
-  Die sichtbaren Ausgänge folgen `MODEL / PROCESS / IMAGE / LOG / diagnostic`.
+- `CMK Flow · Checkpoint & VAE` benennt seinen Ausgang eindeutig als
+  `MODEL SDXL`. `CMK Flow · Image Input` übernimmt ihn optional und reicht ihn
+  am gleichnamigen Ausgang unverändert weiter. Dadurch besteht der schlanke
+  Standalone-Aufbau aus Checkpoint, Image Input und 25/30 ohne `01 START HERE`.
+- Ohne angeschlossenen Checkpoint erzeugt Image Input keinen künstlichen
+  MODEL-Ersatz. 40 FaceSwap und 90 Upscale & Save akzeptieren den vollständigen
+  `family_neutral/image`-Pfad über PROCESS / IMAGE / LOG mit optionalem MODEL.
+  Der frühere sichtbare Typ `CMK_PIXEL_MODEL` entfällt.
+- Der PROCESS-Ausgang von Image Input bleibt bewusst als `CMK_PROCESS_SDXL`
+  typisiert. Die sichtbaren Ausgänge folgen
+  `MODEL SDXL / PROCESS / IMAGE / LOG / diagnostic`.
 - `01 START HERE` zeigt bei `Remove Object` die noise-gefüllte Maske in der
   Node-Vorschau, während der authoritative IMAGE-Ausgang weiterhin das
   unveränderte Kontextbild und PROCESS weiterhin die echte Maske transportiert.

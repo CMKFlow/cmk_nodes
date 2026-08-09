@@ -82,13 +82,14 @@ class CMKImageLoadAndResizePipe:
 
     Public contract:
         image file + resize/crop parameters
-        -> neutral MODEL + PROCESS SDXL + IMAGE + LOG + diagnostic
+        -> optional MODEL SDXL passthrough + PROCESS SDXL + IMAGE + LOG + diagnostic
 
     IMAGE is the only authoritative pixel transport. PROCESS contains only
     source/target/crop metadata required by downstream CMK Prepare nodes, but
     carries the typed SDXL contract required by the standalone Detailer and
-    FaceProcess reference paths. MODEL remains deliberately pixel-only so it
-    cannot be mistaken for a loaded SDXL checkpoint. This node provides no
+    FaceProcess reference paths. An optionally connected MODEL SDXL is passed
+    through unchanged. Without it, pixel-only modules use PROCESS, IMAGE and
+    LOG and no artificial model placeholder is created. This node provides no
     mask, prompt, LoRA, inpaint, outpaint or latent preparation.
     """
 
@@ -127,17 +128,20 @@ class CMKImageLoadAndResizePipe:
                         "default": "center",
                     },
                 ),
-            }
+            },
+            "optional": {
+                "MODEL SDXL": ("CMK_MODEL_PIPE",),
+            },
         }
 
     RETURN_TYPES = (
-        "CMK_PIXEL_MODEL",
+        "CMK_MODEL_PIPE",
         "CMK_PROCESS_SDXL",
         "IMAGE",
         "CMK_LOG_PIPE",
         "CMK_DIAGNOSTIC",
     )
-    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "diagnostic")
+    RETURN_NAMES = ("MODEL SDXL", "PROCESS", "IMAGE", "LOG", "diagnostic")
     FUNCTION = "load_and_resize"
     CATEGORY = "CMK/Flow/Input"
 
@@ -210,6 +214,7 @@ class CMKImageLoadAndResizePipe:
         )
 
     def load_and_resize(self, **inputs):
+        model_sdxl = inputs.get("MODEL SDXL")
         image_name = str(inputs.get("IMAGE", "") or "")
         resolution = str(inputs.get("RESOLUTION", "SDXL 1152x832") or "SDXL 1152x832")
         swap_dimensions = bool(inputs.get("SWAP DIMENSIONS", False))
@@ -335,12 +340,12 @@ class CMKImageLoadAndResizePipe:
             },
         )
 
-        neutral_model = {
-            "model_family": "image",
-            "pixel_only": True,
-            "pipe_origin": "CMK Image Load and Resize -Pipe-",
-        }
-        return neutral_model, process, resized_image, log_pipe, diagnostic
+        if model_sdxl is not None:
+            if not isinstance(model_sdxl, dict):
+                raise TypeError("CMK Image Input: MODEL SDXL must be a CMK model pipe")
+            if str(model_sdxl.get("model_family", "sdxl")).strip().lower() != "sdxl":
+                raise ValueError("CMK Image Input accepts only MODEL SDXL")
+        return model_sdxl, process, resized_image, log_pipe, diagnostic
 
     @classmethod
     def IS_CHANGED(cls, **inputs):

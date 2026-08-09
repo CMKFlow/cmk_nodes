@@ -35,7 +35,6 @@ class CMK_SaveProjectImage:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "MODEL": ("CMK_MODEL_PIPE",),
                 "PROCESS": ("CMK_PIPE",),
                 "IMAGE": ("IMAGE",),
                 "LOG": ("CMK_LOG_PIPE",),
@@ -44,7 +43,10 @@ class CMK_SaveProjectImage:
                 "OUTPUT FOLDER": ("STRING", {"default": ""}),
                 "USE DATE FOLDER": ("BOOLEAN", {"default": True}),
                 "PROJECT FOLDER": ("STRING", {"default": ""}),
-            }
+            },
+            "optional": {
+                "MODEL": ("CMK_MODEL_PIPE",),
+            },
         }
 
     RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_PIPE", "IMAGE", "CMK_LOG_PIPE", "STRING")
@@ -56,10 +58,10 @@ class CMK_SaveProjectImage:
 
     def run(
         self,
-        MODEL,
         PROCESS,
         IMAGE,
         LOG,
+        MODEL=None,
         **kwargs,
     ):
         save_enabled = bool(kwargs.get("SAVE ENABLED", True))
@@ -74,7 +76,7 @@ class CMK_SaveProjectImage:
                 "result": (MODEL, PROCESS, IMAGE, LOG, ""),
             }
 
-        if not isinstance(MODEL, dict):
+        if MODEL is not None and not isinstance(MODEL, dict):
             raise TypeError("CMK Save Project Image -Pipe-: MODEL must be a CMK model pipe")
         if not isinstance(PROCESS, dict):
             raise TypeError("CMK Save Project Image -Pipe-: PROCESS must be a CMK process pipe")

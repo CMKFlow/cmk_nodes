@@ -45,7 +45,7 @@ class CMKCheckpointVAELoaderPipe:
         }
 
     RETURN_TYPES = ("CMK_MODEL_PIPE",)
-    RETURN_NAMES = ("MODEL",)
+    RETURN_NAMES = ("MODEL SDXL",)
     FUNCTION = "load_checkpoint_vae_pipe"
     CATEGORY = "CMK/Flow/Input"
 
