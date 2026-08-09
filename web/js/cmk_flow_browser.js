@@ -238,7 +238,11 @@ function normalizePreviews(metadata = {}) {
     .filter((preview) => preview?.src)
     .map((preview, index) => ({
       src: `/extensions/cmk_nodes/${preview.src}`,
-      label: preview.label || `Ansicht ${index + 1}`,
+      label: language === "en"
+        ? ({ Modul: "Module", Aufbau: "Structure", Vorschau: "Preview" }[preview.label]
+          || preview.label
+          || `View ${index + 1}`)
+        : (preview.label || `Ansicht ${index + 1}`),
     }));
 }
 

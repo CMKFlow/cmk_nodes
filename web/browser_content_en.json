@@ -5,7 +5,6 @@
       "features": [
         "MODE dropdown for Text2Image and Inpaint with a dynamic interface",
         "Guided inpaint tasks: Replace Object, Remove Object, Extend Image, and Custom",
-        "Prompt-free local object removal with LaMa; KSampler, Refiner, and LoRAs are bypassed",
         "Diagnostic shows the source image and the actual mask fill passed downstream"
       ],
       "placementNote": "Place as the central starting module before optional ControlNet or the first KSampler. Connect IMAGE and MASK for Inpaint; Remove Object only requires the mask."

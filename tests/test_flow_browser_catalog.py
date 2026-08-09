@@ -40,11 +40,31 @@ class FlowBrowserCatalogTests(unittest.TestCase):
         metadata = json.loads(
             (ROOT / "web" / "flow_node_metadata.json").read_text(encoding="utf-8")
         )["nodes"]
+        self.assertFalse(
+            any(
+                "LaMa" in str(feature)
+                for feature in metadata["CMKPipeCreateImage"]["features"]
+            )
+        )
         for node_name, entry in metadata.items():
             for preview in entry.get("previews", []):
                 asset = ROOT / "web" / preview["src"]
                 self.assertTrue(asset.is_file(), f"{node_name}: {preview['src']}")
                 self.assertGreater(asset.stat().st_size, 0)
+
+    def test_english_browser_localizes_preview_tab_labels(self):
+        source = (ROOT / "web" / "js" / "cmk_flow_browser.js").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('Modul: "Module"', source)
+        self.assertIn('Aufbau: "Structure"', source)
+        self.assertIn('`View ${index + 1}`', source)
+
+        english = json.loads(
+            (ROOT / "web" / "browser_content_en.json").read_text(encoding="utf-8")
+        )
+        create_features = english["flows"]["CMKPipeCreateImage"]["features"]
+        self.assertFalse(any("LaMa" in str(feature) for feature in create_features))
 
 
 if __name__ == "__main__":
