@@ -146,10 +146,13 @@ Ein rein pixelbasierter Workflow beginnt mit `CMK Image Load and Resize
 -Pipe-`. Sein öffentlicher Ausgangsvertrag folgt der CMK-Reihenfolge
 `MODEL / PROCESS / IMAGE / LOG / diagnostic`. Der Input erzeugt einen leichten,
 modellfreien MODEL-Kontext und kennzeichnet PROCESS als `family_neutral` mit
-`source_model_family = image`. Damit können die modellneutralen Module 40 und
-90 einen vollständigen Bildbearbeitungspfad validieren, ohne einen unbenutzten
-SDXL- oder ZIT-Checkpoint zu laden. Der neutrale Vertrag ist ausschließlich
-für diesen eindeutig markierten CMK-Bildeingang zulässig.
+`source_model_family = image`. Der öffentliche PROCESS-Port trägt dennoch den
+Typ `CMK_PROCESS_SDXL`, damit derselbe schlanke Bildeingang zusammen mit einem
+separaten SDXL-Checkpoint die Standalone-Module 25 und 30 speisen kann. Damit
+können außerdem die modellneutralen Module 40 und 90 einen vollständigen
+Bildbearbeitungspfad validieren, ohne einen unbenutzten SDXL- oder
+ZIT-Checkpoint zu laden. Der neutrale Ergebnisvertrag ist ausschließlich für
+diesen eindeutig markierten CMK-Bildeingang zulässig.
 Der dazugehörige nominale Typ `CMK_PIXEL_MODEL` ist nicht mit
 `CMK_MODEL_PIPE` kompatibel. Der Editor verhindert dadurch eine Verbindung des
 modellfreien Kontexts mit den SDXL-Modulen 25 und 30.
@@ -946,10 +949,14 @@ Detailer und FaceProcess müssen weiterhin aus den kanonischen Quellen direkt au
 ```text
 CMK Checkpoint VAE Loader -Pipe- → MODEL
 CMK Load Image -Pipe-            → PROCESS + IMAGE + LOG
-CMK Image Load and Resize -Pipe- → PROCESS + IMAGE + LOG + diagnostic
+CMK Image Load and Resize -Pipe- → CMK_PIXEL_MODEL + PROCESS SDXL + IMAGE + LOG + diagnostic
 ```
 
-Daraus können `CMK Detailer Prepare -Pipe-` beziehungsweise `CMK FaceProcess Prepare -Pipe-` gespeist werden.
+Daraus können `CMK Detailer Prepare -Pipe-` beziehungsweise `CMK FaceProcess
+Prepare -Pipe-` direkt gespeist werden. Für deren MODEL-Eingang wird der echte
+SDXL-Modellkontext des Checkpoint-Loaders verwendet; der pixel-only MODEL-Port
+des Bildeingangs bleibt ausschließlich dem modellneutralen Pfad zu 40/90
+vorbehalten.
 
 Die proprietären Arbeits-Pipes schützen die Execute-Schnittstellen, ohne Standalone-Verwendung zu verhindern.
 

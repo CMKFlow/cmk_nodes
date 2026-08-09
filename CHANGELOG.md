@@ -9,6 +9,9 @@
   reine FaceSwap-Workflow keinen unbenutzten SDXL-Checkpoint mehr laden muss.
   Der eigene Typ `CMK_PIXEL_MODEL` verhindert zugleich eine irreführende
   Verbindung dieses modellfreien Ausgangs mit 25 oder 30 SDXL.
+  Der PROCESS-Ausgang bleibt dagegen bewusst als `CMK_PROCESS_SDXL` typisiert,
+  damit der schlanke Standalone-Aufbau aus Image Input, Checkpoint und 25/30
+  ohne `01 START HERE` verkabelt werden kann.
   Die sichtbaren Ausgänge folgen `MODEL / PROCESS / IMAGE / LOG / diagnostic`.
 - `01 START HERE` zeigt bei `Remove Object` die noise-gefüllte Maske in der
   Node-Vorschau, während der authoritative IMAGE-Ausgang weiterhin das

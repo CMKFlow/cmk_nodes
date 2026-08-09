@@ -60,6 +60,7 @@ class FamilyProcessContractTests(unittest.TestCase):
             loader_source,
         )
         self.assertIn('"CMK_PIXEL_MODEL"', loader_source)
+        self.assertIn('"CMK_PROCESS_SDXL"', loader_source)
         self.assertIn('"result_contract": "family_neutral"', loader_source)
         self.assertIn('"source_model_family": "image"', loader_source)
         self.assertIn('"pixel_only": True', loader_source)
@@ -85,6 +86,28 @@ class FamilyProcessContractTests(unittest.TestCase):
                 )
                 self.assertEqual(model_input["type"], "CMK_MODEL_PIPE")
                 self.assertNotEqual(model_input["type"], "CMK_PIXEL_MODEL")
+
+    def test_standalone_image_input_process_connects_to_sdxl_processors(self):
+        loader_source = (
+            ROOT / "pipe" / "loaders" / "cmk_image_load_resize.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            '"CMK_PIXEL_MODEL",\n        "CMK_PROCESS_SDXL",',
+            loader_source,
+        )
+
+        for filename in (
+            "CMK Flow · 25 Detailer SDXL.json",
+            "CMK Flow · 30 FaceProcess SDXL.json",
+        ):
+            with self.subTest(filename=filename):
+                definition = json.loads(
+                    (ROOT / "subgraphs" / filename).read_text(encoding="utf-8")
+                )["definitions"]["subgraphs"][0]
+                process_input = next(
+                    item for item in definition["inputs"] if item["name"] == "PROCESS"
+                )
+                self.assertEqual(process_input["type"], "CMK_PROCESS_SDXL")
 
     def test_curated_processing_order_and_family_boundary_are_explicit(self):
         expected = {
