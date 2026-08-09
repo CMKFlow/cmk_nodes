@@ -9,6 +9,10 @@
   gespeist. Dadurch bleiben sämtliche Stufen erhalten und das spätere Anzeigen
   eines Diagnostics kann den teuren Samplerpfad nicht erneut über den Gate
   expandieren.
+- Die gespeicherte Eingangsreihenfolge aller Family Gates entspricht wieder
+  exakt der Runtime-Schnittstelle (`PROCESS` zuerst). Dadurch bleibt das
+  leichte PROCESS-Steuersignal beim Laden oder Ersetzen eines Subgraphen am
+  korrekten Eingang verkabelt.
 - Das Preview Board bewahrt beim erneuten Laden eines Workflows nun neben der
   manuellen Breite auch die manuell gesetzte Höhe. Die dynamische
   Input-Normalisierung darf beide Dimensionen nur noch vergrößern.

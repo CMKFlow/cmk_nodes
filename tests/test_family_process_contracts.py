@@ -444,6 +444,31 @@ class FamilyProcessContractTests(unittest.TestCase):
             with self.subTest(gate=gate_class.__name__):
                 self.assertNotIn("PROCESS", gate_class.RETURN_NAMES)
 
+    def test_family_gate_saved_input_order_matches_runtime_contract(self):
+        for filename, gate_type in self.FAMILY_GATED_SUBGRAPHS.items():
+            with self.subTest(filename=filename):
+                definition = json.loads(
+                    (ROOT / "subgraphs" / filename).read_text(encoding="utf-8")
+                )["definitions"]["subgraphs"][0]
+                gate = next(
+                    node for node in definition["nodes"] if node["type"] == gate_type
+                )
+                expected = (
+                    ["PROCESS", "MODEL", "SAMPLED", "LOG"]
+                    if gate_type == "CMKFamilyBranchGateSDXLSampled"
+                    else ["PROCESS", "MODEL", "IMAGE", "LOG"]
+                )
+                if any(item["name"] == "RESULT PROCESS" for item in gate["inputs"]):
+                    expected.append("RESULT PROCESS")
+                self.assertEqual([item["name"] for item in gate["inputs"]], expected)
+                for slot, item in enumerate(gate["inputs"]):
+                    if item.get("link") is None:
+                        continue
+                    link = next(
+                        link for link in definition["links"] if link["id"] == item["link"]
+                    )
+                    self.assertEqual(link["target_slot"], slot)
+
     def test_merge_requests_only_the_selected_lazy_branch(self):
         path = ROOT / "pipe" / "cmk_family_result.py"
         spec = importlib.util.spec_from_file_location("cmk_family_result_test", path)

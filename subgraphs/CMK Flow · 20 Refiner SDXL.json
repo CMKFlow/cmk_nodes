@@ -741,16 +741,16 @@
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "MODEL",
-                "name": "MODEL",
-                "type": "CMK_MODEL_PIPE",
-                "link": 12232
-              },
-              {
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
                 "type": "CMK_PROCESS_SDXL",
                 "link": 12234
+              },
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "CMK_MODEL_PIPE",
+                "link": 12232
               },
               {
                 "localized_name": "IMAGE REFINED",
@@ -918,7 +918,7 @@
             "origin_slot": 0,
             "type": "CMK_MODEL_PIPE",
             "target_id": 5042,
-            "target_slot": 0
+            "target_slot": 1
           },
           {
             "id": 12233,
@@ -934,7 +934,7 @@
             "origin_slot": 1,
             "type": "CMK_PROCESS_SDXL",
             "target_id": 5042,
-            "target_slot": 1
+            "target_slot": 0
           },
           {
             "id": 12235,
