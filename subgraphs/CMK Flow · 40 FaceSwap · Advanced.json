@@ -576,12 +576,6 @@
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "MODEL",
-                "name": "MODEL",
-                "type": "CMK_MODEL_PIPE",
-                "link": 26
-              },
-              {
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
                 "type": "CMK_PIPE",
@@ -598,6 +592,12 @@
                 "name": "LOG",
                 "type": "CMK_LOG_PIPE",
                 "link": 12079
+              },
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "CMK_MODEL_PIPE",
+                "link": 26
               }
             ],
             "outputs": [
@@ -2121,12 +2121,6 @@
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "MODEL",
-                "name": "MODEL",
-                "type": "*",
-                "link": 12260
-              },
-              {
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
                 "type": "*",
@@ -2143,6 +2137,12 @@
                 "name": "LOG",
                 "type": "*",
                 "link": 12263
+              },
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "*",
+                "link": 12260
               }
             ],
             "outputs": [
@@ -2206,12 +2206,6 @@
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "MODEL",
-                "name": "MODEL",
-                "type": "CMK_MODEL_PIPE",
-                "link": 21
-              },
-              {
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
                 "type": "CMK_PIPE",
@@ -2228,6 +2222,12 @@
                 "name": "LOG",
                 "type": "CMK_LOG_PIPE",
                 "link": 24
+              },
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "CMK_MODEL_PIPE",
+                "link": 21
               }
             ],
             "outputs": [
@@ -2306,7 +2306,7 @@
             "origin_id": 5049,
             "origin_slot": 0,
             "target_id": 5056,
-            "target_slot": 0,
+            "target_slot": 3,
             "type": "CMK_MODEL_PIPE"
           },
           {
@@ -2314,7 +2314,7 @@
             "origin_id": 5049,
             "origin_slot": 1,
             "target_id": 5056,
-            "target_slot": 1,
+            "target_slot": 0,
             "type": "CMK_PIPE"
           },
           {
@@ -2322,7 +2322,7 @@
             "origin_id": 5049,
             "origin_slot": 2,
             "target_id": 5056,
-            "target_slot": 2,
+            "target_slot": 1,
             "type": "IMAGE"
           },
           {
@@ -2330,7 +2330,7 @@
             "origin_id": 5049,
             "origin_slot": 3,
             "target_id": 5056,
-            "target_slot": 3,
+            "target_slot": 2,
             "type": "CMK_LOG_PIPE"
           },
           {
@@ -2338,7 +2338,7 @@
             "origin_id": 5055,
             "origin_slot": 0,
             "target_id": 5049,
-            "target_slot": 0,
+            "target_slot": 3,
             "type": "CMK_MODEL_PIPE"
           },
           {
@@ -2386,7 +2386,7 @@
             "origin_id": 5055,
             "origin_slot": 1,
             "target_id": 5049,
-            "target_slot": 1,
+            "target_slot": 0,
             "type": "CMK_PIPE"
           },
           {
@@ -2394,7 +2394,7 @@
             "origin_id": 4937,
             "origin_slot": 0,
             "target_id": 5049,
-            "target_slot": 2,
+            "target_slot": 1,
             "type": "IMAGE"
           },
           {
@@ -2426,7 +2426,7 @@
             "origin_id": 5051,
             "origin_slot": 0,
             "target_id": 5049,
-            "target_slot": 3,
+            "target_slot": 2,
             "type": "CMK_LOG_PIPE"
           },
           {
@@ -2538,7 +2538,7 @@
             "origin_id": -10,
             "origin_slot": 0,
             "target_id": 5055,
-            "target_slot": 0,
+            "target_slot": 3,
             "type": "*"
           },
           {
@@ -2546,7 +2546,7 @@
             "origin_id": -10,
             "origin_slot": 1,
             "target_id": 5055,
-            "target_slot": 1,
+            "target_slot": 0,
             "type": "*"
           },
           {
@@ -2554,7 +2554,7 @@
             "origin_id": -10,
             "origin_slot": 2,
             "target_id": 5055,
-            "target_slot": 2,
+            "target_slot": 1,
             "type": "*"
           },
           {
@@ -2562,7 +2562,7 @@
             "origin_id": -10,
             "origin_slot": 3,
             "target_id": 5055,
-            "target_slot": 3,
+            "target_slot": 2,
             "type": "*"
           },
           {
@@ -2655,8 +2655,17 @@
         "Gemeinsames Protokoll und eine abschließende Flow-Grenze"
       ],
       "placementNote": "Gemeinsam genutztes, familienneutrales Modul: für bis zu drei Zielpersonen nach dem letzten SDXL- oder ZIT-Ergebnis beziehungsweise optional 35 und vor 90 platzieren.",
-      "recommendedBefore":["10 KSampler SDXL 1st Pass","10 KSampler Z-Image Turbo","20 Refiner SDXL","25 Detailer SDXL","30 FaceProcess SDXL","35 Active Family Result (optional)"],
-      "recommendedAfter":["90 Upscale & Save"],
+      "recommendedBefore": [
+        "10 KSampler SDXL 1st Pass",
+        "10 KSampler Z-Image Turbo",
+        "20 Refiner SDXL",
+        "25 Detailer SDXL",
+        "30 FaceProcess SDXL",
+        "35 Active Family Result (optional)"
+      ],
+      "recommendedAfter": [
+        "90 Upscale & Save"
+      ],
       "dependencyNote": "Bei einem einzelnen SDXL- oder ZIT-Pfad MODEL, PROCESS, IMAGE und LOG direkt anschließen. Modul 35 ist nur für parallel aufgebaute Familienpfade erforderlich.",
       "previewAlt": "CMK Flow FaceSwap Advanced mit drei parallelen FaceSwap-Zweigen",
       "previews": [

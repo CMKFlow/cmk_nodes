@@ -136,6 +136,48 @@ class FamilyProcessContractTests(unittest.TestCase):
         )
         self.assertIn('"optional": {\n                "MODEL": ("CMK_MODEL_PIPE",)', save_source)
 
+    def test_optional_model_nodes_use_runtime_input_order_in_saved_subgraphs(self):
+        expected = {
+            "CMKResultUnpackPipe": ["PROCESS", "IMAGE", "LOG", "MODEL"],
+            "CMKResultPackPipe": ["PROCESS", "IMAGE", "LOG", "MODEL"],
+            "CMKFaceSwapBoundaryCache": ["PROCESS", "IMAGE", "LOG", "MODEL"],
+            "CMK_SaveProjectImage": [
+                "PROCESS",
+                "IMAGE",
+                "LOG",
+                "SAVE ENABLED",
+                "FILENAME PREFIX",
+                "OUTPUT FOLDER",
+                "USE DATE FOLDER",
+                "PROJECT FOLDER",
+                "MODEL",
+            ],
+        }
+        for filename in (
+            "CMK Flow · 40 FaceSwap.json",
+            "CMK Flow · 40 FaceSwap · Advanced.json",
+            "CMK Flow · 90 Upscale & Save.json",
+        ):
+            with self.subTest(filename=filename):
+                definition = json.loads(
+                    (ROOT / "subgraphs" / filename).read_text(encoding="utf-8")
+                )["definitions"]["subgraphs"][0]
+                for node in definition["nodes"]:
+                    if node["type"] not in expected:
+                        continue
+                    self.assertEqual(
+                        [item["name"] for item in node["inputs"]],
+                        expected[node["type"]],
+                    )
+                    for slot, item in enumerate(node["inputs"]):
+                        if item.get("link") is None:
+                            continue
+                        link = next(
+                            link for link in definition["links"]
+                            if link["id"] == item["link"]
+                        )
+                        self.assertEqual(link["target_slot"], slot)
+
     def test_curated_processing_order_and_family_boundary_are_explicit(self):
         expected = {
             "CMK Flow · 20 Refiner SDXL.json": 20,

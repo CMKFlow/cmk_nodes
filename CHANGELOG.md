@@ -16,6 +16,10 @@
   exakt der Runtime-Schnittstelle (`PROCESS` zuerst). Dadurch bleibt das
   leichte PROCESS-Steuersignal beim Laden oder Ersetzen eines Subgraphen am
   korrekten Eingang verkabelt.
+- Die gespeicherten Portreihenfolgen von Result Unpack, Result Pack, FaceSwap
+  Boundary und Save Project entsprechen nun ebenfalls ihren Runtime-Verträgen
+  mit optionalem MODEL (`PROCESS / IMAGE / LOG / MODEL`). Damit validieren
+  direkte ZIT- und SDXL-Wege zu 40/90 LOG wieder am richtigen Slot.
 - Das Preview Board bewahrt beim erneuten Laden eines Workflows nun neben der
   manuellen Breite auch die manuell gesetzte Höhe. Die dynamische
   Input-Normalisierung darf beide Dimensionen nur noch vergrößern.
