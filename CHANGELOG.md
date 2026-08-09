@@ -24,6 +24,9 @@
   dieser Reihenfolge: zuerst der vollständige Ergebnisweg aus PROCESS, IMAGE
   und LOG, danach das optionale MODEL. Damit stimmen äußere Ports, innere
   Verkabelung und Runtime-Vertrag überein.
+- Der Refiner Boundary Cache in 20 verwendet nun ebenfalls durchgängig
+  `PROCESS / MODEL / IMAGE / LOG`; Ein- und Ausgänge sowie gespeicherte
+  Link-Slots folgen derselben Reihenfolge wie das anschließende Family Gate.
 - Das Preview Board bewahrt beim erneuten Laden eines Workflows nun neben der
   manuellen Breite auch die manuell gesetzte Höhe. Die dynamische
   Input-Normalisierung darf beide Dimensionen nur noch vergrößern.

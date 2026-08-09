@@ -330,6 +330,46 @@ class FamilyProcessContractTests(unittest.TestCase):
         self.assertLess(log_pos, first_pos)
         self.assertLess(first_pos, refined_pos)
 
+    def test_refiner_boundary_uses_process_first_port_order(self):
+        source = (ROOT / "pipe" / "cmk_refiner_boundary_cache.py").read_text(
+            encoding="utf-8"
+        )
+        class_source = source[source.index("class CMKRefinerBoundaryCache:"):]
+        self.assertLess(
+            class_source.index('"PROCESS": ("CMK_PROCESS_SDXL"'),
+            class_source.index('"MODEL": ("CMK_MODEL_PIPE"'),
+        )
+        self.assertIn(
+            'RETURN_NAMES = (\n        "PROCESS",\n        "MODEL",', class_source
+        )
+
+        definition = json.loads(
+            (ROOT / "subgraphs" / "CMK Flow · 20 Refiner SDXL.json").read_text(
+                encoding="utf-8"
+            )
+        )["definitions"]["subgraphs"][0]
+        node = next(
+            node for node in definition["nodes"]
+            if node["type"] == "CMKRefinerBoundaryCache"
+        )
+        self.assertEqual(
+            [item["name"] for item in node["inputs"]],
+            ["PROCESS", "MODEL", "IMAGE_1ST_PASS", "IMAGE_REFINED", "LOG"],
+        )
+        self.assertEqual(
+            [item["name"] for item in node["outputs"]],
+            ["PROCESS", "MODEL", "IMAGE 1ST PASS", "IMAGE REFINED", "LOG"],
+        )
+        for slot, item in enumerate(node["inputs"]):
+            if item.get("link") is None:
+                continue
+            link = next(link for link in definition["links"] if link["id"] == item["link"])
+            self.assertEqual(link["target_slot"], slot)
+        for slot, item in enumerate(node["outputs"]):
+            for link_id in item.get("links") or []:
+                link = next(link for link in definition["links"] if link["id"] == link_id)
+                self.assertEqual(link["origin_slot"], slot)
+
     def test_pipe_upscaler_releases_diffusion_memory_before_model_load(self):
         source = (ROOT / "nodes" / "image" / "smart_upscale.py").read_text(
             encoding="utf-8"

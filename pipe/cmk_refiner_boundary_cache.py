@@ -398,8 +398,8 @@ class CMKRefinerBoundaryCache:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
                 "PROCESS": ("CMK_PROCESS_SDXL", {"lazy": True}),
+                "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
                 "IMAGE_1ST_PASS": ("IMAGE", {"lazy": True}),
                 "IMAGE_REFINED": ("IMAGE", {"lazy": True}),
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
@@ -411,15 +411,15 @@ class CMKRefinerBoundaryCache:
         }
 
     RETURN_TYPES = (
-        "CMK_MODEL_PIPE",
         "CMK_PROCESS_SDXL",
+        "CMK_MODEL_PIPE",
         "IMAGE",
         "IMAGE",
         "CMK_LOG_PIPE",
     )
     RETURN_NAMES = (
-        "MODEL",
         "PROCESS",
+        "MODEL",
         "IMAGE 1ST PASS",
         "IMAGE REFINED",
         "LOG",
@@ -431,8 +431,8 @@ class CMKRefinerBoundaryCache:
     @cmk_timed_call("LAZY 20 REFINER BOUNDARY")
     def check_lazy_status(
         self,
-        MODEL=None,
         PROCESS=None,
+        MODEL=None,
         IMAGE_1ST_PASS=None,
         IMAGE_REFINED=None,
         LOG=None,
@@ -485,8 +485,8 @@ class CMKRefinerBoundaryCache:
 
     def boundary(
         self,
-        MODEL=None,
         PROCESS=None,
+        MODEL=None,
         IMAGE_1ST_PASS=None,
         IMAGE_REFINED=None,
         LOG=None,
@@ -495,7 +495,7 @@ class CMKRefinerBoundaryCache:
     ):
         if isinstance(PROCESS, dict) and not PROCESS.get("family_active", True):
             blocked = ExecutionBlocker(None)
-            return (blocked, PROCESS, blocked, blocked, blocked)
+            return (PROCESS, blocked, blocked, blocked, blocked)
         cache_key, detail = build_refiner_fingerprint(
             prompt,
             unique_id,
@@ -532,8 +532,8 @@ class CMKRefinerBoundaryCache:
                     f"{cache_key[:12]} -> BOTH IMAGES/LOG"
                 )
                 return (
-                    cached_model,
                     dict(cached_process),
+                    cached_model,
                     cached_first,
                     cached_refined,
                     cached_log,
@@ -585,8 +585,8 @@ class CMKRefinerBoundaryCache:
                 f"{detail}"
             )
             return (
-                MODEL,
                 PROCESS,
+                MODEL,
                 IMAGE_1ST_PASS,
                 IMAGE_REFINED,
                 LOG,
@@ -624,8 +624,8 @@ class CMKRefinerBoundaryCache:
             )
 
         return (
-            MODEL,
             PROCESS,
+            MODEL,
             IMAGE_1ST_PASS,
             IMAGE_REFINED,
             LOG,
