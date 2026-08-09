@@ -1,5 +1,9 @@
 # 2026-08-08 — Experimentelles ZIT-Inpaint eingefroren
 
+- Family Gates geben am öffentlichen `diagnostic`-Ausgang stets einen gültigen
+  renderbaren Ergebnis-Payload aus. Bleibt der beobachtende Upstream-Diagnostic
+  absichtlich lazy, erzeugt das Gate eine leichte Vorschau aus dem bereits
+  materialisierten Ergebnisbild, ohne den teuren Modulzweig erneut zu öffnen.
 - Das Preview Board bewahrt beim erneuten Laden eines Workflows nun neben der
   manuellen Breite auch die manuell gesetzte Höhe. Die dynamische
   Input-Normalisierung darf beide Dimensionen nur noch vergrößern.

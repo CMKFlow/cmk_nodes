@@ -503,6 +503,35 @@ class FamilyProcessContractTests(unittest.TestCase):
             [],
         )
 
+    def test_family_gate_always_returns_a_renderable_diagnostic(self):
+        path = ROOT / "pipe" / "cmk_family_result.py"
+        spec = importlib.util.spec_from_file_location("cmk_family_preview_test", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        image = object()
+        result = module.CMKFamilyBranchGateSDXL().gate(
+            PROCESS={"model_family": "sdxl", "family_active": True},
+            MODEL={"model_family": "sdxl"},
+            IMAGE=image,
+            LOG={"blocks": []},
+            diagnostic=None,
+        )
+        diagnostic = result[4]
+        self.assertEqual(diagnostic["type"], "CMK_DIAGNOSTIC")
+        self.assertIs(diagnostic["preview"][0], image)
+        self.assertTrue(diagnostic["metadata"]["gate_fallback"])
+
+        existing = {"type": "CMK_DIAGNOSTIC", "preview": [image]}
+        result = module.CMKFamilyBranchGateSDXL().gate(
+            PROCESS={"model_family": "sdxl", "family_active": True},
+            MODEL={"model_family": "sdxl"},
+            IMAGE=image,
+            LOG={"blocks": []},
+            diagnostic=existing,
+        )
+        self.assertIs(result[4], existing)
+
     def test_faceprocess_branch_loads_lazy_cache_before_requiring_face(self):
         source = (ROOT / "pipe" / "cmk_faceprocess.py").read_text(encoding="utf-8")
         run_source = source[source.index("    def run_pipe("):]

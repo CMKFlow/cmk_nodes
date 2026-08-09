@@ -20,6 +20,34 @@ class _CMKAnyType(str):
 CMK_FINISH_INPUT = _CMKAnyType("*")
 
 
+def _gate_diagnostic(value, image, family):
+    """Return a renderable diagnostic without resolving an observational branch."""
+    if isinstance(value, dict) and value.get("type") in {
+        "CMK_DIAGNOSTIC",
+        "CMK_PREVIEW",
+    }:
+        return value
+    family_label = "SDXL" if family == "sdxl" else "Z-Image Turbo"
+    return {
+        "type": "CMK_DIAGNOSTIC",
+        "version": 1,
+        "title": f"{family_label} Result",
+        "node": "CMK Family Branch Gate",
+        "mode": "Result",
+        "summary": f"{family_label} result path materialized",
+        "details": (
+            "Lightweight result preview generated at the family gate; "
+            "the optional upstream diagnostic was not reopened."
+        ),
+        "metadata": {"model_family": family, "gate_fallback": True},
+        "metrics": {},
+        "warnings": [],
+        "stages": [],
+        "preview": [image],
+        "images": [image],
+    }
+
+
 class _CMKFamilyBranchGate:
     """Keep an inactive global subgraph from evaluating its implementation.
 
@@ -100,7 +128,9 @@ class _CMKFamilyBranchGate:
             result_process,
             inputs["IMAGE"],
             inputs["LOG"],
-            inputs.get("diagnostic"),
+            _gate_diagnostic(
+                inputs.get("diagnostic"), inputs["IMAGE"], self.FAMILY
+            ),
         )
 
 
@@ -181,7 +211,9 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
             )
         return (
             inputs["MODEL"], PROCESS, inputs["SAMPLED"], inputs["LOG"],
-            inputs.get("diagnostic"),
+            _gate_diagnostic(
+                inputs.get("diagnostic"), inputs["SAMPLED"].get("image"), self.FAMILY
+            ),
         )
 
 
