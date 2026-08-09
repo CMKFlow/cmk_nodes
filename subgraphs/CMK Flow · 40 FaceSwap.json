@@ -21,11 +21,6 @@
       "mode": 0,
       "inputs": [
         {
-          "name": "MODEL",
-          "type": "*",
-          "link": null
-        },
-        {
           "name": "PROCESS",
           "type": "*",
           "link": null
@@ -37,6 +32,11 @@
         },
         {
           "name": "LOG",
+          "type": "*",
+          "link": null
+        },
+        {
+          "name": "MODEL",
           "type": "*",
           "link": null
         },
@@ -140,18 +140,6 @@
         },
         "inputs": [
           {
-            "id": "1ae3c975-9243-4d4e-8cb0-cdaaef8e1bbe",
-            "name": "MODEL",
-            "type": "*",
-            "linkIds": [
-              12290
-            ],
-            "pos": [
-              688.38671875,
-              519
-            ]
-          },
-          {
             "id": "ea787d21-8f57-458c-8737-12b7ec21305d",
             "name": "PROCESS",
             "type": "*",
@@ -185,6 +173,18 @@
             "pos": [
               688.38671875,
               579
+            ]
+          },
+          {
+            "id": "1ae3c975-9243-4d4e-8cb0-cdaaef8e1bbe",
+            "name": "MODEL",
+            "type": "*",
+            "linkIds": [
+              12290
+            ],
+            "pos": [
+              688.38671875,
+              519
             ]
           },
           {
@@ -1273,7 +1273,7 @@
           {
             "id": 12290,
             "origin_id": -10,
-            "origin_slot": 0,
+            "origin_slot": 3,
             "target_id": 5080,
             "target_slot": 3,
             "type": "*"
@@ -1281,7 +1281,7 @@
           {
             "id": 12291,
             "origin_id": -10,
-            "origin_slot": 1,
+            "origin_slot": 0,
             "target_id": 5080,
             "target_slot": 0,
             "type": "*"
@@ -1289,7 +1289,7 @@
           {
             "id": 12292,
             "origin_id": -10,
-            "origin_slot": 2,
+            "origin_slot": 1,
             "target_id": 5080,
             "target_slot": 1,
             "type": "*"
@@ -1297,7 +1297,7 @@
           {
             "id": 12293,
             "origin_id": -10,
-            "origin_slot": 3,
+            "origin_slot": 2,
             "target_id": 5080,
             "target_slot": 2,
             "type": "*"

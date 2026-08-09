@@ -178,6 +178,42 @@ class FamilyProcessContractTests(unittest.TestCase):
                         )
                         self.assertEqual(link["target_slot"], slot)
 
+    def test_shared_module_public_inputs_place_optional_model_after_result_path(self):
+        expected = {
+            "CMK Flow · 40 FaceSwap.json": [
+                "PROCESS", "IMAGE_TARGET", "LOG", "MODEL", "ENABLE"
+            ],
+            "CMK Flow · 40 FaceSwap · Advanced.json": [
+                "PROCESS", "IMAGE_TARGET", "LOG", "MODEL", "ENABLE"
+            ],
+            "CMK Flow · 90 Upscale & Save.json": [
+                "PROCESS", "IMAGE", "LOG", "MODEL", "SAVE ENABLED",
+                "FILENAME PREFIX", "OUTPUT FOLDER", "USE DATE FOLDER", "enable",
+            ],
+        }
+        for filename, input_names in expected.items():
+            with self.subTest(filename=filename):
+                document = json.loads(
+                    (ROOT / "subgraphs" / filename).read_text(encoding="utf-8")
+                )
+                definition = document["definitions"]["subgraphs"][0]
+                self.assertEqual(
+                    [item["name"] for item in definition["inputs"]], input_names
+                )
+                self.assertEqual(
+                    [item["name"] for item in document["nodes"][0]["inputs"]],
+                    input_names,
+                )
+
+                public_slots = {
+                    link["id"]: link["origin_slot"]
+                    for link in definition["links"]
+                    if link["origin_id"] == -10
+                }
+                for slot, public_input in enumerate(definition["inputs"]):
+                    for link_id in public_input.get("linkIds", []):
+                        self.assertEqual(public_slots[link_id], slot)
+
     def test_curated_processing_order_and_family_boundary_are_explicit(self):
         expected = {
             "CMK Flow · 20 Refiner SDXL.json": 20,

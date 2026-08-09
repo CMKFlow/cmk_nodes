@@ -20,6 +20,10 @@
   Boundary und Save Project entsprechen nun ebenfalls ihren Runtime-Verträgen
   mit optionalem MODEL (`PROCESS / IMAGE / LOG / MODEL`). Damit validieren
   direkte ZIT- und SDXL-Wege zu 40/90 LOG wieder am richtigen Slot.
+- Auch die sichtbaren Subgraph-Eingänge von 40, 40 Advanced und 90 folgen nun
+  dieser Reihenfolge: zuerst der vollständige Ergebnisweg aus PROCESS, IMAGE
+  und LOG, danach das optionale MODEL. Damit stimmen äußere Ports, innere
+  Verkabelung und Runtime-Vertrag überein.
 - Das Preview Board bewahrt beim erneuten Laden eines Workflows nun neben der
   manuellen Breite auch die manuell gesetzte Höhe. Die dynamische
   Input-Normalisierung darf beide Dimensionen nur noch vergrößern.
