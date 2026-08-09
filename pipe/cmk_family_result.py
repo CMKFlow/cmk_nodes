@@ -20,36 +20,6 @@ class _CMKAnyType(str):
 CMK_FINISH_INPUT = _CMKAnyType("*")
 
 
-def _gate_diagnostic(value, image, family, *, connected=False):
-    """Preserve a connected diagnostic; synthesize only for an empty socket."""
-    if isinstance(value, dict) and value.get("type") in {
-        "CMK_DIAGNOSTIC",
-        "CMK_PREVIEW",
-    }:
-        return value
-    if connected:
-        raise TypeError("CMK Family Branch Gate requires a valid diagnostic payload")
-    family_label = "SDXL" if family == "sdxl" else "Z-Image Turbo"
-    return {
-        "type": "CMK_DIAGNOSTIC",
-        "version": 1,
-        "title": f"{family_label} Result",
-        "node": "CMK Family Branch Gate",
-        "mode": "Result",
-        "summary": f"{family_label} result path materialized",
-        "details": (
-            "Lightweight result preview generated at the family gate; "
-            "the optional upstream diagnostic was not reopened."
-        ),
-        "metadata": {"model_family": family, "gate_fallback": True},
-        "metrics": {},
-        "warnings": [],
-        "stages": [],
-        "preview": [image],
-        "images": [image],
-    }
-
-
 class _CMKFamilyBranchGate:
     """Keep an inactive global subgraph from evaluating its implementation.
 
@@ -69,7 +39,6 @@ class _CMKFamilyBranchGate:
                 "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
                 "IMAGE": ("IMAGE", {"lazy": True}),
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
-                "diagnostic": ("CMK_DIAGNOSTIC", {"lazy": True}),
                 "RESULT PROCESS": (cls.PROCESS_TYPE, {"lazy": True}),
             },
         }
@@ -79,9 +48,8 @@ class _CMKFamilyBranchGate:
         "CMK_PROCESS_SDXL",
         "IMAGE",
         "CMK_LOG_PIPE",
-        "CMK_DIAGNOSTIC",
     )
-    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "diagnostic")
+    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG")
     FUNCTION = "gate"
     CATEGORY = "CMK/Developer/Boundary & Cache"
     DEV_ONLY = True
@@ -100,11 +68,6 @@ class _CMKFamilyBranchGate:
             return needed
         if "RESULT PROCESS" in inputs and inputs.get("RESULT PROCESS") is None:
             return ["RESULT PROCESS"]
-        # Resolve the observational path last. This preserves the complete
-        # Diagnostic Concat while the authoritative MODEL / IMAGE / LOG and
-        # optional result PROCESS have already crossed their boundaries.
-        if "diagnostic" in inputs and inputs.get("diagnostic") is None:
-            return ["diagnostic"]
         return []
 
     def gate(self, PROCESS=None, **inputs):
@@ -112,7 +75,7 @@ class _CMKFamilyBranchGate:
             isinstance(PROCESS, dict) and not PROCESS.get("family_active", True)
         ):
             blocked = ExecutionBlocker(None)
-            return (blocked, PROCESS, blocked, blocked, blocked)
+            return (blocked, PROCESS, blocked, blocked)
         if not isinstance(PROCESS, dict):
             raise TypeError("CMK Family Branch Gate requires a CMK process pipe")
         result_process = inputs.get("RESULT PROCESS") or PROCESS
@@ -134,12 +97,6 @@ class _CMKFamilyBranchGate:
             result_process,
             inputs["IMAGE"],
             inputs["LOG"],
-            _gate_diagnostic(
-                inputs.get("diagnostic"),
-                inputs["IMAGE"],
-                self.FAMILY,
-                connected="diagnostic" in inputs,
-            ),
         )
 
 
@@ -155,7 +112,6 @@ class CMKFamilyBranchGateZImage(_CMKFamilyBranchGate):
         "CMK_PROCESS_Z_IMAGE",
         "IMAGE",
         "CMK_LOG_PIPE",
-        "CMK_DIAGNOSTIC",
     )
 
 
@@ -168,7 +124,6 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
                 "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
                 "SAMPLED": ("CMK_SAMPLED_PIPE", {"lazy": True}),
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
-                "diagnostic": ("CMK_DIAGNOSTIC", {"lazy": True}),
             },
         }
 
@@ -177,9 +132,8 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
         "CMK_PROCESS_SDXL",
         "CMK_SAMPLED_PIPE",
         "CMK_LOG_PIPE",
-        "CMK_DIAGNOSTIC",
     )
-    RETURN_NAMES = ("MODEL", "PROCESS", "SAMPLED", "LOG", "diagnostic")
+    RETURN_NAMES = ("MODEL", "PROCESS", "SAMPLED", "LOG")
 
     @cmk_timed_call("LAZY SDXL SAMPLED GATE")
     def check_lazy_status(self, PROCESS=None, **inputs):
@@ -197,8 +151,6 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
             return ["SAMPLED"]
         if inputs.get("LOG") is None:
             return ["LOG"]
-        if "diagnostic" in inputs and inputs.get("diagnostic") is None:
-            return ["diagnostic"]
         return []
 
     def gate(self, PROCESS=None, **inputs):
@@ -206,7 +158,7 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
             isinstance(PROCESS, dict) and not PROCESS.get("family_active", True)
         ):
             blocked = ExecutionBlocker(None)
-            return (blocked, PROCESS, blocked, blocked, blocked)
+            return (blocked, PROCESS, blocked, blocked)
         if not isinstance(PROCESS, dict):
             raise TypeError("CMK SDXL Sampler Branch Gate requires a CMK process pipe")
         actual = str(PROCESS.get("model_family", "sdxl")).strip().lower()
@@ -222,12 +174,6 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
             )
         return (
             inputs["MODEL"], PROCESS, inputs["SAMPLED"], inputs["LOG"],
-            _gate_diagnostic(
-                inputs.get("diagnostic"),
-                inputs["SAMPLED"].get("image"),
-                self.FAMILY,
-                connected="diagnostic" in inputs,
-            ),
         )
 
 

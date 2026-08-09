@@ -348,12 +348,15 @@ class FamilyProcessContractTests(unittest.TestCase):
                     self.assertEqual(process_link["origin_id"], -10)
                     self.assertEqual(process_link["origin_slot"], process_slot)
                 for output_slot in range(len(definition["outputs"])):
+                    output_name = definition["outputs"][output_slot]["name"]
                     output_link = next(
                         link for link in definition["links"]
                         if link["target_id"] == -20
                         and link["target_slot"] == output_slot
                     )
-                    if output_slot == 1:
+                    if output_name == "diagnostic":
+                        self.assertNotEqual(output_link["origin_id"], gate["id"])
+                    elif output_slot == 1:
                         if filename == "CMK Flow · 10 KSampler Z-Image Turbo.json":
                             self.assertEqual(output_link["origin_id"], process_selector["id"])
                             self.assertEqual(output_link["origin_slot"], 0)
@@ -454,25 +457,6 @@ class FamilyProcessContractTests(unittest.TestCase):
             ["MODEL ZIT", "IMAGE ZIT", "LOG ZIT"],
         )
 
-    def test_family_gates_resolve_connected_diagnostic_last(self):
-        path = ROOT / "pipe" / "cmk_family_result.py"
-        spec = importlib.util.spec_from_file_location("cmk_family_diagnostic_test", path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        process = {"model_family": "sdxl", "family_active": True}
-
-        image_gate = module.CMKFamilyBranchGateSDXL()
-        self.assertEqual(
-            image_gate.check_lazy_status(
-                PROCESS=process,
-                MODEL={},
-                IMAGE=object(),
-                LOG={},
-                diagnostic=None,
-            ),
-            ["diagnostic"],
-        )
-
     def test_sampled_family_gate_resolves_converging_inputs_sequentially(self):
         path = ROOT / "pipe" / "cmk_family_result.py"
         spec = importlib.util.spec_from_file_location("cmk_sampled_gate_test", path)
@@ -491,50 +475,38 @@ class FamilyProcessContractTests(unittest.TestCase):
             ["LOG"],
         )
 
-        sampled_gate = module.CMKFamilyBranchGateSDXLSampled()
-        self.assertEqual(
-            sampled_gate.check_lazy_status(
-                PROCESS=process,
-                MODEL={},
-                SAMPLED={},
-                LOG={},
-                diagnostic=None,
-            ),
-            ["diagnostic"],
-        )
+    def test_public_diagnostics_bypass_family_gates(self):
+        for filename in (
+            "CMK Flow · 10 KSampler SDXL 1st Pass.json",
+            "CMK Flow · 10 KSampler Z-Image Turbo.json",
+            "CMK Flow · 20 Refiner SDXL.json",
+            "CMK Flow · 25 Detailer SDXL.json",
+            "CMK Flow · 25 Detailer SDXL · Advanced.json",
+        ):
+            with self.subTest(filename=filename):
+                definition = json.loads(
+                    (ROOT / "subgraphs" / filename).read_text(encoding="utf-8")
+                )["definitions"]["subgraphs"][0]
+                gate_ids = {
+                    node["id"]
+                    for node in definition["nodes"]
+                    if node["type"].startswith("CMKFamilyBranchGate")
+                }
+                diagnostic_output = next(
+                    item for item in definition["outputs"]
+                    if item["name"] == "diagnostic"
+                )
+                public_link = next(
+                    link for link in definition["links"]
+                    if link["id"] in diagnostic_output["linkIds"]
+                )
+                self.assertNotIn(public_link["origin_id"], gate_ids)
 
-    def test_family_gate_always_returns_a_renderable_diagnostic(self):
-        path = ROOT / "pipe" / "cmk_family_result.py"
-        spec = importlib.util.spec_from_file_location("cmk_family_preview_test", path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-
-        image = object()
-        result = module.CMKFamilyBranchGateSDXL().gate(
-            PROCESS={"model_family": "sdxl", "family_active": True},
-            MODEL={"model_family": "sdxl"},
-            IMAGE=image,
-            LOG={"blocks": []},
-        )
-        diagnostic = result[4]
-        self.assertEqual(diagnostic["type"], "CMK_DIAGNOSTIC")
-        self.assertIs(diagnostic["preview"][0], image)
-        self.assertTrue(diagnostic["metadata"]["gate_fallback"])
-
-        existing = {
-            "type": "CMK_DIAGNOSTIC",
-            "preview": [image],
-            "stages": [{"title": "Prepare"}, {"title": "Detailer"}],
-        }
-        result = module.CMKFamilyBranchGateSDXL().gate(
-            PROCESS={"model_family": "sdxl", "family_active": True},
-            MODEL={"model_family": "sdxl"},
-            IMAGE=image,
-            LOG={"blocks": []},
-            diagnostic=existing,
-        )
-        self.assertIs(result[4], existing)
-        self.assertEqual(len(result[4]["stages"]), 2)
+                for gate in (
+                    node for node in definition["nodes"] if node["id"] in gate_ids
+                ):
+                    self.assertNotIn("diagnostic", {item["name"] for item in gate["inputs"]})
+                    self.assertNotIn("diagnostic", {item["name"] for item in gate["outputs"]})
 
     def test_faceprocess_branch_loads_lazy_cache_before_requiring_face(self):
         source = (ROOT / "pipe" / "cmk_faceprocess.py").read_text(encoding="utf-8")

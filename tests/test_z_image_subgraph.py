@@ -104,7 +104,7 @@ class ZImageSubgraphTests(unittest.TestCase):
             node for node in nodes.values()
             if node["type"] == "CMKFamilyBranchGateZImage"
         )
-        for slot in range(5):
+        for slot in range(4):
             finalize_link = next(
                 link for link in self.definition["links"]
                 if link["origin_id"] == finalize["id"]
@@ -117,6 +117,13 @@ class ZImageSubgraphTests(unittest.TestCase):
                 and link["origin_slot"] == slot
             )
             self.assertEqual(boundary_link["target_id"], gate["id"])
+
+        diagnostic_link = next(
+            link for link in self.definition["links"]
+            if link["origin_id"] == boundary["id"]
+            and link["origin_slot"] == 4
+        )
+        self.assertEqual(diagnostic_link["target_id"], -20)
 
     def test_confirmed_catalog_entry_is_published_as_beta(self):
         metadata = self.document["extra"]["CMKFlow"]

@@ -1,10 +1,11 @@
 # 2026-08-08 — Experimentelles ZIT-Inpaint eingefroren
 
-- Family Gates materialisieren einen angeschlossenen Diagnostic Concat nach
-  MODEL / IMAGE / LOG und reichen dessen vollständigen Payload identisch an
-  den öffentlichen `diagnostic`-Ausgang weiter. Eine leichte Ergebnisvorschau
-  wird ausschließlich für einen tatsächlich unverbundenen Diagnostic-Port
-  erzeugt; angeschlossene Stufeninformationen dürfen nicht reduziert werden.
+- Family Gates transportieren ausschließlich die autoritativen Familienwerte
+  MODEL / PROCESS / IMAGE beziehungsweise SAMPLED / LOG. Die öffentlichen
+  `diagnostic`-Ausgänge werden direkt aus den vollständigen Diagnostic-Quellen
+  gespeist. Dadurch bleiben sämtliche Stufen erhalten und das spätere Anzeigen
+  eines Diagnostics kann den teuren Samplerpfad nicht erneut über den Gate
+  expandieren.
 - Das Preview Board bewahrt beim erneuten Laden eines Workflows nun neben der
   manuellen Breite auch die manuell gesetzte Höhe. Die dynamische
   Input-Normalisierung darf beide Dimensionen nur noch vergrößern.

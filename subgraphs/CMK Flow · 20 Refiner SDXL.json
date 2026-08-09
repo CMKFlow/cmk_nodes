@@ -519,7 +519,7 @@
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  12240
+                  12241
                 ]
               }
             ],
@@ -763,12 +763,6 @@
                 "name": "LOG",
                 "type": "CMK_LOG_PIPE",
                 "link": 12238
-              },
-              {
-                "localized_name": "diagnostic",
-                "name": "diagnostic",
-                "type": "CMK_DIAGNOSTIC",
-                "link": 12240
               }
             ],
             "outputs": [
@@ -800,14 +794,6 @@
                 "type": "CMK_LOG_PIPE",
                 "links": [
                   12239
-                ]
-              },
-              {
-                "localized_name": "diagnostic",
-                "name": "diagnostic",
-                "type": "CMK_DIAGNOSTIC",
-                "links": [
-                  12241
                 ]
               }
             ],
@@ -989,17 +975,9 @@
             "type": "CMK_LOG_PIPE"
           },
           {
-            "id": 12240,
+            "id": 12241,
             "origin_id": 4889,
             "origin_slot": 2,
-            "type": "CMK_DIAGNOSTIC",
-            "target_id": 5042,
-            "target_slot": 4
-          },
-          {
-            "id": 12241,
-            "origin_id": 5042,
-            "origin_slot": 4,
             "target_id": -20,
             "target_slot": 4,
             "type": "CMK_DIAGNOSTIC"
@@ -1055,7 +1033,13 @@
       "recommendedBefore": [
         "10 KSampler SDXL 1st Pass"
       ],
-      "recommendedAfter":["25 Detailer SDXL","30 FaceProcess SDXL","35 Active Family Result (optional)","40 FaceSwap","90 Upscale & Save"],
+      "recommendedAfter": [
+        "25 Detailer SDXL",
+        "30 FaceProcess SDXL",
+        "35 Active Family Result (optional)",
+        "40 FaceSwap",
+        "90 Upscale & Save"
+      ],
       "placementNote": "Direkt hinter 10 KSampler SDXL platzieren. Danach folgen optional 25 Detailer SDXL, 30 FaceProcess SDXL, 35, 40 FaceSwap oder 90.",
       "dependencyNote": "SAMPLED, MODEL und PROCESS werden von den gleichnamigen Ausgängen der vorangehenden Bausteine übernommen."
     }

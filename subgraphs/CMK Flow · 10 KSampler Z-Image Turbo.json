@@ -689,12 +689,6 @@
                 "link": 12340
               },
               {
-                "localized_name": "diagnostic",
-                "name": "diagnostic",
-                "type": "CMK_DIAGNOSTIC",
-                "link": 12350
-              },
-              {
                 "localized_name": "RESULT PROCESS",
                 "name": "RESULT PROCESS",
                 "type": "CMK_PROCESS_Z_IMAGE",
@@ -730,14 +724,6 @@
                 "type": "CMK_LOG_PIPE",
                 "links": [
                   12341
-                ]
-              },
-              {
-                "localized_name": "diagnostic",
-                "name": "diagnostic",
-                "type": "CMK_DIAGNOSTIC",
-                "links": [
-                  12343
                 ]
               }
             ],
@@ -823,7 +809,7 @@
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  12350
+                  12343
                 ]
               }
             ],
@@ -955,7 +941,7 @@
             "origin_slot": 1,
             "type": "CMK_PROCESS_Z_IMAGE",
             "target_id": 5079,
-            "target_slot": 5
+            "target_slot": 4
           },
           {
             "id": 12337,
@@ -999,7 +985,7 @@
           },
           {
             "id": 12343,
-            "origin_id": 5079,
+            "origin_id": 5081,
             "origin_slot": 4,
             "target_id": -20,
             "target_slot": 4,
@@ -1052,14 +1038,6 @@
             "target_id": 5081,
             "target_slot": 3,
             "type": "CMK_LOG_PIPE"
-          },
-          {
-            "id": 12350,
-            "origin_id": 5081,
-            "origin_slot": 4,
-            "target_id": 5079,
-            "target_slot": 4,
-            "type": "CMK_DIAGNOSTIC"
           },
           {
             "id": 12351,
