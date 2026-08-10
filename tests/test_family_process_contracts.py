@@ -596,21 +596,52 @@ class FamilyProcessContractTests(unittest.TestCase):
         merge = module.CMKFamilyResultMergePipe()
         self.assertEqual(
             merge.check_lazy_status(),
-            ["PROCESS SDXL", "PROCESS ZIT"],
+            ["PROCESS SDXL"],
+        )
+        self.assertEqual(
+            merge.check_lazy_status(**{
+                "PROCESS SDXL": {"model_family": "sdxl", "family_active": False},
+            }),
+            ["PROCESS ZIT"],
         )
         self.assertEqual(
             merge.check_lazy_status(**{
                 "PROCESS SDXL": {"model_family": "sdxl", "family_active": True},
                 "PROCESS ZIT": {"model_family": "z_image_turbo", "family_active": False},
             }),
-            ["MODEL SDXL", "IMAGE SDXL", "LOG SDXL"],
+            ["MODEL SDXL"],
         )
         self.assertEqual(
             merge.check_lazy_status(**{
                 "PROCESS SDXL": {"model_family": "sdxl", "family_active": False},
                 "PROCESS ZIT": {"model_family": "z_image_turbo", "family_active": True},
             }),
-            ["MODEL ZIT", "IMAGE ZIT", "LOG ZIT"],
+            ["MODEL ZIT"],
+        )
+
+        zit_inputs = {
+            "PROCESS SDXL": {"model_family": "sdxl", "family_active": False},
+            "PROCESS ZIT": {"model_family": "z_image_turbo", "family_active": True},
+            "MODEL ZIT": {},
+        }
+        self.assertEqual(merge.check_lazy_status(**zit_inputs), ["IMAGE ZIT"])
+        zit_inputs["IMAGE ZIT"] = object()
+        self.assertEqual(merge.check_lazy_status(**zit_inputs), ["LOG ZIT"])
+
+    def test_image_family_gate_resolves_converging_inputs_sequentially(self):
+        path = ROOT / "pipe" / "cmk_family_result.py"
+        spec = importlib.util.spec_from_file_location("cmk_image_gate_test", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        gate = module.CMKFamilyBranchGateZImage()
+        process = {"model_family": "z_image_turbo", "family_active": True}
+        self.assertEqual(gate.check_lazy_status(PROCESS=process), ["MODEL"])
+        self.assertEqual(
+            gate.check_lazy_status(PROCESS=process, MODEL={}), ["IMAGE"]
+        )
+        self.assertEqual(
+            gate.check_lazy_status(PROCESS=process, MODEL={}, IMAGE=object()),
+            ["LOG"],
         )
 
     def test_sampled_family_gate_resolves_converging_inputs_sequentially(self):

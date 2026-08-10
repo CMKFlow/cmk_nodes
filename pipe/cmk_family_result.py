@@ -58,12 +58,12 @@ class _CMKFamilyBranchGate:
             return ["PROCESS"]
         if isinstance(PROCESS, dict) and not PROCESS.get("family_active", True):
             return []
-        needed = [
-            name for name in ("MODEL", "IMAGE", "LOG")
-            if inputs.get(name) is None
-        ]
-        if needed:
-            return needed
+        # Resolve converging global-subgraph outputs one at a time.  Asking
+        # ComfyUI for several lazy outputs of the same boundary in one pass can
+        # leave the outer output node blocked after the inner task completes.
+        for name in ("MODEL", "IMAGE", "LOG"):
+            if inputs.get(name) is None:
+                return [name]
         return []
 
     def gate(self, PROCESS=None, **inputs):
@@ -231,24 +231,20 @@ class CMKFamilyResultMergePipe:
     def check_lazy_status(self, **inputs):
         process_sdxl = inputs.get("PROCESS SDXL")
         process_z = inputs.get("PROCESS ZIT")
-        missing_process = [
-            name for name, value in (
-                ("PROCESS SDXL", process_sdxl),
-                ("PROCESS ZIT", process_z),
-            ) if value is None
-        ]
-        if missing_process:
-            return missing_process
+        if process_sdxl is None:
+            return ["PROCESS SDXL"]
+        if process_z is None:
+            return ["PROCESS ZIT"]
         active_sdxl = isinstance(process_sdxl, dict) and process_sdxl.get("family_active", True)
         active_z = isinstance(process_z, dict) and process_z.get("family_active", True)
         if not active_sdxl and not active_z:
             return []
         suffix = "SDXL" if active_sdxl else "ZIT"
-        return [
-            f"{name} {suffix}"
-            for name in ("MODEL", "IMAGE", "LOG")
-            if inputs.get(f"{name} {suffix}") is None
-        ]
+        for name in ("MODEL", "IMAGE", "LOG"):
+            input_name = f"{name} {suffix}"
+            if inputs.get(input_name) is None:
+                return [input_name]
+        return []
 
     def merge(self, **inputs):
         process_sdxl = inputs.get("PROCESS SDXL")
