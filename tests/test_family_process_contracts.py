@@ -555,6 +555,22 @@ class FamilyProcessContractTests(unittest.TestCase):
                     gate_class.INPUT_TYPES().get("optional", {}),
                 )
 
+    def test_zit_process_forward_does_not_wait_for_sampled_result(self):
+        path = ROOT / "pipe" / "cmk_family_result.py"
+        spec = importlib.util.spec_from_file_location("cmk_zit_forward_test", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        forward = module.CMKZImageProcessForwardPipe()
+        process = {
+            "model_family": "z_image_turbo",
+            "family_active": True,
+            "width": 768,
+            "height": 512,
+        }
+        self.assertEqual(forward.check_lazy_status(PROCESS=process), [])
+        result, = forward.forward(PROCESS=process)
+        self.assertIs(result, process)
+
     def test_family_gate_saved_input_order_matches_runtime_contract(self):
         for filename, gate_type in self.FAMILY_GATED_SUBGRAPHS.items():
             with self.subTest(filename=filename):

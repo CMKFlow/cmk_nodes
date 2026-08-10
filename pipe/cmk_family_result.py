@@ -304,12 +304,11 @@ class CMKZImageProcessForwardPipe:
     DEV_ONLY = True
 
     def check_lazy_status(self, PROCESS=None, **inputs):
-        if PROCESS is None or not isinstance(PROCESS, dict):
-            return []
-        if not PROCESS.get("family_active", True):
-            return []
-        if inputs.get("RESULT PROCESS") is None:
-            return ["RESULT PROCESS"]
+        # PROCESS is the cheap family selector.  It must remain independent of
+        # the sampled result so module 35 can select ZIT first and only then
+        # request MODEL / IMAGE / LOG through the guarded expensive path.
+        # Waiting for RESULT PROCESS here can leave downstream OUTPUT_NODEs
+        # blocked after a cold global-subgraph execution in ComfyUI.
         return []
 
     @staticmethod
@@ -318,12 +317,7 @@ class CMKZImageProcessForwardPipe:
             return (None,)
         if not isinstance(PROCESS, dict):
             raise TypeError("CMK Z-Image Process Forward requires a process pipe")
-        if not PROCESS.get("family_active", True):
-            return (PROCESS,)
-        result = inputs.get("RESULT PROCESS")
-        if not isinstance(result, dict):
-            raise ValueError("CMK Z-Image Process Forward requires RESULT PROCESS for the active ZIT path")
-        return (result,)
+        return (PROCESS,)
 
 
 class CMKResultToLegacyBridgePipe:
