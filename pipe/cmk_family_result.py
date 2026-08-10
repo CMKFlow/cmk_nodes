@@ -290,12 +290,7 @@ class CMKFamilyResultMergePipe:
 class CMKZImageProcessForwardPipe:
     @classmethod
     def INPUT_TYPES(cls):
-        return {
-            "required": {"PROCESS": ("CMK_PROCESS_Z_IMAGE",)},
-            "optional": {
-                "RESULT PROCESS": ("CMK_PROCESS_Z_IMAGE", {"lazy": True}),
-            },
-        }
+        return {"required": {"PROCESS": ("CMK_PROCESS_Z_IMAGE",)}}
 
     RETURN_TYPES = ("CMK_PROCESS_Z_IMAGE",)
     RETURN_NAMES = ("PROCESS",)

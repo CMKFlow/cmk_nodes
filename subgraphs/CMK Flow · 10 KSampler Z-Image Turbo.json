@@ -623,13 +623,6 @@
                 "name": "PROCESS",
                 "type": "CMK_PROCESS_Z_IMAGE",
                 "link": 12352
-              },
-              {
-                "localized_name": "RESULT PROCESS",
-                "name": "RESULT PROCESS",
-                "shape": 7,
-                "type": "CMK_PROCESS_Z_IMAGE",
-                "link": 12353
               }
             ],
             "outputs": [
@@ -1044,14 +1037,6 @@
             "origin_slot": 0,
             "target_id": 5078,
             "target_slot": 0,
-            "type": "CMK_PROCESS_Z_IMAGE"
-          },
-          {
-            "id": 12353,
-            "origin_id": 5081,
-            "origin_slot": 1,
-            "target_id": 5078,
-            "target_slot": 1,
             "type": "CMK_PROCESS_Z_IMAGE"
           },
           {

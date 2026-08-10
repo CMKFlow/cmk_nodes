@@ -441,16 +441,10 @@ class FamilyProcessContractTests(unittest.TestCase):
                         node for node in definition["nodes"]
                         if node["type"] == "CMKZImageProcessForwardPipe"
                     )
-                    boundary_process_slot = next(
-                        index for index, item in enumerate(boundary["inputs"])
-                        if item["name"] == "PROCESS"
+                    self.assertEqual(
+                        [item["name"] for item in process_selector["inputs"]],
+                        ["PROCESS"],
                     )
-                    boundary_link = next(
-                        link for link in definition["links"]
-                        if link["target_id"] == boundary["id"]
-                        and link["target_slot"] == boundary_process_slot
-                    )
-                    self.assertNotEqual(boundary_link["origin_id"], -10)
                 else:
                     self.assertEqual(process_link["origin_id"], -10)
                     self.assertEqual(process_link["origin_slot"], process_slot)
