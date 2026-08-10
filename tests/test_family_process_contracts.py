@@ -51,6 +51,30 @@ class FamilyProcessContractTests(unittest.TestCase):
     def test_family_contract_names_are_distinct(self):
         self.assertNotEqual("CMK_PROCESS_SDXL", "CMK_PROCESS_Z_IMAGE")
 
+    def test_faceprocess_public_process_bypasses_inactive_boundary(self):
+        for filename in (
+            "CMK Flow · 30 FaceProcess SDXL.json",
+            "CMK Flow · 30 FaceProcess SDXL · Advanced.json",
+        ):
+            with self.subTest(filename=filename):
+                definition = json.loads(
+                    (ROOT / "subgraphs" / filename).read_text(encoding="utf-8")
+                )["definitions"]["subgraphs"][0]
+                process_slot = next(
+                    index for index, item in enumerate(definition["outputs"])
+                    if item["name"] == "PROCESS"
+                )
+                output_link = next(
+                    link for link in definition["links"]
+                    if link["target_id"] == -20
+                    and link["target_slot"] == process_slot
+                )
+                origin = next(
+                    node for node in definition["nodes"]
+                    if node["id"] == output_link["origin_id"]
+                )
+                self.assertEqual(origin["type"], "CMKProcessForwardPipe")
+
     def test_standalone_image_input_has_complete_neutral_result_contract(self):
         loader_source = (
             ROOT / "pipe" / "loaders" / "cmk_image_load_resize.py"
