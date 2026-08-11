@@ -20,6 +20,57 @@ class FlowBrowserCatalogTests(unittest.TestCase):
         "40 FaceSwap · Advanced",
         "90 Upscale & Save",
     }
+    EXPECTED_REFERENCE_WORKFLOWS = {
+        "CMK Detailer.json",
+        "CMK FaceProcess.json",
+        "CMK FaceSwap Image.json",
+        "CMK FaceSwap Video.json",
+        "CMK Full Flow.json",
+        "CMK Inpaint SDXL.json",
+        "CMK Inpaint ZIT - experimentell.json",
+        "CMK Text2Image SDXL + Detailer.json",
+        "CMK Text2Image SDXL + FaceProcess.json",
+        "CMK Text2Image SDXL + FaceSwap.json",
+        "CMK Text2Image SDXL ControlNet.json",
+        "CMK Text2Image SDXL.json",
+        "CMK Text2Image ZIT + FaceSwap.json",
+        "CMK Text2Image ZIT ControlNet.json",
+        "CMK Text2Image ZIT.json",
+    }
+
+    def test_reference_catalog_contains_only_confirmed_workflows(self):
+        showcase = ROOT / "workflows" / "showcase"
+        metadata_root = showcase / "metadata"
+        workflows = {path.name for path in showcase.glob("*.json")}
+        metadata_files = {path.name for path in metadata_root.glob("*.json")}
+        self.assertEqual(workflows, self.EXPECTED_REFERENCE_WORKFLOWS)
+        self.assertEqual(metadata_files, self.EXPECTED_REFERENCE_WORKFLOWS)
+
+        for filename in sorted(workflows):
+            with self.subTest(filename=filename):
+                workflow = json.loads((showcase / filename).read_text(encoding="utf-8"))
+                self.assertIsInstance(workflow.get("nodes"), list)
+                metadata = json.loads(
+                    (metadata_root / filename).read_text(encoding="utf-8")
+                )
+                self.assertTrue(metadata.get("published"))
+                for field in (
+                    "displayName", "category", "category_en", "description",
+                    "description_en", "cmkHighlight", "cmkHighlight_en",
+                ):
+                    self.assertTrue(metadata.get(field), f"{filename}: {field}")
+                self.assertTrue(metadata.get("previews"), filename)
+                for preview in metadata["previews"]:
+                    asset = ROOT / "web" / preview["src"]
+                    self.assertTrue(asset.is_file(), f"{filename}: {preview['src']}")
+                    self.assertGreater(asset.stat().st_size, 0)
+
+    def test_technical_reference_directory_keeps_only_video_reference(self):
+        reference_root = ROOT / "workflows" / "reference"
+        self.assertEqual(
+            {path.name for path in reference_root.glob("*.json")},
+            {"CMK_FaceSwap_Video_Reference_v2.2.json"},
+        )
 
     def test_all_curated_flow_subgraphs_are_published_with_real_previews(self):
         published = set()
