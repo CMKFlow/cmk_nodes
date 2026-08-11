@@ -7,6 +7,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
+from .cmk_final_preview import send_final_preview
 from ..utils.cmk_timing import cmk_timed_call
 
 
@@ -531,6 +532,7 @@ class CMKRefinerBoundaryCache:
                     "[CMK Refiner Boundary Cache] HIT "
                     f"{cache_key[:12]} -> BOTH IMAGES/LOG"
                 )
+                send_final_preview(cached_refined)
                 return (
                     cached_model,
                     dict(cached_process),
@@ -622,6 +624,11 @@ class CMKRefinerBoundaryCache:
                 "[CMK Refiner Boundary Cache] STORE FAILED: "
                 f"{exc}"
             )
+
+        # This boundary is the last image-bearing executor inside module 20.
+        # Re-emit its final image so later bookkeeping nodes cannot clear the
+        # outer Nodes 2.0 subgraph preview.
+        send_final_preview(IMAGE_REFINED)
 
         return (
             MODEL,

@@ -389,20 +389,22 @@ class CMKKSamplerPipe:
             f"seed={seed} | steps={steps} | cfg={cfg} | sampler={sampler_name} | "
             f"scheduler={scheduler} | denoise={denoise}"
         )
-        if str(pipe.get("model_family", "")).lower() == "z_image_turbo":
-            vae = pipe.get("vae")
-            if vae is not None:
-                try:
-                    from nodes import VAEDecode
-                    from .cmk_final_preview import send_final_preview
+        # ComfyUI 0.31 / frontend 1.48 no longer reliably retains an inner
+        # KSampler's latent preview on the outer Nodes 2.0 subgraph. Decode the
+        # completed latent explicitly for every family and keep it in SAMPLED.
+        # The Refiner reuses this image, so a normal 10 -> 20 path does not pay
+        # for a second source decode merely to obtain a stable module preview.
+        vae = pipe.get("vae")
+        if vae is not None:
+            try:
+                from nodes import VAEDecode
+                from .cmk_final_preview import send_final_preview
 
-                    decoded = VAEDecode().decode(vae, samples)
-                    image = decoded[0] if isinstance(decoded, (tuple, list)) else decoded
-                    new_pipe["image"] = image
-                    send_final_preview(image)
-                    return (new_pipe,)
-                except Exception:
-                    # Sampling remains valid even if the optional UI preview
-                    # cannot be produced; Finalize will still decode it.
-                    pass
+                decoded = VAEDecode().decode(vae, samples)
+                image = decoded[0] if isinstance(decoded, (tuple, list)) else decoded
+                new_pipe["image"] = image
+                send_final_preview(image)
+            except Exception:
+                # Preview delivery must never invalidate valid sampling.
+                pass
         return (new_pipe,)
