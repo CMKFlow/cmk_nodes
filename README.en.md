@@ -131,13 +131,6 @@ still require the selected Ultralytics, SAM, InsightFace, optional face-restore,
 ControlNet, checkpoint, VAE, and upscale models. Missing models fail only the
 selected feature path with a clear runtime message.
 
-`Remove Object` uses the locally executed
-[LaMa model](https://github.com/advimman/lama). On first use, CMK downloads
-`big-lama.pt` to `ComfyUI/models/inpaint/` and verifies its known MD5 checksum.
-Afterwards the feature runs locally. LaMa and the used
-[IOPaint model distribution](https://github.com/Sanster/IOPaint) retain their
-independent Apache License 2.0 terms.
-
 ## FaceSwap ContentGuard
 
 All public CMK FaceSwap paths use a mandatory local ContentGuard. It checks the

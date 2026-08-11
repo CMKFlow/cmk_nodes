@@ -448,8 +448,9 @@ Die geführten Modi setzen dagegen vollständige, aufgabenbezogene Lösungen:
 entfernten Objekts keine semantische Vorgabe für den neuen Inhalt bildet.
 Das Preset setzt `denoise` auf `1.00`, aktiviert Noise Mask und Context
 Reference, deaktiviert Outpaint und lässt Anwender-Prompt sowie LoRAs aktiv.
-`remove` rekonstruiert den maskierten Bereich lokal und promptfrei mit LaMa,
-und `extend` setzt die Umgebung mittels Navier-Stokes fort. Für die
+`remove` füllt den maskierten Bereich mit deterministischem Rauschen und führt
+ihn promptfrei durch den SDXL-Sampler; Anwender-Prompts und LoRAs bleiben dabei
+deaktiviert. `extend` setzt die Umgebung mittels Navier-Stokes fort. Für die
 diffusionsbasierten Modi werden passende Kombinationen aus `denoise`,
 Noise-Mask und Context Reference gesetzt. `fill_masked_area` ist damit kein
 reiner Metadatenwert: `original`, `neutral`, `lama`, `telea`,
@@ -461,12 +462,12 @@ denselben tatsächlich weitergereichten Bildzustand. Der Sampler wendet die
 Füllung nicht nochmals an.
 
 Die vier Modi sind geführte Aufgabenlösungen und keine semantische
-Objekterkennung. Für `remove` genügt die vom Anwender gesetzte Maske. LaMa ist
-für große Masken und strukturelle Bildrekonstruktion trainiert und erzeugt das
-verbindliche Ergebnis unmittelbar aus dem Bildkontext. KSampler und Refiner
-werden für diesen Modus kontrolliert umgangen. Anwender-Prompts sowie Source-
-und lokale LoRAs werden nicht geladen. Das Log und bereits das Diagnostic von
-`01 START HERE` weisen Engine und Isolation vollständig aus.
+Objekterkennung. Für `remove` genügt die vom Anwender gesetzte Maske. Der
+KSampler rekonstruiert den maskierten Bereich mit leerem Conditioning; der
+Refiner führt keine zweite Diffusionspassage aus, sondern decodiert und
+komponiert das First-Pass-Ergebnis maskenbezogen über den unveränderten
+Bildkontext. Anwender-Prompts sowie Source- und lokale LoRAs werden nicht
+geladen. Log und Diagnostic weisen den isolierten Remove-Pfad vollständig aus.
 Die tatsächliche Wirkung und die gesetzten Werte sind über `MODE INFO` und den
 Tooltip von `PROCESS MODE` direkt in `01 START HERE` dokumentiert.
 
