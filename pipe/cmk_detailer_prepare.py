@@ -54,7 +54,7 @@ class CMKDetailerPreparePipe:
         return {
             "required": {
                 "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
-                "PROCESS": ("CMK_PIPE", {"lazy": True}),
+                "PROCESS": ("CMK_PROCESS_SDXL", {"lazy": True}),
                 "IMAGE": ("IMAGE", {"lazy": True}),
 
                 "sam_model_name": sam_model_spec,
@@ -121,18 +121,32 @@ class CMKDetailerPreparePipe:
     CATEGORY = "CMK/Developer/Pipe/Prepare"
 
     def check_lazy_status(self, MODEL=None, PROCESS=None, IMAGE=None, LOG=None, detailer_global_enable=False, **kwargs):
-        needed=[]
-        if IMAGE is None: needed.append("IMAGE")
-        if LOG is None: needed.append("LOG")
-        if bool(detailer_global_enable):
-            if MODEL is None: needed.append("MODEL")
-            if PROCESS is None: needed.append("PROCESS")
-        return needed
+        # Resolve the authoritative upstream result first. Requesting MODEL in
+        # the same lazy round as IMAGE lets ComfyUI materialize SDXL/Refiner
+        # model branches while upstream sampling is still active, causing a
+        # severe unified-memory peak on Apple Silicon.
+        upstream_needed = []
+        if IMAGE is None:
+            upstream_needed.append("IMAGE")
+        if LOG is None:
+            upstream_needed.append("LOG")
+        if upstream_needed:
+            return upstream_needed
+
+        if not bool(detailer_global_enable):
+            return []
+
+        model_needed = []
+        if PROCESS is None:
+            model_needed.append("PROCESS")
+        if MODEL is None:
+            model_needed.append("MODEL")
+        return model_needed
 
     @staticmethod
     def _encode(clip, text):
         helper = CMKSamplerPrepareSDXLPipe()
-        # Standard CLIP Text Encode on purpose: Detailer is not SDXL-specific.
+        # Standard CLIP Text Encode is the intended encoder for this SDXL-only module.
         try:
             from .cmk_sampler_prepare import _call_node
 

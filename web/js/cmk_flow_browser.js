@@ -142,7 +142,7 @@ function addStyles() {
     .cmk-flow-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0 0 18px; }
     .cmk-flow-meta-item { padding: 10px 11px; border-left: 2px solid #34444a; background: rgba(19,26,31,.65); }
     .cmk-flow-meta-label { display: block; color: #7f8d94; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
-    .cmk-flow-meta-value { display: block; margin-top: 3px; overflow: hidden; color: #d2d9dc; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    .cmk-flow-meta-value { display: block; margin-top: 3px; color: #d2d9dc; font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; white-space: normal; }
     .cmk-flow-interface { margin-bottom: 20px; }
     .cmk-flow-sequence { margin-bottom: 20px; padding: 14px 16px; border: 1px solid #304047; border-radius: 10px; background: rgba(20,31,36,.82); }
     .cmk-flow-sequence-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -238,7 +238,11 @@ function normalizePreviews(metadata = {}) {
     .filter((preview) => preview?.src)
     .map((preview, index) => ({
       src: `/extensions/cmk_nodes/${preview.src}`,
-      label: preview.label || `Ansicht ${index + 1}`,
+      label: language === "en"
+        ? ({ Modul: "Module", Aufbau: "Structure", Vorschau: "Preview" }[preview.label]
+          || preview.label
+          || `View ${index + 1}`)
+        : (preview.label || `Ansicht ${index + 1}`),
     }));
 }
 
@@ -255,7 +259,7 @@ function discoverCuratedNodes(nodeRegistry, nodeMetadata, englishContent) {
     .map(([nodeType, nodeDef]) => {
       const metadata = { ...(nodeMetadata[nodeType] || {}), ...(language === "en" ? englishContent.flows?.[nodeType] : {}) };
       const displayName = nodeDef.display_name || nodeDef.name || nodeType;
-      const category = nodeDef.category.split("/").at(-1);
+      const category = metadata.category || nodeDef.category.split("/").at(-1);
       const numericPrefix = Number(displayName.match(/(?:·\s*)?(\d{1,2})\b/)?.[1]);
       const categoryOrder = { Input: 4, Process: 70, Finish: 95 }[category] ?? 80;
       const required = Object.entries(nodeDef.input?.required || {}).filter(([, spec]) => isCableInput(spec)).map(([name]) => name);
@@ -273,12 +277,12 @@ function discoverCuratedNodes(nodeRegistry, nodeMetadata, englishContent) {
         name: displayName,
         displayName: displayName.replace(/^CMK Flow\s*·\s*/, ""),
         category,
-        domain: "Flow Node",
+        domain: metadata.domain || "Flow Node",
         description: metadata.description || nodeDef.description || "Ein direkt einsetzbarer Baustein für CMK Flow.",
-        status: "STABLE",
-        version: "—",
-        author: "CMK Nodes",
-        compatibility: [],
+        status: String(metadata.status || "STABLE").toUpperCase(),
+        version: metadata.version || "1.0.0",
+        author: metadata.author || "CMK Nodes",
+        compatibility: Array.isArray(metadata.compatibility) ? metadata.compatibility : [],
         features: Array.isArray(metadata.features) ? metadata.features : ["Direkt als einzelne Node einsetzbar"],
         inputs: [...required, ...optional.map((name) => `${name} (optional)`) ],
         inputDetails,

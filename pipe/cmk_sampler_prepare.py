@@ -4,6 +4,8 @@ import os
 import inspect
 from typing import Any
 
+from comfy_execution.graph_utils import ExecutionBlocker
+
 from ..cmk_common import SAMPLERS, SCHEDULERS
 from ..loader.cmk_lora_text_loader import CMKLoRATextLoader, _resolve_lora_path
 from ..engine.fooocus_inpaint import CMKFooocusInpaintPipeline
@@ -11,6 +13,7 @@ from ..engine.context_reference import CMKContextReferenceLatentMask
 from .cmk_log_pipe import cmk_add_block, cmk_format_loras
 from .cmk_pipe_sampler import CMKPipeSetSampler
 from ..utils.cmk_diagnostic import make_diagnostic_payload
+from ..utils.cmk_timing import cmk_timed_call
 
 
 SAMPLING_MODES = ["eps", "v_prediction", "lcm"]
@@ -21,9 +24,13 @@ def _effective_inpaint_prompts(
     inpaint_mode: bool,
     process_mode: str,
 ) -> tuple[str, str, str]:
-    """Remove Object is prompt-free because local LaMa owns the task."""
+    """Return task conditioning; user prompts remain disabled for Remove."""
     if bool(inpaint_mode) and str(process_mode).strip().lower() == "remove":
-        return "", "", "NOT USED (LAMA)"
+        return (
+            "empty unobstructed background, continuous sofa upholstery, continuous wall and surrounding scene",
+            "person, woman, man, human, face, head, hair, body, arms, hands, clothing, foreground subject",
+            "INTERNAL REMOVE GUIDANCE",
+        )
     return prompt_pos, prompt_neg, "SOURCE"
 
 
@@ -289,7 +296,7 @@ class CMKSamplerPrepareSDXLPipe:
         return {
             "required": {
                 "MODEL": ("CMK_MODEL_PIPE",),
-                "PROCESS": ("CMK_PIPE",),
+                "PROCESS": ("CMK_PROCESS_SDXL",),
                 "IMAGE": ("IMAGE",),
 
                 # CMK UI order. Advanced widgets remain at their functional
@@ -325,6 +332,49 @@ class CMKSamplerPrepareSDXLPipe:
                 "context_reference_enabled": ("BOOLEAN", {"default": True, "advanced": True}),
                 "context_reference_expand": ("INT", {"default": 3, "min": -64, "max": 64, "step": 1, "advanced": True}),
                 "context_reference_blur": ("FLOAT", {"default": 5.0, "min": 0.0, "max": 64.0, "step": 0.1, "advanced": True}),
+                # Appended to preserve the positional values of saved nodes.
+                "replace_spatial_strength": (
+                    "FLOAT",
+                    {
+                        "default": 0.35,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "step": 0.01,
+                        "advanced": True,
+                        "tooltip": (
+                            "Replace Object only. 0 gives the prompt maximum freedom; "
+                            "1 gives Fooocus maximum spatial/reconstruction guidance."
+                        ),
+                    },
+                ),
+                "remove_blend_radius": (
+                    "FLOAT",
+                    {
+                        "default": 24.0,
+                        "min": 0.0,
+                        "max": 64.0,
+                        "step": 1.0,
+                        "advanced": True,
+                        "tooltip": (
+                            "Remove Object only. Softens the sampler mask edge to blend "
+                            "colour and brightness into adjacent original surfaces."
+                        ),
+                    },
+                ),
+                "remove_mask_expand": (
+                    "INT",
+                    {
+                        "default": 12,
+                        "min": 0,
+                        "max": 64,
+                        "step": 1,
+                        "advanced": True,
+                        "tooltip": (
+                            "Remove Object only. Expands the fully generated mask core "
+                            "outward before the soft colour transition is added."
+                        ),
+                    },
+                ),
             },
             "optional": {
                 "LOG": ("CMK_LOG_PIPE",),
@@ -434,6 +484,7 @@ class CMKSamplerPrepareSDXLPipe:
             )
         return latent
 
+    @cmk_timed_call("10 SAMPLER PREPARE")
     def prepare(
         self,
         MODEL,
@@ -463,10 +514,16 @@ class CMKSamplerPrepareSDXLPipe:
         context_reference_enabled,
         context_reference_expand,
         context_reference_blur,
+        replace_spatial_strength=0.35,
+        remove_blend_radius=24.0,
+        remove_mask_expand=12,
         LOG=None,
     ):
         if PROCESS is None:
             raise ValueError("CMK Sampler Prepare SDXL -Pipe-: PROCESS is missing")
+        if isinstance(PROCESS, dict) and not PROCESS.get("family_active", True):
+            blocked = ExecutionBlocker(None)
+            return (blocked, blocked, blocked)
         if not isinstance(MODEL, dict):
             raise TypeError("CMK Sampler Prepare SDXL -Pipe-: MODEL must be a CMK_MODEL_PIPE dictionary")
 
@@ -526,17 +583,30 @@ class CMKSamplerPrepareSDXLPipe:
         effective_noise_mask = bool(inpaint_noise_mask)
         effective_context_reference = bool(context_reference_enabled)
         effective_fill_mode = str(pipe.get("fill_masked_area", "neutral") or "neutral").lower()
+        effective_replace_spatial_strength = max(
+            0.0,
+            min(1.0, _float(replace_spatial_strength, 0.35)),
+        )
+        effective_context_blur = max(0.0, _float(context_reference_blur, 5.0))
+        effective_remove_blend_radius = max(
+            0.0,
+            min(64.0, _float(remove_blend_radius, 24.0)),
+        )
+        effective_remove_mask_expand = max(
+            0,
+            min(64, _int(remove_mask_expand, 12)),
+        )
 
         if requested_process_mode == "replace":
             effective_denoise = 1.00
             effective_noise_mask = True
-            effective_context_reference = True
+            effective_context_reference = False
             effective_fill_mode = "noise"
         elif requested_process_mode == "remove":
-            effective_denoise = 0.00
-            effective_noise_mask = False
-            effective_context_reference = False
-            effective_fill_mode = "lama"
+            effective_denoise = 1.00
+            effective_noise_mask = True
+            effective_context_reference = True
+            effective_fill_mode = "noise"
         elif requested_process_mode == "extend":
             effective_denoise = 1.00
             effective_noise_mask = True
@@ -698,19 +768,49 @@ class CMKSamplerPrepareSDXLPipe:
                     "CMK Sampler Prepare SDXL -Pipe-: INPAINT=ON requires MODEL['vae'], IMAGE and PROCESS['mask']"
                 )
 
-            inpaint_model, inpaint_conditioning_pos, inpaint_conditioning_neg, inpaint_latent = (
-                CMKFooocusInpaintPipeline().prepare(
-                    normal_model,
-                    normal_conditioning_pos,
-                    normal_conditioning_neg,
-                    vae,
-                    image,
-                    mask,
-                    head=str(fooocus_head),
-                    patch=str(fooocus_patch),
-                    noise_mask=effective_noise_mask,
+            if requested_process_mode == "replace":
+                # Keep the Fooocus model patch as spatial guidance, but do not
+                # use its reconstruction-oriented concat conditioning.
+                # Ordinary SDXL conditioning makes the user's prompt describe
+                # the replacement instead of the surrounding background.
+                inpaint_model, _, _, inpaint_latent = (
+                    CMKFooocusInpaintPipeline().prepare(
+                        normal_model,
+                        normal_conditioning_pos,
+                        normal_conditioning_neg,
+                        vae,
+                        image,
+                        mask,
+                        head=str(fooocus_head),
+                        patch=str(fooocus_patch),
+                        noise_mask=True,
+                        replace_masked_content=True,
+                        spatial_strength=effective_replace_spatial_strength,
+                    )
                 )
-            )
+                inpaint_conditioning_pos = normal_conditioning_pos
+                inpaint_conditioning_neg = normal_conditioning_neg
+                fooocus_log = (
+                    "fooocus spatial patch applied | "
+                    f"strength={effective_replace_spatial_strength:.2f} | "
+                    "concat conditioning bypassed | "
+                    f"head={fooocus_head} | patch={fooocus_patch}"
+                )
+            else:
+                inpaint_model, inpaint_conditioning_pos, inpaint_conditioning_neg, inpaint_latent = (
+                    CMKFooocusInpaintPipeline().prepare(
+                        normal_model,
+                        normal_conditioning_pos,
+                        normal_conditioning_neg,
+                        vae,
+                        image,
+                        mask,
+                        head=str(fooocus_head),
+                        patch=str(fooocus_patch),
+                        noise_mask=effective_noise_mask,
+                        replace_masked_content=False,
+                    )
+                )
             inpaint_model = _unwrap_node_output(inpaint_model)
             inpaint_conditioning_pos = _validate_conditioning(
                 inpaint_conditioning_pos, "conditioning_pos(inpaint)"
@@ -720,14 +820,15 @@ class CMKSamplerPrepareSDXLPipe:
             )
             if inpaint_model is None or not hasattr(inpaint_model, "clone"):
                 raise TypeError(
-                    "CMK Sampler Prepare SDXL -Pipe-: Fooocus Apply returned invalid MODEL "
+                    "CMK Sampler Prepare SDXL -Pipe-: inpaint preparation returned invalid MODEL "
                     f"(type={type(inpaint_model).__name__})"
                 )
             if inpaint_latent is None:
                 raise ValueError(
-                    "CMK Sampler Prepare SDXL -Pipe-: Fooocus Inpaint returned no LATENT"
+                    "CMK Sampler Prepare SDXL -Pipe-: inpaint preparation returned no LATENT"
                 )
-            fooocus_log = f"fooocus inpaint applied | head={fooocus_head} | patch={fooocus_patch}"
+            if requested_process_mode != "replace":
+                fooocus_log = f"fooocus inpaint applied | head={fooocus_head} | patch={fooocus_patch}"
 
             # Context Reference exists only inside the INPAINT branch.
             context_reference_active = effective_context_reference
@@ -737,8 +838,16 @@ class CMKSamplerPrepareSDXLPipe:
                         inpaint_conditioning_pos,
                         inpaint_latent,
                         mask,
-                        expand=_int(context_reference_expand, 3),
-                        blur=_float(context_reference_blur, 5.0),
+                        expand=(
+                            effective_remove_mask_expand
+                            if requested_process_mode == "remove"
+                            else _int(context_reference_expand, 3)
+                        ),
+                        blur=(
+                            effective_remove_blend_radius
+                            if requested_process_mode == "remove"
+                            else effective_context_blur
+                        ),
                         mask_only=bool(context_reference_mask_only),
                     )
                 )
@@ -747,8 +856,16 @@ class CMKSamplerPrepareSDXLPipe:
                 )
                 context_reference_log = (
                     "context reference applied | "
-                    f"expand={_int(context_reference_expand, 3)} | "
-                    f"blur={_float(context_reference_blur, 5.0)} | "
+                    f"expand={(
+                        effective_remove_mask_expand
+                        if requested_process_mode == 'remove'
+                        else _int(context_reference_expand, 3)
+                    )} | "
+                    f"blur={(
+                        effective_remove_blend_radius
+                        if requested_process_mode == 'remove'
+                        else effective_context_blur
+                    ):.1f} | "
                     f"mask_only={bool(context_reference_mask_only)}"
                 )
         elif effective_context_reference:
@@ -831,6 +948,7 @@ class CMKSamplerPrepareSDXLPipe:
         new_pipe["conditioning_neg"] = conditioning_neg
         new_pipe["latent_image"] = latent_image
         new_pipe["mask"] = output_mask
+        new_pipe["inpaint_source_image"] = IMAGE if requested_process_mode == "remove" else None
         new_pipe["latent_original"] = latent_image
         new_pipe["steps_1st_pass"] = _int(steps_1st_pass, 20)
         new_pipe["steps"] = _int(steps_1st_pass, 20)
@@ -857,8 +975,11 @@ class CMKSamplerPrepareSDXLPipe:
         new_pipe["context_reference_enabled"] = effective_context_reference
         new_pipe["context_reference_active"] = bool(context_reference_active)
         new_pipe["context_reference_expand"] = _int(context_reference_expand, 3)
-        new_pipe["context_reference_blur"] = _float(context_reference_blur, 5.0)
+        new_pipe["context_reference_blur"] = effective_context_blur
+        new_pipe["remove_blend_radius"] = effective_remove_blend_radius
+        new_pipe["remove_mask_expand"] = effective_remove_mask_expand
         new_pipe["context_reference_mask_only"] = bool(context_reference_mask_only)
+        new_pipe["replace_spatial_strength"] = effective_replace_spatial_strength
         new_pipe["context_reference_mask"] = output_mask if context_reference_active else None
         new_pipe["boolean_controlnet_enable"] = bool(controlnet_applied)
         new_pipe["controlnet_applied"] = bool(controlnet_applied)
@@ -938,7 +1059,9 @@ class CMKSamplerPrepareSDXLPipe:
             f"LORA SOURCE     : {lora_source}",
         ]
         if requested_process_mode == "remove":
-            log_lines.extend(["", "REMOVE ENGINE   : LAMA", "DIFFUSION       : BYPASSED"])
+            log_lines.extend(
+                ["", "REMOVE ENGINE   : FOOOCUS RECONSTRUCTION", "DIFFUSION       : ENABLED"]
+            )
         if loaded_single_lora:
             log_lines.extend(["", "LOCAL LORAS:", cmk_format_loras(loaded_single_lora)])
         log_pipe = cmk_add_block(LOG, "Sampler Prepare", 40, log_lines, True)

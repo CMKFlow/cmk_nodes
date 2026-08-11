@@ -12,7 +12,18 @@ from .pipe.cmk_pipe_sampler import (
 )
 from .pipe.cmk_sampler_prepare import CMKSamplerPrepareSDXLPipe
 from .pipe.cmk_process_forward import CMKProcessForwardPipe
-from .pipe.cmk_image_forward import CMKImageForward
+from .pipe.cmk_family_result import (
+    CMKFamilyBranchGateSDXL,
+    CMKFamilyBranchGateSDXLSampled,
+    CMKFamilyBranchGateZImage,
+    CMKSDXLResultBridgePipe,
+    CMKFamilyResultMergePipe,
+    CMKResultToLegacyBridgePipe,
+    CMKZImageProcessForwardPipe,
+    CMKResultUnpackPipe,
+    CMKResultPackPipe,
+)
+from .pipe.cmk_image_forward import CMKImageForward, CMKImagePreviewForward
 from .pipe.cmk_model_forward import CMKModelForwardPipe
 from .pipe.cmk_refiner_prepare import CMKRefinerPrepareSDXLPipe
 from .pipe.cmk_refiner import CMKRefinerPipe
@@ -21,6 +32,7 @@ from .pipe.cmk_module_boundary_cache import (
     CMKDetailerBoundaryCache,
     CMKFaceBoundaryCache,
     CMKFaceSwapBoundaryCache,
+    CMKZImageBoundaryCache,
 )
 from .pipe.cmk_detailer_prepare import CMKDetailerPreparePipe
 from .pipe.cmk_faceprocess_prepare import CMKFaceProcessPreparePipe
@@ -76,8 +88,14 @@ from .nodes.controlnet.controlnet import (
     CMKPipeSetControlNet,
 )
 from .pipe.controlnet.cmk_controlnet_prepare import CMKControlNetPreparePipe
+from .pipe.controlnet.cmk_zit_controlnet_prepare import CMKZITControlNetPreparePipe
 from .loader.checkpoint_vae_loader import CMKCheckpointVAELoader
 from .pipe.loaders.checkpoint_vae_loader import CMKCheckpointVAELoaderPipe
+from .pipe.loaders.z_image_turbo_loader import CMKZImageTurboLoaderPipe
+from .pipe.cmk_z_image_turbo import (
+    CMKSamplerPrepareZImageTurboPipe,
+    CMKZImageTurboFinalizePipe,
+)
 from .pipe.loaders.cmk_load_image import CMKLoadImage
 from .pipe.loaders.cmk_image_load_resize import CMKImageLoadAndResizePipe
 from .pipe.loaders.cmk_swap_image_loader import CMKSwapImageLoaderPipe
@@ -105,9 +123,13 @@ from .nodes.swap.face_swap import CMKFaceSwapImage, CMKFaceSwapImagePipe
 
 
 NODE_CLASS_MAPPINGS = {
+    "CMKFamilyBranchGateSDXL": CMKFamilyBranchGateSDXL,
+    "CMKFamilyBranchGateSDXLSampled": CMKFamilyBranchGateSDXLSampled,
+    "CMKFamilyBranchGateZImage": CMKFamilyBranchGateZImage,
     # Utils / Loaders
     "CMKCheckpointVAELoader": CMKCheckpointVAELoader,
     "CMKCheckpointVAELoaderPipe": CMKCheckpointVAELoaderPipe,
+    "CMKZImageTurboLoaderPipe": CMKZImageTurboLoaderPipe,
     "CMKLoadImage": CMKLoadImage,
     "CMKImageLoadAndResizePipe": CMKImageLoadAndResizePipe,
     "CMKSwapImageLoaderPipe": CMKSwapImageLoaderPipe,
@@ -123,12 +145,21 @@ NODE_CLASS_MAPPINGS = {
     # Pipe / Sampler
     "CMKPipeSetSampler": CMKPipeSetSampler,
     "CMKSamplerPrepareSDXLPipe": CMKSamplerPrepareSDXLPipe,
+    "CMKSamplerPrepareZImageTurboPipe": CMKSamplerPrepareZImageTurboPipe,
+    "CMKZImageTurboFinalizePipe": CMKZImageTurboFinalizePipe,
     "CMKPipePeekKSampler": CMKPipePeekKSampler,
     "CMKPipePeekKSamplerRefinerSource": CMKPipePeekKSamplerRefinerSource,
     "CMKPipeSetKSampler": CMKPipeSetKSampler,
     "CMKKSamplerPipe": CMKKSamplerPipe,
     "CMKProcessForwardPipe": CMKProcessForwardPipe,
+    "CMKSDXLResultBridgePipe": CMKSDXLResultBridgePipe,
+    "CMKFamilyResultMergePipe": CMKFamilyResultMergePipe,
+    "CMKResultToLegacyBridgePipe": CMKResultToLegacyBridgePipe,
+    "CMKZImageProcessForwardPipe": CMKZImageProcessForwardPipe,
+    "CMKResultUnpackPipe": CMKResultUnpackPipe,
+    "CMKResultPackPipe": CMKResultPackPipe,
     "CMKImageForward": CMKImageForward,
+    "CMKImagePreviewForward": CMKImagePreviewForward,
     "CMKModelForwardPipe": CMKModelForwardPipe,
 
     # Pipe / Process
@@ -158,6 +189,7 @@ NODE_CLASS_MAPPINGS = {
     "CMKDetailerBoundaryCache": CMKDetailerBoundaryCache,
     "CMKFaceBoundaryCache": CMKFaceBoundaryCache,
     "CMKFaceSwapBoundaryCache": CMKFaceSwapBoundaryCache,
+    "CMKZImageBoundaryCache": CMKZImageBoundaryCache,
 
 
     # Standalone CMK Nodes
@@ -188,6 +220,7 @@ NODE_CLASS_MAPPINGS = {
     # ControlNet
     "CMKControlNetPrepare": CMKControlNetPrepare,
     "CMKControlNetPreparePipe": CMKControlNetPreparePipe,
+    "CMKZITControlNetPreparePipe": CMKZITControlNetPreparePipe,
 
     # Pipe / ControlNet
     "CMKPipeSetControlNet": CMKPipeSetControlNet,
@@ -222,6 +255,7 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "CMKCheckpointVAELoader": "CMK Checkpoint VAE Loader",
     "CMKCheckpointVAELoaderPipe": "CMK Flow · Checkpoint & VAE",
+    "CMKZImageTurboLoaderPipe": "CMK Z-Image Turbo Loader -Pipe-",
     "CMKLoadImage": "CMK Flow · Load Image",
     "CMKImageLoadAndResizePipe": "CMK Flow · Image Input",
     "CMKSwapImageLoaderPipe": "CMK Flow · FaceSwap Image Input",
@@ -241,12 +275,21 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 
     "CMKPipeSetSampler": "CMK Pipe Set Sampler",
     "CMKSamplerPrepareSDXLPipe": "CMK Sampler Prepare SDXL -Pipe-",
+    "CMKSamplerPrepareZImageTurboPipe": "CMK Sampler Prepare Z-Image Turbo -Pipe-",
+    "CMKZImageTurboFinalizePipe": "CMK Z-Image Turbo Finalize -Pipe-",
     "CMKPipePeekKSampler": "CMK Pipe Peek KSampler",
     "CMKPipePeekKSamplerRefinerSource": "CMK Pipe Peek KSampler Refiner Source",
     "CMKPipeSetKSampler": "CMK Pipe Set KSampler",
     "CMKKSamplerPipe": "CMK KSampler -Pipe-",
     "CMKProcessForwardPipe": "CMK Process Forward -Pipe-",
+    "CMKSDXLResultBridgePipe": "CMK SDXL Result Bridge -Pipe-",
+    "CMKFamilyResultMergePipe": "CMK Flow · 35 Active Family Result",
+    "CMKResultToLegacyBridgePipe": "CMK Result Bridge -Pipe-",
+    "CMKZImageProcessForwardPipe": "CMK Z-Image Process Forward -Pipe-",
+    "CMKResultUnpackPipe": "CMK Result Unpack -Pipe-",
+    "CMKResultPackPipe": "CMK Result Pack -Pipe-",
     "CMKImageForward": "CMK Image Forward -Pipe-",
+    "CMKImagePreviewForward": "CMK Image Preview Forward -Pipe-",
     "CMKModelForwardPipe": "CMK Model Forward -Pipe-",
 
     "CMKPipeCreateDetailer": "CMK Pipe Create Detailer",
@@ -274,6 +317,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CMKDetailerBoundaryCache": "CMK Boundary Cache",
     "CMKFaceBoundaryCache": "CMK Boundary Cache",
     "CMKFaceSwapBoundaryCache": "CMK Boundary Cache",
+    "CMKZImageBoundaryCache": "CMK Boundary Cache",
 
 
     "CMK_EmptyImageMask": "CMK Empty Image Mask",
@@ -301,7 +345,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CMKFaceSwapVideo": "CMK FaceSwap Video",
 
     "CMKControlNetPrepare": "CMK ControlNet Prepare",
-    "CMKControlNetPreparePipe": "CMK Flow · 05 ControlNet (optional)",
+    "CMKControlNetPreparePipe": "CMK Flow · 05 ControlNet SDXL (optional)",
+    "CMKZITControlNetPreparePipe": "CMK Flow · 05 ControlNet ZIT (optional)",
     "CMKPipeSetControlNet": "CMK Pipe Set ControlNet",
 
     "CMKLogCreate": "CMK Log Create",

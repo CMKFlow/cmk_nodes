@@ -7,9 +7,9 @@ class CMKProcessForwardPipe:
 
     @classmethod
     def INPUT_TYPES(cls):
-        return {"required": {"PROCESS": ("CMK_PIPE",)}}
+        return {"required": {"PROCESS": ("CMK_PROCESS_SDXL",)}}
 
-    RETURN_TYPES = ("CMK_PIPE",)
+    RETURN_TYPES = ("CMK_PROCESS_SDXL",)
     RETURN_NAMES = ("PROCESS",)
     FUNCTION = "forward"
     CATEGORY = "CMK/Developer/Pipe/Forward"
@@ -17,7 +17,7 @@ class CMKProcessForwardPipe:
     @staticmethod
     def forward(PROCESS):
         if PROCESS is None:
-            raise ValueError("CMK Process Forward -Pipe-: PROCESS is missing")
+            return (None,)
         if not isinstance(PROCESS, dict):
             raise TypeError(
                 "CMK Process Forward -Pipe-: PROCESS must be a CMK process pipe "

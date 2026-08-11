@@ -2,6 +2,16 @@
 
 ## Frontend requirement
 
+> **Validated release target / temporary standby**
+>
+> This release is comprehensively validated with **ComfyUI 0.28.2** and
+> **comfyui-frontend-package 1.45.21**. With **ComfyUI 0.31.1** and frontend
+> **1.48.7**, live and final previews on outer subgraph nodes may remain blank
+> even though execution, image transport, saving, and generated results remain
+> correct. Because the underlying subgraph-preview behavior is already being
+> discussed upstream, adaptation to newer ComfyUI versions is temporarily on
+> **standby** pending a frontend update and renewed compatibility testing.
+
 CMK Flow requires ComfyUI **Vue Nodes / Nodes 2.0** to be enabled in the active
 user profile. The legacy LiteGraph renderer does not provide the dynamic and
 advanced widget behavior used by CMK Flow.
@@ -97,7 +107,7 @@ If an outer module must preserve `MODEL`, `PROCESS`, `IMAGE`, or `LOG`, that
 responsibility belongs to an explicit module boundary. Public results must come
 from that boundary; no alternative output may bypass it.
 
-The curated `50 FaceProcess` and `90 Upscale & Save` contracts preserve all
+The curated `30 FaceProcess SDXL` and `90 Upscale & Save` contracts preserve all
 four roles. FaceProcess serializes only its computed image/log cache payload
 while passing `MODEL` and `PROCESS` through read-only. The finish module accepts
 and returns the same four roles even though it is normally the last visible
@@ -176,6 +186,15 @@ A compatible module should include:
 - honest input and output information;
 - a real screenshot or preview when visual distinction is useful;
 - status `STABLE`, `BETA`, or `EXPERIMENTAL`.
+
+### 6.1 Experimental Z-Image Turbo Inpaint
+
+Z-Image Turbo Inpaint is currently an experimental CMK capability. It provides
+only general masked inpainting; the guided SDXL modes for replacing, removing,
+or extending content are not part of its contract. The Union-2.1 patch has very
+high memory requirements, and successful execution does not imply Text2Image-
+equivalent quality. Workflows and integrations must preserve this experimental
+label and must not advertise ZIT outpainting or task-specific Inpaint modes.
 
 ## 7. Discovery metadata
 

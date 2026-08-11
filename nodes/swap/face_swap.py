@@ -435,6 +435,8 @@ class CMKFaceSwapImagePipe:
         return {
             "required": {
                 "IMAGE_TARGET": ("IMAGE",),
+            },
+            "optional": {
                 "IMAGE_SOURCE": ("IMAGE", {"lazy": True}),
                 "GLOBAL ENABLE": ("BOOLEAN", {"default": True}),
                 "ENABLE": ("BOOLEAN", {"default": True}),
@@ -449,7 +451,9 @@ class CMKFaceSwapImagePipe:
                 "drop_size": ("INT", {"default": 10, "min": 1, "max": 8192, "step": 1, "advanced": True}),
                 "feather": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1, "advanced": True}),
                 "IDENTITY STRENGTH": ("FLOAT", {"default": 1.0, "min": 0.5, "max": 1.5, "step": 0.05, "advanced": True}),
-            }
+                "QUALITY PROFILE": (("Automatic", "SDXL", "ZIT", "Custom"), {"default": "Automatic", "advanced": True}),
+                "PROCESS": ("CMK_PIPE",),
+            },
         }
 
     def check_lazy_status(self, IMAGE_SOURCE=None, ENABLE=True, **kwargs):
@@ -479,16 +483,27 @@ class CMKFaceSwapImagePipe:
             or get_default_enhancer_mode()
         )
         face_enhancer = requested_face_enhancer
-        if enabled:
-            face_enhancer = validate_enhancer_mode(face_enhancer)
-        elif face_enhancer not in get_available_enhancer_modes():
-            face_enhancer = "Off"
         blend = _clamp_float(inputs.get("BLEND", 1.0), 0.0, 1.0, 1.0)
         bbox_dilation = int(inputs.get("bbox_dilation", 0) or 0)
         crop_factor = min(3.0, max(1.0, float(inputs.get("crop_factor", 1.5) or 1.5)))
         drop_size = max(1, int(inputs.get("drop_size", 10) or 10))
         feather = min(100, max(0, int(inputs.get("feather", 0) or 0)))
         identity_strength = _clamp_float(inputs.get("IDENTITY STRENGTH", 1.0), 0.5, 1.5, 1.0)
+        quality_profile = str(inputs.get("QUALITY PROFILE", "Automatic") or "Automatic")
+        process = inputs.get("PROCESS")
+        family = str(process.get("source_model_family", process.get("model_family", ""))).lower() if isinstance(process, dict) else ""
+        effective_profile = quality_profile
+        if quality_profile == "Automatic":
+            effective_profile = "ZIT" if family == "z_image_turbo" else "SDXL"
+        if effective_profile == "SDXL":
+            face_enhancer, blend, crop_factor, feather, identity_strength = "GPEN", 1.0, 1.5, 22, 1.0
+        elif effective_profile == "ZIT":
+            face_enhancer, blend, crop_factor, feather, identity_strength = "Off", 0.70, 1.3, 30, 0.85
+        requested_effective_enhancer = face_enhancer
+        if enabled:
+            face_enhancer = validate_enhancer_mode(face_enhancer)
+        elif face_enhancer not in get_available_enhancer_modes():
+            face_enhancer = "Off"
 
         if not enabled:
             log_lines = [
@@ -653,7 +668,7 @@ class CMKFaceSwapImagePipe:
             f"SWAP MODEL      : {swap_model}",
             f"DETECT MODEL    : {detector_model}",
             f"FACE ENHANCER   : {face_enhancer}",
-            *( [f"ENHANCER FALLBACK: {requested_face_enhancer} → {face_enhancer}"] if requested_face_enhancer != face_enhancer else [] ),
+            *( [f"ENHANCER FALLBACK: {requested_effective_enhancer} → {face_enhancer}"] if requested_effective_enhancer != face_enhancer else [] ),
             f"TARGET FACE     : {target_selection}",
             f"SOURCE FACE     : {source_selection}",
             f"BLEND           : {blend:.2f}",
@@ -662,6 +677,7 @@ class CMKFaceSwapImagePipe:
             f"DROP SIZE       : {drop_size}",
             f"FEATHER         : {feather}",
             f"IDENTITY STRENGTH: {identity_strength:.2f}",
+            f"QUALITY PROFILE : {quality_profile} → {effective_profile}",
             f"TARGET DETECTED : {int(target_detect_count)}",
             f"SOURCE DETECTED : {int(source_detect_count)}",
             f"CHANGED         : {changed_avg:.4f}",

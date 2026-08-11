@@ -8,6 +8,7 @@ from PIL import Image
 import folder_paths
 
 from ...pipe.cmk_log_pipe import cmk_render_log
+from ...utils.cmk_timing import cmk_timed
 
 
 class CMK_SaveProjectImage:
@@ -33,8 +34,8 @@ class CMK_SaveProjectImage:
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "required": {
-                "MODEL": ("CMK_MODEL_PIPE",),
+            "optional": {
+                "MODEL (opt)": ("CMK_MODEL_PIPE",),
                 "PROCESS": ("CMK_PIPE",),
                 "IMAGE": ("IMAGE",),
                 "LOG": ("CMK_LOG_PIPE",),
@@ -43,7 +44,7 @@ class CMK_SaveProjectImage:
                 "OUTPUT FOLDER": ("STRING", {"default": ""}),
                 "USE DATE FOLDER": ("BOOLEAN", {"default": True}),
                 "PROJECT FOLDER": ("STRING", {"default": ""}),
-            }
+            },
         }
 
     RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_PIPE", "IMAGE", "CMK_LOG_PIPE", "STRING")
@@ -55,12 +56,12 @@ class CMK_SaveProjectImage:
 
     def run(
         self,
-        MODEL,
-        PROCESS,
-        IMAGE,
-        LOG,
+        PROCESS=None,
+        IMAGE=None,
+        LOG=None,
         **kwargs,
     ):
+        MODEL = kwargs.get("MODEL (opt)")
         save_enabled = bool(kwargs.get("SAVE ENABLED", True))
         filename_prefix = str(kwargs.get("FILENAME PREFIX", "image"))
         output_folder = str(kwargs.get("OUTPUT FOLDER", ""))
@@ -73,7 +74,7 @@ class CMK_SaveProjectImage:
                 "result": (MODEL, PROCESS, IMAGE, LOG, ""),
             }
 
-        if not isinstance(MODEL, dict):
+        if MODEL is not None and not isinstance(MODEL, dict):
             raise TypeError("CMK Save Project Image -Pipe-: MODEL must be a CMK model pipe")
         if not isinstance(PROCESS, dict):
             raise TypeError("CMK Save Project Image -Pipe-: PROCESS must be a CMK process pipe")
@@ -109,15 +110,17 @@ class CMK_SaveProjectImage:
                 break
             counter += 1
 
-        img = IMAGE[0].cpu().numpy()
-        img = np.clip(img * 255.0, 0, 255).astype(np.uint8)
-        Image.fromarray(img).save(str(full_path))
+        with cmk_timed("90 PNG SAVE", str(full_path)):
+            img = IMAGE[0].cpu().numpy()
+            img = np.clip(img * 255.0, 0, 255).astype(np.uint8)
+            Image.fromarray(img).save(str(full_path))
 
         log_text = cmk_render_log(LOG)
         if log_text:
             text_path = os.path.splitext(str(full_path))[0] + ".txt"
-            with open(text_path, "w", encoding="utf-8") as file:
-                file.write(log_text)
+            with cmk_timed("90 LOG SAVE", str(text_path)):
+                with open(text_path, "w", encoding="utf-8") as file:
+                    file.write(log_text)
 
         return {
             "ui": {"text": [str(full_path)]},

@@ -90,7 +90,7 @@ Der normale pixelbasierte CMK-Workflow verwendet vier semantisch getrennte Leitu
 | Sichtbarer Name | Typ | Verantwortung | Darf nicht enthalten oder bewirken |
 |---|---|---|---|
 | `MODEL` | `CMK_MODEL_PIPE` | gemeinsame, unveränderte Modellressourcen und kleine Loader-Metadaten | Modulzustand, Bilder, Latents, Logs, lokale Patches |
-| `PROCESS` | `CMK_PIPE` | nicht-pixelbasierter Prozesskontext, Masken, Dimensionen, Prompts, LoRA-Angebote und Workflow-Zustand | das authoritative Ergebnisbild, Modellressourcen, Dokumentationslogik |
+| `PROCESS SDXL` / `PROCESS Z-IMAGE` | `CMK_PROCESS_SDXL` / `CMK_PROCESS_Z_IMAGE` | familiengebundener, nicht-pixelbasierter Prozesskontext, Masken, Dimensionen, Prompts, LoRA-Angebote und Workflow-Zustand | das authoritative Ergebnisbild, Modellressourcen, Dokumentationslogik oder Wechsel in die andere Modellfamilie |
 | `IMAGE` | `IMAGE` | authoritative Pixelinformation zwischen Bildmodulen | versteckte Zustands- oder Logfunktion |
 | `LOG` | `CMK_LOG_PIPE` | strukturierte Dokumentation bereits getroffener Entscheidungen und ausgeführter Schritte | Steuerung, Bildveränderung, Modellpatching, Modulaktivierung |
 
@@ -114,6 +114,49 @@ LOG     → Was wurde dokumentiert?
 - Ein Bild muss nicht durch eine Node geleitet werden, die es fachlich gar nicht verarbeitet.
 
 Interne Arbeits-Pipes dürfen zur Ausführung ein Bild referenzieren. Das ändert nicht den öffentlichen Vertrag: Zwischen Modulen bleibt `IMAGE` authoritative.
+
+### 3.2 Modellfamilien sind mechanisch getrennte Verträge
+
+`01 START HERE` ist der gemeinsame Einstieg und die einzige sichtbare
+Modellfamilien-Weiche. Danach gelten zwei inkompatible PROCESS-Typen:
+
+```text
+PROCESS SDXL    → CMK_PROCESS_SDXL
+PROCESS Z-IMAGE → CMK_PROCESS_Z_IMAGE
+```
+
+Die Trennung ist bewusst nominell: Auch bei intern ähnlichen Python-Objekten
+darf ComfyUI keine Verbindung zwischen einem SDXL- und einem Z-Image-Modul
+zulassen. Der nicht ausgewählte Ausgang von `01 START HERE` liefert keinen
+Prozess. Eine spätere Zusammenführung darf erst nach Abschluss der
+familienabhängigen Verarbeitung über einen eigenen neutralen Ergebnisvertrag
+erfolgen und genau einen aktiven Zweig anfordern.
+
+`CMK Flow · 35 Active Family Result` erhält jeweils
+`MODEL / PROCESS / IMAGE / LOG` beider Familien. Die Wahl aus 01 ist bereits
+im einzig aktiven PROCESS enthalten; ein separates Routing-Kabel existiert
+nicht. 35 fordert zunächst nur beide leichtgewichtigen PROCESS-Durchgänge und
+anschließend ausschließlich `MODEL / IMAGE / LOG` des aktiven Zweigs an. Die
+vier Ausgänge `CMK_RESULT_MODEL`, `CMK_RESULT_PROCESS`, `CMK_RESULT_IMAGE` und
+`CMK_RESULT_LOG` sind familien-neutral. Bei parallel aufgebauten Familien sind
+sie die einzig zulässige Übergabe an FaceSwap und 90; ein einzelner SDXL- oder
+ZIT-Zweig darf diese beiden gemeinsamen Module auch direkt speisen.
+
+Ein rein pixelbasierter Workflow beginnt mit `CMK Image Load and Resize
+-Pipe-`. Sein öffentlicher Ausgangsvertrag folgt der CMK-Reihenfolge
+`MODEL / PROCESS / IMAGE / LOG / diagnostic`. Der optionale Eingang
+`MODEL SDXL` wird unverändert zum regulären Ausgang `MODEL` durchgereicht; ohne
+angeschlossenen Checkpoint bleibt dieser Wert leer. PROCESS wird als
+`family_neutral` mit `source_model_family = image` gekennzeichnet. Der
+öffentliche PROCESS-Port trägt dennoch den
+Typ `CMK_PROCESS_SDXL`, damit derselbe schlanke Bildeingang zusammen mit einem
+separaten SDXL-Checkpoint die Standalone-Module 25 und 30 speisen kann. Damit
+können außerdem die modellneutralen Module 40 und 90 einen vollständigen
+Bildbearbeitungspfad validieren, ohne einen unbenutzten SDXL- oder
+ZIT-Checkpoint zu laden. Der neutrale Ergebnisvertrag ist ausschließlich für
+diesen eindeutig markierten CMK-Bildeingang zulässig.
+Für den rein pixelbasierten Weg zu 40 und 90 ist MODEL optional. Es wird kein
+künstlicher Modellkontext und kein besonderer Pixel-Modelltyp erzeugt.
 
 ## 4. Proprietäre Arbeits- und Übergabetypen
 
@@ -142,12 +185,12 @@ IMAGE + MASK + FILENAME STRING
 + PROMPT POS + PROMPT NEG
 + Bild-/Maskenparameter
     ↓
-PROCESS + IMAGE + LOG + diagnostic
+PROCESS SDXL + PROCESS Z-IMAGE + IMAGE + LOG + diagnostic
 ```
 
 Verantwortung:
 
-- erzeugt den initialen nicht-pixelbasierten `PROCESS`-Kontext;
+- erzeugt genau einen aktiven, familiengebundenen `PROCESS`-Kontext;
 - gibt das skalierte authoritative `IMAGE` separat aus;
 - erzeugt den ersten strukturierten `LOG`;
 - erstellt noch kein Sampler-Latent.
@@ -218,7 +261,7 @@ Regeln:
 Das eingeschleifte FaceSwap-Modul verwendet dieselbe Execute-Node mit einem internen Source-Loader:
 
 ```text
-MODEL + PROCESS + IMAGE_TARGET + LOG + ENABLE
+MODEL (opt) + PROCESS + IMAGE_TARGET + LOG + ENABLE
     ↓
 [CMK Load Image -Pipe- nur für IMAGE_SOURCE]
     ↓
@@ -322,6 +365,74 @@ Modi:
 custom | replace | remove | extend
 ```
 
+`01 START HERE` besitzt oberhalb der übrigen Einstellungen die zwei
+Modellfamilien-Reiter `SDXL` und `Z-IMAGE TURBO`. Der gespeicherte
+Backend-Vertrag lautet `model_family = sdxl | z_image_turbo`. SDXL zeigt den
+vollständigen bestehenden Text2Image-/Inpaint-Vertrag. Z-Image Turbo bietet
+Text2Image sowie ein eindeutig als experimentell gekennzeichnetes, allgemeines
+maskiertes Inpaint. Die aufgabenbezogenen SDXL-Inpaint-Modi sind für ZIT nicht
+implementiert. Beide Familien verwenden dieselben modellneutral dargestellten
+Größenpresets; beim Wechsel vom generischen Standard auf ZIT-Inpaint wird
+wegen des zusätzlichen Union-2.1-Patches 768x512 als sichere Ausgangsgröße
+gewählt. Eine ausdrücklich gewählte andere Größe bleibt erhalten.
+
+Der Z-Image-Pfad besteht aus einem kombinierten, ausschließlich auf
+ComfyUI-Core aufbauenden Loader für Diffusionsmodell, Lumina2-Textencoder und
+VAE, `CMK Sampler Prepare Z-Image Turbo -Pipe-`, dem vorhandenen generischen
+`CMK KSampler -Pipe-` und `CMK Z-Image Turbo Finalize -Pipe-`. Prepare erzeugt
+positives Conditioning, `ConditioningZeroOut`, im Text2Image-Pfad ein
+`EmptySD3LatentImage` und das über `ModelSamplingAuraFlow` mit Shift 3 gepatchte
+Modell. Experimentelles Inpaint verwendet IMAGE und MASK mit
+`InpaintModelConditioning` sowie dem Union-2.1-Modellpatch. Finalize dekodiert
+das Ergebnis und führt es als normales `IMAGE` in die gemeinsamen Module
+`40/90`.
+
+Das optionale `05 ControlNet ZIT` gibt neben PROCESS und LOG das unveränderte
+authoritative IMAGE aus. Das intern erzeugte Canny-Kontrollbild verbleibt im
+PROCESS. Dadurch kann `10 ZIT` sein Inpaint-Bild linear vom vorherigen Modul
+beziehen, ohne eine parallele Umgehungsleitung von `01 START HERE`.
+
+Der dazugehörige kompakte Subgraph `CMK Flow · 10 KSampler Z-Image Turbo`
+kapselt diese vier Stufen vollständig. Sein öffentlicher Vertrag lautet
+`PROCESS + IMAGE + LOG -> MODEL + PROCESS + IMAGE + LOG + diagnostic`. IMAGE
+wird nur beim experimentellen Inpaint lazy angefordert. Dadurch bleibt
+der Z-Pfad frei von SDXL-Refiner- und SDXL-LoRA-Abhängigkeiten und kann nach dem
+Decode unmittelbar in die modellneutralen Nachbearbeitungsmodule wechseln.
+
+Die Bildvorbereitung bietet `Fit`, `Crop` und das ausdrücklich
+seitenverhältnisändernde `Stretch`. `Fit` und `Crop` erhalten das
+Quellseitenverhältnis; `Center`, `Top`, `Bottom`, `Left` oder `Right` bestimmen
+die Ausrichtung. Bild und Eingabemaske durchlaufen dieselbe Geometrie. Bei
+`Fit` wird die nicht vom Quellbild belegte Zielfläche als Maske erzeugt;
+`Extend Image` vereinigt sie mit einer optionalen Eingabemaske und kann daher
+die Ziel-Canvas selbst für Outpainting vorbereiten. Bei aktivem Outpaint wächst
+die Maske standardmäßig 32 Bildpixel in das Quellbild hinein. Diese
+Überlappungszone liefert der Diffusion Kontext beider Seiten und verhindert
+eine harte Naht an der ursprünglichen Canvas-Grenze; die Breite ist über
+über den Advanced-Parameter `outpaint_overlap` einstellbar.
+Synthetische Füllungen wie `noise`, `neutral`, `black` und `white` verwenden
+innerhalb dieser Überlappung eine weich auslaufende Füllmaske. Die
+authoritative Generationsmaske bleibt vollständig erweitert; nur der
+vorbereitende Bildinhalt wird überblendet, damit keine neue harte Füllkante in
+das Sampling gelangt.
+
+`01 START HERE · Create Image` zeigt das letzte Bild seines ohnehin erzeugten
+Diagnostic-Payloads zusätzlich als native Vorschau direkt auf der
+ausgeführten Node. Damit sind Fit-/Crop-Ergebnis und angewandte Maskenfüllung
+ohne separate Preview-Node sichtbar. Die vier fachlichen Ausgänge und der
+Diagnostic-Vertrag bleiben unverändert.
+
+Die direkte Vorschau enthält ausschließlich das Bild und keinen zusätzlichen
+Diagnostic-Titelrahmen. Öffentliche Parameter und Anschlüsse tragen
+anwenderverständliche Anzeigenamen in Großschrift; interne Anschlussnamen
+bleiben für gespeicherte Workflows stabil. Technische Bezeichnungen in
+Kleinschrift sind Advanced-Parametern vorbehalten.
+
+Der optionale STRING-Anschluss `opt_prompt_pos` besitzt kein Textfeld. Sein
+Inhalt wird – sofern angeschlossen und nicht leer – mit einem Zeilenumbruch
+hinter `PROMPT POS` angefügt und danach als gemeinsamer positiver Prompt durch
+den Flow geführt.
+
 Der übergeordnete sichtbare `MODE` ist ein Dropdown mit `Text2Image` als
 Standard und `Inpaint`. Im Modus `Text2Image` blendet die Oberfläche sämtliche
 Inpaint-spezifischen Einstellungen aus; deren gespeicherte Werte bleiben für
@@ -337,8 +448,9 @@ Die geführten Modi setzen dagegen vollständige, aufgabenbezogene Lösungen:
 entfernten Objekts keine semantische Vorgabe für den neuen Inhalt bildet.
 Das Preset setzt `denoise` auf `1.00`, aktiviert Noise Mask und Context
 Reference, deaktiviert Outpaint und lässt Anwender-Prompt sowie LoRAs aktiv.
-`remove` rekonstruiert den maskierten Bereich lokal und promptfrei mit LaMa,
-und `extend` setzt die Umgebung mittels Navier-Stokes fort. Für die
+`remove` füllt den maskierten Bereich mit deterministischem Rauschen und führt
+ihn promptfrei durch den SDXL-Sampler; Anwender-Prompts und LoRAs bleiben dabei
+deaktiviert. `extend` setzt die Umgebung mittels Navier-Stokes fort. Für die
 diffusionsbasierten Modi werden passende Kombinationen aus `denoise`,
 Noise-Mask und Context Reference gesetzt. `fill_masked_area` ist damit kein
 reiner Metadatenwert: `original`, `neutral`, `lama`, `telea`,
@@ -350,12 +462,12 @@ denselben tatsächlich weitergereichten Bildzustand. Der Sampler wendet die
 Füllung nicht nochmals an.
 
 Die vier Modi sind geführte Aufgabenlösungen und keine semantische
-Objekterkennung. Für `remove` genügt die vom Anwender gesetzte Maske. LaMa ist
-für große Masken und strukturelle Bildrekonstruktion trainiert und erzeugt das
-verbindliche Ergebnis unmittelbar aus dem Bildkontext. KSampler und Refiner
-werden für diesen Modus kontrolliert umgangen. Anwender-Prompts sowie Source-
-und lokale LoRAs werden nicht geladen. Das Log und bereits das Diagnostic von
-`01 START HERE` weisen Engine und Isolation vollständig aus.
+Objekterkennung. Für `remove` genügt die vom Anwender gesetzte Maske. Der
+KSampler rekonstruiert den maskierten Bereich mit leerem Conditioning; der
+Refiner führt keine zweite Diffusionspassage aus, sondern decodiert und
+komponiert das First-Pass-Ergebnis maskenbezogen über den unveränderten
+Bildkontext. Anwender-Prompts sowie Source- und lokale LoRAs werden nicht
+geladen. Log und Diagnostic weisen den isolierten Remove-Pfad vollständig aus.
 Die tatsächliche Wirkung und die gesetzten Werte sind über `MODE INFO` und den
 Tooltip von `PROCESS MODE` direkt in `01 START HERE` dokumentiert.
 
@@ -561,7 +673,7 @@ bewahrt dennoch den vollständigen Transportvertrag, damit eine abweichende
 fachlich sinnvolle Reihenfolge nicht künstlich verhindert wird:
 
 ```text
-MODEL + PROCESS + IMAGE + LOG + Speicherparameter
+MODEL (opt) + PROCESS + IMAGE + LOG + Speicherparameter
     ↓
 MODEL + PROCESS + IMAGE + LOG
 ```
@@ -575,7 +687,7 @@ IMAGE + LOG → IMAGE + LOG + diagnostic
 `CMK Save Project Image -Pipe-`:
 
 ```text
-MODEL + PROCESS + IMAGE + LOG + Speicherparameter
+MODEL (opt) + PROCESS + IMAGE + LOG + Speicherparameter
     → MODEL + PROCESS + IMAGE + LOG + FULLPATH
 ```
 
@@ -839,10 +951,16 @@ Detailer und FaceProcess müssen weiterhin aus den kanonischen Quellen direkt au
 ```text
 CMK Checkpoint VAE Loader -Pipe- → MODEL
 CMK Load Image -Pipe-            → PROCESS + IMAGE + LOG
-CMK Image Load and Resize -Pipe- → PROCESS + IMAGE + LOG + diagnostic
+CMK Checkpoint VAE Loader -Pipe- → MODEL SDXL (optional)
+                                      ↓
+CMK Image Load and Resize -Pipe- → MODEL + PROCESS SDXL + IMAGE + LOG + diagnostic
 ```
 
-Daraus können `CMK Detailer Prepare -Pipe-` beziehungsweise `CMK FaceProcess Prepare -Pipe-` gespeist werden.
+Daraus können `CMK Detailer Prepare -Pipe-` beziehungsweise `CMK FaceProcess
+Prepare -Pipe-` direkt gespeist werden. Für deren MODEL-Eingang wird der durch
+Image Input geschleifte echte SDXL-Modellkontext verwendet. Ohne Checkpoint
+bleibt MODEL leer; 40 und 90 validieren den reinen Bildpfad über
+PROCESS / IMAGE / LOG.
 
 Die proprietären Arbeits-Pipes schützen die Execute-Schnittstellen, ohne Standalone-Verwendung zu verhindern.
 

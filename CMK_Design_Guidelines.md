@@ -31,6 +31,12 @@ stop_at_clip_layer
 
 Standard und Advanced dürfen nicht dieselbe Entscheidung doppelt anbieten.
 
+Alle öffentlichen Zuordnungen müssen ohne Kenntnis des internen
+Implementierungsvertrags verständlich sein. Technische Feldnamen wie
+`lora_syntax`, `active_loras` oder `opt_prompt_pos` erhalten deshalb
+fachliche Anzeigenamen wie `ACTIVE LORAS` oder `ADDITIONAL PROMPT`.
+Interne Namen bleiben nur für Serialisierung und Kompatibilität bestehen.
+
 ## 2. Node-Namen
 
 - Jede sichtbare Node beginnt mit `CMK`.
@@ -61,6 +67,10 @@ Advancedparameter
 ```
 
 Ausgänge folgen derselben semantischen Reihenfolge, soweit der konkrete Node-Vertrag diese Rollen tatsächlich ausgibt.
+
+Ein optionales MODEL behält seine kanonische erste Position und wird sichtbar
+als `MODEL (opt)` bezeichnet. Technische Optionalität darf die Socket-Reihenfolge
+nicht verändern.
 
 Ein Compute-Knoten darf keine unveränderten Transportwerte allein aus optischen Gründen durchschleifen.
 
@@ -270,13 +280,13 @@ Da ComfyUI Subgraphs nicht nach `CATEGORY` gliedert, bilden öffentliche Flow-Su
 
 ```text
 CMK Flow · 01 START HERE · Create Image
-CMK Flow · 02 LoRA Stack
-CMK Flow · 05 ControlNet (optional)
-CMK Flow · 10 KSampler 1st Pass
-CMK Flow · 20 Refiner
-CMK Flow · 30 Detailer
+CMK Flow · 02 SDXL LoRA Stack
+CMK Flow · 05 ControlNet SDXL (optional)
+CMK Flow · 10 KSampler SDXL 1st Pass
+CMK Flow · 20 Refiner SDXL
+CMK Flow · 25 Detailer SDXL
 CMK Flow · 40 FaceSwap
-CMK Flow · 50 FaceProcess
+CMK Flow · 30 FaceProcess SDXL
 CMK Flow · 90 Upscale & Save
 ```
 
@@ -298,7 +308,7 @@ Bei FaceSwap sind `IDENTITY STRENGTH` und `BLEND` fachlich getrennt. `IDENTITY S
 
 Die Trennung in empfohlenen Einstieg und `Advanced` gilt entsprechend für den Detailer. Der empfohlene Detailer besitzt einen Ausführungszweig und führt `IMAGE PROCEED` direkt zur Boundary. Advanced besitzt zwei unabhängig konfigurierte Zweige und führt deren `SEGS PROCEED` erst außerhalb der Execute-Nodes zusammen. Beide Varianten bleiben unter einem Haupteintrag im Flow Browser gebündelt.
 
-FaceProcess folgt derselben Trennung. Der empfohlene Einstieg `50 FaceProcess` besitzt einen Execute-Zweig und führt `IMAGE PROCEED` direkt zur Boundary. `50 FaceProcess · Advanced` besitzt kongruent zu `40 FaceSwap · Advanced` bis zu drei unabhängig ausgewählte Gesichts-Zweige und führt deren `SEGS PROCESSED` gemeinsam zusammen.
+FaceProcess folgt derselben Trennung. Der empfohlene Einstieg `30 FaceProcess SDXL` besitzt einen Execute-Zweig und führt `IMAGE PROCEED` direkt zur Boundary. `30 FaceProcess SDXL · Advanced` besitzt kongruent zu `40 FaceSwap · Advanced` bis zu drei unabhängig ausgewählte Gesichts-Zweige und führt deren `SEGS PROCESSED` gemeinsam zusammen.
 
 ## 12. Änderungsregel
 
