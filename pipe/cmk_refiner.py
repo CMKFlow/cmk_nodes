@@ -53,11 +53,9 @@ class CMKRefinerPipe:
         except Exception as exc:
             raise RuntimeError(f"CMK Refiner -Pipe-: required ComfyUI nodes unavailable: {exc}") from exc
 
-        source_image = REFINER.get("image")
-        if source_image is None:
-            with cmk_timed("20 REFINER SOURCE VAE DECODE"):
-                source_decoded = VAEDecode().decode(vae, latent)
-            source_image = source_decoded[0] if isinstance(source_decoded, (tuple, list)) else source_decoded
+        with cmk_timed("20 REFINER SOURCE VAE DECODE"):
+            source_decoded = VAEDecode().decode(vae, latent)
+        source_image = source_decoded[0] if isinstance(source_decoded, (tuple, list)) else source_decoded
         if REFINER.get("inpaint_process_mode") == "remove":
             # Preserve the prompt-free first-pass reconstruction and composite
             # only its soft generation area over the untouched source. This

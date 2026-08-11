@@ -8,7 +8,6 @@ from PIL import Image
 import folder_paths
 
 from ...pipe.cmk_log_pipe import cmk_render_log
-from ...pipe.cmk_final_preview import send_final_preview
 from ...utils.cmk_timing import cmk_timed
 
 
@@ -70,7 +69,6 @@ class CMK_SaveProjectImage:
         project_folder = str(kwargs.get("PROJECT FOLDER", ""))
 
         if not save_enabled:
-            send_final_preview(IMAGE)
             return {
                 "ui": {"text": ["SAVE DISABLED"]},
                 "result": (MODEL, PROCESS, IMAGE, LOG, ""),
@@ -123,10 +121,6 @@ class CMK_SaveProjectImage:
             with cmk_timed("90 LOG SAVE", str(text_path)):
                 with open(text_path, "w", encoding="utf-8") as file:
                     file.write(log_text)
-
-        # Save is the final executor of module 90. Re-emit the resulting image
-        # after all file I/O so its outer subgraph preview remains populated.
-        send_final_preview(IMAGE)
 
         return {
             "ui": {"text": [str(full_path)]},
