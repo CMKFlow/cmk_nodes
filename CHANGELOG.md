@@ -1,3 +1,15 @@
+# 2026-08-11 — Bestätigter Release-Stand und ComfyUI-Kompatibilität
+
+- Der veröffentlichte Funktionsstand ist vollständig mit ComfyUI 0.28.2 und
+  comfyui-frontend-package 1.45.21 bestätigt.
+- Unter ComfyUI 0.31.1 mit Frontend 1.48.7 bleiben Live- und Endvorschauen auf
+  äußeren Subgraph-Nodes teilweise leer. Ausführung, Bildtransport,
+  Speicherung und Ergebnisse sind davon nicht betroffen.
+- Experimentelle CMK-Workarounds für die geänderte Preview-Behandlung wurden
+  wieder entfernt. Die Anpassung an neuere ComfyUI-Versionen bleibt bis zu
+  einem Upstream-Update und einer erneuten Kompatibilitätsprüfung vorübergehend
+  im Stand-by.
+
 # 2026-08-08 — Experimentelles ZIT-Inpaint eingefroren
 
 - Die elf im User-Verzeichnis geprüften Flow-Subgraphen wurden als neue

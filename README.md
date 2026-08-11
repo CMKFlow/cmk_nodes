@@ -93,6 +93,19 @@ python -m pip install -r custom_nodes/cmk_nodes/requirements.txt
 
 ### Erforderliche ComfyUI-Oberfläche
 
+> **Bestätigte Zielversion und vorläufiger Stand-by**
+>
+> Dieser Veröffentlichungsstand ist funktional umfassend mit **ComfyUI 0.28.2**
+> und **comfyui-frontend-package 1.45.21** bestätigt. Mit **ComfyUI 0.31.1**
+> und **Frontend 1.48.7** werden Live- und Endvorschauen innerhalb äußerer
+> Subgraph-Nodes teilweise nicht angezeigt, obwohl Berechnung, Bildtransport,
+> Speicherung und Ergebnisse korrekt bleiben. Die Einschränkung betrifft die
+> geänderte Preview-Behandlung des ComfyUI-Frontends. Da die zugrunde liegende
+> Subgraph-Preview-Thematik bereits upstream bearbeitet beziehungsweise
+> diskutiert wird, befindet sich die Anpassung an neuere ComfyUI-Versionen
+> vorübergehend im **Stand-by**. Nach einem entsprechenden Frontend-Update wird
+> die Kompatibilität neu geprüft, bevor CMK eigene Übergangslösungen einführt.
+
 CMK Flow benötigt die ComfyUI-Einstellung **Vue Nodes / Nodes 2.0**. Ohne sie
 fallen dynamische CMK-Nodes auf die alte LiteGraph-Darstellung zurück;
 Advanced-Umschaltung, Dropdowns, Shapes und automatische Größenanpassung stehen

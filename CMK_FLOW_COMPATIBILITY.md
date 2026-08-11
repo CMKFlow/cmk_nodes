@@ -2,6 +2,16 @@
 
 ## Frontend requirement
 
+> **Validated release target / temporary standby**
+>
+> This release is comprehensively validated with **ComfyUI 0.28.2** and
+> **comfyui-frontend-package 1.45.21**. With **ComfyUI 0.31.1** and frontend
+> **1.48.7**, live and final previews on outer subgraph nodes may remain blank
+> even though execution, image transport, saving, and generated results remain
+> correct. Because the underlying subgraph-preview behavior is already being
+> discussed upstream, adaptation to newer ComfyUI versions is temporarily on
+> **standby** pending a frontend update and renewed compatibility testing.
+
 CMK Flow requires ComfyUI **Vue Nodes / Nodes 2.0** to be enabled in the active
 user profile. The legacy LiteGraph renderer does not provide the dynamic and
 advanced widget behavior used by CMK Flow.
