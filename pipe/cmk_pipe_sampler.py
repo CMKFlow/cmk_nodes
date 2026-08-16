@@ -208,22 +208,24 @@ class CMKPipePeekKSamplerRefinerSource:
 
     @classmethod
     def INPUT_TYPES(cls):
-        return {"required": {"pipe": ("CMK_PIPE",)}}
+        return {"required": {"SAMPLED": ("CMK_SAMPLED_PIPE",)}}
 
     RETURN_TYPES = ("LATENT", "INT", "INT", "STRING", "STRING", "STRING", "LORA_STACK")
     RETURN_NAMES = ("latent_image", "seed", "steps_1st_pass", "prompt_pos", "prompt_neg", "active_loras", "lora_stack")
     FUNCTION = "peek_ksampler_refiner_source"
     CATEGORY = 'CMK/Developer/Pipe/Peek'
 
-    def peek_ksampler_refiner_source(self, pipe):
+    def peek_ksampler_refiner_source(self, SAMPLED):
+        if not isinstance(SAMPLED, dict):
+            raise TypeError("CMK Sampler Refiner Source: SAMPLED must be a CMK sampled pipe")
         return (
-            pipe.get("latent_1st_pass", pipe.get("latent_image")),
-            pipe.get("seed"),
-            pipe.get("steps_1st_pass", pipe.get("steps")),
-            pipe.get("prompt_pos", ""),
-            pipe.get("prompt_neg", ""),
-            pipe.get("active_loras", ""),
-            pipe.get("lora_stack"),
+            SAMPLED.get("latent_1st_pass", SAMPLED.get("latent_image")),
+            SAMPLED.get("seed"),
+            SAMPLED.get("steps_1st_pass", SAMPLED.get("steps")),
+            SAMPLED.get("prompt_pos", ""),
+            SAMPLED.get("prompt_neg", ""),
+            SAMPLED.get("active_loras", ""),
+            SAMPLED.get("lora_stack"),
         )
 
 

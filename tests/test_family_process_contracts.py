@@ -326,6 +326,87 @@ class FamilyProcessContractTests(unittest.TestCase):
             lazy_body.index('model_needed.append("MODEL")'),
         )
 
+    def test_detailer_inherits_prompt_lora_and_sampling_independently(self):
+        source = (ROOT / "pipe" / "cmk_detailer_prepare.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('"use_prompt_lora_from_sampler": ("BOOLEAN", {"default": True})', source)
+        self.assertIn('"use_lora_from_1st_pass": ("BOOLEAN", {"default": False})', source)
+        self.assertIn('"use_1st_pass_sampling": ("BOOLEAN", {"default": True})', source)
+        self.assertIn('source_pipe.get("sampler", sampler)', source)
+        self.assertIn('source_pipe.get("scheduler", scheduler)', source)
+        self.assertIn('source_pipe.get("sampling", sampling)', source)
+        self.assertIn('source_pipe.get("zsnr", zsnr)', source)
+
+        frontend = (
+            ROOT / "web" / "js" / "cmk_detailer_prepare_labels.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn('USE PROMPT FROM 1ST PASS', frontend)
+        self.assertIn('USE LORA FROM 1ST PASS', frontend)
+        self.assertIn('USE SAMPLING FROM 1ST PASS', frontend)
+        self.assertIn('migrated.splice(4, 0, false, true)', frontend)
+
+    def test_native_image_compare_is_proxied_and_press_hold(self):
+        backend = (
+            ROOT / "nodes" / "utils" / "native_flow_helpers.py"
+        ).read_text(encoding="utf-8")
+        frontend = (
+            ROOT / "web" / "js" / "cmk_image_compare_hold.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn('return {"optional": {"image_a": ("IMAGE",), "image_b": ("IMAGE",)}}', backend)
+        self.assertNotIn('CMK_IMAGE_COMPARE', backend)
+        self.assertNotIn("ResizeObserver", frontend)
+        self.assertIn('"cmk_compare_images": [source_info, result_info]', backend)
+        self.assertIn('"images": [source_info, result_info]', backend)
+        self.assertIn('VIEWPORT_SELECTOR = \'[data-testid="image-compare-viewport"]\'', frontend)
+        self.assertIn('viewport.classList.add("cmk-hold-compare")', frontend)
+        self.assertIn('viewport.classList.add("cmk-show-source")', frontend)
+        self.assertIn('viewport.classList.remove("cmk-show-source")', frontend)
+
+    def test_faceprocess_inherits_prompt_lora_and_sampling_independently(self):
+        source = (ROOT / "pipe" / "cmk_faceprocess_prepare.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('"use_prompt_lora_from_sampler": ("BOOLEAN", {"default": True})', source)
+        self.assertIn('"use_lora_from_1st_pass": ("BOOLEAN", {"default": False})', source)
+        self.assertIn('"use_1st_pass_sampling": ("BOOLEAN", {"default": True})', source)
+        self.assertIn('source_pipe.get("sampler", sampler)', source)
+        self.assertIn('source_pipe.get("scheduler", scheduler)', source)
+        self.assertIn('source_pipe.get("sampling", sampling)', source)
+        self.assertIn('source_pipe.get("zsnr", zsnr)', source)
+
+        frontend = (
+            ROOT / "web" / "js" / "cmk_faceprocess_prepare_labels.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn('USE PROMPT FROM 1ST PASS', frontend)
+        self.assertIn('USE LORA FROM 1ST PASS', frontend)
+        self.assertIn('USE SAMPLING FROM 1ST PASS', frontend)
+        self.assertIn('migrated.splice(4, 0, false, true)', frontend)
+
+    def test_faceprocess_subgraphs_proxy_native_compare_without_routing_through_it(self):
+        for filename in (
+            "CMK Flow · 30 FaceProcess SDXL.json",
+            "CMK Flow · 30 FaceProcess SDXL · Advanced.json",
+        ):
+            graph = json.loads((ROOT / "subgraphs" / filename).read_text(encoding="utf-8"))
+            definition = graph["definitions"]["subgraphs"][0]
+            compare = next(node for node in definition["nodes"] if node["type"] == "ImageCompare")
+            image_link = next(
+                link for link in definition["links"]
+                if link["target_id"] == -20 and link["target_slot"] == 2
+            )
+            compare_input = next(
+                link for link in definition["links"]
+                if link["target_id"] == compare["id"] and link["target_slot"] == 0
+            )
+            self.assertEqual(image_link["origin_id"], compare_input["origin_id"])
+            self.assertEqual(image_link["origin_slot"], compare_input["origin_slot"])
+            self.assertEqual(compare["outputs"], [])
+            self.assertIn(
+                [str(compare["id"]), "compare_view"],
+                graph["nodes"][0]["properties"]["proxyWidgets"],
+            )
+
     def test_refiner_materializes_first_pass_before_loading_refiner_model(self):
         prepare_source = (ROOT / "pipe" / "cmk_refiner_prepare.py").read_text(
             encoding="utf-8"
@@ -494,6 +575,21 @@ class FamilyProcessContractTests(unittest.TestCase):
                                 if node["type"] in forward_types
                             }
                             self.assertIn(output_link["origin_id"], forward_ids)
+                    elif output_slot == 2 and any(
+                        node["type"] == "ImageCompare"
+                        for node in definition["nodes"]
+                    ):
+                        compare = next(
+                            node for node in definition["nodes"]
+                            if node["type"] == "ImageCompare"
+                        )
+                        compare_input = next(
+                            link for link in definition["links"]
+                            if link["target_id"] == compare["id"]
+                            and link["target_slot"] == 0
+                        )
+                        self.assertEqual(output_link["origin_id"], compare_input["origin_id"])
+                        self.assertEqual(output_link["origin_slot"], compare_input["origin_slot"])
                     elif output_slot == 2 and any(
                         node["type"] == "CMKImagePreviewForward"
                         for node in definition["nodes"]

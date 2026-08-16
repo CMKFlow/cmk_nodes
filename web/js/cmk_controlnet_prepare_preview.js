@@ -11,7 +11,11 @@ const CMK_NODE_CLASSES = new Set([
     "CMKControlNetPreparePipe",
     "CMKZITControlNetPreparePipe",
 ]);
+const CMK_COMBINED_CONTROLNET_TYPES = new Set([
+    "CMKCombinedControlNetPreparePipe",
+]);
 const BUTTON_WIDGET_NAME = "select_reference_image";
+const PACKAGED_REFERENCE = "CMK Package · controlnet_reference.png";
 
 const PERCENT_WIDGET_LABELS = new Map([
     ["controlnet_start_percent", "start_percent"],
@@ -23,8 +27,19 @@ const PERCENT_WIDGET_LABELS = new Map([
 function isCMKControlNetPrepare(node) {
     return node && (
         CMK_NODE_CLASSES.has(node.comfyClass) ||
-        CMK_NODE_CLASSES.has(node.type)
+        CMK_NODE_CLASSES.has(node.type) ||
+        CMK_COMBINED_CONTROLNET_TYPES.has(node.comfyClass) ||
+        CMK_COMBINED_CONTROLNET_TYPES.has(node.type) ||
+        node.title === "CMK Flow · 05 Combined ControlNet (optional)"
     );
+}
+
+function isCombinedControlNet(node) {
+    return Boolean(node && (
+        CMK_COMBINED_CONTROLNET_TYPES.has(node.comfyClass) ||
+        CMK_COMBINED_CONTROLNET_TYPES.has(node.type) ||
+        node.title === "CMK Flow · 05 Combined ControlNet (optional)"
+    ));
 }
 
 function findReferenceWidget(node) {
@@ -105,6 +120,68 @@ async function uploadReferenceImage(file) {
     return data?.name || file.name;
 }
 
+function showCombinedReferencePreview(node, filename) {
+    if (!isCMKControlNetPrepare(node) || !filename) return;
+
+    const normalized = String(filename).replaceAll("\\\\", "/");
+    if (normalized === PACKAGED_REFERENCE) {
+        const preview = new Image();
+        preview.onload = () => {
+            node.imgs = [preview];
+            node.imageIndex = 0;
+            node.setDirtyCanvas?.(true, true);
+        };
+        preview.src = typeof api?.apiURL === "function"
+            ? api.apiURL("/cmk/reference-assets/controlnet_reference.png")
+            : "/cmk/reference-assets/controlnet_reference.png";
+        return;
+    }
+    const separator = normalized.lastIndexOf("/");
+    const descriptor = {
+        filename: separator >= 0 ? normalized.slice(separator + 1) : normalized,
+        subfolder: separator >= 0 ? normalized.slice(0, separator) : "",
+        type: "input",
+    };
+
+    // Feed the selection through ComfyUI's native execution-preview handler.
+    // This creates exactly the same image area as a backend {ui:{images:…}}
+    // response; the processed ControlNet result replaces it after execution.
+    if (typeof node.onExecuted === "function") {
+        node.onExecuted({ images: [descriptor] });
+        node.setDirtyCanvas?.(true, true);
+        return;
+    }
+
+    const params = new URLSearchParams(descriptor);
+    const preview = new Image();
+    preview.onload = () => {
+        node.imgs = [preview];
+        node.imageIndex = 0;
+        node.setDirtyCanvas?.(true, true);
+    };
+    preview.onerror = () => {
+        // Keep the last processed ControlNet preview when the selected input
+        // is temporarily unavailable (for example while an upload settles).
+    };
+    const path = `/view?${params.toString()}`;
+    preview.src = typeof api?.apiURL === "function" ? api.apiURL(path) : path;
+}
+
+function setupCombinedReferencePreview(node) {
+    if (!isCMKControlNetPrepare(node) || node.__cmkCombinedReferencePreview) return;
+    const widget = findReferenceWidget(node);
+    if (!widget) return;
+
+    node.__cmkCombinedReferencePreview = true;
+    const originalCallback = widget.callback;
+    widget.callback = function(value) {
+        const result = originalCallback?.apply(this, arguments);
+        showCombinedReferencePreview(node, value);
+        return result;
+    };
+    showCombinedReferencePreview(node, widget.value);
+}
+
 function openReferenceFileDialog(node) {
     const input = document.createElement("input");
     input.type = "file";
@@ -122,7 +199,10 @@ function openReferenceFileDialog(node) {
         try {
             if (buttonWidget) buttonWidget.value = "Wird übernommen …";
             const uploadedName = await uploadReferenceImage(file);
-            if (refWidget) refWidget.value = uploadedName;
+            if (refWidget) {
+                refWidget.value = uploadedName;
+                refWidget.callback?.(uploadedName);
+            }
             if (buttonWidget) buttonWidget.value = "Referenzbild auswählen …";
             node.setDirtyCanvas?.(true, true);
         } catch (error) {
@@ -255,11 +335,73 @@ function normalizeZITPickerValue(node, values) {
     return values;
 }
 
+function normalizeCombinedPickerValue(node, values) {
+    if (!Array.isArray(values)) return values;
+
+    const pickerIndex = node?.widgets?.findIndex(
+        (widget) => widget?.name === BUTTON_WIDGET_NAME
+    ) ?? -1;
+    if (pickerIndex < 0) return values;
+
+    const functionalCount = node.widgets.length - 1;
+    if (values.length === functionalCount) {
+        const normalized = [...values];
+        normalized.splice(pickerIndex, 0, null);
+        return normalized;
+    }
+
+    if (values.length === node.widgets.length && values.at(-1) == null) {
+        const normalized = [...values];
+        normalized.pop();
+        normalized.splice(pickerIndex, 0, null);
+        return normalized;
+    }
+
+    return values;
+}
+
 app.registerExtension({
     name: "cmk.controlnet.prepare.reference_picker.v33",
 
     beforeRegisterNodeDef(nodeType, nodeData) {
-        if (!CMK_NODE_CLASSES.has(nodeData.name)) return;
+        if (
+            !CMK_NODE_CLASSES.has(nodeData.name) &&
+            !CMK_COMBINED_CONTROLNET_TYPES.has(nodeData.name)
+        ) return;
+
+        if (CMK_COMBINED_CONTROLNET_TYPES.has(nodeData.name)) {
+            const originalOnConfigure = nodeType.prototype.onConfigure;
+            nodeType.prototype.onConfigure = function(info) {
+                if (Array.isArray(info?.widgets_values)) {
+                    info = {
+                        ...info,
+                        widgets_values: normalizeCombinedPickerValue(
+                            this,
+                            info.widgets_values
+                        ),
+                    };
+                }
+                return originalOnConfigure?.call(this, info);
+            };
+
+            const originalOnSerialize = nodeType.prototype.onSerialize;
+            nodeType.prototype.onSerialize = function(info) {
+                const result = originalOnSerialize?.call(this, info);
+                const pickerIndex = this.widgets?.findIndex(
+                    (widget) => widget?.name === BUTTON_WIDGET_NAME
+                ) ?? -1;
+                if (
+                    pickerIndex >= 0 &&
+                    Array.isArray(info?.widgets_values) &&
+                    info.widgets_values.length === this.widgets.length
+                ) {
+                    info.widgets_values.splice(pickerIndex, 1);
+                }
+                return result;
+            };
+            return;
+        }
+
         // The SDXL node has a long-lived positional migration contract. ZIT
         // shares the reference picker and preview UX, but has its own smaller
         // canonical widget list and must never receive SDXL value migrations.
@@ -330,6 +472,7 @@ app.registerExtension({
 
     nodeCreated(node) {
         addReferencePickerButton(node);
+        setTimeout(() => setupCombinedReferencePreview(node), 0);
         clarifyPercentLabels(node);
     },
 });

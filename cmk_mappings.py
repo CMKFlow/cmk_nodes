@@ -89,6 +89,9 @@ from .nodes.controlnet.controlnet import (
 )
 from .pipe.controlnet.cmk_controlnet_prepare import CMKControlNetPreparePipe
 from .pipe.controlnet.cmk_zit_controlnet_prepare import CMKZITControlNetPreparePipe
+from .pipe.controlnet.cmk_combined_controlnet_prepare import (
+    CMKCombinedControlNetPreparePipe,
+)
 from .loader.checkpoint_vae_loader import CMKCheckpointVAELoader
 from .pipe.loaders.checkpoint_vae_loader import CMKCheckpointVAELoaderPipe
 from .pipe.loaders.z_image_turbo_loader import CMKZImageTurboLoaderPipe
@@ -221,6 +224,7 @@ NODE_CLASS_MAPPINGS = {
     "CMKControlNetPrepare": CMKControlNetPrepare,
     "CMKControlNetPreparePipe": CMKControlNetPreparePipe,
     "CMKZITControlNetPreparePipe": CMKZITControlNetPreparePipe,
+    "CMKCombinedControlNetPreparePipe": CMKCombinedControlNetPreparePipe,
 
     # Pipe / ControlNet
     "CMKPipeSetControlNet": CMKPipeSetControlNet,
@@ -347,6 +351,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CMKControlNetPrepare": "CMK ControlNet Prepare",
     "CMKControlNetPreparePipe": "CMK Flow · 05 ControlNet SDXL (optional)",
     "CMKZITControlNetPreparePipe": "CMK Flow · 05 ControlNet ZIT (optional)",
+    "CMKCombinedControlNetPreparePipe": "CMK Flow · 05 Combined ControlNet (optional)",
     "CMKPipeSetControlNet": "CMK Pipe Set ControlNet",
 
     "CMKLogCreate": "CMK Log Create",

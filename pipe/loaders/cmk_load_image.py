@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -10,6 +11,27 @@ from PIL import Image, ImageOps, ImageSequence
 import folder_paths
 
 from ..cmk_log_pipe import cmk_add_block
+
+
+CMK_PACKAGED_REFERENCES = {
+    "CMK Package · face_reference.png": "face_reference.png",
+    "CMK Package · faceswap_reference.png": "faceswap_reference.png",
+    "CMK Package · inpaint_reference.png": "inpaint_reference.png",
+    "CMK Package · remove_reference.png": "remove_reference.png",
+}
+_CMK_REFERENCE_ASSETS = Path(__file__).resolve().parents[2] / "assets" / "references"
+
+
+def _packaged_reference_path(image: str):
+    filename = CMK_PACKAGED_REFERENCES.get(str(image or ""))
+    if filename is None:
+        return None
+    path = (_CMK_REFERENCE_ASSETS / filename).resolve()
+    try:
+        path.relative_to(_CMK_REFERENCE_ASSETS.resolve())
+    except ValueError:
+        return None
+    return path if path.is_file() else None
 
 
 class CMKLoadImage:
@@ -36,7 +58,7 @@ class CMKLoadImage:
             files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f))]
         except Exception:
             files = []
-        files = sorted(files)
+        files = list(CMK_PACKAGED_REFERENCES) + sorted(files)
         return {
             "required": {
                 "image": (files, {"image_upload": True}),
@@ -49,6 +71,9 @@ class CMKLoadImage:
     CATEGORY = "CMK/Flow/Input"
 
     def _resolve_image_path(self, image: str) -> str:
+        packaged_path = _packaged_reference_path(image)
+        if packaged_path is not None:
+            return str(packaged_path)
         try:
             return folder_paths.get_annotated_filepath(image)
         except Exception:
@@ -133,7 +158,8 @@ class CMKLoadImage:
     @classmethod
     def IS_CHANGED(cls, image):
         try:
-            image_path = folder_paths.get_annotated_filepath(image)
+            packaged_path = _packaged_reference_path(image)
+            image_path = str(packaged_path) if packaged_path is not None else folder_paths.get_annotated_filepath(image)
             with open(image_path, "rb") as f:
                 return hashlib.sha256(f.read()).hexdigest()
         except Exception:
@@ -141,6 +167,8 @@ class CMKLoadImage:
 
     @classmethod
     def VALIDATE_INPUTS(cls, image):
+        if _packaged_reference_path(image) is not None:
+            return True
         try:
             if not folder_paths.exists_annotated_filepath(image):
                 return f"Invalid image file: {image}"

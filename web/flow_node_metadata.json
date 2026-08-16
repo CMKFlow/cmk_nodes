@@ -36,7 +36,7 @@
       "placementNote": "Vor dem KSampler oder Refiner platzieren und den MODEL-Ausgang mit dessen MODEL-Eingang verbinden.",
       "recommendedAfter": ["10 KSampler SDXL 1st Pass", "20 Refiner SDXL"],
       "previews": [
-        { "src": "assets/previews/checkpoint-vae.png", "label": "Node" }
+        { "src": "assets/previews/flow-checkpoint-vae.png", "label": "Node" }
       ],
       "previewAlt": "CMK Flow Checkpoint und VAE Node"
     },
@@ -52,7 +52,7 @@
       "placementNote": "Vor einem Baustein platzieren, der ein vorhandenes Bild verarbeiten soll.",
       "recommendedAfter": ["Save Project Image"],
       "previews": [
-        { "src": "assets/previews/load-image.png", "label": "Node" }
+        { "src": "assets/previews/flow-load-image.png", "label": "Node" }
       ],
       "previewAlt": "CMK Flow Load Image Node"
     },
@@ -68,7 +68,7 @@
       "placementNote": "Am Anfang eines bildbasierten Flows vor Create Image oder einem Verarbeitungsmodul platzieren.",
       "recommendedAfter": ["01 START HERE · Create Image", "05 ControlNet SDXL (optional)"],
       "previews": [
-        { "src": "assets/previews/image-input.png", "label": "Node" }
+        { "src": "assets/previews/flow-image-input.png", "label": "Node" }
       ],
       "previewAlt": "CMK Flow Image Input Node"
     },
@@ -84,7 +84,8 @@
       "placementNote": "Direkt vor FaceSwap Image platzieren.",
       "recommendedAfter": [],
       "previews": [
-        { "src": "assets/previews/faceswap-image-input.png", "label": "Node" }
+        { "src": "assets/previews/flow-faceswap-image-input-standard.png", "label": "Standard" },
+        { "src": "assets/previews/flow-faceswap-image-input-advanced.png", "label": "Advanced" }
       ],
       "previewAlt": "CMK Flow FaceSwap Image Input mit Ziel- und Quellbild-Auswahl"
     },
@@ -101,7 +102,9 @@
       "recommendedBefore": ["01 START HERE · Create Image"],
       "recommendedAfter": ["10 KSampler SDXL 1st Pass"],
       "previews": [
-        { "src": "assets/previews/controlnet-sdxl.png", "label": "SDXL" }
+        { "src": "assets/previews/flow-controlnet-sdxl-standard.png", "label": "Standard" },
+        { "src": "assets/previews/flow-controlnet-sdxl-advanced.png", "label": "Advanced" },
+        { "src": "assets/previews/flow-controlnet-sdxl-effect.png", "label": "Wirkung" }
       ],
       "previewAlt": "CMK Flow ControlNet Node"
     },
@@ -118,9 +121,34 @@
       "recommendedBefore": ["01 START HERE · Create Image"],
       "recommendedAfter": ["10 KSampler Z-Image Turbo"],
       "previews": [
-        {"src": "assets/previews/controlnet-zit.png", "label": "ZIT"}
+        { "src": "assets/previews/flow-controlnet-zit-standard.png", "label": "Standard" },
+        { "src": "assets/previews/flow-controlnet-zit-advanced.png", "label": "Advanced" },
+        { "src": "assets/previews/flow-controlnet-zit-effect.png", "label": "Wirkung" }
       ],
       "previewAlt": "CMK Flow ControlNet ZIT Node"
+    },
+    "CMKCombinedControlNetPreparePipe": {
+      "category": "Process",
+      "domain": "Image Guidance",
+      "compatibility": ["SDXL", "Z-Image Turbo"],
+      "version": "0.1.0",
+      "author": "CMK Nodes",
+      "status": "BETA",
+      "description": "Bereitet eine gemeinsame optionale ControlNet-Bildführung für kombinierte SDXL- und Z-Image-Turbo-Workflows vor.",
+      "features": [
+        "Gemeinsame Standardparameter für SDXL und ZIT",
+        "Modelspezifische Einstellungen getrennt unter Advanced",
+        "Referenzbild-Auswahl und verarbeitete ControlNet-Vorschau"
+      ],
+      "placementNote": "In kombinierten Workflows zwischen Create Image und den beiden KSampler-Zweigen platzieren.",
+      "recommendedBefore": ["01 START HERE · Create Image"],
+      "recommendedAfter": ["10 KSampler SDXL 1st Pass", "10 KSampler Z-Image Turbo"],
+      "previews": [
+        { "src": "assets/previews/flow-controlnet-combined-standard.png", "label": "Standard" },
+        { "src": "assets/previews/flow-controlnet-combined-advanced.png", "label": "Advanced" },
+        { "src": "assets/previews/flow-controlnet-combined-effect.png", "label": "Wirkung" }
+      ],
+      "previewAlt": "CMK Flow Combined ControlNet Node"
     },
     "CMKFamilyResultMergePipe": {
       "category": "Process",

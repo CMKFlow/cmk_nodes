@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -21,6 +22,23 @@ from ...utils.cmk_diagnostic import make_diagnostic_payload
 
 
 CROP_POSITIONS = ["center", "top", "bottom", "left", "right"]
+CMK_PACKAGED_REFERENCES = {
+    f"CMK Package · {filename}": filename
+    for filename in ("face_reference.png", "inpaint_reference.png", "remove_reference.png")
+}
+_CMK_REFERENCE_ASSETS = Path(__file__).resolve().parents[2] / "assets" / "references"
+
+
+def _packaged_reference_path(image: str):
+    filename = CMK_PACKAGED_REFERENCES.get(str(image or ""))
+    if filename is None:
+        return None
+    path = (_CMK_REFERENCE_ASSETS / filename).resolve()
+    try:
+        path.relative_to(_CMK_REFERENCE_ASSETS.resolve())
+    except ValueError:
+        return None
+    return path if path.is_file() else None
 
 
 def calculate_crop_box(
@@ -105,7 +123,7 @@ class CMKImageLoadAndResizePipe:
             ]
         except Exception:
             files = []
-        return sorted(files)
+        return list(CMK_PACKAGED_REFERENCES) + sorted(files)
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -148,6 +166,9 @@ class CMKImageLoadAndResizePipe:
 
     @staticmethod
     def _resolve_image_path(image: str) -> str:
+        packaged_path = _packaged_reference_path(image)
+        if packaged_path is not None:
+            return str(packaged_path)
         try:
             return folder_paths.get_annotated_filepath(image)
         except Exception:

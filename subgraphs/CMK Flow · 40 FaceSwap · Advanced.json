@@ -1,14 +1,14 @@
 {
   "revision": 0,
-  "last_node_id": 5164,
+  "last_node_id": 5240,
   "last_link_id": 0,
   "nodes": [
     {
-      "id": 5164,
-      "type": "a9cb839c-6963-4010-983c-3e6c15b0448c",
+      "id": 5240,
+      "type": "ce463129-53cd-4156-8ed7-ac3c8fe37af8",
       "pos": [
-        24265.45550902219,
-        -5538.569315848951
+        22050,
+        -3820
       ],
       "size": [
         600,
@@ -43,7 +43,7 @@
           "link": null
         },
         {
-          "label": "faceswap_global_enable",
+          "label": "FACESWAP ENABLE",
           "name": "ENABLE",
           "shape": 7,
           "type": "BOOLEAN",
@@ -83,15 +83,11 @@
       "properties": {
         "proxyWidgets": [
           [
-            "5047",
+            "5239",
             "GLOBAL ENABLE"
           ],
           [
-            "5050",
-            "compare_view"
-          ],
-          [
-            "5047",
+            "5239",
             "QUALITY PROFILE"
           ],
           [
@@ -101,7 +97,15 @@
           [
             "4939",
             "QUALITY PROFILE"
+          ],
+          [
+            "5050",
+            "compare_view"
           ]
+        ],
+        "cmkOuterSize": [
+          600,
+          1225
         ]
       },
       "widgets_values": [],
@@ -116,12 +120,12 @@
   "definitions": {
     "subgraphs": [
       {
-        "id": "a9cb839c-6963-4010-983c-3e6c15b0448c",
+        "id": "ce463129-53cd-4156-8ed7-ac3c8fe37af8",
         "version": 1,
         "state": {
-          "lastGroupId": 114,
-          "lastNodeId": 5164,
-          "lastLinkId": 12370,
+          "lastGroupId": 119,
+          "lastNodeId": 5242,
+          "lastLinkId": 12600,
           "lastRerouteId": 0
         },
         "revision": 1,
@@ -132,15 +136,15 @@
           "bounding": [
             489.43534801759404,
             512.1754324429747,
-            186.673828125,
+            162.38671875,
             148
           ]
         },
         "outputNode": {
           "id": -20,
           "bounding": [
-            3074.98874712876,
-            1295.1964911805883,
+            3530,
+            1640,
             128,
             148
           ]
@@ -154,7 +158,7 @@
               12260
             ],
             "pos": [
-              652.109176142594,
+              627.822066767594,
               536.1754324429747
             ]
           },
@@ -166,7 +170,7 @@
               12261
             ],
             "pos": [
-              652.109176142594,
+              627.822066767594,
               556.1754324429747
             ]
           },
@@ -178,7 +182,7 @@
               12262
             ],
             "pos": [
-              652.109176142594,
+              627.822066767594,
               576.1754324429747
             ]
           },
@@ -190,7 +194,7 @@
               12263
             ],
             "pos": [
-              652.109176142594,
+              627.822066767594,
               596.1754324429747
             ]
           },
@@ -203,9 +207,9 @@
               12089,
               12090
             ],
-            "label": "faceswap_global_enable",
+            "label": "FACESWAP ENABLE",
             "pos": [
-              652.109176142594,
+              627.822066767594,
               616.1754324429747
             ]
           }
@@ -219,8 +223,8 @@
               12264
             ],
             "pos": [
-              3098.98874712876,
-              1319.1964911805883
+              3554,
+              1664
             ]
           },
           {
@@ -231,8 +235,8 @@
               12265
             ],
             "pos": [
-              3098.98874712876,
-              1339.1964911805883
+              3554,
+              1684
             ]
           },
           {
@@ -243,8 +247,8 @@
               12266
             ],
             "pos": [
-              3098.98874712876,
-              1359.1964911805883
+              3554,
+              1704
             ]
           },
           {
@@ -255,8 +259,8 @@
               12267
             ],
             "pos": [
-              3098.98874712876,
-              1379.1964911805883
+              3554,
+              1724
             ]
           },
           {
@@ -267,26 +271,26 @@
               12259
             ],
             "pos": [
-              3098.98874712876,
-              1399.1964911805883
+              3554,
+              1744
             ]
           }
         ],
         "widgets": [],
         "nodes": [
           {
-            "id": 5047,
+            "id": 5239,
             "type": "CMKFaceSwapImagePipe",
             "pos": [
-              712.1332644628098,
-              1058.5834194214876
+              720,
+              1230
             ],
             "size": [
-              430,
-              580
+              540,
+              570
             ],
             "flags": {},
-            "order": 5,
+            "order": 12,
             "mode": 0,
             "showAdvanced": true,
             "inputs": [
@@ -484,7 +488,15 @@
               }
             ],
             "properties": {
-              "Node name for S&R": "CMKFaceSwapImagePipe"
+              "Node name for S&R": "CMKFaceSwapImagePipe",
+              "cmkOuterSize": [
+                540,
+                570
+              ],
+              "cmkManualSize": [
+                540,
+                570
+              ]
             },
             "widgets_values": [
               false,
@@ -508,12 +520,12 @@
             "id": 5048,
             "type": "CMKLoadImage",
             "pos": [
-              712.1332644628098,
-              538.5834194214876
+              720,
+              540
             ],
             "size": [
-              430,
-              480
+              540,
+              650
             ],
             "flags": {},
             "order": 0,
@@ -573,10 +585,18 @@
               }
             ],
             "properties": {
-              "Node name for S&R": "CMKLoadImage"
+              "Node name for S&R": "CMKLoadImage",
+              "cmkOuterSize": [
+                540,
+                650
+              ],
+              "cmkManualSize": [
+                540,
+                650
+              ]
             },
             "widgets_values": [
-              "black.png",
+              "CMK Package · faceswap_reference.png",
               "image"
             ],
             "shape": 1
@@ -585,17 +605,17 @@
             "id": 5049,
             "type": "CMKFaceSwapBoundaryCache",
             "pos": [
-              2819.666248447568,
-              1117.8786391899725
+              3280,
+              1280
             ],
             "size": [
-              225,
-              8
+              230,
+              10
             ],
             "flags": {
               "collapsed": true
             },
-            "order": 6,
+            "order": 5,
             "mode": 0,
             "inputs": [
               {
@@ -649,7 +669,6 @@
                 "name": "IMAGE",
                 "type": "IMAGE",
                 "links": [
-                  23,
                   12066
                 ]
               },
@@ -671,17 +690,17 @@
             "id": 5050,
             "type": "ImageCompare",
             "pos": [
-              2032.1332644628098,
-              538.5834194214876
+              2370,
+              550
             ],
             "size": [
-              748.65625,
-              1100.046875
+              880,
+              1250
             ],
             "flags": {
               "collapsed": false
             },
-            "order": 7,
+            "order": 6,
             "mode": 0,
             "inputs": [
               {
@@ -723,17 +742,17 @@
             "id": 5051,
             "type": "CMKLogConcat",
             "pos": [
-              2819.68430005331,
-              915.9307467425474
+              3280,
+              1080
             ],
             "size": [
-              225,
-              8
+              230,
+              10
             ],
             "flags": {
               "collapsed": true
             },
-            "order": 8,
+            "order": 7,
             "mode": 0,
             "inputs": [
               {
@@ -991,15 +1010,15 @@
             "id": 5052,
             "type": "CMKFaceSwapImagePipe",
             "pos": [
-              1152.1332644628098,
-              1058.5834194214876
+              1270,
+              1230
             ],
             "size": [
-              430,
-              580
+              540,
+              570
             ],
             "flags": {},
-            "order": 9,
+            "order": 8,
             "mode": 0,
             "showAdvanced": true,
             "inputs": [
@@ -1197,7 +1216,15 @@
               }
             ],
             "properties": {
-              "Node name for S&R": "CMKFaceSwapImagePipe"
+              "Node name for S&R": "CMKFaceSwapImagePipe",
+              "cmkOuterSize": [
+                540,
+                570
+              ],
+              "cmkManualSize": [
+                540,
+                570
+              ]
             },
             "widgets_values": [
               false,
@@ -1221,12 +1248,12 @@
             "id": 4936,
             "type": "CMKLoadImage",
             "pos": [
-              1152.1332644628098,
-              538.5834194214876
+              1270,
+              540
             ],
             "size": [
-              430,
-              480
+              540,
+              650
             ],
             "flags": {},
             "order": 1,
@@ -1286,10 +1313,18 @@
               }
             ],
             "properties": {
-              "Node name for S&R": "CMKLoadImage"
+              "Node name for S&R": "CMKLoadImage",
+              "cmkOuterSize": [
+                540,
+                650
+              ],
+              "cmkManualSize": [
+                540,
+                650
+              ]
             },
             "widgets_values": [
-              "black.png",
+              "CMK Package · faceswap_reference.png",
               "image"
             ],
             "shape": 1
@@ -1298,12 +1333,12 @@
             "id": 4937,
             "type": "CMK_SEGSConcate",
             "pos": [
-              2820.715638596941,
-              681.135864757119
+              3280,
+              840
             ],
             "size": [
-              225,
-              8
+              230,
+              10
             ],
             "flags": {
               "collapsed": true
@@ -1590,12 +1625,12 @@
             "id": 4938,
             "type": "CMKLoadImage",
             "pos": [
-              1592.1332644628098,
-              538.5834194214876
+              1820,
+              540
             ],
             "size": [
-              430,
-              480
+              540,
+              650
             ],
             "flags": {},
             "order": 2,
@@ -1655,10 +1690,18 @@
               }
             ],
             "properties": {
-              "Node name for S&R": "CMKLoadImage"
+              "Node name for S&R": "CMKLoadImage",
+              "cmkOuterSize": [
+                540,
+                650
+              ],
+              "cmkManualSize": [
+                540,
+                650
+              ]
             },
             "widgets_values": [
-              "black.png",
+              "CMK Package · faceswap_reference.png",
               "image"
             ],
             "shape": 1
@@ -1667,12 +1710,12 @@
             "id": 4939,
             "type": "CMKFaceSwapImagePipe",
             "pos": [
-              1592.1332644628098,
-              1058.5834194214876
+              1820,
+              1230
             ],
             "size": [
-              430,
-              580
+              540,
+              570
             ],
             "flags": {},
             "order": 4,
@@ -1873,7 +1916,15 @@
               }
             ],
             "properties": {
-              "Node name for S&R": "CMKFaceSwapImagePipe"
+              "Node name for S&R": "CMKFaceSwapImagePipe",
+              "cmkOuterSize": [
+                540,
+                570
+              ],
+              "cmkManualSize": [
+                540,
+                570
+              ]
             },
             "widgets_values": [
               false,
@@ -1897,17 +1948,17 @@
             "id": 5053,
             "type": "CMKDiagnosticConcat",
             "pos": [
-              2819.404111055859,
-              1470.519251169548
+              3280,
+              1630
             ],
             "size": [
-              225,
-              8
+              230,
+              10
             ],
             "flags": {
               "collapsed": true
             },
-            "order": 10,
+            "order": 9,
             "mode": 0,
             "inputs": [
               {
@@ -2170,17 +2221,17 @@
             "id": 5055,
             "type": "CMKResultUnpackPipe",
             "pos": [
-              708.5940359415836,
-              451.7437531712693
+              710,
+              450
             ],
             "size": [
-              233.78125,
-              8
+              240,
+              10
             ],
             "flags": {
               "collapsed": true
             },
-            "order": 11,
+            "order": 10,
             "mode": 0,
             "inputs": [
               {
@@ -2259,17 +2310,17 @@
             "id": 5056,
             "type": "CMKResultPackPipe",
             "pos": [
-              2819.156224956964,
-              1293.488540438827
+              3280,
+              1450
             ],
             "size": [
-              225,
-              8
+              230,
+              10
             ],
             "flags": {
               "collapsed": true
             },
-            "order": 12,
+            "order": 11,
             "mode": 0,
             "inputs": [
               {
@@ -2346,10 +2397,10 @@
             "id": 113,
             "title": "CMK Flow 40 FaceSwap Advanced",
             "bounding": [
-              705,
+              710,
               470,
-              2086.118930785124,
-              1179.7804752066118
+              2550,
+              1340
             ],
             "color": "#b58b2a",
             "flags": {}
@@ -2360,7 +2411,7 @@
             "id": 3,
             "origin_id": 5048,
             "origin_slot": 1,
-            "target_id": 5047,
+            "target_id": 5239,
             "target_slot": 1,
             "type": "IMAGE"
           },
@@ -2368,7 +2419,7 @@
             "id": 12,
             "origin_id": 5055,
             "origin_slot": 2,
-            "target_id": 5047,
+            "target_id": 5239,
             "target_slot": 0,
             "type": "IMAGE"
           },
@@ -2432,7 +2483,7 @@
             "id": 12068,
             "origin_id": -10,
             "origin_slot": 4,
-            "target_id": 5047,
+            "target_id": 5239,
             "target_slot": 3,
             "type": "BOOLEAN"
           },
@@ -2486,7 +2537,7 @@
           },
           {
             "id": 12078,
-            "origin_id": 5047,
+            "origin_id": 5239,
             "origin_slot": 2,
             "target_id": 5051,
             "target_slot": 1,
@@ -2550,7 +2601,7 @@
           },
           {
             "id": 12093,
-            "origin_id": 5047,
+            "origin_id": 5239,
             "origin_slot": 1,
             "target_id": 4937,
             "target_slot": 1,
@@ -2574,7 +2625,7 @@
           },
           {
             "id": 12256,
-            "origin_id": 5047,
+            "origin_id": 5239,
             "origin_slot": 3,
             "target_id": 5053,
             "target_slot": 0,
@@ -2672,7 +2723,7 @@
             "id": 12268,
             "origin_id": 5055,
             "origin_slot": 1,
-            "target_id": 5047,
+            "target_id": 5239,
             "target_slot": 2,
             "type": "CMK_PIPE"
           },

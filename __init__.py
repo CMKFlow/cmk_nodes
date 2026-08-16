@@ -17,9 +17,43 @@ from .cmk_mappings import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
 WEB_DIRECTORY = "./web"
 _SHOWCASE_WORKFLOWS = Path(__file__).resolve().parent / "workflows" / "showcase"
 _SHOWCASE_METADATA = _SHOWCASE_WORKFLOWS / "metadata"
+_REFERENCE_ASSETS = Path(__file__).resolve().parent / "assets" / "references"
+_PACKAGED_REFERENCES = {
+    f"CMK Package · {filename}": filename
+    for filename in (
+        "face_reference.png",
+        "faceswap_reference.png",
+        "inpaint_reference.png",
+        "remove_reference.png",
+    )
+}
 _VIDEO_WORKFLOW_TEMPLATE = _SHOWCASE_WORKFLOWS / "CMK FaceSwap Video.json"
 _PROJECT_WORKFLOW_NAME = "cmk_project_workflow.json"
 _PROJECT_METADATA_NAME = "cmk_video_project.json"
+
+
+@web.middleware
+async def _cmk_packaged_reference_view(request, handler):
+    """Let ComfyUI's native image widget preview a package-owned asset.
+
+    The normal /view handler is intentionally bypassed only for CMK's exact
+    virtual filename. No file is copied into ComfyUI's input directory.
+    """
+    if (
+        request.method == "GET"
+        and request.path.rstrip("/").endswith("/view")
+        and request.query.get("filename") in _PACKAGED_REFERENCES
+    ):
+        path = (_REFERENCE_ASSETS / _PACKAGED_REFERENCES[request.query["filename"]]).resolve()
+        if path.is_file():
+            return web.FileResponse(path)
+        raise web.HTTPNotFound(text="CMK reference asset not found")
+    return await handler(request)
+
+
+if not getattr(PromptServer.instance, "_cmk_reference_view_middleware", False):
+    PromptServer.instance.app.middlewares.append(_cmk_packaged_reference_view)
+    PromptServer.instance._cmk_reference_view_middleware = True
 
 
 def _video_storage_roots():
@@ -461,5 +495,18 @@ async def cmk_showcase_workflows(request):
         })
     entries.sort(key=lambda item: (item["order"], item["name"].casefold()))
     return web.json_response({"workflows": entries})
+
+
+@PromptServer.instance.routes.get("/cmk/reference-assets/{filename}")
+async def cmk_reference_asset(request):
+    filename = Path(request.match_info.get("filename", "")).name
+    path = (_REFERENCE_ASSETS / filename).resolve()
+    try:
+        path.relative_to(_REFERENCE_ASSETS.resolve())
+    except ValueError as error:
+        raise web.HTTPNotFound(text="CMK reference asset not found") from error
+    if not path.is_file():
+        raise web.HTTPNotFound(text="CMK reference asset not found")
+    return web.FileResponse(path)
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]

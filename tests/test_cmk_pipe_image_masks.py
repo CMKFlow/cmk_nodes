@@ -110,7 +110,7 @@ class CreateImageMaskTests(unittest.TestCase):
                 "PROMPT NEG": "",
                 "INPAINT_MODE": "Inpaint",
                 "model_family": "Z-Image Turbo",
-                "resolution": "512x512",
+                "resolution": "1024x1024",
                 "IMAGE": image,
                 "MASK": mask,
                 "FILENAME": "zit-inpaint.png",
@@ -122,8 +122,14 @@ class CreateImageMaskTests(unittest.TestCase):
         self.assertEqual(pipe["model_family"], "z_image_turbo")
         self.assertEqual(pipe["generation_mode"], "inpaint")
         self.assertTrue(pipe["boolean_inpaint_mode"])
-        self.assertEqual(tuple(pipe["mask"].shape), (1, 512, 512))
-        self.assertEqual(tuple(result[2].shape), (1, 512, 512, 3))
+        self.assertEqual(tuple(pipe["mask"].shape), (1, 1024, 1024))
+        self.assertEqual(tuple(result[2].shape), (1, 1024, 1024, 3))
+
+    def test_z_image_rejects_low_resolution_but_sdxl_keeps_it(self):
+        normalize = self.module.normalize_resolution_for_family
+        self.assertEqual(normalize("512x768", "z_image_turbo"), "1024x1024")
+        self.assertEqual(normalize("1344x768", "z_image_turbo"), "1344x768")
+        self.assertEqual(normalize("512x768", "sdxl"), "512x768")
 
     def test_visible_family_tabs_drive_backend_when_technical_widget_is_hidden(self):
         result = self.module.CMKPipeCreateImage().create_image(

@@ -106,6 +106,36 @@ class CMKFamilyBranchGateZImage(_CMKFamilyBranchGate):
     )
 
 
+_SDXL_SAMPLED_BOUNDARY_CACHE = {}
+_SDXL_SAMPLED_BOUNDARY_MAX = 8
+
+
+def _sampled_boundary_key(prompt, unique_id):
+    if not isinstance(prompt, dict):
+        return None
+    from .cmk_refiner_boundary_cache import (
+        _canonical_node,
+        _is_link,
+        _resolve_current_node,
+    )
+    import hashlib
+    import json
+
+    _, current = _resolve_current_node(prompt, unique_id)
+    if not isinstance(current, dict):
+        return None
+    sampled_link = (current.get("inputs", {}) or {}).get("SAMPLED")
+    if not _is_link(prompt, sampled_link):
+        return None
+    payload = {
+        "schema": "cmk_sdxl_sampled_boundary_v1",
+        "sampled": _canonical_node(prompt, sampled_link[0], {}, set()),
+        "output": int(sampled_link[1]),
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
 class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
     @classmethod
     def INPUT_TYPES(cls):
@@ -115,6 +145,10 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
                 "PROCESS": (cls.PROCESS_TYPE, {"lazy": True}),
                 "SAMPLED": ("CMK_SAMPLED_PIPE", {"lazy": True}),
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
+            },
+            "hidden": {
+                "prompt": "PROMPT",
+                "unique_id": "UNIQUE_ID",
             },
         }
 
@@ -126,10 +160,13 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
     RETURN_NAMES = ("MODEL", "SAMPLED", "LOG")
 
     @cmk_timed_call("LAZY SDXL SAMPLED GATE")
-    def check_lazy_status(self, PROCESS=None, **inputs):
+    def check_lazy_status(self, PROCESS=None, prompt=None, unique_id=None, **inputs):
         if PROCESS is None:
             return ["PROCESS"]
         if isinstance(PROCESS, dict) and not PROCESS.get("family_active", True):
+            return []
+        cache_key = _sampled_boundary_key(prompt, unique_id)
+        if cache_key in _SDXL_SAMPLED_BOUNDARY_CACHE:
             return []
         # Resolve converging branches one at a time. Requesting MODEL and
         # SAMPLED together lets ComfyUI open the shared sampler preparation
@@ -143,7 +180,7 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
             return ["LOG"]
         return []
 
-    def gate(self, PROCESS=None, **inputs):
+    def gate(self, PROCESS=None, prompt=None, unique_id=None, **inputs):
         if PROCESS is None or (
             isinstance(PROCESS, dict) and not PROCESS.get("family_active", True)
         ):
@@ -154,6 +191,12 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
         actual = str(PROCESS.get("model_family", "sdxl")).strip().lower()
         if actual != "sdxl":
             raise ValueError("CMK SDXL Sampler Branch Gate received the wrong model family")
+        cache_key = _sampled_boundary_key(prompt, unique_id)
+        if cache_key in _SDXL_SAMPLED_BOUNDARY_CACHE and any(
+            inputs.get(name) is None for name in ("MODEL", "SAMPLED", "LOG")
+        ):
+            model, sampled, log = _SDXL_SAMPLED_BOUNDARY_CACHE[cache_key]
+            return (model, sampled, log)
         missing = [
             name for name in ("MODEL", "SAMPLED", "LOG")
             if inputs.get(name) is None
@@ -162,9 +205,14 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
             raise ValueError(
                 "CMK SDXL Sampler Branch Gate is missing " + ", ".join(missing)
             )
-        return (
+        result = (
             inputs["MODEL"], inputs["SAMPLED"], inputs["LOG"],
         )
+        if cache_key:
+            _SDXL_SAMPLED_BOUNDARY_CACHE[cache_key] = result
+            while len(_SDXL_SAMPLED_BOUNDARY_CACHE) > _SDXL_SAMPLED_BOUNDARY_MAX:
+                _SDXL_SAMPLED_BOUNDARY_CACHE.pop(next(iter(_SDXL_SAMPLED_BOUNDARY_CACHE)))
+        return result
 
 
 class CMKSDXLResultBridgePipe:

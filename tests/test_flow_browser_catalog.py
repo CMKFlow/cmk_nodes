@@ -31,12 +31,15 @@ class FlowBrowserCatalogTests(unittest.TestCase):
         "CMK Text2Image SDXL + Detailer.json",
         "CMK Text2Image SDXL + FaceProcess.json",
         "CMK Text2Image SDXL + FaceSwap.json",
+        "CMK Text2Image SDXL + ZIT.json",
+        "CMK Text2Image SDXL + ZIT ControlNet.json",
         "CMK Text2Image SDXL ControlNet.json",
         "CMK Text2Image SDXL.json",
         "CMK Text2Image ZIT + FaceSwap.json",
         "CMK Text2Image ZIT ControlNet.json",
         "CMK Text2Image ZIT.json",
     }
+
 
     def test_reference_catalog_contains_only_confirmed_workflows(self):
         showcase = ROOT / "workflows" / "showcase"
@@ -127,12 +130,30 @@ class FlowBrowserCatalogTests(unittest.TestCase):
                 self.assertTrue(asset.is_file(), f"{node_name}: {preview['src']}")
                 self.assertGreater(asset.stat().st_size, 0)
 
+    def test_toolbox_catalog_previews_are_complete_and_existing(self):
+        metadata = json.loads(
+            (ROOT / "web" / "toolbox_node_metadata.json").read_text(encoding="utf-8")
+        )["nodes"]
+        preview_entries = {
+            node_name: entry["previews"]
+            for node_name, entry in metadata.items()
+            if entry.get("previews")
+        }
+        self.assertEqual(len(preview_entries), 38)
+        for node_name, previews in preview_entries.items():
+            with self.subTest(node_name=node_name):
+                for preview in previews:
+                    asset = ROOT / "web" / preview["src"]
+                    self.assertTrue(asset.is_file(), f"{node_name}: {preview['src']}")
+                    self.assertGreater(asset.stat().st_size, 0)
+
     def test_english_browser_localizes_preview_tab_labels(self):
         source = (ROOT / "web" / "js" / "cmk_flow_browser.js").read_text(
             encoding="utf-8"
         )
         self.assertIn('Modul: "Module"', source)
         self.assertIn('Aufbau: "Structure"', source)
+        self.assertIn('Wirkung: "Effect"', source)
         self.assertIn('`View ${index + 1}`', source)
 
         english = json.loads(

@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from pathlib import Path
 
 from ...utils.cmk_diagnostic import make_diagnostic_payload
 from ...pipe.cmk_log_pipe import cmk_add_block, cmk_bool
@@ -32,6 +33,20 @@ CONTROLNET_IMAGE_SOURCES = [
     "Reference Image",
 ]
 
+CMK_PACKAGED_CONTROLNET_REFERENCE = "CMK Package · controlnet_reference.png"
+_CMK_REFERENCE_ASSETS = Path(__file__).resolve().parents[2] / "assets" / "references"
+
+
+def _packaged_reference_path(filename):
+    if str(filename or "") != CMK_PACKAGED_CONTROLNET_REFERENCE:
+        return None
+    path = (_CMK_REFERENCE_ASSETS / "controlnet_reference.png").resolve()
+    try:
+        path.relative_to(_CMK_REFERENCE_ASSETS.resolve())
+    except ValueError:
+        return None
+    return path if path.is_file() else None
+
 
 def _get_input_files():
     """Return image files from ComfyUI's input directory.
@@ -44,7 +59,7 @@ def _get_input_files():
         import os
         import folder_paths
     except Exception:
-        return []
+        return [CMK_PACKAGED_CONTROLNET_REFERENCE]
 
     image_exts = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff"}
 
@@ -63,16 +78,17 @@ def _get_input_files():
                     full_path = os.path.join(root, filename)
                     rel_path = os.path.relpath(full_path, input_dir).replace(os.sep, "/")
                     files.append(rel_path)
-            return sorted(files, key=str.lower)
+            return [CMK_PACKAGED_CONTROLNET_REFERENCE] + sorted(files, key=str.lower)
         except Exception:
             pass
 
     try:
         files = folder_paths.get_filename_list("input")
-        return sorted(
+        files = sorted(
             [str(f) for f in files if os.path.splitext(str(f))[1].lower() in image_exts],
             key=str.lower,
         )
+        return [CMK_PACKAGED_CONTROLNET_REFERENCE] + files
     except Exception:
         return []
 
@@ -98,7 +114,8 @@ def _load_image_from_input(filename):
         return None
 
     try:
-        image_path = folder_paths.get_annotated_filepath(filename)
+        packaged_path = _packaged_reference_path(filename)
+        image_path = packaged_path or folder_paths.get_annotated_filepath(filename)
         img = Image.open(image_path)
     except Exception:
         return None

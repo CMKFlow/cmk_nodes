@@ -30,6 +30,8 @@ LEGACY_RESOLUTION_PRESETS = [
 ]
 RESOLUTION_PRESETS = NEUTRAL_RESOLUTION_PRESETS + LEGACY_RESOLUTION_PRESETS
 MODEL_FAMILIES = ["SDXL", "Z-Image Turbo"]
+ZIT_RESOLUTION_PRESETS = tuple(NEUTRAL_RESOLUTION_PRESETS[:7])
+ZIT_DEFAULT_RESOLUTION = "1024x1024"
 
 UPSCALE_METHODS = ["lanczos", "bicubic", "bilinear", "nearest"]
 RESIZE_MODES = ["Fit", "Crop", "Stretch"]
@@ -55,6 +57,14 @@ def parse_resolution(resolution, fallback_width=1024, fallback_height=1024):
         return int(left), int(right)
     except Exception:
         return fallback_width, fallback_height
+
+
+def normalize_resolution_for_family(resolution, model_family):
+    value = str(resolution or "").strip()
+    token = value.split()[-1] if value else ""
+    if model_family == "z_image_turbo":
+        return token if token in ZIT_RESOLUTION_PRESETS else ZIT_DEFAULT_RESOLUTION
+    return value or "SDXL 1152x832"
 
 
 def get_image_size(image):
@@ -781,7 +791,10 @@ class CMKPipeCreateImage:
             else str(raw_mode or "Text2Image").strip().lower() == "inpaint"
         )
         process_mode = inputs.get("process_mode", "Custom")
-        resolution = inputs.get("resolution", "SDXL 1152x832")
+        resolution = normalize_resolution_for_family(
+            inputs.get("resolution", "SDXL 1152x832"),
+            model_family,
+        )
         swap_dimensions = inputs.get("swap_dimensions", False)
         resize_mode = inputs.get("resize_mode", "Fit")
         crop_position = inputs.get("crop_position", "Center")

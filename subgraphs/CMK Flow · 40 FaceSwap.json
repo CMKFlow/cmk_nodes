@@ -1,21 +1,21 @@
 {
   "revision": 0,
-  "last_node_id": 5163,
+  "last_node_id": 5208,
   "last_link_id": 0,
   "nodes": [
     {
-      "id": 5163,
-      "type": "563c876b-c8d3-4395-b0ad-7324f7c9eeeb",
+      "id": 5208,
+      "type": "0d2869d7-3259-49ea-93e0-67ee46002590",
       "pos": [
-        23423.547158880145,
-        -5446.498130905768
+        9570,
+        -710
       ],
       "size": [
         600,
         1225
       ],
       "flags": {},
-      "order": 9,
+      "order": 1,
       "mode": 0,
       "inputs": [
         {
@@ -77,22 +77,22 @@
         {
           "name": "diagnostic",
           "type": "CMK_DIAGNOSTIC",
-          "links": null
+          "links": []
         }
       ],
       "properties": {
         "proxyWidgets": [
           [
-            "5062",
+            "5207",
             "GLOBAL ENABLE"
           ],
           [
-            "5065",
-            "compare_view"
+            "5207",
+            "QUALITY PROFILE"
           ],
           [
-            "5062",
-            "QUALITY PROFILE"
+            "5215",
+            "compare_view"
           ]
         ],
         "cmkOuterSize": [
@@ -112,12 +112,12 @@
   "definitions": {
     "subgraphs": [
       {
-        "id": "563c876b-c8d3-4395-b0ad-7324f7c9eeeb",
+        "id": "0d2869d7-3259-49ea-93e0-67ee46002590",
         "version": 1,
         "state": {
-          "lastGroupId": 114,
-          "lastNodeId": 5163,
-          "lastLinkId": 12370,
+          "lastGroupId": 119,
+          "lastNodeId": 5215,
+          "lastLinkId": 12635,
           "lastRerouteId": 0
         },
         "revision": 1,
@@ -269,10 +269,10 @@
         "widgets": [],
         "nodes": [
           {
-            "id": 5062,
+            "id": 5207,
             "type": "CMKFaceSwapImagePipe",
             "pos": [
-              715,
+              720,
               1060
             ],
             "size": [
@@ -280,7 +280,7 @@
               580
             ],
             "flags": {},
-            "order": 1,
+            "order": 5,
             "mode": 0,
             "showAdvanced": false,
             "inputs": [
@@ -481,7 +481,7 @@
               "Node name for S&R": "CMKFaceSwapImagePipe"
             },
             "widgets_values": [
-              false,
+              true,
               true,
               "inswapper_128.onnx",
               "buffalo_l",
@@ -502,7 +502,7 @@
             "id": 5063,
             "type": "CMKLoadImage",
             "pos": [
-              715,
+              720,
               540
             ],
             "size": [
@@ -574,7 +574,7 @@
               ]
             },
             "widgets_values": [
-              "black.png",
+              "CMK Package · faceswap_reference.png",
               "image"
             ],
             "shape": 1
@@ -583,17 +583,17 @@
             "id": 5064,
             "type": "CMKFaceSwapBoundaryCache",
             "pos": [
-              1933.036428486151,
-              1321.4632332457818
+              1930,
+              1320
             ],
             "size": [
-              225,
-              8
+              230,
+              10
             ],
             "flags": {
               "collapsed": true
             },
-            "order": 2,
+            "order": 1,
             "mode": 0,
             "inputs": [
               {
@@ -647,8 +647,8 @@
                 "name": "IMAGE",
                 "type": "IMAGE",
                 "links": [
-                  23,
-                  12066
+                  12633,
+                  12635
                 ]
               },
               {
@@ -666,70 +666,20 @@
             "shape": 1
           },
           {
-            "id": 5065,
-            "type": "ImageCompare",
-            "pos": [
-              1155,
-              540
-            ],
-            "size": [
-              730,
-              1100
-            ],
-            "flags": {
-              "collapsed": false
-            },
-            "order": 3,
-            "mode": 0,
-            "inputs": [
-              {
-                "localized_name": "image_a",
-                "name": "image_a",
-                "shape": 7,
-                "type": "IMAGE",
-                "link": 12066
-              },
-              {
-                "localized_name": "image_b",
-                "name": "image_b",
-                "shape": 7,
-                "type": "IMAGE",
-                "link": 12067
-              },
-              {
-                "localized_name": "compare_view",
-                "name": "compare_view",
-                "type": "IMAGECOMPARE",
-                "widget": {
-                  "name": "compare_view"
-                },
-                "link": null
-              }
-            ],
-            "outputs": [],
-            "properties": {
-              "Node name for S&R": "ImageCompare",
-              "comparer_mode": "Click",
-              "default_output": "b"
-            },
-            "widgets_values": [],
-            "shape": 1
-          },
-          {
             "id": 5066,
             "type": "CMKLogConcat",
             "pos": [
-              1933.2504327841452,
-              1165.7932883635785
+              1930,
+              1170
             ],
             "size": [
-              225,
-              8
+              230,
+              10
             ],
             "flags": {
               "collapsed": true
             },
-            "order": 4,
+            "order": 2,
             "mode": 0,
             "inputs": [
               {
@@ -985,17 +935,17 @@
             "id": 5080,
             "type": "CMKResultUnpackPipe",
             "pos": [
-              708.0110583810888,
-              456.52083830786376
+              710,
+              460
             ],
             "size": [
-              233.78125,
-              8
+              240,
+              10
             ],
             "flags": {
               "collapsed": true
             },
-            "order": 5,
+            "order": 3,
             "mode": 0,
             "inputs": [
               {
@@ -1050,7 +1000,7 @@
                 "type": "IMAGE",
                 "links": [
                   12,
-                  12067
+                  12634
                 ]
               },
               {
@@ -1071,17 +1021,17 @@
             "id": 5081,
             "type": "CMKResultPackPipe",
             "pos": [
-              1933.598326567972,
-              1503.6976430674945
+              1930,
+              1500
             ],
             "size": [
-              225,
-              8
+              230,
+              10
             ],
             "flags": {
               "collapsed": true
             },
-            "order": 6,
+            "order": 4,
             "mode": 0,
             "inputs": [
               {
@@ -1103,7 +1053,7 @@
                 "name": "IMAGE",
                 "shape": 7,
                 "type": "IMAGE",
-                "link": 23
+                "link": 12635
               },
               {
                 "localized_name": "LOG",
@@ -1151,6 +1101,56 @@
               "Node name for S&R": "CMKResultPackPipe"
             },
             "shape": 1
+          },
+          {
+            "id": 5215,
+            "type": "ImageCompare",
+            "pos": [
+              1160,
+              540
+            ],
+            "size": [
+              730,
+              1100
+            ],
+            "flags": {
+              "collapsed": false
+            },
+            "order": 6,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "image_a",
+                "name": "image_a",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 12633
+              },
+              {
+                "localized_name": "image_b",
+                "name": "image_b",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 12634
+              },
+              {
+                "localized_name": "compare_view",
+                "name": "compare_view",
+                "type": "IMAGECOMPARE",
+                "widget": {
+                  "name": "compare_view"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [],
+            "properties": {
+              "Node name for S&R": "ImageCompare",
+              "comparer_mode": "Click",
+              "default_output": "b"
+            },
+            "widgets_values": [],
+            "shape": 1
           }
         ],
         "groups": [
@@ -1158,7 +1158,7 @@
             "id": 112,
             "title": "CMK Flow 40 FaceSDwap",
             "bounding": [
-              705,
+              710,
               470,
               1190,
               1180
@@ -1172,7 +1172,7 @@
             "id": 3,
             "origin_id": 5063,
             "origin_slot": 1,
-            "target_id": 5062,
+            "target_id": 5207,
             "target_slot": 1,
             "type": "IMAGE"
           },
@@ -1180,7 +1180,7 @@
             "id": 12,
             "origin_id": 5080,
             "origin_slot": 2,
-            "target_id": 5062,
+            "target_id": 5207,
             "target_slot": 0,
             "type": "IMAGE"
           },
@@ -1188,13 +1188,13 @@
             "id": 16,
             "origin_id": -10,
             "origin_slot": 4,
-            "target_id": 5062,
+            "target_id": 5207,
             "target_slot": 3,
             "type": "BOOLEAN"
           },
           {
             "id": 19,
-            "origin_id": 5062,
+            "origin_id": 5207,
             "origin_slot": 0,
             "target_id": 5064,
             "target_slot": 2,
@@ -1217,14 +1217,6 @@
             "type": "CMK_PIPE"
           },
           {
-            "id": 23,
-            "origin_id": 5064,
-            "origin_slot": 2,
-            "target_id": 5081,
-            "target_slot": 2,
-            "type": "IMAGE"
-          },
-          {
             "id": 24,
             "origin_id": 5064,
             "origin_slot": 3,
@@ -1239,22 +1231,6 @@
             "target_id": 5064,
             "target_slot": 0,
             "type": "CMK_MODEL_PIPE"
-          },
-          {
-            "id": 12066,
-            "origin_id": 5064,
-            "origin_slot": 2,
-            "target_id": 5065,
-            "target_slot": 0,
-            "type": "IMAGE"
-          },
-          {
-            "id": 12067,
-            "origin_id": 5080,
-            "origin_slot": 2,
-            "target_id": 5065,
-            "target_slot": 1,
-            "type": "IMAGE"
           },
           {
             "id": 12068,
@@ -1274,7 +1250,7 @@
           },
           {
             "id": 12070,
-            "origin_id": 5062,
+            "origin_id": 5207,
             "origin_slot": 2,
             "target_id": 5066,
             "target_slot": 1,
@@ -1290,7 +1266,7 @@
           },
           {
             "id": 12251,
-            "origin_id": 5062,
+            "origin_id": 5207,
             "origin_slot": 3,
             "target_id": -20,
             "target_slot": 4,
@@ -1364,9 +1340,33 @@
             "id": 12298,
             "origin_id": 5080,
             "origin_slot": 1,
-            "target_id": 5062,
+            "target_id": 5207,
             "target_slot": 2,
             "type": "CMK_PIPE"
+          },
+          {
+            "id": 12633,
+            "origin_id": 5064,
+            "origin_slot": 2,
+            "target_id": 5215,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 12634,
+            "origin_id": 5080,
+            "origin_slot": 2,
+            "target_id": 5215,
+            "target_slot": 1,
+            "type": "IMAGE"
+          },
+          {
+            "id": 12635,
+            "origin_id": 5064,
+            "origin_slot": 2,
+            "target_id": 5081,
+            "target_slot": 2,
+            "type": "IMAGE"
           }
         ],
         "extra": {}

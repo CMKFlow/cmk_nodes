@@ -5,6 +5,7 @@ const EXTENSION_NAME = "CMK.FlowBrowser";
 const COMMAND_ID = "cmk.openFlowBrowser";
 const NODE_PACK = "custom_nodes.cmk_nodes";
 const ALLOWED_STATUS = new Set(["STABLE", "BETA", "EXPERIMENTAL"]);
+const PREVIEW_CACHE_VERSION = "20260816-reference-refresh-2";
 
 let browserDataPromise;
 let selectedId = null;
@@ -237,9 +238,18 @@ function normalizePreviews(metadata = {}) {
     .map((preview, index) => typeof preview === "string" ? { src: preview } : preview)
     .filter((preview) => preview?.src)
     .map((preview, index) => ({
-      src: `/extensions/cmk_nodes/${preview.src}`,
+      src: `/extensions/cmk_nodes/${preview.src}?v=${PREVIEW_CACHE_VERSION}`,
       label: language === "en"
-        ? ({ Modul: "Module", Aufbau: "Structure", Vorschau: "Preview" }[preview.label]
+        ? ({
+            Modul: "Module",
+            Aufbau: "Structure",
+            "Aufbau · Detail": "Structure · Detail",
+            "Aufbau · Restore": "Structure · Restore",
+            Vorschau: "Preview",
+            Standard: "Standard",
+            Advanced: "Advanced",
+            Wirkung: "Effect",
+          }[preview.label]
           || preview.label
           || `View ${index + 1}`)
         : (preview.label || `Ansicht ${index + 1}`),

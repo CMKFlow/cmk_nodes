@@ -50,23 +50,33 @@ class CMKRefinerPrepareSDXLPipe:
                 "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
                 "PROCESS": ("CMK_PROCESS_SDXL", {"lazy": True}),
                 "SAMPLED": ("CMK_SAMPLED_PIPE", {"lazy": True}),
-                "use_prompt_lora_from_sampler": ("BOOLEAN", {"default": False}),
+                "use_prompt_lora_from_sampler": ("BOOLEAN", {"default": True}),
+                "use_lora_from_1st_pass": ("BOOLEAN", {"default": False}),
                 "lora_name": (loras, {"default": default_lora}),
                 "strength_model": ("FLOAT", {"default": 1.00, "min": -20.0, "max": 20.0, "step": 0.01, "advanced": True}),
                 "strength_clip": ("FLOAT", {"default": 1.00, "min": -20.0, "max": 20.0, "step": 0.01, "advanced": True}),
-                "prompt_pos": ("STRING", {"default": "", "multiline": True}),
-                "prompt_neg": ("STRING", {"default": "", "multiline": True}),
                 "steps": ("INT", {"default": 25, "min": 1, "max": 200, "step": 1}),
                 "start_percent": ("FLOAT", {"default": 80.0, "min": 0.0, "max": 100.0, "step": 1.0, "advanced": True}),
                 "cfg": ("FLOAT", {"default": 4.8, "min": 0.0, "max": 30.0, "step": 0.1}),
-                "sampler": (SAMPLERS, {"default": "euler"} if "euler" in SAMPLERS else {}),
+                "sampler": (SAMPLERS, {
+                    **({"default": "euler"} if "euler" in SAMPLERS else {}),
+                    "advanced": True,
+                }),
                 "sampling": (SAMPLING_MODES, {"default": "lcm", "advanced": True}),
                 "zsnr": ("BOOLEAN", {"default": False, "advanced": True}),
                 "pag_scale": ("FLOAT", {"default": 2.50, "min": 0.0, "max": 20.0, "step": 0.05, "advanced": True}),
-                "scheduler": (SCHEDULERS, {"default": "simple"} if "simple" in SCHEDULERS else {}),
+                "scheduler": (SCHEDULERS, {
+                    **({"default": "simple"} if "simple" in SCHEDULERS else {}),
+                    "advanced": True,
+                }),
+                # Kept technical; the frontend migrates the brief split-version
+                # widget order without disturbing older saved workflows.
+                "use_1st_pass_sampling": ("BOOLEAN", {"default": True, "advanced": True}),
             },
             "optional": {
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
+                "prompt_pos_input": ("STRING", {"forceInput": True}),
+                "prompt_neg_input": ("STRING", {"forceInput": True}),
             },
         }
 
@@ -103,11 +113,10 @@ class CMKRefinerPrepareSDXLPipe:
         PROCESS,
         SAMPLED,
         use_prompt_lora_from_sampler,
+        use_lora_from_1st_pass,
         lora_name,
         strength_model,
         strength_clip,
-        prompt_pos,
-        prompt_neg,
         steps,
         start_percent,
         cfg,
@@ -116,7 +125,12 @@ class CMKRefinerPrepareSDXLPipe:
         zsnr,
         pag_scale,
         scheduler,
+        use_1st_pass_sampling=True,
         LOG=None,
+        prompt_pos_input=None,
+        prompt_neg_input=None,
+        prompt_pos="",
+        prompt_neg="",
     ):
         if not isinstance(MODEL, dict):
             raise TypeError("CMK Refiner Prepare SDXL -Pipe-: MODEL must be a CMK model pipe")
@@ -140,11 +154,19 @@ class CMKRefinerPrepareSDXLPipe:
         size_cond_factor = _int(SAMPLED.get("size_cond_factor", PROCESS.get("size_cond_factor")), 4)
 
         helper = CMKSamplerPrepareSDXLPipe()
-        use_sampler_context = bool(use_prompt_lora_from_sampler)
+        inherit_prompt = bool(use_prompt_lora_from_sampler)
+        inherit_lora = bool(use_lora_from_1st_pass)
+        local_prompt_pos = prompt_pos if prompt_pos_input is None else prompt_pos_input
+        local_prompt_neg = prompt_neg if prompt_neg_input is None else prompt_neg_input
 
-        if use_sampler_context:
+        if inherit_prompt:
             selected_prompt_pos = _clean_text(SAMPLED.get("prompt_pos", PROCESS.get("prompt_pos")), "")
             selected_prompt_neg = _clean_text(SAMPLED.get("prompt_neg", PROCESS.get("prompt_neg")), "")
+        else:
+            selected_prompt_pos = _clean_text(local_prompt_pos, "")
+            selected_prompt_neg = _clean_text(local_prompt_neg, "")
+
+        if inherit_lora:
             lora_syntax = _clean_text(
                 SAMPLED.get("lora_syntax", SAMPLED.get("active_loras", PROCESS.get("lora_syntax", PROCESS.get("active_loras")))),
                 "",
@@ -155,8 +177,6 @@ class CMKRefinerPrepareSDXLPipe:
             )
             local_lora = ""
         else:
-            selected_prompt_pos = _clean_text(prompt_pos, "")
-            selected_prompt_neg = _clean_text(prompt_neg, "")
             model, clip, local_lora = helper._apply_single_lora(
                 model,
                 clip,
@@ -185,6 +205,13 @@ class CMKRefinerPrepareSDXLPipe:
         start_pct = min(100.0, max(0.0, _float(start_percent, 80.0)))
         start_at_step = int(refiner_steps * start_pct / 100.0)
         end_at_step = refiner_steps
+        inherit_sampling = bool(use_1st_pass_sampling)
+        selected_sampler = (
+            str(SAMPLED.get("sampler", sampler)) if inherit_sampling else str(sampler)
+        )
+        selected_scheduler = (
+            str(SAMPLED.get("scheduler", scheduler)) if inherit_sampling else str(scheduler)
+        )
 
         refiner_pipe = dict(SAMPLED)
         refiner_pipe.update({
@@ -193,23 +220,27 @@ class CMKRefinerPrepareSDXLPipe:
             "refiner_model": model,
             "refiner_clip": clip,
             "refiner_vae": vae,
+            "refiner_vae_source": "refiner",
             "refiner_conditioning_pos": conditioning_pos,
             "refiner_conditioning_neg": conditioning_neg,
             "refiner_latent_image": latent,
             "refiner_seed": _int(SAMPLED.get("seed", PROCESS.get("seed")), 0),
             "refiner_steps": refiner_steps,
             "refiner_cfg": _float(cfg, 4.8),
-            "refiner_sampler": sampler,
-            "refiner_scheduler": scheduler,
+            "refiner_sampler": selected_sampler,
+            "refiner_scheduler": selected_scheduler,
+            "refiner_use_1st_pass_sampling": inherit_sampling,
             "refiner_start_percent": start_pct,
             "refiner_start_at_step": start_at_step,
             "refiner_end_at_step": end_at_step,
             "refiner_prompt_pos": selected_prompt_pos,
             "refiner_prompt_neg": selected_prompt_neg,
-            "refiner_use_prompt_lora_from_sampler": use_sampler_context,
+            "refiner_use_prompt_lora_from_sampler": inherit_prompt and inherit_lora,
+            "refiner_use_prompt_from_1st_pass": inherit_prompt,
+            "refiner_use_lora_from_1st_pass": inherit_lora,
             "refiner_active_loras": _clean_text(
                 SAMPLED.get("lora_syntax", SAMPLED.get("active_loras")), ""
-            ) if use_sampler_context else local_lora,
+            ) if inherit_lora else local_lora,
             "refiner_lora_stack": lora_stack,
             "refiner_loaded_loras": loaded_loras,
         })
@@ -218,12 +249,14 @@ class CMKRefinerPrepareSDXLPipe:
             "CMK Refiner Prepare SDXL -Pipe- | "
             f"checkpoint={MODEL.get('ckpt_name', '')} | vae={MODEL.get('vae_name', '')} | "
             f"{width}x{height} | steps={refiner_steps} | cfg={_float(cfg, 4.8)} | "
-            f"sampler={sampler} | scheduler={scheduler} | start={start_pct:.1f}% | "
-            f"prompt_lora_from_sampler={use_sampler_context}"
+            f"sampler={selected_sampler} | scheduler={selected_scheduler} | start={start_pct:.1f}% | "
+            f"sampling_from_1st_pass={inherit_sampling} | "
+            f"prompt_from_1st_pass={inherit_prompt} | lora_from_1st_pass={inherit_lora}"
         )
         refiner_pipe["refiner_prepare_log"] = details
 
-        source_label = "SOURCE" if use_sampler_context else "LOCAL"
+        prompt_source_label = "1ST PASS" if inherit_prompt else "LOCAL"
+        lora_source_label = "1ST PASS" if inherit_lora else "LOCAL"
         log_lines = [
             "STATUS          : PREPARED",
             "MODEL SOURCE    : MODEL",
@@ -232,14 +265,16 @@ class CMKRefinerPrepareSDXLPipe:
             f"SIZE            : {width} × {height}",
             f"STEPS           : {refiner_steps}",
             f"CFG             : {_float(cfg, 4.8)}",
-            f"SAMPLER         : {sampler}",
-            f"SCHEDULER       : {scheduler}",
+            f"SAMPLER         : {selected_sampler}",
+            f"SCHEDULER       : {selected_scheduler}",
+            f"SAMPLING SOURCE : {'1ST PASS' if inherit_sampling else 'LOCAL'}",
             f"REFINER START   : {start_pct:.1f}%",
-            f"PROMPT SOURCE   : {source_label}",
-            f"LORA SOURCE     : {source_label}",
+            f"PROMPT SOURCE   : {prompt_source_label}",
+            f"LORA SOURCE     : {lora_source_label}",
         ]
-        if not use_sampler_context:
+        if not inherit_lora:
             log_lines.extend(["", "LOCAL LORAS:", cmk_format_loras(local_lora)])
+        if not inherit_prompt:
             if selected_prompt_pos:
                 log_lines.extend(["", "POSITIVE PROMPT:", selected_prompt_pos])
             if selected_prompt_neg:
@@ -255,8 +290,11 @@ class CMKRefinerPrepareSDXLPipe:
             metadata={
                 "checkpoint": MODEL.get("ckpt_name", ""),
                 "vae": MODEL.get("vae_name", ""),
-                "sampler": sampler,
-                "scheduler": scheduler,
+                "sampler": selected_sampler,
+                "scheduler": selected_scheduler,
+                "sampling_source": "1st_pass" if inherit_sampling else "local",
+                "prompt_source": "1st_pass" if inherit_prompt else "local",
+                "lora_source": "1st_pass" if inherit_lora else "local",
                 "seed": refiner_pipe["refiner_seed"],
             },
         )

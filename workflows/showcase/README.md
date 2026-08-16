@@ -11,5 +11,10 @@ Technical module references and standalone test workflows remain in `workflows/r
 
 Each published workflow needs a same-named sidecar file in `metadata/`. The sidecar controls its browser name, order, bilingual descriptions, CMK-specific highlight, and preview images. A workflow appears only when its sidecar contains `"published": true`.
 
+Reference inputs that are required to reproduce a workflow belong in the CMK
+package under `assets/references/`. Workflows select these assets through their
+`CMK Package · …` entry; CMK reads and previews them in place and never copies
+them into the user's ComfyUI input directory.
+
 `CMK FaceSwap Video.json` is maintained separately because its persistent video
 project contract requires dedicated migration and compatibility checks.

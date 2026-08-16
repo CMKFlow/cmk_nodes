@@ -1,16 +1,20 @@
 {
   "nodes": {
     "CMKLogCreate": {
-      "description": "Erzeugt eine leere CMK-Protokollleitung als Ausgangspunkt für strukturierte Ablaufmeldungen."
+      "description": "Erzeugt eine leere CMK-Protokollleitung als Ausgangspunkt für strukturierte Ablaufmeldungen.",
+      "previews": [{ "src": "assets/toolbox/log-create.png", "label": "Node" }]
     },
     "CMKLogSetBlock": {
-      "description": "Fügt einer CMK-Protokollleitung einen benannten und sortierbaren Textblock hinzu."
+      "description": "Fügt einer CMK-Protokollleitung einen benannten und sortierbaren Textblock hinzu.",
+      "previews": [{ "src": "assets/toolbox/log-set-block.png", "label": "Node" }]
     },
     "CMKLogConcat": {
-      "description": "Führt bis zu 32 Protokollblöcke in einer bestehenden CMK-Protokollleitung zusammen."
+      "description": "Führt bis zu 32 Protokollblöcke in einer bestehenden CMK-Protokollleitung zusammen.",
+      "previews": [{ "src": "assets/toolbox/log-concat.png", "label": "Node" }]
     },
     "CMKLogExportText": {
-      "description": "Sortiert eine CMK-Protokollleitung und gibt ihren vollständigen Inhalt als lesbaren Text aus."
+      "description": "Sortiert eine CMK-Protokollleitung und gibt ihren vollständigen Inhalt als lesbaren Text aus.",
+      "previews": [{ "src": "assets/toolbox/log-export-text.png", "label": "Node" }]
     },
     "CMKPreviewRender": {
       "description": "Macht aus einer einzelnen CMK-Diagnose eine vollständige visuelle Ablaufdarstellung mit Zwischenbildern, Beschriftungen und den entscheidenden Einstellungen.",
@@ -34,6 +38,7 @@
       "description": "Verbindet bis zu 32 CMK-Diagnosen zu einer einzigen strukturierten Diagnose. Jeder Eingang wird vollständig in Anschlussreihenfolge angefügt und kann an Preview Render, Summary oder Preview Board weitergegeben werden.",
       "highlight": "Bündelt den visuellen Werdegang eines modularen CMK Flow ohne Auswahl oder Umordnung: Eingang 1 vollständig, danach Eingang 2 vollständig und so weiter.",
       "highlight_en": "Bundles the visual history of a modular CMK Flow without selection or reordering: input 1 in full, followed by input 2 in full, and so on.",
+      "previews": [{ "src": "assets/toolbox/diagnostic-concat.png", "label": "Node" }],
       "special": true
     },
     "CMKSummary": {
@@ -46,19 +51,99 @@
       "special": true
     },
     "CMK_ImageMetrics": {
-      "description": "Ermittelt Abmessungen, Batch-Größe und Kanalzahl eines Bildes und stellt die Werte zusätzlich als CMK-Diagnose bereit."
+      "description": "Ermittelt Abmessungen, Batch-Größe und Kanalzahl eines Bildes und stellt die Werte zusätzlich als CMK-Diagnose bereit.",
+      "previews": [{ "src": "assets/toolbox/image-metrics.png", "label": "Node" }]
     },
     "CMK_ImageQuickMetrics": {
-      "description": "Zeigt die wichtigsten Bild- und Tensorwerte direkt in der Node an und reicht das Bild unverändert weiter."
+      "description": "Zeigt die wichtigsten Bild- und Tensorwerte direkt in der Node an und reicht das Bild unverändert weiter.",
+      "previews": [{ "src": "assets/toolbox/image-quickmetrics.png", "label": "Node" }]
     },
     "CMK_VideoMetrics": {
-      "description": "Ermittelt technische Kennwerte eines Videos und stellt sie für Diagnose und Protokollierung bereit."
+      "description": "Ermittelt technische Kennwerte eines Videos und stellt sie für Diagnose und Protokollierung bereit.",
+      "previews": [{ "src": "assets/toolbox/video-metrics.png", "label": "Node" }]
     },
     "CMK_VideoQuickMetrics": {
-      "description": "Zeigt die wichtigsten technischen Videowerte unmittelbar in der Node an."
+      "description": "Zeigt die wichtigsten technischen Videowerte unmittelbar in der Node an.",
+      "previews": [{ "src": "assets/toolbox/video-quickmetrics.png", "label": "Node" }]
     },
     "CMKVideoCompare": {
-      "description": "Vergleicht Video- oder Segmentdaten und bereitet die ermittelten Unterschiede für Diagnose und Protokollierung auf."
+      "description": "Vergleicht Video- oder Segmentdaten und bereitet die ermittelten Unterschiede für Diagnose und Protokollierung auf.",
+      "previews": [{ "src": "assets/toolbox/video-compare.png", "label": "Node" }]
+    },
+    "CMKCheckpointVAELoader": {
+      "previews": [{ "src": "assets/toolbox/checkpoint-vae-loader.png", "label": "Node" }]
+    },
+    "CMKControlNetPrepare": {
+      "previews": [{ "src": "assets/toolbox/controlnet-prepare.png", "label": "Node" }]
+    },
+    "CMK_EmptyImageMask": {
+      "previews": [{ "src": "assets/toolbox/empty-image-mask.png", "label": "Node" }]
+    },
+    "CMKFaceCrop": {
+      "previews": [{ "src": "assets/toolbox/face-crop.png", "label": "Node" }]
+    },
+    "CMKFaceMask": {
+      "previews": [{ "src": "assets/toolbox/face-mask.png", "label": "Node" }]
+    },
+    "CMKFaceRestore": {
+      "previews": [{ "src": "assets/toolbox/face-restore.png", "label": "Node" }]
+    },
+    "CMKFaceSelect": {
+      "previews": [{ "src": "assets/toolbox/face-select.png", "label": "Node" }]
+    },
+    "CMK_FaceProcess": {
+      "previews": [{ "src": "assets/toolbox/face-process.png", "label": "Node" }]
+    },
+    "CMKFaceSwapImage": {
+      "previews": [{ "src": "assets/toolbox/faceswap-image.png", "label": "Node" }]
+    },
+    "CMKFaceSwapVideo": {
+      "previews": [{ "src": "assets/toolbox/faceswap-video.png", "label": "Node" }]
+    },
+    "CMKFaceSwapVideoLoader": {
+      "previews": [{ "src": "assets/toolbox/faceswap-video-loader.png", "label": "Node" }]
+    },
+    "CMK_FilenameBase": {
+      "previews": [{ "src": "assets/toolbox/filename-base.png", "label": "Node" }]
+    },
+    "CMK_ImageMaskSwitch": {
+      "previews": [{ "src": "assets/toolbox/image-mask-switch.png", "label": "Node" }]
+    },
+    "CMKLoRAStackBuilder": {
+      "previews": [{ "src": "assets/toolbox/lora-stack-builder.png", "label": "Node" }]
+    },
+    "CMKLoRATextLoader": {
+      "previews": [{ "src": "assets/toolbox/lora-text-loader.png", "label": "Node" }]
+    },
+    "CMKMergeAndSaveVideo": {
+      "previews": [{ "src": "assets/toolbox/merge-save-video.png", "label": "Node" }]
+    },
+    "CMKStringDual": {
+      "previews": [{ "src": "assets/toolbox/positive-negative-text.png", "label": "Node" }]
+    },
+    "CMK_SEGSConcate": {
+      "previews": [{ "src": "assets/toolbox/segs-concat.png", "label": "Node" }]
+    },
+    "CMK_SaveProjectText": {
+      "previews": [{ "src": "assets/toolbox/save-project-text.png", "label": "Node" }]
+    },
+    "CMK_SaveProjectVideo": {
+      "previews": [{ "src": "assets/toolbox/save-project-video.png", "label": "Node" }]
+    },
+    "CMK_SmartDetailer": {
+      "previews": [{ "src": "assets/toolbox/smart-detailer.png", "label": "Node" }]
+    },
+    "CMK_SmartOutpaintPad": {
+      "previews": [{ "src": "assets/toolbox/smart-outpaint-pad.png", "label": "Node" }]
+    },
+    "CMK_SmartUpscaler": {
+      "previews": [{ "src": "assets/toolbox/smart-upscaler.png", "label": "Node" }]
+    },
+    "CMK_SourcePathInfo": {
+      "previews": [{ "src": "assets/toolbox/source-path-info.png", "label": "Node" }]
+    },
+    "CMKSplitVideoIntoSegments": {
+      "previews": [{ "src": "assets/toolbox/split-video-segments.png", "label": "Node" }]
     }
   }
 }

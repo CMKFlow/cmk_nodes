@@ -70,7 +70,11 @@ const NEUTRAL_IMAGE_SIZES = [
     "768x512",
     "512x768",
 ];
-const ZIT_INPAINT_DEFAULT_SIZE = "768x512";
+const ZIT_IMAGE_SIZES = NEUTRAL_IMAGE_SIZES.slice(0, 7);
+const FAMILY_DEFAULT_IMAGE_SIZE = {
+    "SDXL": "1152x832",
+    "Z-Image Turbo": "1024x1024",
+};
 const Z_IMAGE_HIDDEN_WIDGETS = new Set([
     "PROMPT NEG",
     "upscale_method",
@@ -251,8 +255,10 @@ function installModelFamilyTabs(node) {
 
     buttons.forEach((button, index) => {
         button.addEventListener("click", () => {
+            rememberFamilyResolution(node, root._cmkValue);
             root._cmkValue = choices[index];
             original.value = root._cmkValue;
+            restoreFamilyResolution(node, root._cmkValue);
             render();
             try { original.callback?.(root._cmkValue, node, original); } catch (_) {}
             try { node.onWidgetChanged?.("model_family", root._cmkValue, original, original); } catch (_) {}
@@ -277,6 +283,36 @@ function isZImage(node) {
         .includes("z-image");
 }
 
+function resolutionToken(value, fallback = "") {
+    return String(value ?? fallback).trim().split(/\s+/).at(-1);
+}
+
+function familyResolutionValues(family) {
+    return family === "Z-Image Turbo" ? ZIT_IMAGE_SIZES : NEUTRAL_IMAGE_SIZES;
+}
+
+function rememberFamilyResolution(node, family) {
+    const resolution = getWidget(node, "resolution");
+    if (!resolution) return;
+    node._cmkResolutionByFamily ??= {};
+    node._cmkResolutionByFamily[family] = resolutionToken(
+        resolution.value,
+        FAMILY_DEFAULT_IMAGE_SIZE[family],
+    );
+}
+
+function restoreFamilyResolution(node, family) {
+    const resolution = getWidget(node, "resolution");
+    if (!resolution) return;
+    const values = familyResolutionValues(family);
+    node._cmkResolutionByFamily ??= {};
+    const remembered = node._cmkResolutionByFamily[family];
+    resolution.value = values.includes(remembered)
+        ? remembered
+        : FAMILY_DEFAULT_IMAGE_SIZE[family];
+    resolution.options = { ...(resolution.options ?? {}), values };
+}
+
 function rebuildModeWidgets(node, force = false) {
     const state = captureWidgets(node);
     if (state.rebuilding) return;
@@ -292,18 +328,6 @@ function rebuildModeWidgets(node, force = false) {
             flowModeWidget.label = mode === "z-image-inpaint"
                 ? "MODE · INPAINT EXPERIMENTAL"
                 : "MODE";
-        }
-        const resolutionWidget = state.widgetsByName.get("resolution");
-        if (
-            mode === "z-image-inpaint"
-            && state.visibleMode !== mode
-            && resolutionWidget
-            && String(resolutionWidget.value ?? "").trim() === "1152x832"
-        ) {
-            // 1152x832 is the shared generic default. ZIT Inpaint additionally
-            // loads the 6.3 GB Union 2.1 patch, so use the proven safe baseline
-            // when entering this mode. Explicit alternative sizes are retained.
-            resolutionWidget.value = ZIT_INPAINT_DEFAULT_SIZE;
         }
         const resizeMode = String(
             state.widgetsByName.get("resize_mode")?.value ?? "Fit"
@@ -402,12 +426,21 @@ function configure(node) {
 
     const resolution = getWidget(node, "resolution");
     if (resolution) {
-        const sizeToken = String(resolution.value ?? "1152x832").trim().split(/\s+/).at(-1);
-        resolution.value = NEUTRAL_IMAGE_SIZES.includes(sizeToken) ? sizeToken : "1152x832";
+        const family = isZImage(node) ? "Z-Image Turbo" : "SDXL";
+        const values = familyResolutionValues(family);
+        const sizeToken = resolutionToken(
+            resolution.value,
+            FAMILY_DEFAULT_IMAGE_SIZE[family],
+        );
+        resolution.value = values.includes(sizeToken)
+            ? sizeToken
+            : FAMILY_DEFAULT_IMAGE_SIZE[family];
         resolution.options = {
             ...(resolution.options ?? {}),
-            values: NEUTRAL_IMAGE_SIZES,
+            values,
         };
+        node._cmkResolutionByFamily ??= {};
+        node._cmkResolutionByFamily[family] = resolution.value;
     }
 
     const upscaleMethod = getWidget(node, "upscale_method");
