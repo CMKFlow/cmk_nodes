@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import torch
+from types import SimpleNamespace
 
 from .detector_engine import get_face_analyser
 from .enhance_backends import GFPGANEnhancerBackend, get_enhancer_backend
@@ -64,6 +65,7 @@ class RestoreFaceAdvanced:
         reverse_order=False,
         take_start=0,
         take_count=1,
+        selected_face=None,
     ):
         del codeformer_weight, facedetection
         if not isinstance(image, torch.Tensor) or image.ndim != 4:
@@ -76,15 +78,23 @@ class RestoreFaceAdvanced:
         for item in image:
             original = tensor_to_uint8_rgb(item)
             result = original.copy()
-            faces = analyser.get(original)
-            selected = _select_faces(
-                faces,
-                face_selection,
-                sort_by,
-                reverse_order,
-                take_start,
-                take_count,
-            )
+            if isinstance(selected_face, dict):
+                payload = selected_face.get("face", selected_face)
+                selected = [SimpleNamespace(
+                    bbox=np.asarray(payload.get("bbox", [0, 0, 0, 0]), dtype=np.float32),
+                    kps=np.asarray(payload.get("kps", []), dtype=np.float32),
+                    det_score=float(payload.get("score", payload.get("det_score", 0.0)) or 0.0),
+                )]
+            else:
+                faces = analyser.get(original)
+                selected = _select_faces(
+                    faces,
+                    face_selection,
+                    sort_by,
+                    reverse_order,
+                    take_start,
+                    take_count,
+                )
             for face in selected:
                 try:
                     from insightface.utils import face_align
@@ -112,4 +122,7 @@ class RestoreFaceAdvanced:
                     255,
                 ).astype(np.uint8)
             outputs.append(uint8_rgb_to_tensor(result))
-        return (torch.cat(outputs, dim=0),)
+        # uint8_rgb_to_tensor returns one image as [H,W,C]. ComfyUI IMAGE
+        # requires a real batch [B,H,W,C], so the image tensors must be
+        # stacked instead of concatenated along their height axis.
+        return (torch.stack(outputs, dim=0),)

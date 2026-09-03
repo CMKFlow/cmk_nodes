@@ -1,3 +1,294 @@
+# 2026-08-17 — InstantID-Sampler SDXL begonnen
+
+- `15 CMK InstantID-Sampler SDXL` erreicht nach bestätigten Läufen mit freier
+  Samplerwahl den Status `STABLE` und die Modulversion `1.0.0`.
+- `15 CMK InstantID-Sampler SDXL` übernimmt das vorhandene Layout-Latent und
+  reicht MODEL, PROCESS, das finale SAMPLED, LOG und Diagnostic weiter.
+- Das Source Face wird intern wie bei Modul 40 gewählt. Das dekodierte
+  Layout-Latent liefert `image_kps` und bleibt zugleich Start-Latent des finalen
+  InstantID-Samplers.
+- Identity- und Pose-Stärke sind getrennt regelbar. ContentGuard ist in dieser
+  Entwicklungsstufe absichtlich noch nicht Bestandteil des Moduls.
+- Der finale InstantID-Pass besitzt eigene Sampler- und Scheduler-Einstellungen
+  (`euler_ancestral` / `karras`) und erbt insbesondere nicht den für den kurzen
+  Layout-Pass verwendeten `lcm`-Scheduler.
+- Modul 20 besitzt einen echten Lazy-Bypass: Bei deaktiviertem Refiner werden
+  Refiner-Checkpoint, Refiner-VAE, Conditioning und Sampling nicht angefordert.
+  Das finale SAMPLED-Latent wird einmal mit dem Basis-VAE dekodiert und als
+  reguläres Ergebnis an die folgenden Module weitergegeben.
+- InstantID übernimmt den vollständigen visuellen Modellzustand aus Modul 10.
+  Ein kontrollierter Lauf mit dem nackten Checkpoint-Modell reduzierte zwar die
+  Laufzeit, entfernte aber zugleich LoRA- und Qualitäts-Patches und verursachte
+  eine deutliche sichtbare Qualitätsregression.
+- Modul 20 übernimmt bei aktivierter Sampling-Vererbung nun auch die finale
+  Schrittzahl aus SAMPLED; das lokale Steps-Feld gilt nur bei lokaler Vorgabe.
+- Das lokale Refiner-Steps-Widget wird im Advanced-Bereich vollständig
+  ausgeblendet, solange `use_1st_pass_sampling` aktiv ist.
+- Modul 15 bietet für kontrollierte Vergleiche `InstantID reference` als
+  Conditioning-Modus: unverändertes Checkpoint-CLIP plus natives
+  `CLIPTextEncode`, ohne CLIP-Layer -2 und ohne SDXL-Spezialencoding. Modell,
+  Layout-Latent und CMK-Qualitätspatches bleiben dabei unverändert.
+- Modul 10 transportiert zusätzlich `model_identity`: LoRAs und FreeU bleiben
+  erhalten, während PAG und der layout-spezifische LCM-ModelSampling-Patch
+  ausgeschlossen werden. Modul 15 bevorzugt diesen Zustand, damit PAG und
+  InstantID nicht gleichzeitig die Attention des finalen Passes patchen.
+- Der Identity-Zweig übernimmt nur Source-LoRAs. Die lokale
+  `Hyper-SDXL-1step`-LoRA bleibt auf den vierstufigen Layout-Pass begrenzt und
+  beeinflusst nicht mehr das normale 20-Schritt-InstantID-Sampling.
+- Die für den Generator benötigten Apache-2.0-Komponenten aus
+  `cubiq/ComfyUI_InstantID` werden mit Attribution in CMK Nodes migriert. Eine
+  spätere CMK-Installation benötigt deshalb keine separate InstantID-Custom-
+  Node; nur die großen Modellgewichte bleiben ein separater Download.
+- Die vorübergehend separat installierte Upstream-Node dient ausschließlich als
+  Testreferenz für Migration und Ergebnisvergleich.
+
+# 2026-08-11 — Bestätigter Release-Stand und ComfyUI-Kompatibilität
+
+- Der veröffentlichte Funktionsstand ist vollständig mit ComfyUI 0.28.2 und
+  comfyui-frontend-package 1.45.21 bestätigt.
+- Unter ComfyUI 0.31.1 mit Frontend 1.48.7 bleiben Live- und Endvorschauen auf
+  äußeren Subgraph-Nodes teilweise leer. Ausführung, Bildtransport,
+  Speicherung und Ergebnisse sind davon nicht betroffen.
+- Experimentelle CMK-Workarounds für die geänderte Preview-Behandlung wurden
+  wieder entfernt. Die Anpassung an neuere ComfyUI-Versionen bleibt bis zu
+  einem Upstream-Update und einer erneuten Kompatibilitätsprüfung vorübergehend
+  im Stand-by.
+
+# 2026-08-08 — Experimentelles ZIT-Inpaint eingefroren
+
+- Die elf im User-Verzeichnis geprüften Flow-Subgraphen wurden als neue
+  Paketfassungen übernommen und vollständig als veröffentlichte Flow-Browser-
+  Einträge registriert. Beim Import werden die kuratierten Katalogmetadaten
+  bewahrt und gespeicherte Port-Slots gegen die tatsächlichen Node-Schnittstellen
+  normalisiert.
+- Der Reiter `Flow` verwendet die aktuellen Screenshots für alle elf
+  Subgraphen. Zusätzlich wurden die Customnode-Vorschauen für 01, beide
+  ControlNet-Familien, 35, Checkpoint & VAE, Image Input, Load Image,
+  FaceSwap Image Input und Save Project Image ersetzt beziehungsweise ergänzt.
+- Family Gates transportieren ausschließlich die autoritativen Familienwerte
+  MODEL / IMAGE beziehungsweise SAMPLED / LOG. PROCESS wird als leichtes
+  Steuersignal nur am Eingang gelesen und ausschließlich über die kanonischen
+  Forward-/Boundary-Pfade öffentlich ausgegeben; der irreführende unbenutzte
+  PROCESS-Ausgang der Dev-Gates wurde entfernt. Die öffentlichen
+  `diagnostic`-Ausgänge werden direkt aus den vollständigen Diagnostic-Quellen
+  gespeist. Dadurch bleiben sämtliche Stufen erhalten und das spätere Anzeigen
+  eines Diagnostics kann den teuren Samplerpfad nicht erneut über den Gate
+  expandieren.
+- Der dadurch ebenfalls funktionslose Gate-Eingang `RESULT PROCESS` wurde
+  entfernt. ZIT führt seinen berechneten PROCESS weiterhin ausschließlich über
+  den dafür vorgesehenen `CMK Z-Image Process Forward` zum öffentlichen Port.
+- Family Gates und der Refiner Boundary Cache folgen wieder dem verbindlichen
+  CMK-Schnittstellenvertrag `MODEL / PROCESS / IMAGE beziehungsweise SAMPLED /
+  LOG`. Die Runtime fordert PROCESS weiterhin zuerst lazy an, ohne dessen
+  sichtbaren Port an die erste Stelle zu verschieben.
+- Result Unpack, Result Pack, FaceSwap Boundary und Save Project lösen die
+  technische Optionalität des Modells intern. Ihre sichtbare und gespeicherte
+  Reihenfolge bleibt deshalb ebenfalls kanonisch; bei 40 und 90 lautet sie
+  `MODEL (opt) / PROCESS / IMAGE / LOG`. Alle Link-Slots entsprechen dieser
+  Schnittstelle.
+- Das Preview Board bewahrt beim erneuten Laden eines Workflows nun neben der
+  manuellen Breite auch die manuell gesetzte Höhe. Die dynamische
+  Input-Normalisierung darf beide Dimensionen nur noch vergrößern.
+- `CMK Flow · Checkpoint & VAE` benennt seinen Ausgang eindeutig als
+  `MODEL SDXL`. `CMK Flow · Image Input` übernimmt ihn optional und reicht ihn
+  am regulären Ausgang `MODEL` unverändert weiter. Dadurch besteht der schlanke
+  Standalone-Aufbau aus Checkpoint, Image Input und 25/30 ohne `01 START HERE`.
+- Der nur für diese Standalone-Verarbeitung benötigte Image-Input-Anschluss ist
+  sichtbar als `MODEL SDXL (opt)` gekennzeichnet.
+- Ohne angeschlossenen Checkpoint erzeugt Image Input keinen künstlichen
+  MODEL-Ersatz. 40 FaceSwap und 90 Upscale & Save akzeptieren den vollständigen
+  `family_neutral/image`-Pfad über PROCESS / IMAGE / LOG mit optionalem MODEL.
+  Der frühere sichtbare Typ `CMK_PIXEL_MODEL` entfällt.
+- Der PROCESS-Ausgang von Image Input bleibt bewusst als `CMK_PROCESS_SDXL`
+  typisiert. Die sichtbaren Ausgänge folgen
+  `MODEL / PROCESS / IMAGE / LOG / diagnostic`.
+- `01 START HERE` zeigt bei `Remove Object` die noise-gefüllte Maske in der
+  Node-Vorschau, während der authoritative IMAGE-Ausgang weiterhin das
+  unveränderte Kontextbild und PROCESS weiterhin die echte Maske transportiert.
+- Die Refiner-Boundary materialisiert MODEL und LOG vor den beiden
+  Refiner-Bildern. Damit kann das Refiner-LOG den bereits ausgeführten
+  SDXL-First-Pass nach dem Modellwechsel nicht erneut öffnen.
+- Der FaceSwap ContentGuard bewertet Alter rollenabhängig: Source weiterhin
+  konservativ ab 25, Target ab 18. Minderjährige, fehlende und ungültige
+  Alterswerte bleiben fail-closed; die neue Guard-Version invalidiert alte
+  Video-Swap-Caches.
+- `05 ControlNet ZIT` reicht das authoritative IMAGE unverändert an `10 ZIT`
+  weiter. Damit bleibt auch ZIT-Inpaint hinter dem optionalen ControlNet-Modul
+  eine vollständig lineare `PROCESS / IMAGE / LOG`-Kette.
+- `10 KSampler Z-Image Turbo` unterstützt einen allgemeinen maskierten
+  Inpaint-Pfad über `InpaintModelConditioning` und den Union-2.1-Modellpatch.
+- ZIT-Inpaint ist in UI, Diagnose und Flow-Metadaten eindeutig als
+  `EXPERIMENTAL` gekennzeichnet. Aufgabenbezogene Inpaint-Modi sind nicht
+  implementiert.
+- 768x512 dient beim Wechsel vom generischen Größenstandard zu ZIT-Inpaint als
+  speichersichere Ausgangsgröße; ausdrückliche Alternativen bleiben erhalten.
+- Der technisch bestätigte Stand wird aufgrund sehr hoher Speicher- und
+  Laufzeitanforderungen vorerst ohne weitere Qualitätsoptimierung eingefroren.
+
+## 2026-08-01 — Mechanische Trennung der Modellfamilien
+
+- `01 START HERE` besitzt nun die inkompatiblen Ausgänge `PROCESS SDXL` und
+  `PROCESS Z-IMAGE`; nur der in 01 gewählte Familienausgang liefert einen
+  Prozesswert.
+- Die technischen Verträge `CMK_PROCESS_SDXL` und
+  `CMK_PROCESS_Z_IMAGE` verhindern Kreuzverkabelungen bereits im Editor.
+- `05 ControlNet SDXL`, `10 KSampler SDXL 1st Pass`, `20 Refiner SDXL`,
+  `25 Detailer SDXL` und `30 FaceProcess SDXL` sind einschließlich ihrer
+  internen Übergabeknoten an den SDXL-Vertrag gebunden und eindeutig benannt.
+- `10 KSampler Z-Image Turbo` akzeptiert und exportiert ausschließlich den
+  Z-Image-Vertrag.
+- `CMK Flow · 35 Active Family Result` übernimmt lazy genau die in 01 gewählte
+  Vierergruppe `MODEL / PROCESS / IMAGE / LOG`; der inaktive Familienzweig
+  wird nicht angefordert.
+- `40 FaceSwap` und `90 Upscale & Save` sind die einzigen gemeinsam genutzten,
+  familienneutralen Verarbeitungsmodule. Ein einzelner Familienzweig darf sie
+  direkt speisen; nur parallele SDXL-/ZIT-Aufbauten benötigen zuvor 35.
+- Die frühere Nummerierung wurde der tatsächlichen Reihenfolge angepasst:
+  Detailer wechselte von 30 auf 25, FaceProcess von 50 auf 30.
+
+## 2026-07-29 — Aspect-ratio-safe Create Image / Extend Image
+
+- Began the native Z-Image Turbo path. `Create Image` now stores an explicit
+  SDXL/Z-Image model family and exposes adjacent family tabs; Z-Image currently
+  presents a Text2Image-only interface with the established neutral size list.
+- Added a combined ComfyUI-Core Z-Image loader for diffusion model, Lumina2
+  text encoder and VAE.
+- Added Z-Image Turbo sampler preparation using CLIP text encoding,
+  `ConditioningZeroOut`, `EmptySD3LatentImage` and
+  `ModelSamplingAuraFlow`, plus a minimal VAE decode/finalize node that rejoins
+  the common IMAGE post-processing flow.
+
+- `CMK Flow · 01 START HERE · Create Image` supports `Fit`, `Crop` and explicit
+  legacy-style `Stretch`, plus `Center`, `Top`, `Bottom`, `Left` and `Right`
+  positioning.
+- Image and input mask now use the same resize/crop/placement geometry.
+- `Fit` exposes uncovered target-canvas pixels as a generated mask.
+  `Extend Image` merges that mask with an optional transformed input mask, so
+  it can run as an outpainting workflow without a separately prepared canvas.
+- Active outpainting now expands its mask 32 pixels into the source image by
+  default. The configurable overlap removes the hard transition caused by a
+  mask beginning exactly at the former canvas edge.
+- Synthetic outpaint fills now cross-fade inside that overlap while the full
+  generation mask remains active. This specifically removes the persistent
+  seam produced by a binary `noise` fill boundary.
+- `outpaint_overlap` is available as a technical Advanced parameter.
+- `Create Image` now displays the final image from its existing diagnostic
+  timeline directly as a native preview on the executed node.
+- The inline preview no longer adds a diagnostic title frame.
+- Public Create Image controls and sockets use user-facing uppercase labels;
+  lowercase technical labels are reserved for Advanced controls.
+- Added the connection-only `opt_prompt_pos` input. Non-empty content is
+  appended after `PROMPT POS`.
+- `CMK Flow · 02 LoRA Stack` no longer accepts the redundant `txt_pos` input.
+  Its internal `CMK Prompt Concatenate` node was removed; filtered LoRA trigger
+  words now feed the existing prompt output directly.
+- Public prompt and LoRA connections now describe their destination:
+  `ACTIVE LORAS` carries LoRA metadata and `ADDITIONAL PROMPT` carries
+  filtered trigger words. Internal contract names remain unchanged.
+- The published Text2Image, Inpaint, ControlNet and Full Flow showcase
+  workflows were refreshed from the validated user workflows to use the
+  updated Create Image and LoRA Stack contracts.
+
+## 2026-07-26 — Strukturierte Diagnostic-Timeline
+
+- `CMK Diagnostic Concat` verbindet bis zu 32 lokale
+  `CMK_DIAGNOSTIC`-Ausgaben zu einer einzigen chronologischen Diagnose.
+  Jeder Eingang wird als vollständiger, eigenständiger Diagnoseblock und ohne
+  inhaltliche Auswahl in der Anschlussreihenfolge angefügt. Zwischenbilder,
+  Stufen, Modulnamen, Zusammenfassungen und Warnungen bleiben ihrem jeweiligen
+  Prozess eindeutig zugeordnet; das Ergebnis kann an `CMK Preview Render`,
+  `CMK Summary` oder `CMK Preview Board` weitergegeben werden.
+- Die Diagnostic-Eingänge der Concat-Node werden wie beim Preview Board
+  dynamisch ergänzt, sodass umfangreiche modulare Flows mit nur den tatsächlich
+  benötigten Anschlüssen dargestellt werden.
+
+## 2026-07-25 — Freie Flow-Kombination und aufgabenbezogenes Inpainting
+
+- Browser-Screenshots, Showcase-Workflows und der überarbeitete Subgraph
+  `90 Upscale & Save` wurden aus dem abschließenden Testzyklus aktualisiert.
+- Die automatische Projektstruktur vermeidet nun doppelte Modusordner wie
+  `Text2Image/Text2Image` oder `Inpaint/Inpaint`, falls ein älterer Workflow
+  den automatisch ergänzten Modus noch in `OUTPUT FOLDER` gespeichert hat.
+- `CMK Flow · 01 START HERE · Create Image` besitzt nun die optionalen Eingänge
+  `PROCESS` und `LOG`. Vorhandene Prozessmetadaten werden übernommen und durch
+  den maßgeblichen Create-Image-Zustand aktualisiert; bestehende Log-Blöcke
+  bleiben erhalten und werden um die Bildvorbereitung ergänzt.
+- Die Größenwiederherstellung für CMK Image Compare greift nur noch bei
+  Modulen mit einem tatsächlich gerenderten Compare-Viewport. Subgraphen ohne
+  Bildvergleich – etwa `02 LoRA Stack` – behalten wieder ComfyUIs nativ
+  gespeicherte, manuell angepasste Größe.
+- Die in `Text2Image` verborgenen Inpaint-Einstellungen `outpaint_on`,
+  `mask_fill_holes`, `fill_masked_area` und `process_mode` sind im Promptvertrag
+  optional. Der Backend-Pfad verwendet beim Ausblenden dieselben Defaults,
+  statt die Ausführung wegen fehlender, fachlich irrelevanter Eingaben
+  abzulehnen.
+- `CMK Flow · 30 FaceProcess SDXL` und seine Advanced-Variante führen nun
+  `MODEL`, `PROCESS`, `IMAGE` und `LOG` vollständig über den verpflichtenden
+  Boundary weiter. Der persistente Cache bleibt auf berechnetes Bild und Log
+  beschränkt; Modell- und Prozess-Pipes werden read-only durchgereicht.
+- `CMK Flow · 90 Upscale & Save` akzeptiert und liefert denselben vollständigen
+  Transportvertrag. Alle eingebetteten Definitionen in Subgraphen,
+  Referenzworkflows und Showcases wurden mitsamt gespeicherten Portpositionen
+  migriert.
+- `CMK Save Project Image -Pipe-` speichert unter
+  `OUTPUT FOLDER / Text2Image|Inpaint / optionales Datum / optionales PROJECT FOLDER`.
+  Der Modus stammt aus `PROCESS`; alle Pfadkomponenten bleiben sicher unterhalb
+  von ComfyUIs Output-Verzeichnis.
+- `CMK Flow · 01 START HERE · Create Image` bündelt Inpaint-Aktivierung,
+  Aufgabenwahl (`custom`, `replace`, `remove`, `extend`) und den bestehenden
+  positiven Prompt an einem fachlich eindeutigen Ort.
+- Der frühere Schalter `INPAINT_MODE` ist sichtbar als Dropdown `MODE` mit
+  `Text2Image` als Standard und `Inpaint` ausgeführt. `Text2Image` blendet
+  sämtliche Inpaint-spezifischen Einstellungen dynamisch aus; bestehende
+  Boolean-Werte werden beim Laden kompatibel migriert.
+- Der Flow-Browser beschreibt `01 START HERE · Create Image` jetzt als
+  zentralen Einstieg für Text2Image und Inpaint einschließlich dynamischem
+  MODE, geführten Aufgaben, LaMa-Removal und tatsächlicher Diagnostic-Füllung.
+- Der Diagnostic-Ausgang von `01 START HERE` zeigt bei Inpainting neben dem
+  skalierten Ausgangsbild nun das tatsächlich weitergereichte Bild mit der
+  gewählten Maskenfüllung statt lediglich die Schwarz-Weiß-Maske.
+- `PROCESS MODE` erklärt die Wirkung des aktiven Presets unmittelbar über
+  `MODE INFO`; der Tooltip dokumentiert zusätzlich die technisch gesetzten
+  Werte und stellt klar, dass die Modi keine semantische Objekterkennung sind.
+- `CMK Sampler Prepare SDXL -Pipe-` liest die Aufgabenwahl aus `PROCESS` und
+  beschränkt seine Oberfläche auf die technischen Advanced-Steuerungen für
+  `denoise`, Noise-Mask und Context Reference.
+- `fill_masked_area` ist jetzt funktional: `original`, `neutral`, `lama`, `telea`,
+  `navier-stokes`, `black`, `white` und reproduzierbares `noise` werden vor
+  der Inpaint-Latent-Erzeugung tatsächlich angewandt.
+- Die geführten Inpaint-Modi liefern vollständige Aufgabenprofile:
+  `replace` bereitet mit deterministischem Rauschen, `denoise 1.00`, aktiver
+  Noise Mask und Context Reference neuen Inhalt vor, deaktiviert Outpaint und
+  behält Anwender-Prompt sowie LoRAs bei; `remove`
+  rekonstruiert die Maske lokal und promptfrei mit LaMa. KSampler und Refiner
+  sowie bestehende Anwender-Prompts, Source- und lokale LoRAs werden dabei
+  bewusst umgangen und diese Isolation bereits im Diagnostic ausgewiesen.
+  `extend` setzt die Umgebung mittels Navier-Stokes fort. Die zugehörigen
+  Werte für Denoise, Noise-Mask und Context Reference werden automatisch
+  gesetzt und über `MODE INFO` sowie Tooltip erklärt.
+
+## 2026-07-20 — ControlNet-Parameter und konsistente Flow-Darstellung
+
+- `CMK Flow · 05 ControlNet (optional)` zeigt die technischen Advanced-Parameter wieder klein als `start_percent` und `end_percent` im verständlichen Bereich `0–100`; intern werden sie weiterhin auf ComfyUIs Bereich `0.0–1.0` normiert.
+- Bestehende gespeicherte Fraction-Werte werden beim Laden einmalig in Prozentwerte migriert. Neue Defaults sind `STRENGTH = 1.50`, `start_percent = 0` und `end_percent = 30`.
+- Der kanonische Subgraph `30 Detailer · Advanced` und sein Referenzworkflow verwenden nun die einheitliche persistente Außenfläche `600 × 1225`. Dieser Standard ist in den Design Guidelines dokumentiert.
+- `CMK Flow · Checkpoint & VAE` verwendet für neue Nodes bevorzugt `juggernautXL_ragnarok.safetensors`, sofern das Modell installiert ist. Der Flow Browser enthält den aktualisierten Aufbau-Screenshot unter einem neuen cache-sicheren Asset-Namen.
+
+## 2026-07-19 — Verpflichtender lokaler FaceSwap ContentGuard
+
+- Alle öffentlichen CMK-FaceSwap-Pfade prüfen Quell- und Zielbilder vor der Verarbeitung; der Videopfad prüft jedes Ziel-Frame.
+- Explizite Inhalte, geschätzte Minderjährigkeit, unsichere Altersschätzungen unter 25 sowie fehlende oder fehlerhafte Schutzmodelle brechen fail-closed ab.
+- Der Guard besitzt keine öffentliche Umgehungsoption. Deaktivierte FaceSwap-Nodes bleiben unveränderte Pass-through-Pfade.
+- Video-Caches tragen die ContentGuard-Version in ihrer Signatur. Bei einem Guard-Abbruch werden alle im aktuellen Lauf neu erzeugten Swap-Segmente verworfen.
+- NudeNet läuft lokal für die Erkennung expliziter Inhalte; InsightFace liefert die lokale Altersschätzung.
+- Guard-Abbrüche erscheinen für Anwender knapp als `ContentGuard activated — FaceSwap aborted`; der neutrale Diagnosecode bleibt für die Fehlersuche erhalten.
+
+## 2026-07-19 — Image Input ohne verzerrtes Standard-Resize
+
+- `CMK Flow · Image Input` zeigt `CROP` und `CROP POSITION` wieder direkt in der normalen Node-Oberfläche.
+- Neue Nodes starten mit aktivem, seitenverhältnistreuem Crop; `center`, `top`, `bottom`, `left` und `right` steuern die Verankerung des erhaltenen Bildausschnitts.
+- Bereits gespeicherte Nodes behalten ihren gespeicherten Crop-Wert und können einmalig auf `ON` gestellt werden.
+
 ## 2026-07-19 — Native Installation ohne fremde Custom Nodes
 
 - CMK Flow registriert sich in einer leeren ComfyUI-Installation ohne Impact Pack, Impact Subpack, ReActor oder AIO Aux Preprocessors.
@@ -25,9 +316,9 @@
 - FaceSwap Standard und Advanced nach erfolgreichem Praxistest von `BETA` auf `STABLE` gesetzt. Browser-Texte beschreiben die zentrale Modulaktivierung und die getrennten FaceSwap-Zweige für bis zu drei Zielpersonen nun anwenderorientierter.
 - Detailer nach derselben Produktlogik getrennt: `CMK Flow · 30 Detailer` enthält einen Smart-Detailer mit direktem `IMAGE PROCEED`-Weg; `CMK Flow · 30 Detailer · Advanced` übernimmt den funktionalen Doppelzweig aus Flow v3 und führt beide `SEGS PROCEED` gemeinsam zusammen. Advanced besitzt eine eigene UUID und erscheint nur als Variante des Haupteintrags. Beide neu geschnittenen Fassungen bleiben bis zum Praxistest `BETA`.
 - Detailer Standard und Advanced haben den Standalone-Praxistest bestanden und wurden als getestete User-Subgraphen übernommen. Standard verwendet einen Segment-Detailer; Advanced kombiniert Hand- und Personen-Detailer. Beide stehen nun auf `STABLE`, behalten ihre kanonischen UUIDs, enthalten keine internen Pins und besitzen reale, getrennte Aufbau-Screenshots.
-- FaceProcess analog getrennt: `50 FaceProcess` besitzt einen Execute-Zweig mit direktem `IMAGE PROCEED`; `50 FaceProcess · Advanced` besitzt zwei getrennt ausgewählte Gesichts-Zweige mit gemeinsamer `SEGS PROCESSED`-Zusammenführung und eigener UUID. Beide beginnen bis zum Standalone-Test als `BETA`. Die Modulnummern wurden als verbindlicher Bestandteil von Namen und Suche dokumentiert.
-- Die getesteten User-Fassungen von `50 FaceProcess` und `50 FaceProcess · Advanced` übernommen. Advanced wurde kongruent zu `40 FaceSwap · Advanced` auf drei Zweige für `Leftmost`, `Center` und `Rightmost` erweitert; der mittlere Zweig startet deaktiviert. Beide Varianten haben ihre Standalone-Tests bestanden, stehen auf `STABLE`, behalten ihre kanonischen UUIDs und besitzen reale Aufbau-Screenshots.
-- Der neue Standard-Aufbau-Screenshot von `50 FaceProcess` verwendet einen eindeutigen Asset-Namen, damit ComfyUI nicht die frühere Grafik aus dem Browsercache anzeigt.
+- FaceProcess analog getrennt: `30 FaceProcess SDXL` besitzt einen Execute-Zweig mit direktem `IMAGE PROCEED`; `30 FaceProcess SDXL · Advanced` besitzt zwei getrennt ausgewählte Gesichts-Zweige mit gemeinsamer `SEGS PROCESSED`-Zusammenführung und eigener UUID. Beide beginnen bis zum Standalone-Test als `BETA`. Die Modulnummern wurden als verbindlicher Bestandteil von Namen und Suche dokumentiert.
+- Die getesteten User-Fassungen von `30 FaceProcess SDXL` und `30 FaceProcess SDXL · Advanced` übernommen. Advanced wurde kongruent zu `40 FaceSwap · Advanced` auf drei Zweige für `Leftmost`, `Center` und `Rightmost` erweitert; der mittlere Zweig startet deaktiviert. Beide Varianten haben ihre Standalone-Tests bestanden, stehen auf `STABLE`, behalten ihre kanonischen UUIDs und besitzen reale Aufbau-Screenshots.
+- Der neue Standard-Aufbau-Screenshot von `30 FaceProcess SDXL` verwendet einen eindeutigen Asset-Namen, damit ComfyUI nicht die frühere Grafik aus dem Browsercache anzeigt.
 - Auch der neue Standard-Aufbau-Screenshot von `30 Detailer` verwendet einen eindeutigen Asset-Namen und kann dadurch nicht mehr mit der früheren Grafik aus dem Browsercache verwechselt werden.
 
 ## 2026-07-17 — ControlNet-Bildauswahl

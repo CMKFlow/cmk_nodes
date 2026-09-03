@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import torch.nn.functional as F
+
+from .cmk_final_preview import send_final_preview
+from ..utils.cmk_timing import cmk_timed
+from ..utils.cmk_sampling_warnings import ignore_torchsde_boundary_rounding
+
 
 class CMKRefinerPipe:
     """Execute the prepared refiner and return comparison and refined images."""
@@ -23,6 +29,24 @@ class CMKRefinerPipe:
     def run(self, REFINER):
         if REFINER is None:
             raise ValueError("CMK Refiner -Pipe-: REFINER is missing")
+        if REFINER.get("inpaint_process_mode") == "remove":
+            remove_image = REFINER.get("remove_result_image")
+            if remove_image is not None:
+                send_final_preview(remove_image)
+                return (remove_image, remove_image)
+
+        if REFINER.get("refiner_prepare_bypassed") or not REFINER.get("refiner_global_enable", True):
+            latent = self._required(REFINER, "refiner_latent_image")
+            vae = self._required(REFINER, "refiner_vae")
+            try:
+                from nodes import VAEDecode
+            except Exception as exc:
+                raise RuntimeError(f"CMK Refiner -Pipe-: VAE Decode unavailable: {exc}") from exc
+            with cmk_timed("20 REFINER BYPASS VAE DECODE", "base VAE | sampling skipped"):
+                decoded = VAEDecode().decode(vae, latent)
+            image = decoded[0] if isinstance(decoded, (tuple, list)) else decoded
+            send_final_preview(image)
+            return (image, image)
 
         model = self._required(REFINER, "refiner_model")
         positive = self._required(REFINER, "refiner_conditioning_pos")
@@ -43,27 +67,64 @@ class CMKRefinerPipe:
         except Exception as exc:
             raise RuntimeError(f"CMK Refiner -Pipe-: required ComfyUI nodes unavailable: {exc}") from exc
 
-        source_decoded = VAEDecode().decode(vae, latent)
-        source_image = source_decoded[0] if isinstance(source_decoded, (tuple, list)) else source_decoded
+        source_image = REFINER.get("refiner_source_image")
+        if source_image is None:
+            with cmk_timed("20 REFINER SOURCE VAE DECODE"):
+                source_decoded = VAEDecode().decode(vae, latent)
+            source_image = source_decoded[0] if isinstance(source_decoded, (tuple, list)) else source_decoded
+        if REFINER.get("inpaint_process_mode") == "remove":
+            # Preserve the prompt-free first-pass reconstruction and composite
+            # only its soft generation area over the untouched source. This
+            # prevents a synthetic mask fill from surviving at the hand-drawn
+            # edge while retaining the original colour outside the mask.
+            original = REFINER.get("inpaint_source_image")
+            mask = REFINER.get("mask")
+            if original is not None and mask is not None:
+                if original.shape[1:3] != source_image.shape[1:3]:
+                    original = F.interpolate(
+                        original.movedim(-1, 1),
+                        size=source_image.shape[1:3],
+                        mode="bilinear",
+                        align_corners=False,
+                    ).movedim(1, -1)
+                if mask.ndim == 2:
+                    mask = mask.unsqueeze(0)
+                if mask.ndim == 4:
+                    mask = mask[:, 0] if mask.shape[1] == 1 else mask[..., 0]
+                soft = F.interpolate(
+                    mask.float().unsqueeze(1),
+                    size=source_image.shape[1:3],
+                    mode="bilinear",
+                    align_corners=False,
+                ).squeeze(1).clamp(0.0, 1.0).unsqueeze(-1)
+                source_image = source_image * soft + original.to(source_image) * (1.0 - soft)
+            # A second diffusion pass with unrelated Refiner prompts can
+            # recreate the object that Remove deliberately discarded.
+            send_final_preview(source_image)
+            return (source_image, source_image)
 
-        sampled = KSamplerAdvanced().sample(
-            model,
-            "enable",
-            seed,
-            steps,
-            cfg,
-            sampler,
-            scheduler,
-            positive,
-            negative,
-            latent,
-            start_at_step,
-            end_at_step,
-            "disable",
-        )
+        with cmk_timed("20 REFINER SAMPLE", f"steps {start_at_step}-{end_at_step}"):
+            with ignore_torchsde_boundary_rounding():
+                sampled = KSamplerAdvanced().sample(
+                    model,
+                    "enable",
+                    seed,
+                    steps,
+                    cfg,
+                    sampler,
+                    scheduler,
+                    positive,
+                    negative,
+                    latent,
+                    start_at_step,
+                    end_at_step,
+                    "disable",
+                )
         samples = sampled[0] if isinstance(sampled, (tuple, list)) else sampled
 
-        decoded = VAEDecode().decode(vae, samples)
+        with cmk_timed("20 REFINER RESULT VAE DECODE"):
+            decoded = VAEDecode().decode(vae, samples)
         refined_image = decoded[0] if isinstance(decoded, (tuple, list)) else decoded
 
+        send_final_preview(refined_image)
         return (source_image, refined_image)

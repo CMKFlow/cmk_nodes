@@ -11,7 +11,11 @@ const STANDARD_LABELS = {
     bbox_threshold: "BBOX THRESHOLD",
     crop_factor: "CROP FACTOR",
     guide_size: "GUIDE SIZE",
-    denoise: "DENOISE",
+    denoise: "SAMPLING ENTRY AT %",
+};
+
+const STANDARD_TOOLTIPS = {
+    denoise: "Later entry preserves the original content; earlier entry rebuilds it more strongly. 80% corresponds to the former denoise value 0.20.",
 };
 
 function isTarget(node) {
@@ -28,6 +32,18 @@ function configure(node) {
     for (const widget of node.widgets) {
         const label = STANDARD_LABELS[widget?.name];
         if (label) widget.label = label;
+        const tooltip = STANDARD_TOOLTIPS[widget?.name];
+        if (tooltip) {
+            widget.tooltip = tooltip;
+            widget.options ??= {};
+            widget.options.tooltip = tooltip;
+        }
+        if (widget?.name === "denoise") {
+            const value = Number(widget.value);
+            if (Number.isFinite(value) && value >= 0 && value <= 1) {
+                widget.value = Math.round((100 - value * 100) * 100) / 100;
+            }
+        }
     }
     node.widgets = [...node.widgets];
     node.setDirtyCanvas?.(true, true);

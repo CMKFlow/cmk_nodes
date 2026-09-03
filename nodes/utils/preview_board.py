@@ -3,7 +3,12 @@ from __future__ import annotations
 import numpy as np
 import torch
 
-from ...utils.comfy_preview_output import combine_preview_panels, render_preview_panel, save_preview_png, ui_images
+from ...utils.comfy_preview_output import (
+    combine_preview_panels,
+    render_preview_board_panels,
+    save_preview_png,
+    ui_images,
+)
 from ...utils.preview_payload import normalize_diagnostic_payload, preview_summary
 
 
@@ -60,7 +65,7 @@ class CMKPreviewBoard:
         summaries = []
         for idx, p in enumerate(diagnostics, start=1):
             data = normalize_diagnostic_payload(p)
-            panels.append(render_preview_panel(data, caption=render_caption))
+            panels.extend(render_preview_board_panels(data, caption=render_caption))
             summaries.append(f"[{idx}] {preview_summary(data)}")
 
         board = combine_preview_panels(panels)

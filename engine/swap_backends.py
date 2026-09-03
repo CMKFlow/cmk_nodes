@@ -9,6 +9,7 @@ import numpy as np
 from ..models.model_manager import resolve_swap_model
 from .pasteback import pasteback_native
 from .enhance_backends import get_enhancer_backend, validate_enhancer_mode
+from .swap_model_adapters import HyperSwapModel, ReswapperModel
 
 MIN_CROP_FACTOR = 1.0
 MAX_CROP_FACTOR = 3.0
@@ -22,6 +23,7 @@ class BackendSwapSettings:
     crop_factor: float = 1.0
     feather: int = 0
     identity_strength: float = 1.0
+    enhancer_strength: float = 1.0
 
 
 class FaceSwapBackend(Protocol):
@@ -50,6 +52,11 @@ def _get_inswapper(swap_model: str):
         ) from exc
 
     model_path = resolve_swap_model(swap_model)
+    lowered = str(swap_model).lower()
+    if "hyperswap" in lowered:
+        return HyperSwapModel(model_path, _providers())
+    if "reswapper" in lowered:
+        return ReswapperModel(model_path, _providers())
     return model_zoo.get_model(model_path, providers=_providers())
 
 
@@ -76,6 +83,8 @@ def _identity_latent(swapper, source_face, strength: float) -> np.ndarray:
 def _get_aligned_swap(swapper, target_rgb: np.ndarray, target_face, source_face, strength: float):
     """Run aligned INSwapper inference with a weighted identity latent."""
     strength = min(1.5, max(0.5, float(strength)))
+    if isinstance(swapper, HyperSwapModel):
+        return swapper.get(target_rgb.copy(), target_face, source_face, paste_back=False)
     if abs(strength - 1.0) < 1e-6:
         return swapper.get(target_rgb.copy(), target_face, source_face, paste_back=False)
 
@@ -149,6 +158,14 @@ class INSwapperBackend:
             ) from exc
 
         enhanced_result = np.clip(enhanced_result, 0, 255).astype(np.uint8)
+        enhancer_strength = min(1.0, max(0.0, float(settings.enhancer_strength)))
+        if enhancer_strength < 1.0:
+            enhanced_result = np.clip(
+                aligned_result.astype(np.float32) * (1.0 - enhancer_strength)
+                + enhanced_result.astype(np.float32) * enhancer_strength,
+                0,
+                255,
+            ).astype(np.uint8)
         if enhanced_result.shape != aligned_result.shape:
             try:
                 import cv2

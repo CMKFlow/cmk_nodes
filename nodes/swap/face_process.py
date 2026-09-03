@@ -63,6 +63,17 @@ def _normalize_refine_mode(value):
     return _REFINE_ALIASES.get(key.lower(), "Off")
 
 
+def _sampling_entry_to_denoise(value):
+    """Accept the percentage UI and the legacy direct-denoise representation."""
+    try:
+        result = float(value)
+    except (TypeError, ValueError):
+        result = 50.0
+    if result > 1.0:
+        result = (100.0 - result) / 100.0
+    return clamp_detailer_denoise(result)
+
+
 def _face_detector_rank(name):
     """Rank detector names for face workflows. Lower is better."""
     text = str(name or "").lower()
@@ -141,7 +152,17 @@ class CMK_FaceProcess:
                 "detail_guide_size": ("FLOAT", {"default": 512, "min": 64, "max": 8192, "step": 8}),
                 "detail_guide_size_for": ("BOOLEAN", {"default": True, "label_on": "bbox", "label_off": "crop_region"}),
                 "detail_max_size": ("FLOAT", {"default": 768, "min": 64, "max": 8192, "step": 8}),
-                "detail_denoise": ("FLOAT", {"default": 0.5, "min": 0.0001, "max": 0.5, "step": 0.01}),
+                "detail_denoise": ("FLOAT", {
+                    "default": 80.0,
+                    "min": 50.0,
+                    "max": 100.0,
+                    "step": 1.0,
+                    "round": 1.0,
+                    "tooltip": (
+                        "Sampling entry in percent. Later entry preserves the original "
+                        "face; earlier entry rebuilds it more strongly."
+                    ),
+                }),
                 "detail_noise_mask": ("BOOLEAN", {"default": True, "label_on": "enabled", "label_off": "disabled"}),
                 "detail_force_inpaint": ("BOOLEAN", {"default": True, "label_on": "enabled", "label_off": "disabled"}),
                 "detail_paste_feather": ("INT", {"default": 20, "min": 0, "max": 200, "step": 1}),
@@ -879,7 +900,7 @@ class CMK_FaceProcess:
         detail_guide_size=512,
         detail_guide_size_for=True,
         detail_max_size=768,
-        detail_denoise=0.5,
+        detail_denoise=80.0,
         detail_noise_mask=True,
         detail_force_inpaint=True,
         detail_paste_feather=20,
@@ -887,6 +908,7 @@ class CMK_FaceProcess:
         legacy_off = _is_legacy_off_mode(process_mode)
         process_mode = _normalize_process_mode(process_mode)
         refine_mode = _normalize_refine_mode(refine_mode)
+        detail_denoise = _sampling_entry_to_denoise(detail_denoise)
         empty_segs = ((0, 0), [])
 
         global_enabled = bool(boolean_faceprocess_enable)
@@ -1002,7 +1024,10 @@ class CMK_FaceProcess:
         detail_guide_size_for = _pipe_value("face_detail_guide_size_for", detail_guide_size_for, none_values=(None,))
         detail_max_size = _pipe_value("face_detail_max_size", detail_max_size, none_values=(None,))
         detail_denoise = _pipe_value("face_detail_denoise", detail_denoise, none_values=(None,))
-        detail_denoise = clamp_detailer_denoise(detail_denoise)
+        # Public UI values are sampling-entry percentages (50–100). Keep
+        # accepting the former 0.0–0.5 denoise representation for workflows
+        # queued without the frontend migration.
+        detail_denoise = _sampling_entry_to_denoise(detail_denoise)
         detail_noise_mask = _pipe_value("face_detail_noise_mask", detail_noise_mask, none_values=(None,))
         detail_force_inpaint = _pipe_value("face_detail_force_inpaint", detail_force_inpaint, none_values=(None,))
         detail_paste_feather = _pipe_value("face_detail_paste_feather", detail_paste_feather, none_values=(None,))

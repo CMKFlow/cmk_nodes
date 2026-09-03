@@ -1,8 +1,11 @@
 import { app } from "../../../scripts/app.js";
+import { api } from "../../../scripts/api.js";
 
 const CMK_FLOW_TITLE = /^CMK Flow\s*[·-]/i;
 const NODE_SELECTOR = "[data-node-id]";
 const VIEWPORT_SELECTOR = '[data-testid="image-compare-viewport"]';
+const RESETTABLE_PREVIEW_FLOW = /^CMK Flow\s*[·-]\s*(10|15|20|23|25|30|40|42|90)\b/i;
+let executionActive = false;
 
 function isCmkFlow(node) {
     return CMK_FLOW_TITLE.test(String(node?.title || node?.type || ""));
@@ -10,6 +13,79 @@ function isCmkFlow(node) {
 
 function isNativeCompare(node) {
     return node?.constructor?.comfyClass === "ImageCompare" || node?.type === "ImageCompare";
+}
+
+function ownsCompareProxy(node) {
+    return Boolean(node?.properties?.proxyWidgets?.some?.(
+        (entry) => Array.isArray(entry) && entry[1] === "compare_view",
+    ));
+}
+
+function isCompareOwner(node) {
+    return isCmkFlow(node) || isNativeCompare(node) || ownsCompareProxy(node);
+}
+
+function enforceClickCompare(node) {
+    if (!isCompareOwner(node)) return;
+    node.properties ||= {};
+    node.properties.comparer_mode = "Click";
+    node.properties.default_output = "b";
+}
+
+function isResettablePreviewFlow(node, nodeElement = null) {
+    const identity = [node?.title, node?.type, nodeElement?.textContent]
+        .filter(Boolean)
+        .join(" ");
+    return RESETTABLE_PREVIEW_FLOW.test(identity);
+}
+
+function resetViewport(viewport) {
+    viewport.classList.add("cmk-preview-reset");
+    viewport.classList.remove("cmk-preview-refreshed");
+}
+
+function clearModuleComparePreviews() {
+    executionActive = true;
+    // Proxy widgets of subgraphs are not consistently children of the visible
+    // outer node. Reset the actual compare viewport instead of its node wrapper.
+    for (const viewport of document.querySelectorAll(VIEWPORT_SELECTOR)) {
+        resetViewport(viewport);
+    }
+
+    for (const nodeElement of document.querySelectorAll(NODE_SELECTOR)) {
+        const node = nodeForElement(nodeElement);
+        if (!isResettablePreviewFlow(node, nodeElement)) continue;
+        if (node) {
+            node.imgs = [];
+            node.imageIndex = null;
+        }
+        node?.setDirtyCanvas?.(true, true);
+    }
+}
+
+function revealUpdatedPreview(record) {
+    const element = record.target instanceof Element ? record.target : record.target?.parentElement;
+    const viewport = element?.closest?.(VIEWPORT_SELECTOR);
+    if (!viewport?.classList.contains("cmk-preview-reset")) return;
+    const addedImage = [...(record.addedNodes || [])].some((node) =>
+            node instanceof HTMLImageElement || node?.querySelector?.("img")
+        ) || (record.type === "attributes" && record.target instanceof HTMLImageElement);
+    if (addedImage) viewport.classList.add("cmk-preview-refreshed");
+}
+
+function finishModuleComparePreviews() {
+    executionActive = false;
+    for (const viewport of document.querySelectorAll(
+        `${VIEWPORT_SELECTOR}.cmk-preview-reset.cmk-preview-refreshed`,
+    )) {
+        viewport.classList.remove("cmk-preview-reset", "cmk-preview-refreshed");
+    }
+}
+
+function ownsDynamicStartUi(node) {
+    return Boolean(
+        node?.widgets?.some?.((widget) => widget?.name === "INPAINT_MODE"),
+    );
 }
 
 function validSize(value) {
@@ -33,6 +109,10 @@ function nodeForElement(element) {
 function restoreCmkSize(node, nodeElement) {
     if (!isCmkFlow(node)) return;
     nodeElement.classList.add("cmk-flow-node");
+    // 01 START HERE deliberately changes its visible widget set between
+    // Text2Image and Inpaint. Restoring cmkOuterSize on every resulting DOM
+    // mutation would overwrite the width selected manually by the user.
+    if (ownsDynamicStartUi(node)) return;
     node.properties ||= {};
     if (!validSize(node.properties.cmkOuterSize)) {
         node.properties.cmkOuterSize = [Number(node.size?.[0]) || 600, Number(node.size?.[1]) || 1225];
@@ -47,13 +127,20 @@ function restoreCmkSize(node, nodeElement) {
 function prepareNodeElement(nodeElement) {
     const node = nodeForElement(nodeElement);
     if (!node) return;
-    restoreCmkSize(node, nodeElement);
+    enforceClickCompare(node);
+    const compareViewports = nodeElement.querySelectorAll(VIEWPORT_SELECTOR);
+    if (compareViewports.length > 0) {
+        restoreCmkSize(node, nodeElement);
+    }
 
-    for (const viewport of nodeElement.querySelectorAll(VIEWPORT_SELECTOR)) {
-        if (isCmkFlow(node) || isNativeCompare(node)) {
+    for (const viewport of compareViewports) {
+        if (isCompareOwner(node)) {
             viewport.classList.add("cmk-hold-compare");
             viewport.title = "RESULT · Maustaste gedrückt halten für SOURCE";
         }
+        // Some proxy widgets (notably 10/20) replace their DOM viewport after
+        // execution_start. Such a replacement must inherit the current reset.
+        if (executionActive) viewport.classList.add("cmk-preview-reset");
     }
 }
 
@@ -73,6 +160,7 @@ function installStyles() {
       .cmk-hold-compare img:nth-of-type(2) { clip-path: inset(0 0 0 0) !important; }
       .cmk-hold-compare.cmk-show-source img:nth-of-type(2) { clip-path: inset(0 100% 0 0) !important; }
       .cmk-hold-compare > [role="presentation"] { display: none !important; }
+      ${VIEWPORT_SELECTOR}.cmk-preview-reset { visibility: hidden !important; }
       [data-node-id]:not(.outline-node-stroke-executing):has(.cmk-hold-compare) img.pointer-events-none,
       [data-node-id]:not(.outline-node-stroke-executing):has(.cmk-hold-compare) img.pointer-events-none + div {
         display: none !important;
@@ -99,6 +187,8 @@ function installDomBehavior() {
         if (!nodeElement || !resizeHandle || !/cursor-.*-resize/.test(String(resizeHandle.className))) return;
         const node = nodeForElement(nodeElement);
         if (!isCmkFlow(node)) return;
+        if (ownsDynamicStartUi(node)) return;
+        if (!nodeElement.querySelector(VIEWPORT_SELECTOR)) return;
 
         const remember = () => setTimeout(() => {
             if (!validSize(node.size)) return;
@@ -120,17 +210,33 @@ function installDomBehavior() {
 
     const observer = new MutationObserver((records) => {
         for (const record of records) {
+            revealUpdatedPreview(record);
             for (const added of record.addedNodes) {
                 if (added instanceof Element) scan(added);
             }
         }
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["src"],
+    });
     scan();
+    api.addEventListener("execution_start", clearModuleComparePreviews);
+    api.addEventListener("execution_success", finishModuleComparePreviews);
+    api.addEventListener("execution_error", () => { executionActive = false; });
+    api.addEventListener("execution_interrupted", () => { executionActive = false; });
 }
 
 app.registerExtension({
-    name: "cmk.image.compare.hold.v3",
+    name: "cmk.image.compare.hold.v8",
+    nodeCreated(node) {
+        enforceClickCompare(node);
+    },
+    loadedGraphNode(node) {
+        enforceClickCompare(node);
+    },
     setup() {
         installDomBehavior();
     },

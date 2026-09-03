@@ -13,14 +13,28 @@ from ...engine.native_detailer import (
 from ...utils.cmk_diagnostic import make_diagnostic_payload
 from ...engine.detailer_limits import clamp_detailer_denoise
 from ...utils.stable_segs import make_stable_segs
-from ...pipe.cmk_log_pipe import cmk_block_to_string
+from ...pipe.cmk_log_pipe import CMKLogConcat, cmk_block_to_string
+from ..utils.diagnostic_concat import CMKDiagnosticConcat
 from ...pipe.cmk_persistent_cache import (
     build_node_fingerprint,
     load_pickle,
     pickle_available,
     save_pickle,
+    write_pickle_revision,
     write_status,
 )
+from ...pipe.cmk_module_cache_contract import artifact_for, build_artifact_key
+
+
+def _sampling_entry_to_denoise(value):
+    """Accept percentage UI values and legacy direct-denoise values."""
+    try:
+        result = float(value)
+    except (TypeError, ValueError):
+        result = 50.0
+    if result > 1.0:
+        result = (100.0 - result) / 100.0
+    return clamp_detailer_denoise(result)
 
 
 class CMK_SmartDetailer:
@@ -629,7 +643,7 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
         segms = ["segm/" + x for x in folder_paths.get_filename_list("ultralytics_segm")]
         return {
             "required": {
-                "DETAILER": ("CMK_DETAILER_PIPE", {"lazy": True}),
+                "DETAILER": ("CMK_DETAILER_PIPE",),
                 "enable": ("BOOLEAN", {"default": True}),
                 "output_image_proceed": ("BOOLEAN", {"default": True}),
                 "model_name": (bboxs + segms,),
@@ -640,26 +654,113 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
                 "guide_size": ("FLOAT", {"default": 512, "min": 64, "max": 8192, "step": 8}),
                 "guide_size_for": ("BOOLEAN", {"default": True, "label_on": "bbox", "label_off": "crop_region", "advanced": True}),
                 "max_size": ("FLOAT", {"default": 768, "min": 64, "max": 8192, "step": 8, "advanced": True}),
-                "denoise": ("FLOAT", {"default": 0.5, "min": 0.0001, "max": 0.5, "step": 0.01}),
+                "denoise": ("FLOAT", {
+                    "default": 80.0,
+                    "min": 50.0,
+                    "max": 100.0,
+                    "step": 1.0,
+                    "round": 1.0,
+                    "tooltip": (
+                        "Sampling entry in percent. Later entry preserves the original "
+                        "content; earlier entry rebuilds it more strongly."
+                    ),
+                }),
                 "noise_mask": ("BOOLEAN", {"default": True, "label_on": "enabled", "label_off": "disabled", "advanced": True}),
                 "force_inpaint": ("BOOLEAN", {"default": True, "label_on": "enabled", "label_off": "disabled", "advanced": True}),
-            }
-       ,
+            },
+            "optional": {
+                "opt_log": ("CMK_LOG_PIPE",),
+                "opt_diagnostic": ("CMK_DIAGNOSTIC",),
+            },
             "hidden": {
                 "prompt": "PROMPT",
                 "unique_id": "UNIQUE_ID",
             },
         }
 
-    RETURN_TYPES = ("SEGS", "SEGS", "IMAGE", "CMK_DIAGNOSTIC", "CMK_LOG_BLOCK")
-    RETURN_NAMES = ("SEGS DETECTED", "SEGS PROCEED", "IMAGE PROCEED", "diagnostic", "LOG BLOCK")
+    RETURN_TYPES = ("SEGS", "SEGS", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC", "IMAGE")
+    RETURN_NAMES = ("SEGS DETECTED", "SEGS PROCEED", "IMAGE PROCEED", "LOG", "diagnostic", "DETAILER IMAGE")
     FUNCTION = "run_pipe"
     CATEGORY = "CMK/Developer/Pipe/Execute"
 
     _CACHE_SCOPE = "detailer_branch"
-    _CACHE_SCHEMA = "cmk_detailer_branch_v4"
+    _CACHE_SCHEMA = "cmk_detailer_branch_v5"
+    _UPSTREAM_STAGE_KEY = "sdxl.refiner"
+    _RESULT_STAGE_KEY = "sdxl.detailer"
 
-    def _cache_key(self, prompt, unique_id):
+    @staticmethod
+    def _effective_settings(detailer_pipe, run_settings):
+        prepared_names = (
+            "detailer_seed",
+            "detailer_global_enable",
+            "detailer_steps",
+            "detailer_cfg",
+            "detailer_sampler",
+            "detailer_scheduler",
+            "detailer_sam_model_name",
+            "detailer_use_prompt_lora_from_sampler",
+            "detailer_use_prompt_from_1st_pass",
+            "detailer_use_lora_from_1st_pass",
+            "detailer_use_1st_pass_sampling",
+            "detailer_prompt_pos",
+            "detailer_prompt_neg",
+            "detailer_active_loras",
+            "detailer_stop_at_clip_layer",
+            "detailer_pag_scale",
+            "detailer_sampling",
+            "detailer_zsnr",
+            "detailer_freeu_enabled",
+            "detailer_freeu_b1",
+            "detailer_freeu_b2",
+            "detailer_freeu_s1",
+            "detailer_freeu_s2",
+        )
+        prepared = {
+            name: detailer_pipe.get(name)
+            for name in prepared_names
+        }
+        execute_names = (
+            "enable",
+            "model_name",
+            "bbox_threshold",
+            "bbox_dilation",
+            "crop_factor",
+            "drop_size",
+            "guide_size",
+            "guide_size_for",
+            "max_size",
+            "denoise",
+            "noise_mask",
+            "force_inpaint",
+        )
+        execute = {
+            name: (run_settings or {}).get(name)
+            for name in execute_names
+        }
+        if execute["denoise"] is not None:
+            execute["denoise"] = _sampling_entry_to_denoise(execute["denoise"])
+        return {
+            "prepared": prepared,
+            "execute": execute,
+        }
+
+    def _cache_key(self, prompt, unique_id, detailer_pipe=None, run_settings=None):
+        if isinstance(detailer_pipe, dict):
+            source_pipe = detailer_pipe.get("source_pipe")
+            upstream_artifact = artifact_for(
+                source_pipe,
+                self._UPSTREAM_STAGE_KEY,
+            )
+            if upstream_artifact:
+                return (
+                    build_artifact_key(
+                        self._RESULT_STAGE_KEY,
+                        upstream_artifact,
+                        self._effective_settings(detailer_pipe, run_settings),
+                        schema=self._CACHE_SCHEMA,
+                    ),
+                    f"upstream={self._UPSTREAM_STAGE_KEY}:{upstream_artifact[:12]}",
+                )
         return build_node_fingerprint(
             prompt,
             unique_id,
@@ -669,6 +770,22 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
             include_node_identity=True,
         )
 
+    def _publish_dependency_revision(self, prompt, unique_id, artifact_key):
+        dependency_key, _detail = build_node_fingerprint(
+            prompt,
+            unique_id,
+            ("CMK_SmartDetailerPipe",),
+            self._CACHE_SCHEMA,
+            exclude_inputs=("output_image_proceed",),
+            include_node_identity=True,
+        )
+        if dependency_key:
+            write_pickle_revision(
+                self._CACHE_SCOPE,
+                dependency_key,
+                artifact_key,
+            )
+
     def check_lazy_status(
         self,
         DETAILER=None,
@@ -676,11 +793,22 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
         unique_id=None,
         **kwargs,
     ):
+        # DETAILER contains the authoritative global enable state.  It must be
+        # materialized before consulting the result cache; otherwise a cached
+        # active run can be returned after the module was switched to standby.
+        if DETAILER is None:
+            return ["DETAILER"]
         if not bool(kwargs.get("enable", True)):
-            return ["DETAILER"] if DETAILER is None else []
-        cache_key, detail = self._cache_key(prompt, unique_id)
+            return []
+        cache_key, detail = self._cache_key(
+            prompt,
+            unique_id,
+            DETAILER,
+            kwargs,
+        )
 
         if cache_key and pickle_available(self._CACHE_SCOPE, cache_key):
+            self._publish_dependency_revision(prompt, unique_id, cache_key)
             write_status(
                 self._CACHE_SCOPE,
                 "HIT_READY",
@@ -698,18 +826,22 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
                 unique_id=unique_id,
             )
 
-        return ["DETAILER"] if DETAILER is None else []
+        return []
 
     def _load_cached_result(
         self,
         cache_key,
         output_image_proceed,
+        opt_log=None,
+        opt_diagnostic=None,
+        prompt=None,
+        unique_id=None,
     ):
         payload = load_pickle(self._CACHE_SCOPE, cache_key)
         if not isinstance(payload, dict):
             raise TypeError("cached detailer payload is invalid")
 
-        result = (
+        result = self._merge_transport(
             payload.get("segs_detected"),
             payload.get("segs_proceed"),
             (
@@ -719,8 +851,12 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
             ),
             payload.get("diagnostic"),
             payload.get("log_block", ""),
+            opt_log,
+            opt_diagnostic,
+            payload.get("image_proceed"),
         )
         preview = payload.get("detection_preview")
+        self._publish_dependency_revision(prompt, unique_id, cache_key)
 
         write_status(
             self._CACHE_SCOPE,
@@ -732,6 +868,25 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
             f"{cache_key[:12]}"
         )
         return self._preview_result(preview, result)
+
+    @staticmethod
+    def _merge_transport(
+        segs_detected,
+        segs_proceed,
+        image_proceed,
+        diagnostic,
+        log_block,
+        opt_log=None,
+        opt_diagnostic=None,
+        detailer_image=None,
+    ):
+        log = CMKLogConcat().concat(opt_log, log_block)[0]
+        merged_diagnostic = CMKDiagnosticConcat().concat(
+            "CMK Flow · Detailer",
+            opt_diagnostic,
+            diagnostic_2=diagnostic,
+        )[0]
+        return segs_detected, segs_proceed, image_proceed, log, merged_diagnostic, detailer_image
 
     @staticmethod
     def _required(detailer_pipe, key):
@@ -772,11 +927,34 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
         denoise,
         noise_mask,
         force_inpaint,
+        opt_log=None,
+        opt_diagnostic=None,
         prompt=None,
         unique_id=None,
 ):
-        denoise = clamp_detailer_denoise(denoise)
-        cache_key, cache_detail = self._cache_key(prompt,unique_id)
+        denoise = _sampling_entry_to_denoise(denoise)
+        run_settings = {
+            "enable": bool(enable),
+            "model_name": str(model_name),
+            "bbox_threshold": float(bbox_threshold),
+            "bbox_dilation": int(bbox_dilation),
+            "crop_factor": float(crop_factor),
+            "drop_size": int(drop_size),
+            "guide_size": float(guide_size),
+            "guide_size_for": bool(guide_size_for),
+            "max_size": float(max_size),
+            "denoise": float(denoise),
+            "noise_mask": bool(noise_mask),
+            "force_inpaint": bool(force_inpaint),
+        }
+        if not isinstance(DETAILER, dict):
+            raise ValueError("CMK Smart Detailer -Pipe-: DETAILER is missing")
+        cache_key, cache_detail = self._cache_key(
+            prompt,
+            unique_id,
+            DETAILER,
+            run_settings,
+        )
 
         if (
             cache_key
@@ -786,6 +964,10 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
                 return self._load_cached_result(
                     cache_key,
                     output_image_proceed,
+                    opt_log,
+                    opt_diagnostic,
+                    prompt,
+                    unique_id,
                 )
             except Exception as exc:
                 write_status(
@@ -815,7 +997,11 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
             lines=[f"STATUS          : {status}","DETECTION       : SKIPPED","DETAILING       : SKIPPED","CACHE           : SKIPPED","RESULT          : PASSTHROUGH"]
             block=cmk_block_to_string("Smart Detailer",70,lines,True)
             diagnostic=make_diagnostic_payload(title="Smart Detailer -Pipe-",node="CMK Smart Detailer -Pipe-",previews=[source_image],summary="disabled passthrough",details="\n".join(lines),mode="disabled / passthrough",metadata={"global_enabled":detailer_global_enable,"local_enabled":bool(enable)})
-            return (empty,empty,source_image if bool(output_image_proceed) else None,diagnostic,block)
+            return self._merge_transport(
+                empty, empty,
+                source_image if bool(output_image_proceed) else None,
+                diagnostic, block, opt_log, opt_diagnostic,
+            )
 
         basic_pipe = (
             self._required(detailer_pipe, "detailer_model"),
@@ -892,6 +1078,11 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
                     payload,
                     max_entries=32,
                 )
+                self._publish_dependency_revision(
+                    prompt,
+                    unique_id,
+                    cache_key,
+                )
                 write_status(
                     self._CACHE_SCOPE,
                     "MISS_STORED",
@@ -916,12 +1107,15 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
                     f"{exc}"
                 )
 
-        result = (
+        result = self._merge_transport(
             segs_detected,
             segs_proceed,
             opt_image_proceed,
             diagnostic,
             log_block,
+            opt_log,
+            opt_diagnostic,
+            image_proceed,
         )
         return self._preview_result(detection_preview, result)
 

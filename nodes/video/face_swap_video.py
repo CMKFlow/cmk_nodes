@@ -8,6 +8,7 @@ import comfy.model_management as model_management
 from comfy.utils import ProgressBar
 
 from ...engine.video_swap_engine import CMKVideoSwapEngine
+from ...engine.content_guard import ContentGuardBlocked, GUARD_VERSION
 from ...engine.swap_selected_engine import SelectedSwapSettings
 from ...engine.enhance_backends import get_available_enhancer_modes, validate_enhancer_mode
 from ...models.model_manager import list_detector_models, list_swap_models, resolve_swap_model
@@ -18,7 +19,7 @@ from .split_video_segments import _executable, _output_root, _probe_video
 
 _SELECTION_MODES=["Largest","Leftmost","Rightmost","Topmost","Bottommost","Center"]
 _SEGMENT_MODES=["Full Path (Batch)","Randomize","Last Used Segment"]
-_SCHEMA="cmk.video.face_swap.v1"; _ENGINE_VERSION=6
+_SCHEMA="cmk.video.face_swap.v1"; _ENGINE_VERSION=7
 
 def _hash_json(v): return hashlib.sha256(json.dumps(v,sort_keys=True,separators=(",",":"),default=str).encode()).hexdigest()
 def _atomic_json(path,payload):
@@ -102,7 +103,7 @@ class CMKFaceSwapVideo:
         engine=CMKVideoSwapEngine(detector_model); source_face=engine.select_source(source_rgb,str(kw["SOURCE FACE"]),int(kw["drop_size"]))
         model_path=resolve_swap_model(swap_model)
         settings={k:kw[k] for k in ["SWAP MODEL","DETECT MODEL","FACE ENHANCER","TARGET FACE","SOURCE FACE","BLEND","bbox_dilation","crop_factor","drop_size","feather","max_missing_frames","tracking_iou_threshold","tracking_embedding_threshold"]}
-        base_sig=_hash_json({"schema":_SCHEMA,"engine":_ENGINE_VERSION,"source_manifest":_file_id(segs["manifest_path"]),"source_image":_image_hash(source_rgb),"swap_model":_file_id(model_path),"settings":settings})
+        base_sig=_hash_json({"schema":_SCHEMA,"engine":_ENGINE_VERSION,"content_guard":GUARD_VERSION,"source_manifest":_file_id(segs["manifest_path"]),"source_image":_image_hash(source_rgb),"swap_model":_file_id(model_path),"settings":settings})
         root=_output_root()/"video"/"face_swap"/(Path(segs.get("source_path","video")).stem or "video")/base_sig[:20]; root.mkdir(parents=True,exist_ok=True)
         manifest_path=root/"swap.json"; manifest={"type":"CMK_VIDEO_FACE_SWAP_MANIFEST","version":1,"schema":_SCHEMA,"engine_version":_ENGINE_VERSION,"source_segments_manifest":segs["manifest_path"],"source_image_name":str(segs.get("source_image_name","") or ""),"swap_signature":base_sig,"settings":settings,"segments":{}}
         if manifest_path.exists():
@@ -133,7 +134,7 @@ class CMKFaceSwapVideo:
                 raise RuntimeError(f"CMK FaceSwap Video: last used segment {last_used_index} is no longer present in the current SEGMENTS context")
             selected=[matches[0]]
         selected_display="ALL" if mode=="Full Path (Batch)" else f"{int(selected[0]['index'])+1} / {len(all_segments)}"
-        ffmpeg=_executable("ffmpeg"); processed=reused=invalidated=failed=frames=missing=0; out_segments=[]; lines=[]
+        ffmpeg=_executable("ffmpeg"); processed=reused=invalidated=failed=frames=missing=0; out_segments=[]; lines=[]; created_indices=[]
         estimated_total=sum(max(1, int(seg.get("estimated_frames") or 1)) for seg in selected)
         progress=ProgressBar(estimated_total)
         progress_value=0
@@ -162,6 +163,7 @@ class CMKFaceSwapVideo:
                         if len(raw)!=frame_bytes: raise RuntimeError(f"short decoded frame at frame {local_frames}")
                         frame=np.frombuffer(raw,dtype=np.uint8).reshape(h,w,3).copy()
                         model_management.throw_exception_if_processing_interrupted()
+                        engine.inspect_target_content(frame)
                         faces=engine.detect_filtered(frame,int(kw["drop_size"]))
                         target,state=engine.select_target(frame,faces,str(kw["TARGET FACE"]),state,int(kw["max_missing_frames"]),float(kw["tracking_iou_threshold"]),float(kw["tracking_embedding_threshold"]))
                         result=frame
@@ -169,7 +171,7 @@ class CMKFaceSwapVideo:
                             local_missing+=1
                         else:
                             model_management.throw_exception_if_processing_interrupted()
-                            result=_blend(frame,engine.swap_frame(frame,source_face,target,swap_settings),float(kw["BLEND"]))
+                            result=_blend(frame,engine.swap_frame(frame,source_rgb,source_face,target,swap_settings),float(kw["BLEND"]))
                         model_management.throw_exception_if_processing_interrupted()
                         enc.stdin.write(result.tobytes())
                         local_frames+=1
@@ -184,7 +186,7 @@ class CMKFaceSwapVideo:
                     if mux.returncode!=0: raise RuntimeError("audio copy/mux failed: "+mux.stderr.strip())
                     os.replace(tmp_out,out); tmp_video.unlink(missing_ok=True)
                     stats={"index":idx,"status":"complete","fingerprint":fingerprint,"output_path":str(out),"frames_total":local_frames,"frames_without_target":local_missing,"completed_at":time.time()}
-                    manifest["segments"][str(idx)]=stats; _atomic_json(manifest_path,manifest); processed+=1; frames+=local_frames; missing+=local_missing; lines.append(f"{idx+1:03d}/{len(all_segments):03d} PROCESSED {local_frames} frames / {local_missing} without target")
+                    manifest["segments"][str(idx)]=stats; _atomic_json(manifest_path,manifest); created_indices.append(idx); processed+=1; frames+=local_frames; missing+=local_missing; lines.append(f"{idx+1:03d}/{len(all_segments):03d} PROCESSED {local_frames} frames / {local_missing} without target")
                 except Exception as exc:
                     for proc in (dec, enc):
                         try:
@@ -197,8 +199,15 @@ class CMKFaceSwapVideo:
                                     proc.wait(timeout=2.0)
                         except Exception:
                             pass
-                    failed+=1; manifest["segments"][str(idx)]={"index":idx,"status":"failed","fingerprint":fingerprint,"error":str(exc),"frame":local_frames,"updated_at":time.time()}; _atomic_json(manifest_path,manifest)
                     for p in (tmp_video,tmp_out): p.unlink(missing_ok=True)
+                    if isinstance(exc, ContentGuardBlocked):
+                        for created_idx in created_indices:
+                            (root/f"segment_{created_idx:04d}.mp4").unlink(missing_ok=True)
+                            manifest["segments"].pop(str(created_idx),None)
+                        manifest["segments"].pop(str(idx),None)
+                        _atomic_json(manifest_path,manifest)
+                        raise
+                    failed+=1; manifest["segments"][str(idx)]={"index":idx,"status":"failed","fingerprint":fingerprint,"error":str(exc),"frame":local_frames,"updated_at":time.time()}; _atomic_json(manifest_path,manifest)
                     if exc.__class__.__name__ == "InterruptProcessingException":
                         print(f"[CMK FaceSwap Video] interrupted at segment {idx+1}/{len(all_segments)}, frame {local_frames}")
                         raise

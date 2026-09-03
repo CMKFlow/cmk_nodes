@@ -1,12 +1,23 @@
 {
   "flows": {
     "CMKPipeCreateImage": {
-      "description": "Prepares image, mask, and prompt for image generation.",
+      "description": "Central entry point for Text2Image and Inpaint: selects the task and prepares image, mask, prompts, and the complete PROCESS for the remaining flow.",
       "features": [
-        "Starts the image generation process",
-        "Accepts the prompt and an optional LoRA stack"
+        "MODE dropdown for Text2Image and Inpaint with a dynamic interface",
+        "Guided inpaint tasks: Replace Object, Remove Object, Extend Image, and Custom",
+        "Diagnostic shows the source image and the actual mask fill passed downstream"
       ],
-      "placementNote": "Place as the starting module before ControlNet or the first KSampler."
+      "placementNote": "Place as the central starting module before optional ControlNet or the first KSampler. Connect IMAGE and MASK for Inpaint; Remove Object only requires the mask."
+    },
+    "CMKRegionalConditioningSDXL": {
+      "description": "Adds up to three spatial prompt regions to the global SDXL conditioning.",
+      "features": [
+        "Three independently active regions without separate on/off switches",
+        "STANDARD presets for position and area size",
+        "ADVANCED coordinates, strength, and per-region END",
+        "Chain multiple modules to add more regions"
+      ],
+      "placementNote": "Place directly after 01 START HERE and before optional ControlNet or 10 KSampler SDXL."
     },
     "CMKCheckpointVAELoaderPipe": {
       "description": "Selects the image model and matching image decoder.",
@@ -44,6 +55,82 @@
       ],
       "placementNote": "Place between Create Image and the first KSampler. Omit it when no image guidance is needed."
     },
+    "CMKZITControlNetPreparePipe": {
+      "description": "Optionally adds Canny image guidance for ZIT.",
+      "features": [
+        "Uses image contours as structural guidance for ZIT"
+      ],
+      "placementNote": "Place between Create Image and the ZIT KSampler. Omit it when no image guidance is needed."
+    },
+    "CMKFamilyResultMergePipe": {
+      "description": "Merges parallel SDXL and ZIT family branches according to the active model family selected in 01.",
+      "features": [
+        "Selects only the active family branch",
+        "Keeps the inactive branch from executing",
+        "Provides a family-neutral result for FaceSwap or 90"
+      ],
+      "placementNote": "Use only when SDXL and ZIT are built in parallel in the same workflow. Place after the last SDXL-only module (10, 20, 25, or 30) and the ZIT KSampler, then continue with shared module 40 or 90."
+    },
+    "CMKInstantIDSamplerSDXLPipe": {
+      "description": "Continues the SDXL sampling started by module 10 on the same sigma schedule and applies InstantID while preserving the established composition.",
+      "features": [
+        "Select the source face inside the module",
+        "Control identity attention and InstantID ControlNet strength separately",
+        "Continue the noisy layout latent without adding new noise",
+        "Use the separate clean x0 estimate for InstantID keypoints",
+        "Inherit steps, handoff step, seed, sampler, scheduler, and denoise from module 10"
+      ],
+      "placementNote": "Place directly after 10 KSampler SDXL 1st Pass and before 20 Refiner SDXL.",
+      "dependencyNote": "Requires antelopev2, the InstantID IP-Adapter model, and the matching InstantID SDXL ControlNet model."
+    },
+    "CMKInstantIDFaceRebuildPrepare": {
+      "description": "Detects the largest target face and prepares a local head/neck ROI with separate reconstruction and final pasteback masks.",
+      "features": [
+        "Uses the existing InsightFace detector",
+        "Keeps the neck as generation context while final neck pasteback is independently switchable and off by default",
+        "Creates deterministic edge-clipped geometry",
+        "Scales the ROI to an SDXL-ready working resolution"
+      ],
+      "placementNote": "Place before the existing Inpaint Hybrid path and route the target ROI and mask through module 10 and InstantID module 15.",
+      "dependencyNote": "Requires an InsightFace analysis model; antelopev2 is recommended."
+    },
+    "CMKInstantIDFaceRebuildPasteback": {
+      "description": "Returns the rebuilt ROI to the unchanged target and verifies that no pixel outside the final mask support changed.",
+      "features": [
+        "Restores the original ROI size",
+        "Composites only inside the explicit pasteback mask",
+        "Reports the outside-mask integrity result"
+      ],
+      "placementNote": "Place after decoding the module 15 result and connect the original target, pasteback mask, and rebuild context from Prepare."
+    },
+    "CMKInstantIDFaceRebuildPreparePipe": {
+      "description": "Inserts Face Rebuild after module 01 while preserving the canonical CMK PROCESS, IMAGE, and LOG flow order.",
+      "features": [
+        "Copies and configures the SDXL process for Inpaint Hybrid",
+        "Outputs PROCESS, IMAGE, and LOG for direct module 10 wiring",
+        "Leaves Source Face exclusively to module 15's internal picker"
+      ],
+      "placementNote": "Insert after 01 START HERE and before 10 KSampler SDXL; select Source Face in the visible module 15."
+    },
+    "CMKInstantIDFaceRebuildPastebackPipe": {
+      "description": "Rejoins the rebuilt head ROI with the canonical CMK MODEL, PROCESS, IMAGE, and LOG contract.",
+      "features": [
+        "Passes MODEL and PROCESS through unchanged",
+        "Returns the verified pasteback as the canonical IMAGE",
+        "Appends the integrity result to the canonical LOG"
+      ],
+      "placementNote": "Insert after the decoded InstantID result and continue with the next CMK image module."
+    },
+    "CMKInstantIDFaceDetailerSDXL": {
+      "description": "Rebuilds a local target ROI as a regular InstantID Img2Img detailer without Fooocus Inpaint, a first pass, or a handoff bridge.",
+      "features": [
+        "Uses the VAE-encoded target ROI as the direct Img2Img latent",
+        "Uses the unchanged target ROI directly for KPS",
+        "Adds noise at an absolute sampling start step",
+        "Does not change or depend on module 15 orchestration"
+      ],
+      "placementNote": "Use between Face Rebuild Prepare and Pasteback with a CMK checkpoint MODEL and a separate Source Face."
+    },
     "CMK_SaveProjectImage": {
       "description": "Saves the finished image with a project name and optional date folder.",
       "features": [
@@ -55,16 +142,17 @@
         "completed image processing"
       ]
     },
-    "CMK Flow · 02 LoRA Stack": {
+    "CMK Flow · 02 SDXL LoRA Stack": {
+      "displayName": "SDXL LoRA Stack",
       "description": "Combines multiple LoRAs into a clear stack for the following flow.",
       "features": [
         "Build a LoRA stack",
         "Weight multiple LoRAs",
         "Prepare the prompt for the flow"
       ],
-      "placementNote": "Place before Create Image when one or more LoRAs are used."
+      "placementNote": "Use as a standalone loader before the model and sampling section when combining one or more SDXL LoRAs into a stack."
     },
-    "CMK Flow · 10 KSampler 1st Pass": {
+    "CMK Flow · 10 KSampler SDXL 1st Pass": {
       "description": "Creates the first image pass from the prepared CMK process.",
       "features": [
         {
@@ -95,33 +183,75 @@
         "text": "A single sampler module for both processes – works with any compatible SDXL checkpoint. No specialized checkpoints required."
       }
     },
-    "CMK Flow · 20 Refiner": {
+    "CMK Flow · 10 KSampler Z-Image Turbo": {
+      "description": "Loads ZIT through native ComfyUI nodes, prepares conditioning, samples the image, and decodes it into the shared CMK image flow.",
+      "features": [
+        "Native ZIT model loading",
+        "Eight-step Turbo sampling",
+        "Direct IMAGE output for shared post-processing"
+      ],
+      "placementNote": "Place after 01 or the optional ZIT ControlNet. Continue with optional 35 when both model families are present, or connect directly to 40 FaceSwap or 90 Upscale & Save.",
+      "recommendedAfter": [
+        "35 Active Family Result (optional)",
+        "40 FaceSwap",
+        "90 Upscale & Save"
+      ]
+    },
+    "CMK Flow · 15 InstantID-Sampler SDXL": {
+      "description": "Continues the short SDXL layout pass with InstantID on the same sigma schedule while preserving the established composition.",
+      "features": [
+        "Select the source face inside the module",
+        "Use the noisy layout latent as the continuation state and the clean x0 estimate for keypoints",
+        "Control identity and pose strength separately",
+        "Inherit the sampling schedule and seed from module 10",
+        "Preview only the final InstantID result"
+      ],
+      "placementNote": "Place after 10 KSampler SDXL 1st Pass and before 20 Refiner SDXL.",
+      "recommendedBefore": [
+        "10 KSampler SDXL 1st Pass"
+      ],
+      "recommendedAfter": [
+        "20 Refiner SDXL"
+      ],
+      "dependencyNote": "Requires antelopev2, the InstantID IP-Adapter model, and the matching InstantID SDXL ControlNet model."
+    },
+    "CMK Flow · 20 Refiner SDXL": {
       "description": "Refines the first pass in a separate refinement step.",
       "features": [
         "Run a separate refinement pass",
         "Use the sampling result",
         "Apply Refiner conditioning"
       ],
-      "placementNote": "Place directly after the first KSampler. Image enhancement modules can follow.",
+      "placementNote": "Place directly after 10 KSampler SDXL 1st Pass. Continue with 23 Detailer SDXL, 30 FaceProcess SDXL, optional 35, 40 FaceSwap, or 90 Upscale & Save.",
+      "recommendedBefore": [
+        "10 KSampler SDXL 1st Pass"
+      ],
+      "recommendedAfter": [
+        "23 Detailer SDXL",
+        "30 FaceProcess SDXL",
+        "35 Active Family Result (optional)",
+        "40 FaceSwap",
+        "90 Upscale & Save"
+      ],
       "dependencyNote": "SAMPLED, MODEL, and PROCESS come from the corresponding outputs of the preceding modules."
     },
-    "CMK Flow · 30 Detailer": {
+    "CMK Flow · 23 Detailer SDXL": {
       "description": "Adds a curated detailer step for targeted image enhancement.",
       "features": [
         "Enhance a selected image area",
         "Enable or skip the module centrally",
         "Return the result directly to CMK Flow"
       ],
-      "placementNote": "Place after KSampler or Refiner and before FaceSwap, FaceProcess, or the finish."
+      "placementNote": "Use only in the SDXL branch. Place after KSampler or Refiner and before 30 FaceProcess SDXL, optional 35, 40 FaceSwap, or 90 Upscale & Save."
     },
-    "CMK Flow · 30 Detailer · Advanced": {
+    "CMK Flow · 23 Detailer SDXL · Advanced": {
       "description": "Combines two separately configured Detailer branches and returns their processed areas to the flow.",
       "features": [
         "Configure two Detailer branches independently",
         "Merge processed image areas",
         "Use one shared log and final flow boundary"
       ],
-      "placementNote": "Place after KSampler or Refiner for two different detail tasks.",
+      "placementNote": "Use only in the SDXL branch. Place after KSampler or Refiner and before 30 FaceProcess SDXL, optional 35, 40 FaceSwap, or 90 Upscale & Save.",
       "dependencyNote": "Each branch needs a suitable detector model for its intended image area."
     },
     "CMK Flow · 40 FaceSwap": {
@@ -131,7 +261,7 @@
         "Process the target image",
         "Enable or skip the module centrally"
       ],
-      "placementNote": "Place after image generation or the Refiner."
+      "placementNote": "Shared family-neutral module. Place after the final SDXL or ZIT result, or after optional 35, and before 90 Upscale & Save."
     },
     "CMK Flow · 40 FaceSwap · Advanced": {
       "description": "Processes up to three target persons in separate FaceSwap branches and returns the combined result to the flow.",
@@ -140,26 +270,26 @@
         "Merge processed image areas",
         "Use one shared log and final flow boundary"
       ],
-      "placementNote": "Place after image generation or the Refiner for images with up to three target persons.",
+      "placementNote": "Shared family-neutral module. Place after the final SDXL or ZIT result, or after optional 35, and before 90 Upscale & Save.",
       "dependencyNote": "Select a separate source image for every FaceSwap branch in use."
     },
-    "CMK Flow · 50 FaceProcess": {
+    "CMK Flow · 30 FaceProcess SDXL": {
       "description": "Prepares a detected face for further processing in the flow.",
       "features": [
         "Process one selected face",
         "Enable or skip the module centrally",
         "Return the result directly to CMK Flow"
       ],
-      "placementNote": "Place after Refiner, Detailer, or FaceSwap and before final saving."
+      "placementNote": "Use only in the SDXL branch. Place after 20 Refiner SDXL or 23 Detailer SDXL and before optional 35, 40 FaceSwap, or 90 Upscale & Save."
     },
-    "CMK Flow · 50 FaceProcess · Advanced": {
+    "CMK Flow · 30 FaceProcess SDXL · Advanced": {
       "description": "Processes up to three target persons in separate FaceProcess branches and returns the combined result to the flow.",
       "features": [
         "Configure up to three FaceProcess branches independently",
         "Merge processed face areas",
         "Use one shared log and final flow boundary"
       ],
-      "placementNote": "Place after Refiner, Detailer, or FaceSwap for images with up to three target persons.",
+      "placementNote": "Use only in the SDXL branch. Place after 20 Refiner SDXL or 23 Detailer SDXL and before optional 35, 40 FaceSwap, or 90 Upscale & Save.",
       "dependencyNote": "Each branch independently selects its target face and processing mode."
     },
     "CMK Flow · 90 Upscale & Save": {
@@ -169,10 +299,25 @@
         "Control filename and destination folder",
         "Save the image as the final flow step"
       ],
-      "placementNote": "Place as the final module of CMK Flow."
+      "placementNote": "Shared family-neutral finish. Place after the final SDXL or ZIT result, optional 35, or 40 FaceSwap."
     }
   },
   "toolbox": {
+    "CMKDetailerPreparePipe": "Prepares the model, image regions, and settings for an SDXL detailer pass.",
+    "CMKFaceProcessPreparePipe": "Detects and selects target faces and prepares them for a FaceProcess branch.",
+    "CMKFaceProcessPipe": "Runs the configured face processing and returns processed image regions and log data.",
+    "CMKFaceSwapImagePipe": "Replaces a selected face in the target image with the identity from a source image and returns the processed regions.",
+    "CMKKSamplerPipe": "Runs the prepared SDXL sampling job and passes on the latent, preview image, and sampling data.",
+    "CMKRefinerPrepareSDXLPipe": "Prepares the model, prompt inheritance, and sampling parameters for an SDXL refiner pass.",
+    "CMKRefinerPipe": "Runs the prepared SDXL refiner pass and decodes both the first-pass and refined results.",
+    "CMKSamplerPrepareSDXLPipe": "Builds the complete first-pass SDXL sampling job from the model, PROCESS, and conditioning.",
+    "CMKSamplerPrepareZImageTurboPipe": "Prepares conditioning, latent data, and sampling parameters for Z-Image Turbo.",
+    "CMKZImageTurboLoaderPipe": "Loads the components of a Z-Image Turbo model for the subsequent sampling setup.",
+    "CMKZImageTurboFinalizePipe": "Decodes the Z-Image Turbo result and returns the image, PROCESS, and log to the shared result path.",
+    "CMK_SmartDetailerPipe": "Runs CMK Smart Detailer inside a connectable PROCESS branch.",
+    "CMK_SmartUpscalerPipe": "Upscales an image inside a connectable PROCESS branch using CMK Smart Upscaler settings.",
+    "CMKSwapImageLoaderPipe": "Loads the target and source images for the standalone CMK FaceSwap Video workflow. This node belongs in the Toolbox because it cannot be inserted into the canonical CMK Flow wiring.",
+    "CMKDiagnosticConcat": "Appends up to 32 complete CMK diagnostics in input order for Preview Render, Summary, or Preview Board.",
     "CMKPreviewBoard": "Combines up to 32 CMK diagnostics into one visual overview and places multiple processing stages directly beside each other.",
     "CMKPreviewRender": "Turns one CMK diagnostic into a complete visual process view with intermediate images, captions, and the decisive settings.",
     "CMKSummary": "Condenses a CMK diagnostic into a clear summary of the processing performed, its settings, and its result.",

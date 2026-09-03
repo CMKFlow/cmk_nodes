@@ -196,7 +196,10 @@ class CMKSwapImageLoaderPipe:
         "diagnostic",
     )
     FUNCTION = "load_swap_images"
-    CATEGORY = "CMK/Flow/Input"
+    # This loader is intentionally a standalone building block. It cannot be
+    # wired into the canonical CMK Flow result chain and is used by the
+    # CMK FaceSwap Video workflow.
+    CATEGORY = "CMK/Toolbox/I-O"
 
     def load_swap_images(self, **inputs):
         target_name, source_name = _parse_image_pair(inputs.get("IMAGE PAIR"))

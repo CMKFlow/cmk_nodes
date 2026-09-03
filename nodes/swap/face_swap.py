@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import numpy as np
 import torch
+import folder_paths
 
 from ...engine.detector_engine import CMKDetectorEngine, DetectorSettings
 from ...engine.swap_selected_engine import CMKSelectedSwapEngine, SelectedSwapSettings
+from ...engine.native_face_restore import RestoreFaceAdvanced
 from ...engine.enhance_backends import (
     get_available_enhancer_modes,
     get_default_enhancer_mode,
@@ -25,6 +27,27 @@ from ...utils.stable_segs import CMKStableSEGS, image_signature
 
 
 _SELECTION_MODES = ["Largest", "Leftmost", "Rightmost", "Topmost", "Bottommost", "Center"]
+
+
+def _restore_models() -> list[str]:
+    models = list(folder_paths.get_filename_list("facerestore_models"))
+    return models or ["none"]
+
+
+def _default_restore_model(models: list[str]) -> str:
+    for preferred in ("GFPGANv1.4.pth", "GFPGANv1.3.pth"):
+        if preferred in models:
+            return preferred
+    for model in models:
+        if "gfpgan" in str(model).lower():
+            return model
+    return models[0] if models else "none"
+
+
+def _default_swap_model() -> str:
+    models = list_swap_models()
+    preferred = "hyperswap_1b_256.onnx"
+    return preferred if preferred in models else models[0]
 
 
 def _clamp_float(value, minimum: float, maximum: float, fallback: float) -> float:
@@ -289,6 +312,7 @@ class CMKFaceSwapImage:
             if bool(enabled):
                 raw_result = engine.swap_selected(
                     target_rgb=target_rgb,
+                    source_rgb=source_rgb,
                     source_selected_face=source_payload,
                     target_selected_face=target_payload,
                     settings=settings,
@@ -431,24 +455,34 @@ class CMKFaceSwapImagePipe:
 
     @classmethod
     def INPUT_TYPES(cls):
+        restore_models = _restore_models()
         return {
             "required": {
                 "IMAGE_TARGET": ("IMAGE",),
+            },
+            "optional": {
                 "IMAGE_SOURCE": ("IMAGE", {"lazy": True}),
                 "GLOBAL ENABLE": ("BOOLEAN", {"default": True}),
                 "ENABLE": ("BOOLEAN", {"default": True}),
-                "SWAP MODEL": (list_swap_models(),),
+                "SWAP MODEL": (list_swap_models(), {"default": _default_swap_model()}),
                 "DETECT MODEL": (list_detector_models(),),
                 "TARGET FACE": (_SELECTION_MODES, {"default": "Largest"}),
                 "SOURCE FACE": (_SELECTION_MODES, {"default": "Largest"}),
-                "FACE ENHANCER": (get_available_enhancer_modes(), {"default": get_default_enhancer_mode()}),
+                "PATCH ENHANCER": ("BOOLEAN", {"default": True}),
+                "PATCH ENHANCER MODEL": (get_available_enhancer_modes(), {"default": get_default_enhancer_mode()}),
+                "PATCH ENHANCER STRENGTH": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.05}),
                 "BLEND": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.05}),
                 "bbox_dilation": ("INT", {"default": 0, "min": -512, "max": 512, "step": 1, "advanced": True}),
                 "crop_factor": ("FLOAT", {"default": 1.5, "min": 1.0, "max": 3.0, "step": 0.1, "advanced": True}),
                 "drop_size": ("INT", {"default": 10, "min": 1, "max": 8192, "step": 1, "advanced": True}),
                 "feather": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1, "advanced": True}),
                 "IDENTITY STRENGTH": ("FLOAT", {"default": 1.0, "min": 0.5, "max": 1.5, "step": 0.05, "advanced": True}),
-            }
+                "QUALITY PROFILE": (("Automatic", "SDXL", "ZIT", "Custom"), {"default": "Automatic", "advanced": True}),
+                "POST RESTORE": ("BOOLEAN", {"default": False}),
+                "POST RESTORE MODEL": (restore_models, {"default": _default_restore_model(restore_models)}),
+                "RESTORE VISIBILITY": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.05, "advanced": True}),
+                "PROCESS": ("CMK_PIPE",),
+            },
         }
 
     def check_lazy_status(self, IMAGE_SOURCE=None, ENABLE=True, **kwargs):
@@ -474,20 +508,36 @@ class CMKFaceSwapImagePipe:
         if source_selection not in _SELECTION_MODES:
             source_selection = "Largest"
         requested_face_enhancer = str(
-            inputs.get("FACE ENHANCER", get_default_enhancer_mode())
+            inputs.get("PATCH ENHANCER MODEL", inputs.get("FACE ENHANCER", get_default_enhancer_mode()))
             or get_default_enhancer_mode()
         )
-        face_enhancer = requested_face_enhancer
-        if enabled:
-            face_enhancer = validate_enhancer_mode(face_enhancer)
-        elif face_enhancer not in get_available_enhancer_modes():
-            face_enhancer = "Off"
+        face_enhancer_enabled = bool(inputs.get("PATCH ENHANCER", inputs.get("FACE ENHANCER ENABLE", True)))
+        patch_enhancer_strength = _clamp_float(inputs.get("PATCH ENHANCER STRENGTH", 1.0), 0.0, 1.0, 1.0)
+        face_enhancer = requested_face_enhancer if face_enhancer_enabled else "Off"
         blend = _clamp_float(inputs.get("BLEND", 1.0), 0.0, 1.0, 1.0)
         bbox_dilation = int(inputs.get("bbox_dilation", 0) or 0)
         crop_factor = min(3.0, max(1.0, float(inputs.get("crop_factor", 1.5) or 1.5)))
         drop_size = max(1, int(inputs.get("drop_size", 10) or 10))
         feather = min(100, max(0, int(inputs.get("feather", 0) or 0)))
         identity_strength = _clamp_float(inputs.get("IDENTITY STRENGTH", 1.0), 0.5, 1.5, 1.0)
+        quality_profile = str(inputs.get("QUALITY PROFILE", "Automatic") or "Automatic")
+        post_restore = bool(inputs.get("POST RESTORE", False))
+        restore_model = str(inputs.get("POST RESTORE MODEL", inputs.get("RESTORE MODEL", "none")) or "none")
+        restore_visibility = _clamp_float(inputs.get("RESTORE VISIBILITY", 1.0), 0.0, 1.0, 1.0)
+        process = inputs.get("PROCESS")
+        family = str(process.get("source_model_family", process.get("model_family", ""))).lower() if isinstance(process, dict) else ""
+        effective_profile = quality_profile
+        if quality_profile == "Automatic":
+            effective_profile = "ZIT" if family == "z_image_turbo" else "SDXL"
+        if effective_profile == "SDXL":
+            blend, crop_factor, feather, identity_strength = 1.0, 1.5, 22, 1.0
+        elif effective_profile == "ZIT":
+            blend, crop_factor, feather, identity_strength = 0.70, 1.3, 30, 0.85
+        requested_effective_enhancer = face_enhancer
+        if enabled:
+            face_enhancer = validate_enhancer_mode(face_enhancer)
+        elif face_enhancer not in get_available_enhancer_modes():
+            face_enhancer = "Off"
 
         if not enabled:
             log_lines = [
@@ -542,6 +592,7 @@ class CMKFaceSwapImagePipe:
             crop_factor=crop_factor,
             feather=feather,
             identity_strength=identity_strength,
+            enhancer_strength=patch_enhancer_strength,
         )
 
         outputs = []
@@ -587,12 +638,31 @@ class CMKFaceSwapImagePipe:
             if enabled:
                 raw_result, paste_mask = engine.swap_selected_with_mask(
                     target_rgb=target_rgb,
+                    source_rgb=source_rgb,
                     source_selected_face=source_payload,
                     target_selected_face=target_payload,
                     settings=settings,
                 )
                 result_rgb = _blend(target_rgb, raw_result, blend)
                 effective_mask = np.clip(paste_mask * float(blend), 0.0, 1.0)
+                if post_restore:
+                    if restore_model in ("", "none"):
+                        raise ValueError("CMK FaceSwap Image -Pipe-: POST RESTORE requires a restore model")
+                    restored = RestoreFaceAdvanced().execute(
+                        # tensor_utils converts one RGB image to [H,W,C]; the
+                        # restore contract consumes a ComfyUI batch [B,H,W,C].
+                        image=uint8_rgb_to_tensor(result_rgb).unsqueeze(0),
+                        model=restore_model,
+                        visibility=restore_visibility,
+                        facedetection="retinaface_resnet50",
+                        face_selection="largest",
+                        sort_by="area",
+                        reverse_order=False,
+                        take_start=0,
+                        take_count=1,
+                        selected_face=target_payload,
+                    )[0]
+                    result_rgb = tensor_to_uint8_rgb(restored[0])
             else:
                 result_rgb = target_rgb.copy()
 
@@ -650,8 +720,13 @@ class CMKFaceSwapImagePipe:
             f"STATUS          : {'ENABLED' if enabled else 'DISABLED'}",
             f"SWAP MODEL      : {swap_model}",
             f"DETECT MODEL    : {detector_model}",
-            f"FACE ENHANCER   : {face_enhancer}",
-            *( [f"ENHANCER FALLBACK: {requested_face_enhancer} → {face_enhancer}"] if requested_face_enhancer != face_enhancer else [] ),
+            f"PATCH ENHANCER  : {face_enhancer}",
+            f"PATCH ENABLE    : {'ON' if face_enhancer_enabled else 'OFF'}",
+            f"PATCH STRENGTH  : {patch_enhancer_strength:.2f}",
+            *( [f"ENHANCER FALLBACK: {requested_effective_enhancer} → {face_enhancer}"] if requested_effective_enhancer != face_enhancer else [] ),
+            f"POST RESTORE    : {'ON' if post_restore else 'OFF'}",
+            f"RESTORE MODEL   : {restore_model if post_restore else 'SKIPPED'}",
+            f"RESTORE VISIBILITY: {restore_visibility:.2f}",
             f"TARGET FACE     : {target_selection}",
             f"SOURCE FACE     : {source_selection}",
             f"BLEND           : {blend:.2f}",
@@ -660,6 +735,7 @@ class CMKFaceSwapImagePipe:
             f"DROP SIZE       : {drop_size}",
             f"FEATHER         : {feather}",
             f"IDENTITY STRENGTH: {identity_strength:.2f}",
+            f"QUALITY PROFILE : {quality_profile} → {effective_profile}",
             f"TARGET DETECTED : {int(target_detect_count)}",
             f"SOURCE DETECTED : {int(source_detect_count)}",
             f"CHANGED         : {changed_avg:.4f}",
@@ -704,6 +780,9 @@ class CMKFaceSwapImagePipe:
                 "swap_model": swap_model,
                 "detector_model": detector_model,
                 "face_enhancer": face_enhancer,
+                "post_restore": post_restore,
+                "restore_model": restore_model,
+                "restore_visibility": restore_visibility,
                 "target_selection": target_selection,
                 "source_selection": source_selection,
                 "blend": float(blend),

@@ -9,17 +9,73 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import folder_paths
+import psutil
 from aiohttp import web
 from server import PromptServer
 
+from .utils.cmk_execution_cache import (
+    apply_config as _apply_execution_cache_config,
+    public_status as _execution_cache_status,
+    save_mode as _save_execution_cache_mode,
+)
+
+_EXECUTION_CACHE_BOOT_STATUS = _apply_execution_cache_config()
+
 from .cmk_mappings import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
+from .utils.cmk_translation import (
+    public_status as _translation_status,
+    remove_config as _remove_translation_config,
+    save_config as _save_translation_config,
+    test_connection as _test_translation_connection,
+)
 
 WEB_DIRECTORY = "./web"
 _SHOWCASE_WORKFLOWS = Path(__file__).resolve().parent / "workflows" / "showcase"
 _SHOWCASE_METADATA = _SHOWCASE_WORKFLOWS / "metadata"
+_REFERENCE_ASSETS = Path(__file__).resolve().parent / "assets" / "references"
+_PACKAGED_REFERENCES = {
+    f"CMK Package · {filename}": filename
+    for filename in (
+        "controlnet_reference.png",
+        "detailer_reference.png",
+        "face_identity_reference.png",
+        "face_reference.png",
+        "face_reference2.png",
+        "faceswap_reference.png",
+        "inpaint_reference.png",
+        "inpaint_reference2.png",
+        "inpaint_reference3.png",
+        "portrait_reference_00002.png",
+        "remove_refrence.png",
+    )
+}
 _VIDEO_WORKFLOW_TEMPLATE = _SHOWCASE_WORKFLOWS / "CMK FaceSwap Video.json"
 _PROJECT_WORKFLOW_NAME = "cmk_project_workflow.json"
 _PROJECT_METADATA_NAME = "cmk_video_project.json"
+
+
+@web.middleware
+async def _cmk_packaged_reference_view(request, handler):
+    """Let ComfyUI's native image widget preview a package-owned asset.
+
+    The normal /view handler is intentionally bypassed only for CMK's exact
+    virtual filename. No file is copied into ComfyUI's input directory.
+    """
+    if (
+        request.method == "GET"
+        and request.path.rstrip("/").endswith("/view")
+        and request.query.get("filename") in _PACKAGED_REFERENCES
+    ):
+        path = (_REFERENCE_ASSETS / _PACKAGED_REFERENCES[request.query["filename"]]).resolve()
+        if path.is_file():
+            return web.FileResponse(path)
+        raise web.HTTPNotFound(text="CMK reference asset not found")
+    return await handler(request)
+
+
+if not getattr(PromptServer.instance, "_cmk_reference_view_middleware", False):
+    PromptServer.instance.app.middlewares.append(_cmk_packaged_reference_view)
+    PromptServer.instance._cmk_reference_view_middleware = True
 
 
 def _video_storage_roots():
@@ -461,5 +517,146 @@ async def cmk_showcase_workflows(request):
         })
     entries.sort(key=lambda item: (item["order"], item["name"].casefold()))
     return web.json_response({"workflows": entries})
+
+
+@PromptServer.instance.routes.get("/cmk/reference-assets/{filename}")
+async def cmk_reference_asset(request):
+    filename = Path(request.match_info.get("filename", "")).name
+    path = (_REFERENCE_ASSETS / filename).resolve()
+    try:
+        path.relative_to(_REFERENCE_ASSETS.resolve())
+    except ValueError as error:
+        raise web.HTTPNotFound(text="CMK reference asset not found") from error
+    if not path.is_file():
+        raise web.HTTPNotFound(text="CMK reference asset not found")
+    return web.FileResponse(path)
+
+
+@PromptServer.instance.routes.get("/cmk/translation")
+async def cmk_translation_status(request):
+    return web.json_response(await asyncio.to_thread(_translation_status))
+
+
+@PromptServer.instance.routes.get("/cmk/execution-cache")
+async def cmk_execution_cache_status(request):
+    return web.json_response(await asyncio.to_thread(_execution_cache_status))
+
+
+@PromptServer.instance.routes.get("/cmk/process-memory")
+async def cmk_process_memory_status(request):
+    process = psutil.Process(os.getpid())
+    memory = await asyncio.to_thread(process.memory_info)
+
+    # Comfy Desktop launches the Python server as part of its own process tree.
+    # On macOS, especially with MPS/unified memory, the large allocations can be
+    # accounted to that desktop process rather than to the Python child alone.
+    root = process
+    for parent in await asyncio.to_thread(process.parents):
+        try:
+            identity = " ".join((
+                parent.name(),
+                parent.exe(),
+                " ".join(parent.cmdline()),
+            )).casefold()
+        except (psutil.AccessDenied, psutil.NoSuchProcess):
+            continue
+        if "comfy" in identity:
+            root = parent
+
+    family = [root]
+    try:
+        family.extend(await asyncio.to_thread(root.children, recursive=True))
+    except (psutil.AccessDenied, psutil.NoSuchProcess):
+        pass
+    family_rss = 0
+    measured = 0
+    for member in {item.pid: item for item in family}.values():
+        try:
+            family_rss += int(member.memory_info().rss)
+            measured += 1
+        except (psutil.AccessDenied, psutil.NoSuchProcess):
+            pass
+
+    mps_current = 0
+    mps_driver = 0
+    try:
+        import torch
+
+        if torch.backends.mps.is_available():
+            mps_current = int(torch.mps.current_allocated_memory())
+            mps_driver = int(torch.mps.driver_allocated_memory())
+    except (AttributeError, RuntimeError):
+        pass
+
+    process_tree_rss = family_rss or int(memory.rss)
+    fallback_total = process_tree_rss + mps_driver
+    system_memory = await asyncio.to_thread(psutil.virtual_memory)
+    return web.json_response({
+        "rss_bytes": int(memory.rss),
+        "family_rss_bytes": process_tree_rss,
+        "mps_current_bytes": mps_current,
+        "mps_driver_bytes": mps_driver,
+        "display_bytes": fallback_total,
+        "measurement": "rss_plus_mps",
+        "system_available_bytes": int(system_memory.available),
+        "system_total_bytes": int(system_memory.total),
+        "system_used_percent": float(system_memory.percent),
+        "pid": process.pid,
+        "root_pid": root.pid,
+        "process_count": measured,
+    })
+
+
+@PromptServer.instance.routes.post("/cmk/execution-cache")
+async def cmk_execution_cache_configure(request):
+    try:
+        payload = await request.json()
+    except Exception as error:
+        raise web.HTTPBadRequest(text="Invalid execution-cache configuration") from error
+    try:
+        status = await asyncio.to_thread(
+            _save_execution_cache_mode,
+            payload.get("mode"),
+        )
+    except ValueError as error:
+        raise web.HTTPBadRequest(text=str(error)) from error
+    return web.json_response(status)
+
+
+@PromptServer.instance.routes.post("/cmk/translation")
+async def cmk_translation_configure(request):
+    try:
+        payload = await request.json()
+    except (json.JSONDecodeError, TypeError):
+        raise web.HTTPBadRequest(text="Invalid JSON request")
+    if not isinstance(payload, dict):
+        raise web.HTTPBadRequest(text="Invalid translation configuration")
+    api_key = payload.get("api_key") if "api_key" in payload else None
+    enabled = payload.get("enabled") if "enabled" in payload else None
+    if api_key is not None and not str(api_key).strip():
+        raise web.HTTPBadRequest(text="API key must not be empty")
+    status = await asyncio.to_thread(
+        _save_translation_config,
+        api_key=api_key,
+        enabled=enabled,
+    )
+    return web.json_response(status)
+
+
+@PromptServer.instance.routes.delete("/cmk/translation")
+async def cmk_translation_remove(request):
+    return web.json_response(await asyncio.to_thread(_remove_translation_config))
+
+
+@PromptServer.instance.routes.post("/cmk/translation/test")
+async def cmk_translation_test(request):
+    result = await asyncio.to_thread(_test_translation_connection)
+    payload = {
+        "ok": not result.failed and result.status not in {"not_configured", "disabled"},
+        "status": result.status,
+        "error_code": result.error_code,
+        "message": result.error_message,
+    }
+    return web.json_response(payload, status=200 if payload["ok"] else 400)
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]

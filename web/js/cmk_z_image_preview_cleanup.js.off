@@ -1,0 +1,67 @@
+import { app } from "/scripts/app.js";
+
+const TARGET_TITLES = new Set([
+  "CMK Flow · 20 Refiner SDXL",
+  "CMK Flow · 10 KSampler Z-Image Turbo",
+]);
+
+function isTarget(node) {
+  return TARGET_TITLES.has(node?.title) || TARGET_TITLES.has(node?.constructor?.title);
+}
+
+function clearPreview(node) {
+  if (!node) return;
+  node.imgs = null;
+  node.imageIndex = null;
+  node.preview = null;
+  node.animated_preview = null;
+  node.setDirtyCanvas?.(true, true);
+}
+
+function findSubgraphHost(graph, internalGraph) {
+  if (!graph || !internalGraph) return null;
+  for (const node of graph._nodes ?? []) {
+    if (node?.subgraph === internalGraph) return node;
+    const nested = findSubgraphHost(node?.subgraph, internalGraph);
+    if (nested) return nested;
+  }
+  return null;
+}
+
+function clearSamplerPreviews(host) {
+  if (!host) return;
+
+  // The outer subgraph owns the transient preview shown while sampling.
+  clearPreview(host);
+
+  // Clear cached sampler frames inside the subgraph as well. Do not touch
+  // CMKImagePreviewForward: its image is the finished, promoted preview.
+  for (const node of host.subgraph?._nodes ?? []) {
+    const type = String(node?.type ?? node?.constructor?.type ?? "");
+    if (type.toLowerCase().includes("sampler")) clearPreview(node);
+  }
+}
+
+function finalImageArrived(node, message) {
+  if (!Array.isArray(message?.images) || message.images.length === 0) return;
+  const root = app.rootGraph ?? app.graph;
+  const host = findSubgraphHost(root, node.graph);
+  if (isTarget(host)) clearSamplerPreviews(host);
+}
+
+app.registerExtension({
+  name: "cmk.flow.final_preview_cleanup",
+
+  // The finished image message is emitted by this internal node, not by the
+  // outer subgraph node. Cleaning up here also guarantees that its own final
+  // image has already been installed before the sampler frame is discarded.
+  beforeRegisterNodeDef(nodeType, nodeData) {
+    if (nodeData?.name !== "CMKImagePreviewForward") return;
+    const originalOnExecuted = nodeType.prototype.onExecuted;
+    nodeType.prototype.onExecuted = function (message) {
+      const result = originalOnExecuted?.call(this, message);
+      finalImageArrived(this, message);
+      return result;
+    };
+  },
+});

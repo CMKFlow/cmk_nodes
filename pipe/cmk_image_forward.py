@@ -19,3 +19,25 @@ class CMKImageForward:
         if IMAGE is None:
             raise ValueError("CMK Image Forward -Pipe-: IMAGE is missing")
         return (IMAGE,)
+
+
+class CMKImagePreviewForward(CMKImageForward):
+    """Display the completed image while keeping it in the data path."""
+
+    CATEGORY = "CMK/Developer/Pipe/Preview"
+    DEV_ONLY = True
+
+    @staticmethod
+    def forward(IMAGE):
+        if IMAGE is None:
+            raise ValueError("CMK Image Preview Forward -Pipe-: IMAGE is missing")
+        result = (IMAGE,)
+        try:
+            from nodes import PreviewImage
+
+            payload = PreviewImage().save_images(IMAGE)
+            if isinstance(payload, dict) and isinstance(payload.get("ui"), dict):
+                return {"ui": payload["ui"], "result": result}
+        except Exception:
+            pass
+        return result

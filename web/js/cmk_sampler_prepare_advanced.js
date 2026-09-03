@@ -15,6 +15,9 @@ const ADVANCED_WIDGETS = new Set([
     "sampling",
     "zsnr",
     "pag_scale",
+    "denoise",
+    "inpaint_noise_mask",
+    "context_reference_enabled",
     "context_reference_expand",
     "context_reference_blur",
 ]);
@@ -27,8 +30,9 @@ const STANDARD_LABELS = {
     sampler: "SAMPLER",
     scheduler: "SCHEDULER",
     seed: "SEED",
-    inpaint_noise_mask: "USE INPAINT NOISE MASK",
-    context_reference_enabled: "USE CONTEXT REFERENCE LATENT MASK",
+    denoise: "denoise",
+    inpaint_noise_mask: "inpaint_noise_mask",
+    context_reference_enabled: "context_reference_enabled",
 };
 
 function isTargetNode(node) {

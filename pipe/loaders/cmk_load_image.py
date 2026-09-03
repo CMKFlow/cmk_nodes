@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -10,6 +11,37 @@ from PIL import Image, ImageOps, ImageSequence
 import folder_paths
 
 from ..cmk_log_pipe import cmk_add_block
+
+
+CMK_PACKAGED_REFERENCES = {
+    f"CMK Package · {filename}": filename
+    for filename in (
+        "face_reference.png",
+        "controlnet_reference.png",
+        "detailer_reference.png",
+        "face_identity_reference.png",
+        "face_reference2.png",
+        "faceswap_reference.png",
+        "inpaint_reference.png",
+        "inpaint_reference2.png",
+        "inpaint_reference3.png",
+        "portrait_reference_00002.png",
+        "remove_refrence.png",
+    )
+}
+_CMK_REFERENCE_ASSETS = Path(__file__).resolve().parents[2] / "assets" / "references"
+
+
+def _packaged_reference_path(image: str):
+    filename = CMK_PACKAGED_REFERENCES.get(str(image or ""))
+    if filename is None:
+        return None
+    path = (_CMK_REFERENCE_ASSETS / filename).resolve()
+    try:
+        path.relative_to(_CMK_REFERENCE_ASSETS.resolve())
+    except ValueError:
+        return None
+    return path if path.is_file() else None
 
 
 class CMKLoadImage:
@@ -24,6 +56,9 @@ class CMKLoadImage:
     - FILENAME_STRING: selected source filename for Create Image or save modules
     - LOG: documentation context containing source metadata
 
+    An optional opt_LOG input lets the loader append its source-image block to
+    an existing workflow log instead of starting a separate log chain.
+
     IMAGE and MASK remain available inside PROCESS as well. Their explicit
     outputs allow direct use by Create Image and native ComfyUI nodes.
     """
@@ -36,11 +71,14 @@ class CMKLoadImage:
             files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f))]
         except Exception:
             files = []
-        files = sorted(files)
+        files = list(CMK_PACKAGED_REFERENCES) + sorted(files)
         return {
             "required": {
                 "image": (files, {"image_upload": True}),
-            }
+            },
+            "optional": {
+                "opt_LOG": ("CMK_LOG_PIPE",),
+            },
         }
 
     RETURN_TYPES = ("CMK_PIPE", "IMAGE", "MASK", "STRING", "CMK_LOG_PIPE")
@@ -49,12 +87,15 @@ class CMKLoadImage:
     CATEGORY = "CMK/Flow/Input"
 
     def _resolve_image_path(self, image: str) -> str:
+        packaged_path = _packaged_reference_path(image)
+        if packaged_path is not None:
+            return str(packaged_path)
         try:
             return folder_paths.get_annotated_filepath(image)
         except Exception:
             return os.path.join(folder_paths.get_input_directory(), image)
 
-    def load_image(self, image):
+    def load_image(self, image, opt_LOG=None):
         image_path = self._resolve_image_path(image)
 
         output_images = []
@@ -120,8 +161,10 @@ class CMKLoadImage:
             f"Format          : {source_format}",
         ]
 
+        log_base = dict(opt_LOG) if isinstance(opt_LOG, dict) else {"blocks": []}
+        log_base["filename_string"] = filename_string
         log_pipe = cmk_add_block(
-            {"blocks": [], "filename_string": filename_string},
+            log_base,
             "Load Image",
             1,
             log_lines,
@@ -133,7 +176,8 @@ class CMKLoadImage:
     @classmethod
     def IS_CHANGED(cls, image):
         try:
-            image_path = folder_paths.get_annotated_filepath(image)
+            packaged_path = _packaged_reference_path(image)
+            image_path = str(packaged_path) if packaged_path is not None else folder_paths.get_annotated_filepath(image)
             with open(image_path, "rb") as f:
                 return hashlib.sha256(f.read()).hexdigest()
         except Exception:
@@ -141,6 +185,8 @@ class CMKLoadImage:
 
     @classmethod
     def VALIDATE_INPUTS(cls, image):
+        if _packaged_reference_path(image) is not None:
+            return True
         try:
             if not folder_paths.exists_annotated_filepath(image):
                 return f"Invalid image file: {image}"

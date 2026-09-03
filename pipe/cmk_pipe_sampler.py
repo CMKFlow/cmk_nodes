@@ -1,4 +1,6 @@
 from ..cmk_common import SAMPLERS, SCHEDULERS
+from ..utils.cmk_timing import cmk_timed
+from ..utils.cmk_sampling_warnings import ignore_torchsde_boundary_rounding
 
 
 class CMKPipeSetSampler:
@@ -207,22 +209,24 @@ class CMKPipePeekKSamplerRefinerSource:
 
     @classmethod
     def INPUT_TYPES(cls):
-        return {"required": {"pipe": ("CMK_PIPE",)}}
+        return {"required": {"SAMPLED": ("CMK_SAMPLED_PIPE",)}}
 
     RETURN_TYPES = ("LATENT", "INT", "INT", "STRING", "STRING", "STRING", "LORA_STACK")
     RETURN_NAMES = ("latent_image", "seed", "steps_1st_pass", "prompt_pos", "prompt_neg", "active_loras", "lora_stack")
     FUNCTION = "peek_ksampler_refiner_source"
     CATEGORY = 'CMK/Developer/Pipe/Peek'
 
-    def peek_ksampler_refiner_source(self, pipe):
+    def peek_ksampler_refiner_source(self, SAMPLED):
+        if not isinstance(SAMPLED, dict):
+            raise TypeError("CMK Sampler Refiner Source: SAMPLED must be a CMK sampled pipe")
         return (
-            pipe.get("latent_1st_pass", pipe.get("latent_image")),
-            pipe.get("seed"),
-            pipe.get("steps_1st_pass", pipe.get("steps")),
-            pipe.get("prompt_pos", ""),
-            pipe.get("prompt_neg", ""),
-            pipe.get("active_loras", ""),
-            pipe.get("lora_stack"),
+            SAMPLED.get("latent_1st_pass", SAMPLED.get("latent_image")),
+            SAMPLED.get("seed"),
+            SAMPLED.get("steps_1st_pass", SAMPLED.get("steps")),
+            SAMPLED.get("prompt_pos", ""),
+            SAMPLED.get("prompt_neg", ""),
+            SAMPLED.get("active_loras", ""),
+            SAMPLED.get("lora_stack"),
         )
 
 
@@ -312,33 +316,212 @@ class CMKKSamplerPipe:
         scheduler = pipe.get("scheduler", "karras")
         denoise = float(pipe.get("denoise", 1.0))
 
+        if pipe.get("inpaint_process_mode") == "remove" and pipe.get("remove_result_image") is not None:
+            new_pipe = dict(pipe)
+            new_pipe["samples"] = latent_image
+            new_pipe["latent"] = latent_image
+            new_pipe["latent_image"] = latent_image
+            new_pipe["latent_1st_pass"] = latent_image
+            new_pipe["ksampler_log"] = "CMK KSampler -Pipe- | BYPASSED | Remove Object uses LaMa"
+            return (new_pipe,)
+
+        if pipe.get("instantid_reference_latent_mode", False):
+            new_pipe = dict(pipe)
+            new_pipe["samples"] = latent_image
+            new_pipe["latent"] = latent_image
+            new_pipe["latent_image"] = latent_image
+            new_pipe["latent_1st_pass"] = latent_image
+            new_pipe.pop("instantid_keypoints_latent", None)
+            new_pipe["ksampler_log"] = (
+                "CMK KSampler -Pipe- | BYPASSED | "
+                "InstantID reference latent is encoded and sampled in module 15"
+            )
+            return (new_pipe,)
+
+        if pipe.get("instantid_enabled", False) and int(pipe.get("instantid_end_at_step", 2)) == 0:
+            new_pipe = dict(pipe)
+            new_pipe["samples"] = latent_image
+            new_pipe["latent"] = latent_image
+            new_pipe["latent_image"] = latent_image
+            new_pipe["latent_1st_pass"] = latent_image
+            new_pipe["instantid_zero_pass"] = True
+            new_pipe.pop("instantid_keypoints_latent", None)
+            new_pipe["ksampler_log"] = (
+                "CMK KSampler -Pipe- | BYPASSED | InstantID zero-pass test"
+            )
+            return (new_pipe,)
+
         try:
             from nodes import KSampler
         except Exception as exc:
             raise RuntimeError(f"CMK KSampler -Pipe-: ComfyUI KSampler unavailable: {exc}") from exc
 
-        result = KSampler().sample(
-            model,
-            seed,
-            steps,
-            cfg,
-            sampler_name,
-            scheduler,
-            positive,
-            negative,
-            latent_image,
-            denoise,
-        )
-        samples = result[0] if isinstance(result, (tuple, list)) else result
+        if pipe.get("instantid_enabled", False):
+            import comfy.sample
+            import comfy.utils
+            import latent_preview
+
+            end_at_step = int(pipe.get("instantid_end_at_step", 2))
+            latent_tensor = latent_image["samples"]
+            latent_tensor = comfy.sample.fix_empty_latent_channels(
+                model,
+                latent_tensor,
+                latent_image.get("downscale_ratio_spacial"),
+                latent_image.get("downscale_ratio_temporal"),
+            )
+            batch_inds = latent_image.get("batch_index")
+            noise = comfy.sample.prepare_noise(latent_tensor, seed, batch_inds)
+            x0_output = {}
+            preview_callback = latent_preview.prepare_callback(model, steps, x0_output)
+            with cmk_timed("10 KSAMPLER SAMPLE", f"steps 0-{end_at_step}/{steps} | leftover noise"):
+                with ignore_torchsde_boundary_rounding():
+                    sampled_tensor = comfy.sample.sample(
+                        model,
+                        noise,
+                        steps,
+                        cfg,
+                        sampler_name,
+                        scheduler,
+                        positive,
+                        negative,
+                        latent_tensor,
+                        denoise=denoise,
+                        start_step=0,
+                        last_step=end_at_step,
+                        force_full_denoise=False,
+                        noise_mask=latent_image.get("noise_mask"),
+                        callback=preview_callback,
+                        disable_pbar=not comfy.utils.PROGRESS_BAR_ENABLED,
+                        seed=seed,
+                    )
+            samples = latent_image.copy()
+            samples.pop("downscale_ratio_spacial", None)
+            samples.pop("downscale_ratio_temporal", None)
+            samples["samples"] = sampled_tensor
+            if "x0" in x0_output:
+                keypoints_latent = latent_image.copy()
+                keypoints_latent.pop("downscale_ratio_spacial", None)
+                keypoints_latent.pop("downscale_ratio_temporal", None)
+                keypoints_latent["samples"] = model.model.process_latent_out(
+                    x0_output["x0"].cpu()
+                )
+            else:
+                keypoints_latent = None
+
+            # Fooocus/Inpaint latents carry a noise mask and an inpaint model
+            # contract that cannot safely cross into the ordinary InstantID
+            # continuation. Turn the first-pass clean x0 estimate into pixels
+            # and encode those pixels again. VAEEncode returns a fresh latent
+            # without noise_mask or other Inpaint-specific latent metadata.
+            if pipe.get("boolean_inpaint_mode", False):
+                if keypoints_latent is None:
+                    raise RuntimeError(
+                        "CMK KSampler -Pipe-: InstantID Inpaint bridge requires the first-pass x0 estimate"
+                    )
+                vae = pipe.get("vae")
+                if vae is None:
+                    raise ValueError(
+                        "CMK KSampler -Pipe-: InstantID Inpaint bridge requires pipe['vae']"
+                    )
+                try:
+                    from nodes import VAEDecode, VAEEncode
+
+                    with cmk_timed("10 INSTANTID INPAINT BRIDGE", "x0 decode -> clean VAE encode"):
+                        decoded = VAEDecode().decode(vae, keypoints_latent)
+                        bridge_image = decoded[0] if isinstance(decoded, (tuple, list)) else decoded
+                        encoded = VAEEncode().encode(vae, bridge_image)
+                        encoded_latent = encoded[0] if isinstance(encoded, (tuple, list)) else encoded
+                    if not isinstance(encoded_latent, dict) or "samples" not in encoded_latent:
+                        raise TypeError("VAEEncode returned no LATENT samples")
+                    samples = {"samples": encoded_latent["samples"]}
+                    keypoints_latent = samples
+                    instantid_inpaint_bridge = True
+                except Exception as exc:
+                    raise RuntimeError(
+                        f"CMK KSampler -Pipe-: InstantID Inpaint bridge failed: {exc}"
+                    ) from exc
+            else:
+                instantid_inpaint_bridge = False
+        elif pipe.get("suppress_sampler_preview", False):
+            # Mirrors ComfyUI's common_ksampler but deliberately omits the
+            # latent-preview callback. The final decoded PreviewImage remains.
+            import comfy.sample
+            import comfy.utils
+
+            latent_tensor = latent_image["samples"]
+            latent_tensor = comfy.sample.fix_empty_latent_channels(
+                model,
+                latent_tensor,
+                latent_image.get("downscale_ratio_spacial"),
+                latent_image.get("downscale_ratio_temporal"),
+            )
+            batch_inds = latent_image.get("batch_index")
+            noise = comfy.sample.prepare_noise(latent_tensor, seed, batch_inds)
+            with cmk_timed("10 KSAMPLER SAMPLE", f"{steps} steps"):
+                sampled_tensor = comfy.sample.sample(
+                    model,
+                    noise,
+                    steps,
+                    cfg,
+                    sampler_name,
+                    scheduler,
+                    positive,
+                    negative,
+                    latent_tensor,
+                    denoise=denoise,
+                    noise_mask=latent_image.get("noise_mask"),
+                    callback=None,
+                    disable_pbar=not comfy.utils.PROGRESS_BAR_ENABLED,
+                    seed=seed,
+                )
+            samples = latent_image.copy()
+            samples.pop("downscale_ratio_spacial", None)
+            samples.pop("downscale_ratio_temporal", None)
+            samples["samples"] = sampled_tensor
+        else:
+            with cmk_timed("10 KSAMPLER SAMPLE", f"{steps} steps"):
+                result = KSampler().sample(
+                    model,
+                    seed,
+                    steps,
+                    cfg,
+                    sampler_name,
+                    scheduler,
+                    positive,
+                    negative,
+                    latent_image,
+                    denoise,
+                )
+            samples = result[0] if isinstance(result, (tuple, list)) else result
 
         new_pipe = dict(pipe)
         new_pipe["samples"] = samples
         new_pipe["latent"] = samples
         new_pipe["latent_image"] = samples
         new_pipe["latent_1st_pass"] = samples
+        if pipe.get("instantid_enabled", False) and keypoints_latent is not None:
+            new_pipe["instantid_keypoints_latent"] = keypoints_latent
+            new_pipe["instantid_inpaint_bridge"] = bool(instantid_inpaint_bridge)
         new_pipe["ksampler_log"] = (
             "CMK KSampler -Pipe- | "
             f"seed={seed} | steps={steps} | cfg={cfg} | sampler={sampler_name} | "
-            f"scheduler={scheduler} | denoise={denoise}"
+            f"scheduler={scheduler} | denoise={denoise} | "
+            f"instantid_inpaint_bridge={bool(pipe.get('instantid_enabled', False) and instantid_inpaint_bridge)}"
         )
+        if str(pipe.get("model_family", "")).lower() == "z_image_turbo":
+            vae = pipe.get("vae")
+            if vae is not None:
+                try:
+                    from nodes import VAEDecode
+                    from .cmk_final_preview import send_final_preview
+
+                    decoded = VAEDecode().decode(vae, samples)
+                    image = decoded[0] if isinstance(decoded, (tuple, list)) else decoded
+                    new_pipe["image"] = image
+                    send_final_preview(image)
+                    return (new_pipe,)
+                except Exception:
+                    # Sampling remains valid even if the optional UI preview
+                    # cannot be produced; Finalize will still decode it.
+                    pass
         return (new_pipe,)

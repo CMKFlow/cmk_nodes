@@ -155,17 +155,15 @@ def cmk_render_log(log_pipe):
     if not isinstance(log_pipe, dict):
         return ""
 
+    # A CMK log pipe is an append-only representation of the actual modular
+    # data flow. Preserve that sequence when rendering. The legacy ``order``
+    # field remains part of the block format for compatibility, but must not
+    # reorder blocks from freely combined modules.
     blocks = [
         block
         for block in log_pipe.get("blocks", [])
         if isinstance(block, dict) and block.get("enabled", True)
     ]
-    blocks.sort(
-        key=lambda block: (
-            int(block.get("order", 9999)),
-            str(block.get("title", "")),
-        )
-    )
 
     rendered = []
     for block in blocks:

@@ -459,26 +459,21 @@ def _flow_caption_panel(data: dict, *, caption: str, width: int) -> np.ndarray |
 
     width = max(720, int(width or 720))
     text_w = width - pad * 2
-    title_font = _load_font(38, bold=True)
     label_font = _load_font(int(spec["label"]), bold=False)
     value_font = _load_font(int(spec["value"]), bold=True)
 
     summary = str(data.get("summary") or "")
     details = str(data.get("details") or summary or "")
     metadata = dict(data.get("metadata") or {})
-    title = str(data.get("title") or data.get("node") or "CMK Preview")
-
     probe = Image.new("RGB", (width, 1), bg)
     draw = ImageDraw.Draw(probe)
-    title_h = _draw_title(draw, title, pad, 0, text_w, title_font, text)
-    items = _summary_items(title, summary, details, metadata, caption)
+    items = _summary_items("", summary, details, metadata, caption)
     caption_h = _draw_caption(draw, items, pad, 0, text_w, label_font, value_font, muted, text)
-    total_h = pad + title_h + gap + 4 + gap + caption_h + pad
+    total_h = pad + 4 + gap + caption_h + pad
 
     panel = Image.new("RGB", (width, total_h), bg)
     d = ImageDraw.Draw(panel)
     y = pad
-    y += _draw_title(d, title, pad, y, text_w, title_font, text) + gap
     d.rectangle((pad, y, width - pad, y + 4), fill=line)
     y += 4 + gap
     _draw_caption(d, items, pad, y, text_w, label_font, value_font, muted, text)
@@ -495,6 +490,9 @@ def _preview_steps_from_payload(data: dict) -> list[dict]:
             if isinstance(item, dict):
                 title = item.get("title") or item.get("label") or f"Stage {idx + 1}"
                 subtitle = item.get("subtitle") or item.get("note") or ""
+                summary = item.get("summary") or ""
+                details = item.get("details") or summary
+                step_metadata = dict(item.get("metadata") or {})
                 # Do not use ``item.get("image") or ...`` here: torch tensors
                 # cannot be evaluated as booleans when they contain more than one
                 # value. Treat only None as missing.
@@ -505,10 +503,20 @@ def _preview_steps_from_payload(data: dict) -> list[dict]:
                 title = item[0]
                 image = item[1]
                 subtitle = item[2] if len(item) >= 3 else ""
+                summary = ""
+                details = ""
+                step_metadata = {}
             else:
                 continue
             if _image_like_to_rgb(image) is not None:
-                steps.append({"title": str(title), "subtitle": str(subtitle), "image": image})
+                steps.append({
+                    "title": str(title),
+                    "subtitle": str(subtitle),
+                    "image": image,
+                    "summary": str(summary),
+                    "details": str(details),
+                    "metadata": step_metadata,
+                })
 
     if steps:
         return steps
@@ -528,7 +536,12 @@ def _preview_steps_from_payload(data: dict) -> list[dict]:
     return steps
 
 
-def _render_stage_strip(cards: list[np.ndarray], *, title: str) -> np.ndarray:
+def _render_stage_strip(
+    cards: list[np.ndarray],
+    *,
+    title: str,
+    show_title: bool = True,
+) -> np.ndarray:
     spec = _design()
     bg = spec["board_bg"]
     text = spec["text"]
@@ -541,16 +554,18 @@ def _render_stage_strip(cards: list[np.ndarray], *, title: str) -> np.ndarray:
     if not cards:
         return np.zeros((240, 720, 3), dtype=np.uint8)
 
-    title_font = _load_font(36, bold=True)
+    title_font = _load_font(int(spec["title"]), bold=True)
     arrow_font = _load_font(30, bold=True)
 
     probe = Image.new("RGB", (1, 1), bg)
     d0 = ImageDraw.Draw(probe)
-    title_h = _text_bbox(d0, str(title or "CMK Preview"), title_font)[1]
+    title_line_h = _text_bbox(d0, "Ag", title_font)[1] + 8
+    title_h = title_line_h * int(spec["max_title_lines"])
     card_h = max(card.shape[0] for card in cards)
     content_w = sum(card.shape[1] for card in cards) + gap * max(0, len(cards) - 1) + arrow_w * max(0, len(cards) - 1)
     width = max(720, content_w + pad * 2)
-    height = pad + title_h + 16 + 3 + 18 + card_h + pad
+    header_h = pad + title_h + gap if show_title else pad
+    height = header_h + card_h + pad
 
     out = np.zeros((height, width, 3), dtype=np.uint8)
     out[:, :, :] = bg
@@ -559,11 +574,17 @@ def _render_stage_strip(cards: list[np.ndarray], *, title: str) -> np.ndarray:
     # Need to draw on a PIL image and convert back, because ImageDraw works on PIL object.
     panel = Image.fromarray(out)
     d = ImageDraw.Draw(panel)
-    d.text((pad, pad), str(title or "CMK Preview"), fill=text, font=title_font)
-    y_line = pad + title_h + 14
-    d.rectangle((pad, y_line, width - pad, y_line + 3), fill=line)
-
-    y = y_line + 3 + 18
+    if show_title:
+        _draw_title(
+            d,
+            str(title or "CMK Preview"),
+            pad,
+            pad,
+            width - pad * 2,
+            title_font,
+            text,
+        )
+    y = header_h
     x = pad
     for idx, card in enumerate(cards):
         card = _pad_to_height(card, card_h)
@@ -574,6 +595,65 @@ def _render_stage_strip(cards: list[np.ndarray], *, title: str) -> np.ndarray:
             arrow_y = y + card_h // 2 - 20
             d.text((arrow_x, arrow_y), "→", fill=line, font=arrow_font)
             x += gap + arrow_w
+    return np.asarray(panel, dtype=np.uint8)
+
+
+def _render_stage_grid(
+    cards: list[np.ndarray],
+    *,
+    title: str,
+    columns: int = 4,
+    show_title: bool = True,
+) -> np.ndarray:
+    """Render a chronological diagnostic timeline in compact reading rows."""
+    spec = _design()
+    bg = spec["board_bg"]
+    text = spec["text"]
+    line = spec["line"]
+    pad = 28
+    gap = 18
+    columns = max(1, min(int(columns or 4), 6))
+
+    cards = [_as_rgb(card) for card in cards if card is not None]
+    if not cards:
+        return np.zeros((240, 720, 3), dtype=np.uint8)
+
+    title_font = _load_font(int(spec["title"]), bold=True)
+    probe = Image.new("RGB", (1, 1), bg)
+    d0 = ImageDraw.Draw(probe)
+    title_line_h = _text_bbox(d0, "Ag", title_font)[1] + 8
+    title_h = title_line_h * int(spec["max_title_lines"])
+
+    cell_w = max(card.shape[1] for card in cards)
+    cell_h = max(card.shape[0] for card in cards)
+    rows = (len(cards) + columns - 1) // columns
+    used_columns = min(columns, len(cards))
+    width = max(720, pad * 2 + used_columns * cell_w + max(0, used_columns - 1) * gap)
+    header_h = pad + title_h + gap if show_title else pad
+    height = header_h + rows * cell_h + max(0, rows - 1) * gap + pad
+
+    panel = Image.new("RGB", (width, height), bg)
+    d = ImageDraw.Draw(panel)
+    if show_title:
+        _draw_title(
+            d,
+            str(title or "CMK Preview"),
+            pad,
+            pad,
+            width - pad * 2,
+            title_font,
+            text,
+        )
+
+    for index, card in enumerate(cards):
+        row = index // columns
+        column = index % columns
+        x = pad + column * (cell_w + gap)
+        y = header_h + row * (cell_h + gap)
+        card = _as_rgb(card)
+        x += max(0, (cell_w - card.shape[1]) // 2)
+        panel.paste(Image.fromarray(card), (x, y))
+
     return np.asarray(panel, dtype=np.uint8)
 
 
@@ -610,9 +690,74 @@ def _render_flow_preview_panel(data: dict, *, caption: str = "Standard") -> np.n
     if len(cards) < 2:
         return None
 
-    strip = _render_stage_strip(cards, title=str(data.get("title") or data.get("node") or "CMK Preview"))
-    caption_panel = _flow_caption_panel(data, caption=caption, width=int(strip.shape[1]))
-    return _stack_vertical(strip, caption_panel)
+    metadata = dict(data.get("metadata") or {})
+    title = str(data.get("title") or data.get("node") or "CMK Preview")
+    if metadata.get("preview_layout") == "grid":
+        strip = _render_stage_grid(
+            cards,
+            title=title,
+            columns=int(metadata.get("preview_columns") or 4),
+        )
+    else:
+        strip = _render_stage_strip(cards, title=title)
+    # Standard preview boards are image-first and keep one stable module card.
+    # Detailed captions remain available explicitly without duplicating titles.
+    if caption == "Details":
+        caption_panel = _flow_caption_panel(data, caption=caption, width=int(strip.shape[1]))
+        return _stack_vertical(strip, caption_panel)
+    return strip
+
+
+def _concat_stage_panels(data: dict) -> list[np.ndarray]:
+    """Expand one diagnostic into full-size chronological stage cards.
+
+    Concat is deliberately dumb: it preserves its input order.  A multi-stage
+    diagnostic is expanded in place, with every stage rendered as an ordinary
+    quartet-style card (title, image, information).  It must never be rendered
+    as a miniature timeline inside another process card.
+    """
+    panels: list[np.ndarray] = []
+    for step in _preview_steps_from_payload(data):
+        image = _image_like_to_rgb(step.get("image"))
+        if image is None:
+            continue
+        subtitle = str(step.get("subtitle") or "").strip()
+        stage_text = str(step.get("summary") or "").strip()
+        if not stage_text:
+            stage_text = f"Info: {subtitle}" if subtitle else "Status: Ready"
+        panels.append(
+            _diagnostic_card(
+                image,
+                title=str(step.get("title") or "Stage"),
+                summary=stage_text,
+                details=str(step.get("details") or stage_text),
+                metadata=dict(step.get("metadata") or {}),
+                caption="Details",
+            )
+        )
+    return panels
+
+
+def _concat_detail_panels(data: dict, *, depth: int = 0) -> list[np.ndarray]:
+    """Recursively flatten nested concat diagnostics into chronological cards."""
+    if depth < 12 and str(data.get("node") or "") == "CMK Diagnostic Concat":
+        groups = (data.get("metadata") or {}).get("diagnostic_groups") or []
+        panels: list[np.ndarray] = []
+        for group in groups:
+            try:
+                from .preview_payload import normalize_preview_payload
+
+                group_data = normalize_preview_payload(group)
+                panels.extend(_concat_detail_panels(group_data, depth=depth + 1))
+            except Exception:
+                continue
+        if panels:
+            return panels
+
+    stage_panels = _concat_stage_panels(data)
+    if stage_panels:
+        return stage_panels
+    return []
 
 
 # -----------------------------------------------------------------------------
@@ -628,7 +773,37 @@ def _draw_title(draw: ImageDraw.ImageDraw, title: str, x: int, y: int, max_w: in
     return yy - y
 
 
-def _draw_caption(draw: ImageDraw.ImageDraw, items: list[tuple[str, str]], x: int, y: int, max_w: int, label_font, value_font, muted, text) -> int:
+def _fit_text_ellipsis(draw: ImageDraw.ImageDraw, value: str, font, max_w: int) -> str:
+    value = str(value or "")
+    if _text_w(draw, value, font) <= max_w:
+        return value
+    suffix = "…"
+    if _text_w(draw, suffix, font) > max_w:
+        return ""
+    low, high = 0, len(value)
+    while low < high:
+        mid = (low + high + 1) // 2
+        candidate = value[:mid].rstrip() + suffix
+        if _text_w(draw, candidate, font) <= max_w:
+            low = mid
+        else:
+            high = mid - 1
+    return value[:low].rstrip() + suffix
+
+
+def _draw_caption(
+    draw: ImageDraw.ImageDraw,
+    items: list[tuple[str, str]],
+    x: int,
+    y: int,
+    max_w: int,
+    label_font,
+    value_font,
+    muted,
+    text,
+    *,
+    wrap_values: bool = True,
+) -> int:
     if not items:
         return 0
     col_gap = 24
@@ -636,11 +811,14 @@ def _draw_caption(draw: ImageDraw.ImageDraw, items: list[tuple[str, str]], x: in
     yy = y
     row_gap = 12
     for label, value in items:
-        draw.text((x, yy), label, fill=muted, font=label_font)
+        label_text = _fit_text_ellipsis(draw, label, label_font, label_w)
+        draw.text((x, yy), label_text, fill=muted, font=label_font)
         value_x = x + label_w + col_gap
         value_w = max(80, max_w - label_w - col_gap)
-        # Single-line first; wrap only if absolutely necessary.
-        vlines = _wrap_text(draw, value, value_font, value_w, max_lines=2)
+        if wrap_values:
+            vlines = _wrap_text(draw, value, value_font, value_w, max_lines=2)
+        else:
+            vlines = [_fit_text_ellipsis(draw, value, value_font, value_w)]
         first_h = _text_bbox(draw, vlines[0] or "Ag", value_font)[1]
         draw.text((value_x, yy), vlines[0], fill=text, font=value_font)
         if len(vlines) > 1:
@@ -664,18 +842,79 @@ def _diagnostic_card(image: np.ndarray, *, title: str, summary: str, details: st
     label_font = _load_font(int(spec["label"]), bold=False)
     value_font = _load_font(int(spec["value"]), bold=True)
 
-    image = _resize_to_height(image, int(spec["preview_h"]))
+    # Standard cards use one fixed square preview viewport. Different source
+    # aspect ratios are fitted proportionally into it instead of changing the
+    # card width or stretching the image.
+    image = _as_rgb(image)
+    image_box_h = int(spec["preview_h"])
+    image_box_w = int(spec["preview_h"])
+    ih0, iw0 = image.shape[:2]
+    scale = min(
+        image_box_w / float(max(1, iw0)),
+        image_box_h / float(max(1, ih0)),
+    )
+    fitted_w = max(1, int(round(iw0 * scale)))
+    fitted_h = max(1, int(round(ih0 * scale)))
+    try:
+        fitted = np.asarray(
+            Image.fromarray(image).resize(
+                (fitted_w, fitted_h),
+                Image.Resampling.LANCZOS,
+            ),
+            dtype=np.uint8,
+        )
+    except Exception:
+        fitted = image
+        fitted_h, fitted_w = fitted.shape[:2]
+
+    image = np.zeros((image_box_h, image_box_w, 3), dtype=np.uint8)
+    fit_x = max(0, (image_box_w - fitted_w) // 2)
+    fit_y = max(0, (image_box_h - fitted_h) // 2)
+    copy_h = min(fitted_h, image_box_h)
+    copy_w = min(fitted_w, image_box_w)
+    image[fit_y:fit_y + copy_h, fit_x:fit_x + copy_w] = fitted[:copy_h, :copy_w]
     ih, iw = image.shape[:2]
-    card_w = max(iw + pad * 2, 520)
+    card_w = image_box_w + pad * 2
     text_w = card_w - pad * 2
 
     probe = Image.new("RGB", (card_w, 1), bg)
     draw = ImageDraw.Draw(probe)
-    title_h = _draw_title(draw, title or "CMK Preview", pad, 0, text_w, title_font, text)
+    title_line_h = _text_bbox(draw, "Ag", title_font)[1] + 8
+    title_h = title_line_h * int(spec["max_title_lines"])
     items = _summary_items(title, summary, details, metadata, caption)
     caption_h = 0
     if caption != "Off":
-        caption_h = _draw_caption(draw, items, pad, 0, text_w, label_font, value_font, muted, text)
+        caption_h = _draw_caption(
+            draw,
+            items,
+            pad,
+            0,
+            text_w,
+            label_font,
+            value_font,
+            muted,
+            text,
+            wrap_values=(caption == "Details"),
+        )
+        if caption == "Standard":
+            # Reserve five rows even when a diagnostic currently exposes fewer
+            # values. This keeps every Standard card pixel-identical in height.
+            standard_rows = [("Value", "Ag")] * int(spec["caption_rows_summary"])
+            caption_h = max(
+                caption_h,
+                _draw_caption(
+                    draw,
+                    standard_rows,
+                    pad,
+                    0,
+                    text_w,
+                    label_font,
+                    value_font,
+                    muted,
+                    text,
+                    wrap_values=False,
+                ),
+            )
 
     divider_h = 4
     total_h = pad + title_h + gap + ih
@@ -686,7 +925,7 @@ def _diagnostic_card(image: np.ndarray, *, title: str, summary: str, details: st
     panel = Image.new("RGB", (card_w, total_h), bg)
     d = ImageDraw.Draw(panel)
     y = pad
-    title_h = _draw_title(d, title or "CMK Preview", pad, y, text_w, title_font, text)
+    _draw_title(d, title or "CMK Preview", pad, y, text_w, title_font, text)
     y += title_h + gap
 
     x_img = pad + max(0, (text_w - iw) // 2)
@@ -697,7 +936,18 @@ def _diagnostic_card(image: np.ndarray, *, title: str, summary: str, details: st
         y += gap
         d.rectangle((pad, y, card_w - pad, y + divider_h), fill=line)
         y += divider_h + gap
-        _draw_caption(d, items, pad, y, text_w, label_font, value_font, muted, text)
+        _draw_caption(
+            d,
+            items,
+            pad,
+            y,
+            text_w,
+            label_font,
+            value_font,
+            muted,
+            text,
+            wrap_values=(caption == "Details"),
+        )
 
     return np.asarray(panel, dtype=np.uint8)
 
@@ -709,11 +959,53 @@ def render_preview_panel(preview_payload: dict, *, caption: str = "Standard") ->
     caption = caption if caption in _CAPTION_MODES else "Standard"
     data = normalize_preview_payload(preview_payload)
 
-    flow_panel = _render_flow_preview_panel(data, caption=caption)
-    if flow_panel is not None:
-        return flow_panel
+    is_concat_timeline = str(data.get("node") or "") == "CMK Diagnostic Concat"
+    if is_concat_timeline:
+        # Concat joins diagnostics strictly in input order. Standard keeps one
+        # card per input; Details expands a multi-stage input in place so every
+        # process image becomes an equally readable full-size card.
+        groups = (data.get("metadata") or {}).get("diagnostic_groups") or []
+        group_panels = []
+        for group in groups:
+            try:
+                group_data = normalize_preview_payload(group)
+                if caption == "Details":
+                    stage_panels = _concat_detail_panels(group_data)
+                    if stage_panels:
+                        group_panels.extend(stage_panels)
+                        continue
+                group_panels.append(
+                    _diagnostic_card(
+                        select_preview_image(group_data, image_index=-1),
+                        title=str(
+                            group_data.get("title")
+                            or group_data.get("node")
+                            or "CMK Preview"
+                        ),
+                        summary=str(group_data.get("summary") or ""),
+                        details=str(
+                            group_data.get("details")
+                            or group_data.get("summary")
+                            or ""
+                        ),
+                        metadata=dict(group_data.get("metadata") or {}),
+                        caption=caption,
+                    )
+                )
+            except Exception:
+                continue
+        if group_panels:
+            return combine_preview_panels(group_panels)
 
-    image = select_preview_image(data)
+    # Details is the explicit opt-in for a node's internal diagnostic timeline.
+    # The same quartet-card contract applies everywhere: one full-size card per
+    # stage, never a miniature stage strip inside a process wrapper.
+    if caption == "Details":
+        stage_panels = _concat_detail_panels(data)
+        if stage_panels:
+            return combine_preview_panels(stage_panels)
+
+    image = select_preview_image(data, image_index=-1)
     return _diagnostic_card(
         image,
         title=str(data.get("title") or data.get("node") or "CMK Preview"),
@@ -722,6 +1014,23 @@ def render_preview_panel(preview_payload: dict, *, caption: str = "Standard") ->
         metadata=dict(data.get("metadata") or {}),
         caption=caption,
     )
+
+
+def render_preview_board_panels(preview_payload: dict, *, caption: str = "Standard") -> list[np.ndarray]:
+    """Render one board input as one or more flat chronological cards.
+
+    Preview Render and Preview Board share one contract: every process stage is
+    a full-size quartet card in chronological input order.
+    """
+    from .preview_payload import normalize_preview_payload
+
+    caption = "Standard" if str(caption) == "Summary" else str(caption)
+    data = normalize_preview_payload(preview_payload)
+    if caption == "Details":
+        panels = _concat_detail_panels(data)
+        if panels:
+            return panels
+    return [render_preview_panel(data, caption=caption)]
 
 
 # -----------------------------------------------------------------------------
@@ -837,15 +1146,60 @@ def combine_preview_panels(images: List[np.ndarray]) -> np.ndarray:
     if not images:
         return np.zeros((240, 720, 3), dtype=np.uint8)
 
-    # v0.20: fixed left-to-right diagnostic flow. The workflow is read from
-    # preview_1 to preview_4. Cards are padded to a shared height; each card's
-    # width remains determined by its preview image width.
+    # Fixed left-to-right diagnostic flow. Align the final section divider of
+    # every card before equalising the overall height. Merely padding shorter
+    # cards at the bottom makes the preview/information boundary jump vertically
+    # when a compact card sits next to a detailed timeline.
     spec = _design()
     gap_w = int(spec["card_gap"])
-    height = max(img.shape[0] for img in images)
+    line_rgb = np.asarray(spec["line"], dtype=np.uint8)
+
+    def _last_section_divider_y(img: np.ndarray) -> int | None:
+        matches = np.all(img == line_rgb.reshape(1, 1, 3), axis=2)
+        # A real section divider spans most of its panel. Short rules inside
+        # stage cards must not be mistaken for the outer card boundary.
+        threshold = max(48, int(round(img.shape[1] * 0.58)))
+        rows = np.flatnonzero(matches.sum(axis=1) >= threshold)
+        if rows.size == 0:
+            return None
+        return int(rows[-1])
+
+    divider_rows = [_last_section_divider_y(img) for img in images]
+    if all(row is not None for row in divider_rows):
+        target_divider = max(int(row) for row in divider_rows if row is not None)
+        bottom_heights = [
+            img.shape[0] - int(row)
+            for img, row in zip(images, divider_rows)
+            if row is not None
+        ]
+        target_bottom = max(bottom_heights)
+        height = target_divider + target_bottom
+        aligned: list[np.ndarray] = []
+        for img, row in zip(images, divider_rows):
+            canvas = np.zeros((height, img.shape[1], 3), dtype=np.uint8)
+            # The alignment area belongs to the card, not to the board.  Using
+            # board_bg here made compact detail cards appear visibly shorter
+            # even though their image arrays already had the same height.
+            canvas[:, :, :] = spec["card_bg"]
+            row = int(row)
+            # Keep a common top edge. Any extra space required to reach the
+            # shared divider belongs immediately above that divider; moving
+            # the complete card would make title and preview heights jump.
+            canvas[:row, :img.shape[1]] = img[:row]
+            bottom = img[row:]
+            canvas[
+                target_divider:target_divider + bottom.shape[0],
+                :img.shape[1],
+            ] = bottom
+            aligned.append(canvas)
+        images = aligned
+    else:
+        height = max(img.shape[0] for img in images)
+        images = [_pad_to_height(img, height) for img in images]
+
     parts: list[np.ndarray] = []
     for idx, img in enumerate(images):
         if idx:
             parts.append(np.zeros((height, gap_w, 3), dtype=np.uint8))
-        parts.append(_pad_to_height(img, height))
+        parts.append(img)
     return np.concatenate(parts, axis=1)

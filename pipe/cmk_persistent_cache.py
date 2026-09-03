@@ -118,11 +118,22 @@ def _canonical_node(
         else:
             inputs[str(input_name)] = _canonical_scalar(value)
 
-    result = {
+    payload = {
         "class_type": str(node.get("class_type", "")),
         "inputs": inputs,
     }
     stack.remove(key)
+    # Return a content address instead of embedding the complete upstream
+    # object. Expanded CMK graphs are DAGs with many converging pipe links.
+    # Reusing nested Python objects still makes json.dumps expand every path,
+    # which turned a 46-node FaceSwap prompt into minutes of serialization.
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    result = {"sha256": hashlib.sha256(encoded).hexdigest()}
     memo[key] = result
     return result
 
@@ -306,6 +317,24 @@ def pickle_available(scope: str, cache_key: str) -> bool:
 
 def _write_revision(scope: str, cache_key: str) -> str:
     token = f"{time.time_ns()}-{secrets.token_hex(8)}"
+    path = revision_path(scope, cache_key)
+    temporary = path.with_name(path.name + ".tmp")
+    try:
+        temporary.write_text(token, encoding="utf-8")
+        os.replace(temporary, path)
+    finally:
+        try:
+            temporary.unlink(missing_ok=True)
+        except Exception:
+            pass
+    return token
+
+
+def write_pickle_revision(scope: str, cache_key: str, revision: str) -> str:
+    """Publish a deterministic branch revision for a dependent boundary."""
+    token = str(revision or "").strip()
+    if not token:
+        raise ValueError("cache revision must not be empty")
     path = revision_path(scope, cache_key)
     temporary = path.with_name(path.name + ".tmp")
     try:

@@ -7,6 +7,7 @@ from typing import List
 import numpy as np
 
 from ..models.model_manager import insightface_root, resolve_swap_model
+from .content_guard import get_content_guard
 
 
 @dataclass(frozen=True)
@@ -78,6 +79,13 @@ class CMKNativeSwapEngine:
 
         source_face = _select_face(source_faces, settings.source_face_index, "source")
         target_face = _select_face(target_faces, settings.target_face_index, "target")
+
+        get_content_guard().assert_swap_allowed(
+            target_rgb=target_rgb,
+            source_rgb=source_rgb,
+            target_face=target_face,
+            source_face=source_face,
+        )
 
         result = swapper.get(target_rgb.copy(), target_face, source_face, paste_back=True)
         return np.clip(result, 0, 255).astype(np.uint8)

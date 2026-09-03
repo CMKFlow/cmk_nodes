@@ -51,23 +51,29 @@ def swap_model_dir() -> Path:
     return insightface_root()
 
 
+def swap_model_dirs() -> list[Path]:
+    root = _models_root()
+    return [insightface_root(), root / "reswapper", root / "hyperswap"]
+
+
 def list_swap_models() -> List[str]:
-    root = swap_model_dir()
-    if not root.exists():
-        return ["inswapper_128.onnx"]
-    names = sorted(p.name for p in root.glob("*.onnx"))
+    names = sorted({
+        path.name
+        for root in swap_model_dirs() if root.exists()
+        for path in root.glob("*.onnx")
+    })
     return names or ["inswapper_128.onnx"]
 
 
 def resolve_swap_model(name: str) -> str:
-    path = swap_model_dir() / name
-    if not path.exists():
-        raise FileNotFoundError(
-            "FaceSwap model not found: "
-            f"{path}\n"
-            "Expected location: ComfyUI/models/insightface/inswapper_128.onnx"
-        )
-    return str(path)
+    for root in swap_model_dirs():
+        path = root / name
+        if path.exists():
+            return str(path)
+    raise FileNotFoundError(
+        f"FaceSwap model not found: {name}\n"
+        "Expected locations: ComfyUI/models/insightface, /reswapper or /hyperswap."
+    )
 
 
 def list_detector_models() -> List[str]:

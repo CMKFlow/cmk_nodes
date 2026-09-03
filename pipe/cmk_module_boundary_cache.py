@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import os
 
+from comfy_execution.graph_utils import ExecutionBlocker
+
 from .cmk_persistent_cache import (
     build_node_fingerprint,
     build_upstream_cache_manifest,
@@ -10,14 +12,17 @@ from .cmk_persistent_cache import (
     prune,
     write_status,
 )
+from ..utils.cmk_timing import cmk_timed_call
 
 
 _DETAILER_SESSION: dict[str, tuple[dict, dict]] = {}
+_Z_IMAGE_SESSION: dict[str, tuple[dict, dict, object]] = {}
+_FACE_REBUILD_SESSION: dict[str, tuple[dict, dict, object]] = {}
 
 _DETAILER_BRANCH_SPECS = {
     "CMK_SmartDetailerPipe": (
         "detailer_branch",
-        "cmk_detailer_branch_v4",
+        "cmk_detailer_branch_v5",
     ),
 }
 
@@ -159,6 +164,96 @@ def _faceprocess_disabled_state(prompt, unique_id):
     )
 
 
+def _detailer_disabled_state(prompt, unique_id):
+    """Return whether the complete Detailer module is statically disabled."""
+    resolved_id, boundary = _resolve_boundary_node(
+        prompt,
+        unique_id,
+        "CMKDetailerBoundaryCache",
+    )
+    if not isinstance(boundary, dict):
+        return False, "boundary unavailable"
+
+    found = []
+    visited = set()
+    wanted = {"CMKDetailerPreparePipe", "CMK_SmartDetailerPipe"}
+    for input_name in ("IMAGE", "LOG"):
+        value = (boundary.get("inputs", {}) or {}).get(input_name)
+        if _prompt_link(prompt, value):
+            _collect_upstream_nodes(prompt, value[0], wanted, found, visited)
+
+    prepares = [
+        node for _node_id, node in found
+        if str(node.get("class_type", "")) == "CMKDetailerPreparePipe"
+    ]
+    branches = [
+        node for _node_id, node in found
+        if str(node.get("class_type", "")) == "CMK_SmartDetailerPipe"
+    ]
+    global_values = [
+        bool((node.get("inputs", {}) or {}).get("detailer_global_enable", True))
+        for node in prepares
+    ]
+    local_values = [
+        bool((node.get("inputs", {}) or {}).get("enable", True))
+        for node in branches
+    ]
+    if global_values and not any(global_values):
+        return True, f"boundary={resolved_id}; global OFF; branches={len(local_values)}"
+    if local_values and not any(local_values):
+        return True, f"boundary={resolved_id}; all local branches OFF; branches={len(local_values)}"
+    return False, (
+        f"boundary={resolved_id}; global={global_values or ['unknown']}; "
+        f"local={local_values or ['unknown']}"
+    )
+
+
+def _face_rebuild_disabled_state(prompt, unique_id):
+    """Return whether the complete FaceRebuild module is statically disabled."""
+    resolved_id, boundary = _resolve_boundary_node(
+        prompt,
+        unique_id,
+        "CMKFaceRebuildBoundaryCache",
+    )
+    if not isinstance(boundary, dict):
+        return False, "boundary unavailable"
+
+    found = []
+    visited = set()
+    wanted = {
+        "CMKInstantIDFaceRebuildPreparePipe",
+        "CMKInstantIDFaceRebuildAdvancedSDXL",
+    }
+    for input_name in ("IMAGE", "LOG", "diagnostic"):
+        value = (boundary.get("inputs", {}) or {}).get(input_name)
+        if _prompt_link(prompt, value):
+            _collect_upstream_nodes(prompt, value[0], wanted, found, visited)
+
+    prepares = [
+        node for _node_id, node in found
+        if str(node.get("class_type", "")) in wanted
+    ]
+    global_values = [
+        bool((node.get("inputs", {}) or {}).get(
+            "FACEREBUILD ENABLE",
+            (node.get("inputs", {}) or {}).get("GLOBAL ENABLE", True),
+        ))
+        for node in prepares
+    ]
+    local_values = [
+        bool((node.get("inputs", {}) or {}).get("ENABLE", True))
+        for node in prepares
+    ]
+    if global_values and not any(global_values):
+        return True, f"boundary={resolved_id}; global OFF"
+    if local_values and not any(local_values):
+        return True, f"boundary={resolved_id}; local OFF"
+    return False, (
+        f"boundary={resolved_id}; global={global_values or ['unknown']}; "
+        f"local={local_values or ['unknown']}"
+    )
+
+
 def _entry_paths(scope: str, cache_key: str):
     base = cache_directory(scope) / cache_key
     return (
@@ -178,6 +273,44 @@ def _remove_entry(scope: str, cache_key: str) -> None:
             path.unlink(missing_ok=True)
         except Exception:
             pass
+
+
+def _retain_latest_boundary_entry(
+    scope: str,
+    cache_key: str,
+    unique_id,
+    session: dict | None = None,
+) -> None:
+    """Keep only the latest cache revision for one concrete boundary node."""
+    directory = cache_directory(scope)
+    index_path = directory / "latest_by_node.json"
+    index_tmp = directory / "latest_by_node.json.tmp"
+    slot = str(unique_id)
+
+    try:
+        with index_path.open("r", encoding="utf-8") as handle:
+            index = json.load(handle)
+        if not isinstance(index, dict):
+            index = {}
+    except Exception:
+        index = {}
+
+    previous_key = index.get(slot)
+    index[slot] = cache_key
+    try:
+        with index_tmp.open("w", encoding="utf-8") as handle:
+            json.dump(index, handle, ensure_ascii=False, sort_keys=True)
+        os.replace(index_tmp, index_path)
+    finally:
+        try:
+            index_tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    if isinstance(previous_key, str) and previous_key != cache_key:
+        _remove_entry(scope, previous_key)
+        if session is not None:
+            session.pop(previous_key, None)
 
 
 def _json_safe(value):
@@ -325,7 +458,7 @@ class CMKDetailerBoundaryCache:
         return {
             "required": {
                 "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
-                "PROCESS": ("CMK_PIPE", {"lazy": True}),
+                "PROCESS": ("CMK_PROCESS_SDXL", {"lazy": True}),
                 "IMAGE": ("IMAGE", {"lazy": True}),
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
             },
@@ -337,7 +470,7 @@ class CMKDetailerBoundaryCache:
 
     RETURN_TYPES = (
         "CMK_MODEL_PIPE",
-        "CMK_PIPE",
+        "CMK_PROCESS_SDXL",
         "IMAGE",
         "CMK_LOG_PIPE",
     )
@@ -380,6 +513,7 @@ class CMKDetailerBoundaryCache:
             )
         )
 
+    @cmk_timed_call("LAZY 25 DETAILER BOUNDARY")
     def check_lazy_status(
         self,
         MODEL=None,
@@ -389,6 +523,31 @@ class CMKDetailerBoundaryCache:
         prompt=None,
         unique_id=None,
     ):
+        if PROCESS is None:
+            return ["PROCESS"]
+        if not isinstance(PROCESS, dict) or not PROCESS.get("family_active", True):
+            return []
+
+        module_disabled, disabled_detail = _detailer_disabled_state(
+            prompt,
+            unique_id,
+        )
+        if module_disabled:
+            write_status(
+                self._SCOPE,
+                "DISABLED_PASSTHROUGH_READY",
+                detail=disabled_detail,
+                unique_id=unique_id,
+            )
+            needed = []
+            if MODEL is None:
+                needed.append("MODEL")
+            if IMAGE is None:
+                needed.append("IMAGE")
+            if LOG is None:
+                needed.append("LOG")
+            return needed
+
         cache_key, detail = self._cache_key(prompt, unique_id)
         dependencies, dependency_detail = self._dependencies(
             prompt,
@@ -414,16 +573,20 @@ class CMKDetailerBoundaryCache:
                 unique_id=unique_id,
             )
 
-        needed = []
-        for name, value in (
-            ("MODEL", MODEL),
-            ("PROCESS", PROCESS),
-            ("IMAGE", IMAGE),
-            ("LOG", LOG),
-        ):
-            if value is None:
-                needed.append(name)
-        return needed
+        # Materialize the computed branch before requesting the public MODEL.
+        # Requesting MODEL and IMAGE together lets ComfyUI load the upstream
+        # SDXL/Refiner model path while sampling is still active, which can
+        # exceed unified memory on constrained systems.
+        branch_needed = []
+        if IMAGE is None:
+            branch_needed.append("IMAGE")
+        if LOG is None:
+            branch_needed.append("LOG")
+        if branch_needed:
+            return branch_needed
+        if MODEL is None:
+            return ["MODEL"]
+        return []
 
     def boundary(
         self,
@@ -434,6 +597,43 @@ class CMKDetailerBoundaryCache:
         prompt=None,
         unique_id=None,
     ):
+        if not isinstance(PROCESS, dict):
+            raise TypeError("CMK Boundary Cache / Detailer requires PROCESS SDXL")
+        if str(PROCESS.get("model_family", "sdxl")).strip().lower() != "sdxl":
+            raise ValueError("CMK Boundary Cache / Detailer accepts only PROCESS SDXL")
+        if not PROCESS.get("family_active", True):
+            blocked = ExecutionBlocker(None)
+            return blocked, PROCESS, blocked, blocked
+
+        module_disabled, disabled_detail = _detailer_disabled_state(
+            prompt,
+            unique_id,
+        )
+        if module_disabled:
+            missing = [
+                name for name, value in (
+                    ("MODEL", MODEL), ("IMAGE", IMAGE), ("LOG", LOG),
+                ) if value is None
+            ]
+            if missing:
+                raise RuntimeError(
+                    "CMK Boundary Cache / Detailer: disabled passthrough requires "
+                    + ", ".join(missing)
+                )
+            if not isinstance(LOG, dict):
+                raise TypeError("LOG is not a CMK log pipe")
+            write_status(
+                self._SCOPE,
+                "DISABLED_PASSTHROUGH",
+                detail=disabled_detail,
+                unique_id=unique_id,
+            )
+            print(
+                "[CMK Boundary Cache / Detailer] "
+                "DISABLED PASSTHROUGH -> CACHE SKIPPED"
+            )
+            return MODEL, PROCESS, IMAGE, LOG
+
         cache_key, detail = self._cache_key(prompt, unique_id)
         dependencies, dependency_detail = self._dependencies(
             prompt,
@@ -447,6 +647,9 @@ class CMKDetailerBoundaryCache:
                     cache_key,
                 )
                 cached_model, cached_process = _DETAILER_SESSION[cache_key]
+                _retain_latest_boundary_entry(
+                    self._SCOPE, cache_key, unique_id, _DETAILER_SESSION,
+                )
 
                 write_status(
                     self._SCOPE,
@@ -518,6 +721,12 @@ class CMKDetailerBoundaryCache:
                     MODEL,
                     dict(PROCESS),
                 )
+                _retain_latest_boundary_entry(
+                    self._SCOPE,
+                    cache_key,
+                    unique_id,
+                    _DETAILER_SESSION,
+                )
                 write_status(
                     self._SCOPE,
                     "MISS_STORED",
@@ -545,14 +754,237 @@ class CMKDetailerBoundaryCache:
         return MODEL, PROCESS, IMAGE, LOG
 
 
-class CMKFaceBoundaryCache:
-    _SCOPE = "faceprocess_boundary"
-    _SCHEMA = "cmk_faceprocess_boundary_v4"
+class CMKFaceRebuildBoundaryCache:
+    """Lazy persistent boundary for the complete InstantID FaceRebuild module."""
+
+    _SCOPE = "face_rebuild_boundary"
+    _SCHEMA = "cmk_face_rebuild_boundary_v1"
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
+                "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
+                "PROCESS": ("CMK_PROCESS_SDXL", {"lazy": True}),
+                "IMAGE": ("IMAGE", {"lazy": True}),
+                "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
+                "diagnostic": ("CMK_DIAGNOSTIC", {"lazy": True}),
+            },
+            "hidden": {"prompt": "PROMPT", "unique_id": "UNIQUE_ID"},
+        }
+
+    RETURN_TYPES = (
+        "CMK_MODEL_PIPE", "CMK_PROCESS_SDXL", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC",
+    )
+    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "diagnostic")
+    FUNCTION = "boundary"
+    CATEGORY = "CMK/Developer/Boundary & Cache"
+    DEV_ONLY = True
+
+    def _cache_key(self, prompt, unique_id):
+        return build_node_fingerprint(
+            prompt,
+            unique_id,
+            ("CMKFaceRebuildBoundaryCache",),
+            self._SCHEMA,
+            include_node_identity=True,
+        )
+
+    def _ready(self, key):
+        return bool(key) and key in _FACE_REBUILD_SESSION and _disk_available(self._SCOPE, key)
+
+    @cmk_timed_call("LAZY 42 FACE REBUILD BOUNDARY")
+    def check_lazy_status(
+        self, MODEL=None, PROCESS=None, IMAGE=None, LOG=None, diagnostic=None,
+        prompt=None, unique_id=None,
+    ):
+        if PROCESS is None:
+            return ["PROCESS"]
+        if not isinstance(PROCESS, dict) or not PROCESS.get("family_active", True):
+            return []
+
+        disabled, detail = _face_rebuild_disabled_state(prompt, unique_id)
+        if disabled:
+            write_status(self._SCOPE, "DISABLED_PASSTHROUGH_READY", detail=detail, unique_id=unique_id)
+            return [
+                name for name, value in (
+                    ("MODEL", MODEL), ("IMAGE", IMAGE), ("LOG", LOG), ("diagnostic", diagnostic),
+                ) if value is None
+            ]
+
+        key, detail = self._cache_key(prompt, unique_id)
+        if self._ready(key):
+            write_status(self._SCOPE, "HIT_READY", cache_key=key, detail=detail, unique_id=unique_id)
+            return []
+
+        branch = [
+            name for name, value in (("IMAGE", IMAGE), ("LOG", LOG), ("diagnostic", diagnostic))
+            if value is None
+        ]
+        if branch:
+            return branch
+        if MODEL is None:
+            return ["MODEL"]
+        return []
+
+    def boundary(
+        self, MODEL=None, PROCESS=None, IMAGE=None, LOG=None, diagnostic=None,
+        prompt=None, unique_id=None,
+    ):
+        if not isinstance(PROCESS, dict):
+            raise TypeError("CMK Boundary Cache / FaceRebuild requires PROCESS SDXL")
+        if str(PROCESS.get("model_family", "sdxl")).strip().lower() != "sdxl":
+            raise ValueError("CMK Boundary Cache / FaceRebuild accepts only PROCESS SDXL")
+        if not PROCESS.get("family_active", True):
+            blocked = ExecutionBlocker(None)
+            return blocked, PROCESS, blocked, blocked, blocked
+
+        disabled, disabled_detail = _face_rebuild_disabled_state(prompt, unique_id)
+        if disabled:
+            missing = [
+                name for name, value in (
+                    ("MODEL", MODEL), ("IMAGE", IMAGE), ("LOG", LOG), ("diagnostic", diagnostic),
+                ) if value is None
+            ]
+            if missing:
+                raise RuntimeError(
+                    "CMK Boundary Cache / FaceRebuild: disabled passthrough requires "
+                    + ", ".join(missing)
+                )
+            write_status(
+                self._SCOPE, "DISABLED_PASSTHROUGH", detail=disabled_detail, unique_id=unique_id,
+            )
+            print("[CMK Boundary Cache / FaceRebuild] DISABLED PASSTHROUGH -> CACHE SKIPPED")
+            return MODEL, PROCESS, IMAGE, LOG, diagnostic
+
+        key, detail = self._cache_key(prompt, unique_id)
+        if self._ready(key):
+            try:
+                cached_image, cached_log = _load_image_log(self._SCOPE, key)
+                cached_model, cached_process, cached_diagnostic = _FACE_REBUILD_SESSION[key]
+                _retain_latest_boundary_entry(
+                    self._SCOPE, key, unique_id, _FACE_REBUILD_SESSION,
+                )
+                write_status(self._SCOPE, "HIT", cache_key=key, detail=detail, unique_id=unique_id)
+                print(f"[CMK Boundary Cache / FaceRebuild] HIT {key[:12]}")
+                return cached_model, dict(cached_process), cached_image, cached_log, cached_diagnostic
+            except Exception as exc:
+                _FACE_REBUILD_SESSION.pop(key, None)
+                write_status(self._SCOPE, "HIT_FAILED", cache_key=key, detail=str(exc), unique_id=unique_id)
+
+        missing = [
+            name for name, value in (
+                ("MODEL", MODEL), ("IMAGE", IMAGE), ("LOG", LOG), ("diagnostic", diagnostic),
+            ) if value is None
+        ]
+        if missing:
+            raise RuntimeError(
+                "CMK Boundary Cache / FaceRebuild: cache miss requires " + ", ".join(missing)
+            )
+        if not isinstance(MODEL, dict) or not isinstance(LOG, dict):
+            raise TypeError("CMK Boundary Cache / FaceRebuild received an invalid CMK contract")
+
+        if key:
+            try:
+                _save_image_log(
+                    self._SCOPE, key, IMAGE, LOG,
+                    {"complete": True, "schema": self._SCHEMA},
+                )
+                _FACE_REBUILD_SESSION[key] = (MODEL, dict(PROCESS), diagnostic)
+                _retain_latest_boundary_entry(
+                    self._SCOPE, key, unique_id, _FACE_REBUILD_SESSION,
+                )
+                write_status(self._SCOPE, "MISS_STORED", cache_key=key, detail=detail, unique_id=unique_id)
+                print(f"[CMK Boundary Cache / FaceRebuild] MISS {key[:12]} -> STORED")
+            except Exception as exc:
+                write_status(self._SCOPE, "STORE_FAILED", cache_key=key, detail=str(exc), unique_id=unique_id)
+
+        return MODEL, PROCESS, IMAGE, LOG, diagnostic
+
+
+class CMKZImageBoundaryCache:
+    """Persistent decoded ZIT boundary for inexpensive downstream iteration."""
+
+    _SCOPE = "z_image_boundary"
+    _SCHEMA = "cmk_z_image_boundary_v2"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
+                "PROCESS": ("CMK_PROCESS_Z_IMAGE", {"lazy": True}),
+                "IMAGE": ("IMAGE", {"lazy": True}),
+                "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
+                "diagnostic": ("CMK_DIAGNOSTIC", {"lazy": True}),
+            },
+            "hidden": {"prompt": "PROMPT", "unique_id": "UNIQUE_ID"},
+        }
+
+    RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_PROCESS_Z_IMAGE", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
+    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "diagnostic")
+    FUNCTION = "boundary"
+    CATEGORY = "CMK/Developer/Boundary & Cache"
+    DEV_ONLY = True
+
+    def _cache_key(self, prompt, unique_id):
+        return build_node_fingerprint(
+            prompt, unique_id, ("CMKZImageBoundaryCache",), self._SCHEMA,
+            include_node_identity=True,
+        )
+
+    def _ready(self, key):
+        return bool(key) and key in _Z_IMAGE_SESSION and _disk_available(self._SCOPE, key)
+
+    def check_lazy_status(self, MODEL=None, PROCESS=None, IMAGE=None, LOG=None, diagnostic=None, prompt=None, unique_id=None):
+        key, detail = self._cache_key(prompt, unique_id)
+        if self._ready(key):
+            write_status(self._SCOPE, "HIT_READY", cache_key=key, detail=detail, unique_id=unique_id)
+            return []
+        return [name for name, value in (("MODEL", MODEL), ("PROCESS", PROCESS), ("IMAGE", IMAGE), ("LOG", LOG), ("diagnostic", diagnostic)) if value is None]
+
+    def boundary(self, MODEL=None, PROCESS=None, IMAGE=None, LOG=None, diagnostic=None, prompt=None, unique_id=None):
+        key, detail = self._cache_key(prompt, unique_id)
+        if self._ready(key):
+            try:
+                image, log = _load_image_log(self._SCOPE, key)
+                model, process, cached_diagnostic = _Z_IMAGE_SESSION[key]
+                _retain_latest_boundary_entry(
+                    self._SCOPE, key, unique_id, _Z_IMAGE_SESSION,
+                )
+                print(f"[CMK Boundary Cache / ZIT] HIT {key[:12]}")
+                write_status(self._SCOPE, "HIT", cache_key=key, detail=detail, unique_id=unique_id)
+                return model, dict(process), image, log, cached_diagnostic
+            except Exception:
+                _Z_IMAGE_SESSION.pop(key, None)
+
+        missing = [name for name, value in (("MODEL", MODEL), ("PROCESS", PROCESS), ("IMAGE", IMAGE), ("LOG", LOG), ("diagnostic", diagnostic)) if value is None]
+        if missing:
+            raise RuntimeError("CMK Boundary Cache / ZIT: cache miss requires " + ", ".join(missing))
+        if not isinstance(MODEL, dict) or not isinstance(PROCESS, dict) or not isinstance(LOG, dict):
+            raise TypeError("CMK Boundary Cache / ZIT received an invalid CMK contract")
+        if str(PROCESS.get("model_family", "")).lower() != "z_image_turbo":
+            raise ValueError("CMK Boundary Cache / ZIT accepts only PROCESS ZIT")
+        if key:
+            _save_image_log(self._SCOPE, key, IMAGE, LOG, {"complete": True, "schema": self._SCHEMA})
+            _Z_IMAGE_SESSION[key] = (MODEL, dict(PROCESS), diagnostic)
+            _retain_latest_boundary_entry(
+                self._SCOPE, key, unique_id, _Z_IMAGE_SESSION,
+            )
+            print(f"[CMK Boundary Cache / ZIT] MISS {key[:12]} -> STORED")
+        return MODEL, PROCESS, IMAGE, LOG, diagnostic
+
+
+class CMKFaceBoundaryCache:
+    _SCOPE = "faceprocess_boundary"
+    _SCHEMA = "cmk_faceprocess_boundary_v5"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
+                "PROCESS": ("CMK_PROCESS_SDXL", {"lazy": True}),
                 "IMAGE": ("IMAGE", {"lazy": True}),
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
             },
@@ -562,8 +994,13 @@ class CMKFaceBoundaryCache:
             },
         }
 
-    RETURN_TYPES = ("IMAGE", "CMK_LOG_PIPE")
-    RETURN_NAMES = ("IMAGE", "LOG")
+    RETURN_TYPES = (
+        "CMK_MODEL_PIPE",
+        "CMK_PROCESS_SDXL",
+        "IMAGE",
+        "CMK_LOG_PIPE",
+    )
+    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG")
     FUNCTION = "boundary"
     CATEGORY = "CMK/Developer/Boundary & Cache"
     DEV_ONLY = True
@@ -604,7 +1041,7 @@ class CMKFaceBoundaryCache:
             unique_id,
             ("CMKFaceBoundaryCache",),
             self._SCHEMA,
-            exclude_inputs=("IMAGE", "LOG"),
+            exclude_inputs=("MODEL", "PROCESS", "IMAGE", "LOG"),
             include_node_identity=True,
         )
 
@@ -627,13 +1064,21 @@ class CMKFaceBoundaryCache:
             )
         )
 
+    @cmk_timed_call("LAZY 30 FACEPROCESS BOUNDARY")
     def check_lazy_status(
         self,
+        MODEL=None,
+        PROCESS=None,
         IMAGE=None,
         LOG=None,
         prompt=None,
         unique_id=None,
     ):
+        if PROCESS is None:
+            return ["PROCESS"]
+        if not isinstance(PROCESS, dict) or not PROCESS.get("family_active", True):
+            return []
+
         module_disabled, disabled_detail = _faceprocess_disabled_state(
             prompt,
             unique_id,
@@ -646,6 +1091,8 @@ class CMKFaceBoundaryCache:
                 unique_id=unique_id,
             )
             needed = []
+            if MODEL is None:
+                needed.append("MODEL")
             if IMAGE is None:
                 needed.append("IMAGE")
             if LOG is None:
@@ -667,7 +1114,10 @@ class CMKFaceBoundaryCache:
                 detail=f"{detail}; {dependency_detail}",
                 unique_id=unique_id,
             )
-            return []
+            needed = []
+            if MODEL is None:
+                needed.append("MODEL")
+            return needed
 
         if cache_key and _disk_available(self._SCOPE, cache_key):
             write_status(
@@ -679,6 +1129,8 @@ class CMKFaceBoundaryCache:
             )
 
         needed = []
+        if MODEL is None:
+            needed.append("MODEL")
         if IMAGE is None:
             needed.append("IMAGE")
         if LOG is None:
@@ -687,11 +1139,21 @@ class CMKFaceBoundaryCache:
 
     def boundary(
         self,
+        MODEL=None,
+        PROCESS=None,
         IMAGE=None,
         LOG=None,
         prompt=None,
         unique_id=None,
     ):
+        if not isinstance(PROCESS, dict):
+            raise TypeError("CMK Boundary Cache / FaceProcess requires PROCESS SDXL")
+        if str(PROCESS.get("model_family", "sdxl")).strip().lower() != "sdxl":
+            raise ValueError("CMK Boundary Cache / FaceProcess accepts only PROCESS SDXL")
+        if not PROCESS.get("family_active", True):
+            blocked = ExecutionBlocker(None)
+            return blocked, PROCESS, blocked, blocked
+
         module_disabled, disabled_detail = _faceprocess_disabled_state(
             prompt,
             unique_id,
@@ -699,7 +1161,12 @@ class CMKFaceBoundaryCache:
         if module_disabled:
             missing = [
                 name
-                for name, value in (("IMAGE", IMAGE), ("LOG", LOG))
+                for name, value in (
+                    ("MODEL", MODEL),
+                    ("PROCESS", PROCESS),
+                    ("IMAGE", IMAGE),
+                    ("LOG", LOG),
+                )
                 if value is None
             ]
             if missing:
@@ -720,7 +1187,7 @@ class CMKFaceBoundaryCache:
                 "[CMK Boundary Cache / FaceProcess] "
                 "DISABLED PASSTHROUGH -> CACHE SKIPPED"
             )
-            return IMAGE, LOG
+            return MODEL, PROCESS, IMAGE, LOG
 
         cache_key, detail = self._cache_key(prompt, unique_id)
         dependencies, dependency_detail = self._dependencies(
@@ -734,6 +1201,9 @@ class CMKFaceBoundaryCache:
                     self._SCOPE,
                     cache_key,
                 )
+                _retain_latest_boundary_entry(
+                    self._SCOPE, cache_key, unique_id,
+                )
                 write_status(
                     self._SCOPE,
                     "HIT",
@@ -745,7 +1215,7 @@ class CMKFaceBoundaryCache:
                     "[CMK Boundary Cache / FaceProcess] HIT "
                     f"{cache_key[:12]}"
                 )
-                return cached_image, cached_log
+                return MODEL, PROCESS, cached_image, cached_log
             except Exception as exc:
                 write_status(
                     self._SCOPE,
@@ -758,6 +1228,8 @@ class CMKFaceBoundaryCache:
         missing = [
             name
             for name, value in (
+                ("MODEL", MODEL),
+                ("PROCESS", PROCESS),
                 ("IMAGE", IMAGE),
                 ("LOG", LOG),
             )
@@ -780,6 +1252,9 @@ class CMKFaceBoundaryCache:
                     IMAGE,
                     LOG,
                     dependencies,
+                )
+                _retain_latest_boundary_entry(
+                    self._SCOPE, cache_key, unique_id,
                 )
                 write_status(
                     self._SCOPE,
@@ -805,7 +1280,7 @@ class CMKFaceBoundaryCache:
                     f"{exc}"
                 )
 
-        return IMAGE, LOG
+        return MODEL, PROCESS, IMAGE, LOG
 
 
 def _faceswap_entry_paths(scope: str, cache_key: str):
@@ -916,11 +1391,30 @@ class CMKFaceSwapBoundaryCache:
     _SCOPE = "faceswap_boundary"
     _SCHEMA = "cmk_faceswap_boundary_v3"
 
+    @staticmethod
+    def _mark_applied_process(process, log):
+        """Record a real FaceSwap execution without mutating the input pipe."""
+        process_out = dict(process)
+        blocks = log.get("blocks", []) if isinstance(log, dict) else []
+        applied = any(
+            str(block.get("title", "")).strip().casefold().startswith("faceswap")
+            and any(
+                "STATUS" in str(line).upper()
+                and "ENABLED" in str(line).upper()
+                for line in block.get("lines", [])
+            )
+            for block in blocks
+            if isinstance(block, dict) and bool(block.get("enabled", True))
+        )
+        if applied:
+            process_out["faceswap_applied"] = True
+        return process_out
+
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "required": {
-                "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
+            "optional": {
+                "MODEL (opt)": ("CMK_MODEL_PIPE", {"lazy": True}),
                 "PROCESS": ("CMK_PIPE", {"lazy": True}),
                 "IMAGE": ("IMAGE", {"lazy": True}),
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
@@ -956,14 +1450,15 @@ class CMKFaceSwapBoundaryCache:
             include_node_identity=True,
         )
 
+    @cmk_timed_call("LAZY 40 FACESWAP BOUNDARY")
     def check_lazy_status(
         self,
-        MODEL=None,
         PROCESS=None,
         IMAGE=None,
         LOG=None,
         prompt=None,
         unique_id=None,
+        **kwargs,
     ):
         cache_key, detail = self._cache_key(prompt, unique_id)
         if cache_key and _faceswap_disk_available(self._SCOPE, cache_key):
@@ -974,11 +1469,10 @@ class CMKFaceSwapBoundaryCache:
                 detail=detail,
                 unique_id=unique_id,
             )
-            return ["MODEL"] if MODEL is None else []
+            return []
 
         needed = []
         for name, value in (
-            ("MODEL", MODEL),
             ("PROCESS", PROCESS),
             ("IMAGE", IMAGE),
             ("LOG", LOG),
@@ -989,24 +1483,30 @@ class CMKFaceSwapBoundaryCache:
 
     def boundary(
         self,
-        MODEL=None,
         PROCESS=None,
         IMAGE=None,
         LOG=None,
         prompt=None,
         unique_id=None,
+        **kwargs,
     ):
+        MODEL = kwargs.get("MODEL (opt)")
         cache_key, detail = self._cache_key(prompt, unique_id)
 
         if (
             cache_key
-            and MODEL is not None
             and _faceswap_disk_available(self._SCOPE, cache_key)
         ):
             try:
                 cached_process, cached_image, cached_log = _load_faceswap_boundary(
                     self._SCOPE,
                     cache_key,
+                )
+                cached_process = self._mark_applied_process(
+                    cached_process, cached_log
+                )
+                _retain_latest_boundary_entry(
+                    self._SCOPE, cache_key, unique_id,
                 )
                 write_status(
                     self._SCOPE,
@@ -1032,7 +1532,6 @@ class CMKFaceSwapBoundaryCache:
         missing = [
             name
             for name, value in (
-                ("MODEL", MODEL),
                 ("PROCESS", PROCESS),
                 ("IMAGE", IMAGE),
                 ("LOG", LOG),
@@ -1045,12 +1544,14 @@ class CMKFaceSwapBoundaryCache:
                 + ", ".join(missing)
             )
 
-        if not isinstance(MODEL, dict):
+        if MODEL is not None and not isinstance(MODEL, dict):
             raise TypeError("MODEL is not a CMK model pipe")
         if not isinstance(PROCESS, dict):
             raise TypeError("PROCESS is not a CMK process pipe")
         if not isinstance(LOG, dict):
             raise TypeError("LOG is not a CMK log pipe")
+
+        PROCESS = self._mark_applied_process(PROCESS, LOG)
 
         if cache_key:
             try:
@@ -1060,6 +1561,9 @@ class CMKFaceSwapBoundaryCache:
                     PROCESS,
                     IMAGE,
                     LOG,
+                )
+                _retain_latest_boundary_entry(
+                    self._SCOPE, cache_key, unique_id,
                 )
                 write_status(
                     self._SCOPE,

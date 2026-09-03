@@ -14,6 +14,7 @@ from .cmk_sampler_prepare import (
     CMKSamplerPrepareSDXLPipe,
 )
 from .cmk_log_pipe import cmk_add_block, cmk_format_loras
+from ..utils.cmk_translation import translate_prompt
 from ..utils.cmk_diagnostic import make_diagnostic_payload
 from ..engine.native_detailer import CMKSAMLoader
 
@@ -48,14 +49,18 @@ class CMKFaceProcessPreparePipe:
         return {
             "required": {
                 "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
-                "PROCESS": ("CMK_PIPE", {"lazy": True}),
+                "PROCESS": ("CMK_PROCESS_SDXL", {"lazy": True}),
                 "IMAGE": ("IMAGE", {"lazy": True}),
 
                 "sam_model_name": sam_model_spec,
                 "sam_device_mode": sam_device_spec,
 
                 "face_global_enable": ("BOOLEAN", {"default": False}),
-                "use_prompt_lora_from_sampler": ("BOOLEAN", {"default": False}),
+                # Legacy key retained for saved workflows; it now controls
+                # prompt inheritance only.
+                "use_prompt_lora_from_sampler": ("BOOLEAN", {"default": True}),
+                "use_lora_from_1st_pass": ("BOOLEAN", {"default": False}),
+                "use_1st_pass_sampling": ("BOOLEAN", {"default": True}),
 
                 "lora_name": (loras, {"default": default_lora}),
                 "strength_model": (
@@ -72,8 +77,14 @@ class CMKFaceProcessPreparePipe:
 
                 "steps": ("INT", {"default": 30, "min": 1, "max": 10000, "step": 1}),
                 "cfg": ("FLOAT", {"default": 7.0, "min": 0.0, "max": 100.0, "step": 0.1}),
-                "sampler": (SAMPLERS, {"default": "euler"} if "euler" in SAMPLERS else {}),
-                "scheduler": (SCHEDULERS, {"default": "simple"} if "simple" in SCHEDULERS else {}),
+                "sampler": (SAMPLERS, {
+                    **({"default": "euler"} if "euler" in SAMPLERS else {}),
+                    "advanced": True,
+                }),
+                "scheduler": (SCHEDULERS, {
+                    **({"default": "simple"} if "simple" in SCHEDULERS else {}),
+                    "advanced": True,
+                }),
 
                 "stop_at_clip_layer": (
                     "INT",
@@ -141,7 +152,7 @@ class CMKFaceProcessPreparePipe:
     @staticmethod
     def _encode(clip, text):
         helper = CMKSamplerPrepareSDXLPipe()
-        # Standard CLIP Text Encode on purpose: FaceProcess is not SDXL-specific.
+        # Standard CLIP Text Encode is the intended encoder for this SDXL-only module.
         try:
             from .cmk_sampler_prepare import _call_node
 
@@ -159,6 +170,8 @@ class CMKFaceProcessPreparePipe:
         sam_device_mode,
         face_global_enable,
         use_prompt_lora_from_sampler,
+        use_lora_from_1st_pass,
+        use_1st_pass_sampling,
         lora_name,
         strength_model,
         strength_clip,
@@ -237,11 +250,15 @@ class CMKFaceProcessPreparePipe:
             raise TypeError("CMK FaceProcess Prepare -Pipe-: MODEL must be a CMK model pipe")
         if not isinstance(PROCESS, dict):
             raise TypeError("CMK FaceProcess Prepare -Pipe-: PROCESS must be a CMK process pipe")
+        if str(PROCESS.get("model_family", "sdxl")).strip().lower() != "sdxl":
+            raise ValueError("CMK FaceProcess Prepare -Pipe- accepts only PROCESS SDXL")
 
         source_pipe = dict(PROCESS)
         model_base = MODEL.get("model")
         clip_base = MODEL.get("clip")
         vae = MODEL.get("vae")
+        if str(MODEL.get("model_family", "sdxl")).strip().lower() != "sdxl":
+            raise ValueError("CMK FaceProcess Prepare -Pipe- accepts only an SDXL MODEL")
 
         missing = [
             name
@@ -269,11 +286,18 @@ class CMKFaceProcessPreparePipe:
         clip = helper._clip_set_last_layer(clip_base, _int(stop_at_clip_layer, -2))
         clip = _unwrap_node_output(clip)
 
-        inherit = bool(use_prompt_lora_from_sampler)
-        if inherit:
+        inherit_prompt = bool(use_prompt_lora_from_sampler)
+        inherit_lora = bool(use_lora_from_1st_pass)
+        inherit_sampling = bool(use_1st_pass_sampling)
+
+        if inherit_prompt:
             selected_prompt_pos = _clean_text(source_pipe.get("prompt_pos"), "")
             selected_prompt_neg = _clean_text(source_pipe.get("prompt_neg"), "")
+        else:
+            selected_prompt_pos = _clean_text(prompt_pos, "")
+            selected_prompt_neg = _clean_text(prompt_neg, "")
 
+        if inherit_lora:
             # Both inputs of CMK LoRA Text Loader are optional by contract.
             # Missing syntax/stack therefore remain a clean model/clip throughpass.
             opt_lora_syntax = _clean_text(source_pipe.get("lora_syntax", source_pipe.get("active_loras")), "")
@@ -287,8 +311,6 @@ class CMKFaceProcessPreparePipe:
             active_loras = opt_lora_syntax
             lora_stack = opt_lora_stack
         else:
-            selected_prompt_pos = _clean_text(prompt_pos, "")
-            selected_prompt_neg = _clean_text(prompt_neg, "")
             model, clip, local_lora = helper._apply_single_lora(
                 model,
                 clip,
@@ -300,10 +322,21 @@ class CMKFaceProcessPreparePipe:
             active_loras = local_lora
             lora_stack = None
 
+        selected_sampler = source_pipe.get("sampler", sampler) if inherit_sampling else sampler
+        selected_scheduler = source_pipe.get("scheduler", scheduler) if inherit_sampling else scheduler
+        selected_sampling = source_pipe.get("sampling", sampling) if inherit_sampling else sampling
+        selected_zsnr = source_pipe.get("zsnr", zsnr) if inherit_sampling else zsnr
+        selected_sampler = str(selected_sampler or sampler)
+        selected_scheduler = str(selected_scheduler or scheduler)
+        selected_sampling = str(selected_sampling or sampling)
+        selected_zsnr = bool(selected_zsnr)
+
         model = _unwrap_node_output(model)
         clip = _unwrap_node_output(clip)
         model = _unwrap_node_output(helper._apply_pag(model, _float(pag_scale, 2.5)))
-        model = _unwrap_node_output(helper._apply_sampling(model, str(sampling), bool(zsnr)))
+        model = _unwrap_node_output(
+            helper._apply_sampling(model, selected_sampling, selected_zsnr)
+        )
         model = _unwrap_node_output(
             helper._apply_freeu(
                 model,
@@ -315,8 +348,10 @@ class CMKFaceProcessPreparePipe:
             )
         )
 
-        conditioning_pos = self._encode(clip, selected_prompt_pos)
-        conditioning_neg = self._encode(clip, selected_prompt_neg)
+        translation_pos = translate_prompt(selected_prompt_pos)
+        translation_neg = translate_prompt(selected_prompt_neg)
+        conditioning_pos = self._encode(clip, translation_pos.text)
+        conditioning_neg = self._encode(clip, translation_neg.text)
 
         face_pipe = {
             # Immutable hand-off back to the main CMK pipeline. Finalize copies
@@ -335,10 +370,13 @@ class CMKFaceProcessPreparePipe:
             "boolean_face_enable": global_enable,
             "face_steps": max(1, _int(steps, 30)),
             "face_cfg": _float(cfg, 7.0),
-            "face_sampler": sampler,
-            "face_scheduler": scheduler,
+            "face_sampler": selected_sampler,
+            "face_scheduler": selected_scheduler,
             "face_sam_model": sam_model,
-            "face_use_prompt_lora_from_sampler": inherit,
+            "face_use_prompt_lora_from_sampler": inherit_prompt,
+            "face_use_prompt_from_1st_pass": inherit_prompt,
+            "face_use_lora_from_1st_pass": inherit_lora,
+            "face_use_1st_pass_sampling": inherit_sampling,
             "face_prompt_pos": selected_prompt_pos,
             "face_prompt_neg": selected_prompt_neg,
             "face_active_loras": active_loras,
@@ -346,8 +384,8 @@ class CMKFaceProcessPreparePipe:
             "face_loaded_loras": loaded_loras,
             "face_stop_at_clip_layer": _int(stop_at_clip_layer, -2),
             "face_pag_scale": _float(pag_scale, 2.5),
-            "face_sampling": str(sampling),
-            "face_zsnr": bool(zsnr),
+            "face_sampling": selected_sampling,
+            "face_zsnr": selected_zsnr,
             "face_freeu_enabled": bool(freeu_enabled),
         }
 
@@ -355,12 +393,17 @@ class CMKFaceProcessPreparePipe:
             "CMK FaceProcess Prepare -Pipe- | "
             f"checkpoint={MODEL.get('ckpt_name', '')} | vae={MODEL.get('vae_name', '')} | "
             f"steps={face_pipe['face_steps']} | cfg={face_pipe['face_cfg']} | "
-            f"sampler={sampler} | scheduler={scheduler} | "
-            f"prompt_lora_from_sampler={inherit} | enabled={global_enable}"
+            f"sampler={selected_sampler} | scheduler={selected_scheduler} | "
+            f"sampling={selected_sampling} | zsnr={selected_zsnr} | "
+            f"prompt_from_1st_pass={inherit_prompt} | "
+            f"lora_from_1st_pass={inherit_lora} | "
+            f"sampling_from_1st_pass={inherit_sampling} | enabled={global_enable}"
         )
         face_pipe["face_prepare_log"] = details
 
-        source_label = "SOURCE" if inherit else "LOCAL"
+        prompt_source_label = "1ST PASS" if inherit_prompt else "LOCAL"
+        lora_source_label = "1ST PASS" if inherit_lora else "LOCAL"
+        sampling_source_label = "1ST PASS" if inherit_sampling else "LOCAL"
         log_lines = [
             "STATUS          : PREPARED",
             "MODEL SOURCE    : MODEL",
@@ -369,13 +412,20 @@ class CMKFaceProcessPreparePipe:
             f"GLOBAL ENABLE   : {global_enable}",
             f"STEPS           : {face_pipe['face_steps']}",
             f"CFG             : {face_pipe['face_cfg']}",
-            f"SAMPLER         : {sampler}",
-            f"SCHEDULER       : {scheduler}",
-            f"PROMPT SOURCE   : {source_label}",
-            f"LORA SOURCE     : {source_label}",
+            f"SAMPLER         : {selected_sampler}",
+            f"SCHEDULER       : {selected_scheduler}",
+            f"SAMPLING        : {selected_sampling}",
+            f"ZSNR            : {selected_zsnr}",
+            f"SAMPLING SOURCE : {sampling_source_label}",
+            f"PROMPT SOURCE   : {prompt_source_label}",
+            f"LORA SOURCE     : {lora_source_label}",
         ]
-        if not inherit:
+        for label, result in (("POS", translation_pos), ("NEG", translation_neg)):
+            if result.status not in {"empty", "disabled", "not_configured"}:
+                log_lines.append(result.log_line(label))
+        if not inherit_lora:
             log_lines.extend(["", "LOCAL LORAS:", cmk_format_loras(loaded_loras)])
+        if not inherit_prompt:
             if selected_prompt_pos:
                 log_lines.extend(["", "POSITIVE PROMPT:", selected_prompt_pos])
             if selected_prompt_neg:
@@ -387,15 +437,18 @@ class CMKFaceProcessPreparePipe:
             previews=[image],
             summary=(
                 f"enabled={global_enable} | {face_pipe['face_steps']} steps | "
-                f"{sampler} / {scheduler}"
+                f"{selected_sampler} / {selected_scheduler}"
             ),
             details=details,
             mode="faceprocess",
             metadata={
                 "checkpoint": MODEL.get("ckpt_name", ""),
                 "vae": MODEL.get("vae_name", ""),
-                "sampler": sampler,
-                "scheduler": scheduler,
+                "sampler": selected_sampler,
+                "scheduler": selected_scheduler,
+                "sampling": selected_sampling,
+                "zsnr": selected_zsnr,
+                "sampling_source": sampling_source_label,
                 "seed": face_pipe["face_seed"],
             },
         )

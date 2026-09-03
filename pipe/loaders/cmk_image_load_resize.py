@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -21,6 +22,36 @@ from ...utils.cmk_diagnostic import make_diagnostic_payload
 
 
 CROP_POSITIONS = ["center", "top", "bottom", "left", "right"]
+CMK_PACKAGED_REFERENCES = {
+    f"CMK Package · {filename}": filename
+    for filename in (
+        "face_reference.png",
+        "controlnet_reference.png",
+        "detailer_reference.png",
+        "face_identity_reference.png",
+        "face_reference2.png",
+        "faceswap_reference.png",
+        "inpaint_reference.png",
+        "inpaint_reference2.png",
+        "inpaint_reference3.png",
+        "instantid_reference.png",
+        "portrait_reference_00002.png",
+        "remove_refrence.png",
+    )
+}
+_CMK_REFERENCE_ASSETS = Path(__file__).resolve().parents[2] / "assets" / "references"
+
+
+def _packaged_reference_path(image: str):
+    filename = CMK_PACKAGED_REFERENCES.get(str(image or ""))
+    if filename is None:
+        return None
+    path = (_CMK_REFERENCE_ASSETS / filename).resolve()
+    try:
+        path.relative_to(_CMK_REFERENCE_ASSETS.resolve())
+    except ValueError:
+        return None
+    return path if path.is_file() else None
 
 
 def calculate_crop_box(
@@ -81,11 +112,16 @@ class CMKImageLoadAndResizePipe:
     """Compact standalone image source for pixel-based CMK modules.
 
     Public contract:
-        image file + resize/crop parameters -> PROCESS + IMAGE + LOG + diagnostic
+        image file + resize/crop parameters
+        -> optional MODEL SDXL (opt) input, then MODEL + PROCESS SDXL + IMAGE + LOG + diagnostic
 
     IMAGE is the only authoritative pixel transport. PROCESS contains only
-    source/target/crop metadata required by downstream CMK Prepare nodes. This
-    node deliberately provides no mask, prompt, LoRA, inpaint, outpaint or
+    source/target/crop metadata required by downstream CMK Prepare nodes, but
+    carries the typed SDXL contract required by the standalone Detailer and
+    FaceProcess reference paths. An optionally connected MODEL SDXL (opt) is passed
+    through unchanged as the ordinary downstream MODEL. Without it, pixel-only
+    modules use PROCESS, IMAGE and LOG and no artificial model placeholder is
+    created. This node provides no mask, prompt, LoRA, inpaint, outpaint or
     latent preparation.
     """
 
@@ -100,7 +136,7 @@ class CMKImageLoadAndResizePipe:
             ]
         except Exception:
             files = []
-        return sorted(files)
+        return list(CMK_PACKAGED_REFERENCES) + sorted(files)
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -113,29 +149,39 @@ class CMKImageLoadAndResizePipe:
                 "CROP": (
                     "BOOLEAN",
                     {
-                        "default": False,
+                        "default": True,
                         "label_on": "ON",
                         "label_off": "OFF",
-                        "advanced": True,
                     },
                 ),
                 "CROP POSITION": (
                     CROP_POSITIONS,
                     {
                         "default": "center",
-                        "advanced": True,
                     },
                 ),
-            }
+            },
+            "optional": {
+                "MODEL SDXL (opt)": ("CMK_MODEL_PIPE",),
+            },
         }
 
-    RETURN_TYPES = ("CMK_PIPE", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
-    RETURN_NAMES = ("PROCESS", "IMAGE", "LOG", "diagnostic")
+    RETURN_TYPES = (
+        "CMK_MODEL_PIPE",
+        "CMK_PROCESS_SDXL",
+        "IMAGE",
+        "CMK_LOG_PIPE",
+        "CMK_DIAGNOSTIC",
+    )
+    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "diagnostic")
     FUNCTION = "load_and_resize"
     CATEGORY = "CMK/Flow/Input"
 
     @staticmethod
     def _resolve_image_path(image: str) -> str:
+        packaged_path = _packaged_reference_path(image)
+        if packaged_path is not None:
+            return str(packaged_path)
         try:
             return folder_paths.get_annotated_filepath(image)
         except Exception:
@@ -203,11 +249,12 @@ class CMKImageLoadAndResizePipe:
         )
 
     def load_and_resize(self, **inputs):
+        model_sdxl = inputs.get("MODEL SDXL (opt)")
         image_name = str(inputs.get("IMAGE", "") or "")
         resolution = str(inputs.get("RESOLUTION", "SDXL 1152x832") or "SDXL 1152x832")
         swap_dimensions = bool(inputs.get("SWAP DIMENSIONS", False))
         resize_method = str(inputs.get("RESIZE METHOD", "lanczos") or "lanczos")
-        crop_enabled = bool(inputs.get("CROP", False))
+        crop_enabled = bool(inputs.get("CROP", True))
         crop_position = str(inputs.get("CROP POSITION", "center") or "center").lower()
         if crop_position not in CROP_POSITIONS:
             crop_position = "center"
@@ -264,6 +311,8 @@ class CMKImageLoadAndResizePipe:
             "filename_string": image_name,
             "file_name": image_name,
             "pipe_origin": "CMK Image Load and Resize -Pipe-",
+            "result_contract": "family_neutral",
+            "source_model_family": "image",
         }
 
         frame_count = int(resized_image.shape[0])
@@ -326,13 +375,23 @@ class CMKImageLoadAndResizePipe:
             },
         )
 
-        return process, resized_image, log_pipe, diagnostic
+        if model_sdxl is not None:
+            if not isinstance(model_sdxl, dict):
+                raise TypeError("CMK Image Input: MODEL SDXL must be a CMK model pipe")
+            if str(model_sdxl.get("model_family", "sdxl")).strip().lower() != "sdxl":
+                raise ValueError("CMK Image Input accepts only MODEL SDXL")
+        return model_sdxl, process, resized_image, log_pipe, diagnostic
 
     @classmethod
     def IS_CHANGED(cls, **inputs):
         image_name = str(inputs.get("IMAGE", "") or "")
         try:
-            image_path = folder_paths.get_annotated_filepath(image_name)
+            packaged_path = _packaged_reference_path(image_name)
+            image_path = (
+                str(packaged_path)
+                if packaged_path is not None
+                else folder_paths.get_annotated_filepath(image_name)
+            )
             with open(image_path, "rb") as handle:
                 return hashlib.sha256(handle.read()).hexdigest()
         except Exception:
@@ -341,6 +400,8 @@ class CMKImageLoadAndResizePipe:
     @classmethod
     def VALIDATE_INPUTS(cls, **inputs):
         image_name = str(inputs.get("IMAGE", "") or "")
+        if _packaged_reference_path(image_name) is not None:
+            return True
         try:
             if not folder_paths.exists_annotated_filepath(image_name):
                 return f"Invalid image file: {image_name}"

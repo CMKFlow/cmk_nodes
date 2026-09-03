@@ -65,6 +65,33 @@ def blur_mask(mask: torch.Tensor, blur_amount: float) -> torch.Tensor:
     return blurred.squeeze(1).clamp(0.0, 1.0)
 
 
+def mask_reference_latent(
+    samples: torch.Tensor,
+    mask: torch.Tensor,
+) -> torch.Tensor:
+    """Remove the generation area from a reference latent.
+
+    Supplying the untouched source latent as ``reference_latents`` would
+    reintroduce the very object an inpaint operation is meant to replace.
+    The unmasked surroundings remain available as structural context.
+    """
+    if not isinstance(samples, torch.Tensor) or samples.ndim != 4:
+        raise ValueError("Kontext Reference requires 4D latent samples")
+    normalized = _normalize_mask(mask).to(device=samples.device, dtype=samples.dtype)
+    latent_mask = F.interpolate(
+        normalized.unsqueeze(1),
+        size=samples.shape[-2:],
+        mode="bilinear",
+        align_corners=False,
+    ).clamp(0.0, 1.0)
+    if latent_mask.shape[0] not in (1, samples.shape[0]):
+        raise ValueError(
+            "Kontext Reference mask batch does not match latent batch: "
+            f"{latent_mask.shape[0]} vs {samples.shape[0]}"
+        )
+    return samples * (1.0 - latent_mask)
+
+
 class CMKContextReferenceLatentMask:
     """Attach reference latent and processed mask to positive conditioning."""
 
@@ -83,22 +110,33 @@ class CMKContextReferenceLatentMask:
         if not isinstance(latent, dict) or "samples" not in latent:
             raise ValueError("Kontext Reference Latent Mask requires latent with 'samples'")
 
-        processed_mask = _normalize_mask(mask)
+        source_mask = _normalize_mask(mask)
+        processed_mask = source_mask
         if int(expand) != 0:
             processed_mask = expand_mask(processed_mask, int(expand))
         if float(blur) > 0.0:
             processed_mask = blur_mask(processed_mask, float(blur))
+            # Feathering must never erode the hand-drawn generation area.
+            # Keep every source-mask pixel fully generated and place the soft
+            # transition exclusively outside that boundary. Negative expand
+            # deliberately requests erosion and therefore remains untouched.
+            if int(expand) >= 0:
+                processed_mask = torch.maximum(processed_mask, source_mask)
 
+        reference_samples = mask_reference_latent(
+            latent["samples"],
+            processed_mask,
+        )
         modified = node_helpers.conditioning_set_values(
             conditioning,
             {
-                "concat_latent_image": latent["samples"],
+                "concat_latent_image": reference_samples,
                 "concat_mask": processed_mask,
             },
         )
         final_conditioning = node_helpers.conditioning_set_values(
             modified,
-            {"reference_latents": [latent["samples"]]},
+            {"reference_latents": [reference_samples]},
             append=True,
         )
 

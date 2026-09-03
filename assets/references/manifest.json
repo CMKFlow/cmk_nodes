@@ -1,0 +1,45 @@
+{
+  "schema": "cmk.reference-assets.v1",
+  "assets": [
+    {
+      "package_file": "controlnet_reference.png",
+      "original_file": "controlnet_reference3.png",
+      "sha256": "aa3ceb0fa01fc7651abc89e4a3fba076907d87d749816c9780d51a1759617b8c"
+    },
+    {
+      "package_file": "detailer_reference.png",
+      "original_file": "image_00051 (1).png",
+      "sha256": "f277f834cbd62942adb811cd59e233f4f88a82d52b61e1c713e234b178dc9a02"
+    },
+    {
+      "package_file": "face_reference.png",
+      "original_file": "face_reference.png",
+      "sha256": "272542cf95f005b1a86e0e2da940c014b9e67bbd247e1fefccd2dbeab60f77f1"
+    },
+    {
+      "package_file": "face_identity_reference.png",
+      "original_file": "portrait_reference_00003.png",
+      "sha256": "916911957d8ce4805358a28ade90ddbc495aa649fce54dd94f8c896d46007f0a"
+    },
+    {
+      "package_file": "faceswap_reference.png",
+      "original_file": "portrait_reference_00001.png",
+      "sha256": "62bf9829fccfa950570db66ba32fcf89a0f1402f16e24b63908ae7968f2b3616"
+    },
+    {
+      "package_file": "inpaint_reference.png",
+      "original_file": "inpaint_reference.png",
+      "sha256": "5ef290147f9385436803478f9673dde508db878f69ad6413493c6e764c5f23bb"
+    },
+    {
+      "package_file": "inpaint_reference2.png",
+      "original_file": "inpaint_reference2.png",
+      "sha256": "c3ad98c617e8d8dab652a63e413b603d1cc6f4d0fa6ecc0eb5ee6a09da0da7c9"
+    },
+    {
+      "package_file": "remove_refrence.png",
+      "original_file": "remove_reference.png",
+      "sha256": "be2d471adb155d1a470de5a4e9085196a81df8a768c10e48849295b71376dc7d"
+    }
+  ]
+}

@@ -13,7 +13,11 @@ const STANDARD_LABELS = {
     restore_facedetection: "FACE DETECTION",
     restore_visibility: "VISIBILITY",
     detail_guide_size: "GUIDE SIZE",
-    detail_denoise: "DENOISE",
+    detail_denoise: "SAMPLING ENTRY AT %",
+};
+
+const STANDARD_TOOLTIPS = {
+    detail_denoise: "Later entry preserves the original face; earlier entry rebuilds it more strongly. 80% corresponds to the former denoise value 0.20.",
 };
 
 const ADVANCED_WIDGETS = new Set([
@@ -77,6 +81,22 @@ function applyMetadata(widget) {
 
     const label = STANDARD_LABELS[widget.name];
     if (label) widget.label = label;
+
+    const tooltip = STANDARD_TOOLTIPS[widget.name];
+    if (tooltip) {
+        widget.tooltip = tooltip;
+        widget.options.tooltip = tooltip;
+    }
+
+    // Migrate legacy workflows in memory. Older versions stored denoise as
+    // 0.0–0.5; the percentage UI expresses the same point on the curve as
+    // sampling entry 100–50%.
+    if (widget.name === "detail_denoise") {
+        const value = Number(widget.value);
+        if (Number.isFinite(value) && value >= 0 && value <= 1) {
+            widget.value = Math.round((100 - value * 100) * 100) / 100;
+        }
+    }
 }
 
 function ensureState(node) {
@@ -138,15 +158,9 @@ function widgetBelongsToMode(name, mode) {
 }
 
 function resizeAfterRebuild(node) {
-    try {
-        const computed = node.computeSize?.();
-        if (Array.isArray(computed)) {
-            const width = Number(node.size?.[0]) || Number(computed[0]) || 320;
-            const height = Math.max(Number(computed[1]) || 120, 120);
-            node.setSize?.([width, height]);
-        }
-    } catch (_) {}
-
+    // Rebuilding the mode-dependent widget projection must not auto-fit the
+    // node. Calling computeSize()/setSize() here used to discard both normal
+    // drag-resizes and sizes assigned through CMK Node-Dimensionen.
     node.setDirtyCanvas?.(true, true);
     node.graph?.setDirtyCanvas?.(true, true);
     app.graph?.setDirtyCanvas?.(true, true);
