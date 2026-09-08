@@ -6,6 +6,7 @@ from typing import Any, Mapping
 
 
 ARTIFACTS_FIELD = "cmk_cache_artifacts"
+CURRENT_ARTIFACT_FIELD = "cmk_cache_current_artifact"
 CONTRACT_VERSION = 1
 
 
@@ -76,6 +77,14 @@ def artifact_for(process: Mapping[str, Any] | None, stage_key: str) -> str | Non
     return str(value) if isinstance(value, str) and value else None
 
 
+def current_artifact(process: Mapping[str, Any] | None) -> str | None:
+    """Return the immediate public result consumed by the next module."""
+    if not isinstance(process, Mapping):
+        return None
+    value = process.get(CURRENT_ARTIFACT_FIELD)
+    return str(value) if isinstance(value, str) and value else None
+
+
 def stamp_artifact(
     process: Mapping[str, Any],
     stage_key: str,
@@ -94,4 +103,5 @@ def stamp_artifact(
     artifacts = dict(existing) if isinstance(existing, Mapping) else {}
     artifacts[stage] = artifact
     result[ARTIFACTS_FIELD] = artifacts
+    result[CURRENT_ARTIFACT_FIELD] = artifact
     return result

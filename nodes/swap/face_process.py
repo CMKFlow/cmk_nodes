@@ -400,6 +400,7 @@ class CMK_FaceProcess:
     def _filter_segs_by_selection(
         self,
         segs,
+        image=None,
         selection="all",
         sort_by="area",
         reverse=False,
@@ -439,8 +440,27 @@ class CMK_FaceProcess:
                 return confidence(seg)
             return max(0.0, x2 - x1) * max(0.0, y2 - y1)
 
+        normalized_selection = str(selection or "all").lower()
         ordered = sorted(items, key=metric, reverse=bool(reverse))
-        if str(selection) == "largest":
+        if normalized_selection == "center":
+            shape = getattr(image, "shape", None)
+            if shape is not None and len(shape) >= 3:
+                height = float(shape[1])
+                width = float(shape[2])
+            else:
+                try:
+                    height, width = [float(value) for value in segs[0][:2]]
+                except Exception:
+                    height = width = 0.0
+
+            def center_distance(seg):
+                x1, y1, x2, y2 = [float(value) for value in (self._seg_bbox(seg) or [0, 0, 0, 0])]
+                cx = (x1 + x2) * 0.5
+                cy = (y1 + y2) * 0.5
+                return (cx - width * 0.5) ** 2 + (cy - height * 0.5) ** 2
+
+            chosen = [min(items, key=center_distance)]
+        elif normalized_selection == "largest":
             ordered = sorted(items, key=lambda seg: metric(seg), reverse=True)
             chosen = ordered[:1]
         else:
@@ -1182,6 +1202,7 @@ class CMK_FaceProcess:
             # modification all describe the same target.
             segs_detected = self._filter_segs_by_selection(
                 segs_detected,
+                image=image,
                 selection=select_face_selection,
                 sort_by=select_sort_by,
                 reverse=select_reverse_order,

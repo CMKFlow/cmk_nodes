@@ -15,8 +15,9 @@ class SDXLControlNetSubgraphTests(unittest.TestCase):
         cls.definition = cls.workflow["definitions"]["subgraphs"][0]
 
     def test_outer_node_is_compact_and_exposes_only_requested_widgets(self):
-        self.assertEqual([450, 210], self.outer["size"])
-        self.assertEqual([450, 210], self.outer["properties"]["cmkOuterSize"])
+        self.assertEqual([450, 230], self.outer["size"])
+        self.assertEqual([450, 230], self.outer["properties"]["cmkOuterSize"])
+        self.assertEqual([450, 230], self.outer["properties"]["cmkManualSize"])
         self.assertEqual(
             [["1", "ENABLE"], ["1501", "image"]],
             self.outer["properties"]["proxyWidgets"],
@@ -35,7 +36,12 @@ class SDXLControlNetSubgraphTests(unittest.TestCase):
         self.assertIn("CMK_PROCESS_SDXL", types)
         self.assertNotIn("CMK_PROCESS_Z_IMAGE", types)
         self.assertEqual(
-            {"CMKControlNetPreparePipe", "CMKLoadImage", "CMKVisualProvider"},
+            {
+                "CMKControlNetPreparePipe",
+                "CMKControlNetBypassGate",
+                "CMKLoadImage",
+                "CMKVisualProvider",
+            },
             {node["type"] for node in self.definition["nodes"]},
         )
 

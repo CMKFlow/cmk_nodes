@@ -4,8 +4,10 @@ from pathlib import Path
 
 from pipe.cmk_module_cache_contract import (
     ARTIFACTS_FIELD,
+    CURRENT_ARTIFACT_FIELD,
     artifact_for,
     build_artifact_key,
+    current_artifact,
     stamp_artifact,
 )
 
@@ -61,6 +63,8 @@ class ModuleCacheContractTests(unittest.TestCase):
         self.assertIsNone(artifact_for(source, "sdxl.refiner"))
         self.assertEqual("first-pass-a", artifact_for(result, "sdxl.first_pass"))
         self.assertEqual("refiner-a", artifact_for(result, "sdxl.refiner"))
+        self.assertEqual("refiner-a", current_artifact(result))
+        self.assertNotIn(CURRENT_ARTIFACT_FIELD, source)
         self.assertIsNot(source[ARTIFACTS_FIELD], result[ARTIFACTS_FIELD])
 
     def test_runtime_objects_are_rejected_from_identity(self):
@@ -90,7 +94,7 @@ class ModuleCacheContractTests(unittest.TestCase):
         self.assertEqual(64, len(detailer_key))
         self.assertEqual(refiner_key, artifact_for(process, "sdxl.refiner"))
 
-    def test_refiner_process_output_is_routed_from_its_boundary(self):
+    def test_refiner_process_output_bypasses_its_boundary(self):
         root = Path(__file__).resolve().parents[1]
         document = json.loads(
             (root / "subgraphs" / "CMK Flow · 20 Refiner SDXL.json").read_text(
@@ -102,11 +106,21 @@ class ModuleCacheContractTests(unittest.TestCase):
             node for node in definition["nodes"]
             if node["type"] == "CMKRefinerBoundaryCache"
         )
-        links = {link["id"]: link for link in definition["links"]}
-        process_links = boundary["outputs"][1]["links"]
-
-        self.assertEqual(2, len(process_links))
-        self.assertTrue(all(links[link_id]["origin_id"] == boundary["id"] for link_id in process_links))
+        self.assertNotIn("PROCESS", [item["name"] for item in boundary["inputs"]])
+        self.assertNotIn("PROCESS", [item["name"] for item in boundary["outputs"]])
+        forward = next(
+            node for node in definition["nodes"]
+            if node["type"] == "CMKProcessForwardPipe"
+        )
+        process_slot = next(
+            index for index, item in enumerate(definition["outputs"])
+            if item["name"] == "PROCESS"
+        )
+        process_link = next(
+            link for link in definition["links"]
+            if link["target_id"] == -20 and link["target_slot"] == process_slot
+        )
+        self.assertEqual(forward["id"], process_link["origin_id"])
 
     def test_refiner_visuals_are_routed_from_cache_boundary_images(self):
         root = Path(__file__).resolve().parents[1]
@@ -139,6 +153,38 @@ class ModuleCacheContractTests(unittest.TestCase):
         self.assertEqual("identity-a", artifact_for(process, "sdxl.identity"))
         self.assertEqual("refiner-a", artifact_for(process, "sdxl.refiner"))
         self.assertEqual("detailer-a", artifact_for(process, "sdxl.detailer"))
+        self.assertEqual("detailer-a", current_artifact(process))
+
+    def test_current_artifact_tracks_the_immediate_predecessor(self):
+        process = stamp_artifact({}, "sdxl.first_pass", "first-a")
+        self.assertEqual("first-a", current_artifact(process))
+        process = stamp_artifact(process, "sdxl.refiner", "refiner-a")
+        self.assertEqual("refiner-a", current_artifact(process))
+        process = stamp_artifact(process, "sdxl.detailer", "detailer-a")
+        self.assertEqual("detailer-a", current_artifact(process))
+        self.assertEqual("refiner-a", artifact_for(process, "sdxl.refiner"))
+
+    def test_detailer_uses_current_artifact_before_legacy_refiner_fallback(self):
+        root = Path(__file__).resolve().parents[1]
+        source = (root / "nodes" / "image" / "smart_detailer.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "current_artifact(source_pipe) or artifact_for(\n"
+            "                source_pipe, self._UPSTREAM_STAGE_KEY,",
+            source,
+        )
+        self.assertIn('_CACHE_SCHEMA = "cmk_detailer_branch_v6"', source)
+        self.assertEqual(
+            2,
+            source.count('exclude_inputs=("output_image_proceed", "opt_log", "opt_diagnostic")'),
+        )
+
+        boundary = (root / "pipe" / "cmk_module_boundary_cache.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('"cmk_detailer_branch_v6"', boundary)
+        self.assertIn('_SCHEMA = "cmk_detailer_boundary_v3"', boundary)
 
     def test_first_pass_process_output_is_routed_from_sampled_boundary(self):
         root = Path(__file__).resolve().parents[1]

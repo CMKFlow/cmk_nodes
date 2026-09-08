@@ -8,24 +8,14 @@ from pathlib import Path
 from typing import Any
 
 from ..utils.cmk_timing import cmk_timed_call
-from .cmk_module_cache_contract import stamp_artifact
-
-
-try:
-    from comfy_execution.graph_utils import ExecutionBlocker
-except ImportError:
-    class ExecutionBlocker:
-        def __init__(self, message):
-            self.message = message
 
 
 _CACHE_SCHEMA = "cmk_refiner_boundary_cache_v3"
 _MAX_DISK_ENTRIES = 16
-_REFINER_STAGE_KEY = "sdxl.refiner"
 
-# MODEL cannot be serialized safely. MODEL and PROCESS remain available for
-# the current ComfyUI process; both IMAGE tensors and LOG are materialized.
-_SESSION_STATE: dict[str, tuple[Any, dict]] = {}
+# MODEL cannot be serialized safely and remains available for the current
+# ComfyUI process; both IMAGE tensors and LOG are materialized.
+_SESSION_STATE: dict[str, Any] = {}
 
 # ComfyUI may ask the same lazy boundary for its status several times while it
 # incrementally resolves the graph.  The expanded prompt is immutable for that
@@ -433,7 +423,6 @@ class CMKRefinerBoundaryCache:
         return {
             "required": {
                 "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
-                "PROCESS": ("CMK_PROCESS_SDXL", {"lazy": True}),
                 "IMAGE_1ST_PASS": ("IMAGE", {"lazy": True}),
                 "IMAGE_REFINED": ("IMAGE", {"lazy": True}),
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
@@ -446,14 +435,12 @@ class CMKRefinerBoundaryCache:
 
     RETURN_TYPES = (
         "CMK_MODEL_PIPE",
-        "CMK_PROCESS_SDXL",
         "IMAGE",
         "IMAGE",
         "CMK_LOG_PIPE",
     )
     RETURN_NAMES = (
         "MODEL",
-        "PROCESS",
         "IMAGE 1ST PASS",
         "IMAGE REFINED",
         "LOG",
@@ -466,17 +453,12 @@ class CMKRefinerBoundaryCache:
     def check_lazy_status(
         self,
         MODEL=None,
-        PROCESS=None,
         IMAGE_1ST_PASS=None,
         IMAGE_REFINED=None,
         LOG=None,
         prompt=None,
         unique_id=None,
     ):
-        if PROCESS is None:
-            return ["PROCESS"]
-        if isinstance(PROCESS, dict) and not PROCESS.get("family_active", True):
-            return []
         cache_key, detail = build_refiner_fingerprint(
             prompt,
             unique_id,
@@ -522,16 +504,12 @@ class CMKRefinerBoundaryCache:
     def boundary(
         self,
         MODEL=None,
-        PROCESS=None,
         IMAGE_1ST_PASS=None,
         IMAGE_REFINED=None,
         LOG=None,
         prompt=None,
         unique_id=None,
     ):
-        if isinstance(PROCESS, dict) and not PROCESS.get("family_active", True):
-            blocked = ExecutionBlocker(None)
-            return (blocked, PROCESS, blocked, blocked, blocked)
         cache_key, detail = build_refiner_fingerprint(
             prompt,
             unique_id,
@@ -552,23 +530,15 @@ class CMKRefinerBoundaryCache:
         ):
             session_value = _SESSION_STATE.get(cache_key)
             if session_value is not None:
-                cached_model, cached_process = session_value
+                cached_model = session_value
             else:
-                if MODEL is None or not isinstance(PROCESS, dict):
+                if MODEL is None:
                     raise RuntimeError(
                         "CMK Refiner Boundary Cache: restart hit requires "
-                        "current MODEL and PROCESS"
+                        "current MODEL"
                     )
                 cached_model = MODEL
-                cached_process = stamp_artifact(
-                    PROCESS,
-                    _REFINER_STAGE_KEY,
-                    cache_key,
-                )
-                _SESSION_STATE[cache_key] = (
-                    cached_model,
-                    dict(cached_process),
-                )
+                _SESSION_STATE[cache_key] = cached_model
             try:
                 (
                     cached_first,
@@ -587,7 +557,6 @@ class CMKRefinerBoundaryCache:
                 )
                 return (
                     cached_model,
-                    dict(cached_process),
                     cached_first,
                     cached_refined,
                     cached_log,
@@ -608,7 +577,6 @@ class CMKRefinerBoundaryCache:
             name
             for name, value in (
                 ("MODEL", MODEL),
-                ("PROCESS", PROCESS),
                 ("IMAGE_1ST_PASS", IMAGE_1ST_PASS),
                 ("IMAGE_REFINED", IMAGE_REFINED),
                 ("LOG", LOG),
@@ -623,8 +591,6 @@ class CMKRefinerBoundaryCache:
 
         if not isinstance(MODEL, dict):
             raise TypeError("MODEL is not a CMK model pipe")
-        if not isinstance(PROCESS, dict):
-            raise TypeError("PROCESS is not a CMK process pipe")
         if not isinstance(LOG, dict):
             raise TypeError("LOG is not a CMK log pipe")
 
@@ -640,17 +606,10 @@ class CMKRefinerBoundaryCache:
             )
             return (
                 MODEL,
-                PROCESS,
                 IMAGE_1ST_PASS,
                 IMAGE_REFINED,
                 LOG,
             )
-
-        result_process = stamp_artifact(
-            PROCESS,
-            _REFINER_STAGE_KEY,
-            cache_key,
-        )
 
         try:
             _save_disk(
@@ -659,10 +618,7 @@ class CMKRefinerBoundaryCache:
                 IMAGE_REFINED,
                 LOG,
             )
-            _SESSION_STATE[cache_key] = (
-                MODEL,
-                dict(result_process),
-            )
+            _SESSION_STATE[cache_key] = MODEL
             _retain_latest_entry(cache_key, unique_id)
             _write_status(
                 "MISS_STORED",
@@ -686,7 +642,6 @@ class CMKRefinerBoundaryCache:
 
         return (
             MODEL,
-            result_process,
             IMAGE_1ST_PASS,
             IMAGE_REFINED,
             LOG,

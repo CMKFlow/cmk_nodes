@@ -12,6 +12,14 @@ from ...utils.cmk_save_path import save_automatic_folders
 from ...utils.cmk_timing import cmk_timed
 
 
+class _CMKAnyType(str):
+    def __ne__(self, other):
+        return False
+
+
+CMK_PROCESS_METADATA_INPUT = _CMKAnyType("*")
+
+
 class CMK_SaveProjectImage:
     @staticmethod
     def _safe_relative_parts(value):
@@ -37,7 +45,9 @@ class CMK_SaveProjectImage:
         return {
             "optional": {
                 "MODEL (opt)": ("CMK_MODEL_PIPE",),
-                "PROCESS": ("CMK_PIPE",),
+                # PROCESS is metadata-only here. It may originate from an
+                # SDXL, ZIT or already family-neutral result branch.
+                "PROCESS": (CMK_PROCESS_METADATA_INPUT,),
                 "IMAGE": ("IMAGE",),
                 "LOG": ("CMK_LOG_PIPE",),
                 "SAVE ENABLED": ("BOOLEAN", {"default": True}),

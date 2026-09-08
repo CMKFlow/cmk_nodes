@@ -28,12 +28,25 @@ def _sort_faces(faces, sort_by: str, reverse: bool):
     return sorted(list(faces), key=metric, reverse=bool(reverse))
 
 
-def _select_faces(faces, selection, sort_by, reverse_order, take_start, take_count):
+def _select_faces(faces, selection, sort_by, reverse_order, take_start, take_count, image_shape=None):
     ordered = _sort_faces(faces, str(sort_by), bool(reverse_order))
     if str(selection) == "all":
         return ordered
     if str(selection) == "largest":
         return _sort_faces(faces, "area", True)[:1]
+    if str(selection) == "center":
+        if not faces:
+            return []
+        height = float(image_shape[0]) if image_shape is not None else 0.0
+        width = float(image_shape[1]) if image_shape is not None else 0.0
+
+        def distance_from_image_center(face):
+            box = np.asarray(getattr(face, "bbox", [0, 0, 0, 0]), dtype=np.float32)
+            x1, y1, x2, y2 = box[:4]
+            return ((float(x1 + x2) * 0.5 - width * 0.5) ** 2
+                    + (float(y1 + y2) * 0.5 - height * 0.5) ** 2)
+
+        return [min(faces, key=distance_from_image_center)]
     start = max(0, int(take_start or 0))
     count = max(1, int(take_count or 1))
     return ordered[start:start + count]
@@ -94,6 +107,7 @@ class RestoreFaceAdvanced:
                     reverse_order,
                     take_start,
                     take_count,
+                    image_shape=original.shape,
                 )
             for face in selected:
                 try:

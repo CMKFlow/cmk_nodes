@@ -153,6 +153,8 @@ class ZImageSubgraphTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn('"z-image-inpaint"', source)
         self.assertIn('ZIT_INPAINT_DEFAULT_SIZE = "768x512"', source)
+        self.assertIn('familyResolutionValues(family, inpaint = false)', source)
+        self.assertIn('mode === "z-image-inpaint"', source)
         self.assertIn('"MODE · INPAINT EXPERIMENTAL"', source)
         hidden_block = source[
             source.index("const Z_IMAGE_HIDDEN_WIDGETS"):

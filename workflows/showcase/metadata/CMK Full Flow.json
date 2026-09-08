@@ -1,0 +1,18 @@
+{
+  "published": true,
+  "order": 201,
+  "displayName": "CMK Full Flow",
+  "category": "Kompletter Flow",
+  "category_en": "Complete Flow",
+  "description": "Vereint ZIT, SDXL, ControlNet, InstantID, Gesichtsverarbeitung, optionale Upscale-&-Save-Zwischenzweige und den abschließenden Visualizer.",
+  "description_en": "Combines ZIT, SDXL, ControlNet, InstantID, face processing, optional Upscale & Save side branches, and the final Visualizer.",
+  "cmkHighlight": "Zeigt den aktuellen modularen Gesamtaufbau mit umschaltbaren Modellfamilien und frei platzierbaren Speicherzweigen.",
+  "cmkHighlight_en": "Shows the current modular full-flow structure with switchable model families and freely placeable save branches.",
+  "previews": [
+    {
+      "src": "assets/showcase/CMK Full Flow.png",
+      "label": "Workflow",
+      "label_en": "Workflow"
+    }
+  ]
+}

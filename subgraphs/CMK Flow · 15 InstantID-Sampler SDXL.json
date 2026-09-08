@@ -1,21 +1,21 @@
 {
   "revision": 0,
-  "last_node_id": 6238,
+  "last_node_id": "7559",
   "last_link_id": 0,
   "nodes": [
     {
-      "id": 6238,
-      "type": "9b17ab76-4d80-4435-b69d-0e08eea53bca",
+      "id": 7559,
+      "type": "efd303f3-7eda-4bb2-925a-c3a8fb47f61f",
       "pos": [
-        3590,
-        380
+        17150,
+        -5790
       ],
       "size": [
-        600,
-        1225
+        450,
+        230
       ],
       "flags": {},
-      "order": 0,
+      "order": 7,
       "mode": 0,
       "inputs": [
         {
@@ -40,7 +40,17 @@
         },
         {
           "name": "VISUAL",
+          "shape": 7,
           "type": "CMK_VISUAL_PIPE",
+          "link": null
+        },
+        {
+          "label": "source face",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
           "link": null
         }
       ],
@@ -77,17 +87,11 @@
         }
       ],
       "properties": {
-        "proxyWidgets": [
-          [
-            "1501",
-            "image"
-          ]
-        ],
         "comparer_mode": "Click",
         "default_output": "b",
         "cmkOuterSize": [
-          600,
-          1225
+          450,
+          222
         ],
         "cmkVisualProviders": [
           {
@@ -99,13 +103,25 @@
             "capabilities": {
               "preview": true,
               "live": true
-            }
+            },
+            "branch": "sdxl",
+            "stage_key": "sdxl.identity"
           }
-        ]
+        ],
+        "cmkManualSize": [
+          450,
+          222
+        ],
+        "previewExposures": []
       },
-      "widgets_values": [],
-      "color": "#432",
-      "bgcolor": "#653",
+      "widgets_values": [
+        "CMK Package · face_reference.png"
+      ],
+      "widgets_values_named": {
+        "image": "CMK Package · face_reference.png"
+      },
+      "color": "#332922",
+      "bgcolor": "#593930",
       "shape": 1,
       "title": "CMK Flow · 15 InstantID-Sampler SDXL"
     }
@@ -115,12 +131,12 @@
   "definitions": {
     "subgraphs": [
       {
-        "id": "9b17ab76-4d80-4435-b69d-0e08eea53bca",
+        "id": "efd303f3-7eda-4bb2-925a-c3a8fb47f61f",
         "version": 1,
         "state": {
           "lastGroupId": 130,
-          "lastNodeId": 7333,
-          "lastLinkId": 20099,
+          "lastNodeId": 7559,
+          "lastLinkId": 20588,
           "lastRerouteId": 1
         },
         "revision": 1,
@@ -150,7 +166,8 @@
             "name": "MODEL",
             "type": "CMK_MODEL_PIPE",
             "linkIds": [
-              1
+              1,
+              20577
             ],
             "pos": [
               184,
@@ -162,7 +179,10 @@
             "name": "PROCESS",
             "type": "CMK_PROCESS_SDXL",
             "linkIds": [
-              2
+              2,
+              20573,
+              20574,
+              20588
             ],
             "pos": [
               184,
@@ -174,7 +194,8 @@
             "name": "SAMPLED",
             "type": "CMK_SAMPLED_PIPE",
             "linkIds": [
-              3
+              3,
+              20578
             ],
             "pos": [
               184,
@@ -186,7 +207,8 @@
             "name": "LOG",
             "type": "CMK_LOG_PIPE",
             "linkIds": [
-              4
+              4,
+              20579
             ],
             "pos": [
               184,
@@ -212,6 +234,7 @@
             "linkIds": [
               15168
             ],
+            "label": "source face",
             "pos": [
               184,
               364
@@ -224,7 +247,7 @@
             "name": "MODEL",
             "type": "CMK_MODEL_PIPE",
             "linkIds": [
-              6
+              20584
             ],
             "pos": [
               1754,
@@ -236,7 +259,7 @@
             "name": "PROCESS",
             "type": "CMK_PROCESS_SDXL",
             "linkIds": [
-              7
+              20567
             ],
             "pos": [
               1754,
@@ -248,7 +271,7 @@
             "name": "SAMPLED",
             "type": "CMK_SAMPLED_PIPE",
             "linkIds": [
-              8
+              20585
             ],
             "pos": [
               1754,
@@ -260,7 +283,7 @@
             "name": "LOG",
             "type": "CMK_LOG_PIPE",
             "linkIds": [
-              9
+              20586
             ],
             "pos": [
               1754,
@@ -284,7 +307,7 @@
             "name": "diagnostic",
             "type": "CMK_DIAGNOSTIC",
             "linkIds": [
-              10
+              20587
             ],
             "pos": [
               1754,
@@ -433,7 +456,7 @@
               },
               {
                 "label": "SOURCE FACE",
-                "localized_name": "SOURCE FACE",
+                "localized_name": "source_face",
                 "name": "source_face",
                 "type": "IMAGE",
                 "link": 5
@@ -569,9 +592,7 @@
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
                 "type": "CMK_PROCESS_SDXL",
-                "links": [
-                  12
-                ]
+                "links": []
               },
               {
                 "localized_name": "SAMPLED",
@@ -654,11 +675,11 @@
             "type": "CMKInstantIDBoundary",
             "pos": [
               1480,
-              1290
+              1320
             ],
             "size": [
               230,
-              170
+              140
             ],
             "flags": {
               "collapsed": false
@@ -678,7 +699,7 @@
                 "name": "PROCESS",
                 "shape": 7,
                 "type": "CMK_PROCESS_SDXL",
-                "link": 12
+                "link": 20573
               },
               {
                 "localized_name": "SAMPLED",
@@ -708,23 +729,21 @@
                 "name": "MODEL",
                 "type": "CMK_MODEL_PIPE",
                 "links": [
-                  6
+                  20580
                 ]
               },
               {
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
                 "type": "CMK_PROCESS_SDXL",
-                "links": [
-                  7
-                ]
+                "links": []
               },
               {
                 "localized_name": "SAMPLED",
                 "name": "SAMPLED",
                 "type": "CMK_SAMPLED_PIPE",
                 "links": [
-                  8
+                  20581
                 ]
               },
               {
@@ -732,7 +751,7 @@
                 "name": "LOG",
                 "type": "CMK_LOG_PIPE",
                 "links": [
-                  9
+                  20582
                 ]
               },
               {
@@ -740,7 +759,7 @@
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  10
+                  20583
                 ]
               }
             ],
@@ -754,10 +773,10 @@
             "type": "CMKVisualProvider",
             "pos": [
               1480,
-              1250
+              1280
             ],
             "size": [
-              225,
+              230,
               0
             ],
             "flags": {
@@ -767,17 +786,18 @@
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "IMAGE",
-                "name": "IMAGE",
-                "type": "IMAGE",
-                "link": 17
-              },
-              {
                 "localized_name": "VISUAL",
                 "name": "VISUAL",
                 "shape": 7,
                 "type": "CMK_VISUAL_PIPE",
                 "link": 16
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 17
               },
               {
                 "localized_name": "SOURCE",
@@ -799,6 +819,13 @@
                 "shape": 7,
                 "type": "IMAGE",
                 "link": null
+              },
+              {
+                "localized_name": "enable",
+                "name": "enable",
+                "shape": 7,
+                "type": "BOOLEAN",
+                "link": 20576
               },
               {
                 "localized_name": "label",
@@ -866,15 +893,230 @@
               "Identity",
               15,
               "CMKInstantIDSamplerSDXLPipe",
-              "",
-              ""
+              "sdxl",
+              "sdxl.identity"
             ],
             "widgets_values_named": {
               "label": "Identity",
               "sequence": 15,
               "live_node_type": "CMKInstantIDSamplerSDXLPipe",
-              "branch": "",
-              "stage_key": ""
+              "branch": "sdxl",
+              "stage_key": "sdxl.identity"
+            },
+            "shape": 1
+          },
+          {
+            "id": 7518,
+            "type": "CMKProcessForwardPipe",
+            "pos": [
+              1480,
+              1250
+            ],
+            "size": [
+              230,
+              0
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 4,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "CMK_PROCESS_SDXL",
+                "link": 20588
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "CMK_PROCESS_SDXL",
+                "links": [
+                  20567
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKProcessForwardPipe"
+            },
+            "shape": 1
+          },
+          {
+            "id": 7519,
+            "type": "CMKProcessEnableFlag",
+            "pos": [
+              1480,
+              1190
+            ],
+            "size": [
+              230,
+              0
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 5,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "CMK_PROCESS_SDXL",
+                "link": 20574
+              },
+              {
+                "localized_name": "flag",
+                "name": "flag",
+                "type": "STRING",
+                "widget": {
+                  "name": "flag"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "ENABLE",
+                "name": "ENABLE",
+                "type": "BOOLEAN",
+                "links": [
+                  20575,
+                  20576
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKProcessEnableFlag"
+            },
+            "widgets_values": [
+              "instantid_enabled"
+            ],
+            "widgets_values_named": {
+              "flag": "instantid_enabled"
+            },
+            "shape": 1
+          },
+          {
+            "id": 7520,
+            "type": "CMKSamplerBypassGate",
+            "pos": [
+              1480,
+              1220
+            ],
+            "size": [
+              230,
+              0
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 6,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "MODEL BYPASS",
+                "name": "MODEL BYPASS",
+                "shape": 7,
+                "type": "CMK_MODEL_PIPE",
+                "link": 20577
+              },
+              {
+                "localized_name": "SAMPLED BYPASS",
+                "name": "SAMPLED BYPASS",
+                "shape": 7,
+                "type": "CMK_SAMPLED_PIPE",
+                "link": 20578
+              },
+              {
+                "localized_name": "LOG BYPASS",
+                "name": "LOG BYPASS",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 20579
+              },
+              {
+                "localized_name": "MODEL ACTIVE",
+                "name": "MODEL ACTIVE",
+                "shape": 7,
+                "type": "CMK_MODEL_PIPE",
+                "link": 20580
+              },
+              {
+                "localized_name": "SAMPLED ACTIVE",
+                "name": "SAMPLED ACTIVE",
+                "shape": 7,
+                "type": "CMK_SAMPLED_PIPE",
+                "link": 20581
+              },
+              {
+                "localized_name": "LOG ACTIVE",
+                "name": "LOG ACTIVE",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 20582
+              },
+              {
+                "localized_name": "DIAGNOSTIC ACTIVE",
+                "name": "DIAGNOSTIC ACTIVE",
+                "shape": 7,
+                "type": "CMK_DIAGNOSTIC",
+                "link": 20583
+              },
+              {
+                "localized_name": "ENABLE",
+                "name": "ENABLE",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "ENABLE"
+                },
+                "link": 20575
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "CMK_MODEL_PIPE",
+                "links": [
+                  20584
+                ]
+              },
+              {
+                "localized_name": "SAMPLED",
+                "name": "SAMPLED",
+                "type": "CMK_SAMPLED_PIPE",
+                "links": [
+                  20585
+                ]
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "links": [
+                  20586
+                ]
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  20587
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKSamplerBypassGate"
+            },
+            "widgets_values": [
+              false
+            ],
+            "widgets_values_named": {
+              "ENABLE": false
             },
             "shape": 1
           }
@@ -889,7 +1131,7 @@
               1230,
               1310
             ],
-            "color": "#b58b2a",
+            "color": "#A88",
             "flags": {}
           }
         ],
@@ -943,14 +1185,6 @@
             "type": "CMK_MODEL_PIPE"
           },
           {
-            "id": 12,
-            "origin_id": 1502,
-            "origin_slot": 1,
-            "target_id": 1503,
-            "target_slot": 1,
-            "type": "CMK_PROCESS_SDXL"
-          },
-          {
             "id": 13,
             "origin_id": 1502,
             "origin_slot": 2,
@@ -965,46 +1199,6 @@
             "target_id": 1503,
             "target_slot": 3,
             "type": "CMK_LOG_PIPE"
-          },
-          {
-            "id": 6,
-            "origin_id": 1503,
-            "origin_slot": 0,
-            "target_id": -20,
-            "target_slot": 0,
-            "type": "CMK_MODEL_PIPE"
-          },
-          {
-            "id": 7,
-            "origin_id": 1503,
-            "origin_slot": 1,
-            "target_id": -20,
-            "target_slot": 1,
-            "type": "CMK_PROCESS_SDXL"
-          },
-          {
-            "id": 8,
-            "origin_id": 1503,
-            "origin_slot": 2,
-            "target_id": -20,
-            "target_slot": 2,
-            "type": "CMK_SAMPLED_PIPE"
-          },
-          {
-            "id": 9,
-            "origin_id": 1503,
-            "origin_slot": 3,
-            "target_id": -20,
-            "target_slot": 3,
-            "type": "CMK_LOG_PIPE"
-          },
-          {
-            "id": 10,
-            "origin_id": 1503,
-            "origin_slot": 4,
-            "target_id": -20,
-            "target_slot": 5,
-            "type": "CMK_DIAGNOSTIC"
           },
           {
             "id": 15,
@@ -1045,6 +1239,142 @@
             "target_id": 1501,
             "target_slot": 1,
             "type": "COMBO"
+          },
+          {
+            "id": 20567,
+            "origin_id": 7518,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 1,
+            "type": "CMK_PROCESS_SDXL"
+          },
+          {
+            "id": 20573,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 1503,
+            "target_slot": 1,
+            "type": "CMK_PROCESS_SDXL"
+          },
+          {
+            "id": 20574,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 7519,
+            "target_slot": 0,
+            "type": "CMK_PROCESS_SDXL"
+          },
+          {
+            "id": 20575,
+            "origin_id": 7519,
+            "origin_slot": 0,
+            "target_id": 7520,
+            "target_slot": 0,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 20576,
+            "origin_id": 7519,
+            "origin_slot": 0,
+            "target_id": 7003,
+            "target_slot": 5,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 20577,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 7520,
+            "target_slot": 1,
+            "type": "CMK_MODEL_PIPE"
+          },
+          {
+            "id": 20578,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 7520,
+            "target_slot": 2,
+            "type": "CMK_SAMPLED_PIPE"
+          },
+          {
+            "id": 20579,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 7520,
+            "target_slot": 3,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 20580,
+            "origin_id": 1503,
+            "origin_slot": 0,
+            "target_id": 7520,
+            "target_slot": 4,
+            "type": "CMK_MODEL_PIPE"
+          },
+          {
+            "id": 20581,
+            "origin_id": 1503,
+            "origin_slot": 2,
+            "target_id": 7520,
+            "target_slot": 5,
+            "type": "CMK_SAMPLED_PIPE"
+          },
+          {
+            "id": 20582,
+            "origin_id": 1503,
+            "origin_slot": 3,
+            "target_id": 7520,
+            "target_slot": 6,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 20583,
+            "origin_id": 1503,
+            "origin_slot": 4,
+            "target_id": 7520,
+            "target_slot": 7,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 20584,
+            "origin_id": 7520,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 0,
+            "type": "CMK_MODEL_PIPE"
+          },
+          {
+            "id": 20585,
+            "origin_id": 7520,
+            "origin_slot": 1,
+            "target_id": -20,
+            "target_slot": 2,
+            "type": "CMK_SAMPLED_PIPE"
+          },
+          {
+            "id": 20586,
+            "origin_id": 7520,
+            "origin_slot": 2,
+            "target_id": -20,
+            "target_slot": 3,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 20587,
+            "origin_id": 7520,
+            "origin_slot": 3,
+            "target_id": -20,
+            "target_slot": 5,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 20588,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 7518,
+            "target_slot": 0,
+            "type": "CMK_PROCESS_SDXL"
           }
         ],
         "extra": {}
@@ -1070,7 +1400,7 @@
         "SDXL",
         "InstantID"
       ],
-      "version": "1.0.0",
+      "version": "1.0.1",
       "author": "CMK Nodes",
       "features": [
         "Interne Source-Face-Auswahl wie Modul 40",

@@ -20,8 +20,6 @@ class FamilyProcessContractTests(unittest.TestCase):
     FAMILY_GATED_SUBGRAPHS = {
         "CMK Flow · 10 KSampler SDXL 1st Pass.json": "CMKFamilyBranchGateSDXLSampled",
         "CMK Flow · 20 Refiner SDXL.json": "CMKFamilyBranchGateSDXL",
-        "CMK Flow · 23 Detailer SDXL.json": "CMKFamilyBranchGateSDXL",
-        "CMK Flow · 23 Detailer SDXL · Advanced.json": "CMKFamilyBranchGateSDXL",
         "CMK Flow · 10 KSampler Z-Image Turbo.json": "CMKFamilyBranchGateZImage",
     }
 
@@ -50,6 +48,116 @@ class FamilyProcessContractTests(unittest.TestCase):
 
     def test_family_contract_names_are_distinct(self):
         self.assertNotEqual("CMK_PROCESS_SDXL", "CMK_PROCESS_Z_IMAGE")
+
+    def test_module_bypass_gate_resolves_only_the_selected_path(self):
+        path = ROOT / "pipe" / "cmk_family_result.py"
+        spec = importlib.util.spec_from_file_location("cmk_bypass_gate_test", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        gate = module.CMKModuleBypassGate()
+        prompt = {
+            "gate": {
+                "inputs": {
+                    "MODEL BYPASS": ["source", 0],
+                    "IMAGE BYPASS": ["source", 1],
+                    "LOG BYPASS": ["source", 2],
+                    "MODEL ACTIVE": ["cache", 0],
+                    "IMAGE ACTIVE": ["cache", 1],
+                    "LOG ACTIVE": ["cache", 2],
+                    "DIAGNOSTIC ACTIVE": ["execute", 0],
+                },
+            },
+        }
+        self.assertEqual(
+            gate.check_lazy_status(ENABLE=False, prompt=prompt, unique_id="gate"),
+            ["MODEL BYPASS"],
+        )
+        bypass = {"MODEL BYPASS": {}, "IMAGE BYPASS": object(), "LOG BYPASS": {}}
+        self.assertEqual(
+            gate.check_lazy_status(ENABLE=False, prompt=prompt, unique_id="gate", **bypass),
+            [],
+        )
+        self.assertEqual(
+            gate.check_lazy_status(ENABLE=True, prompt=prompt, unique_id="gate"),
+            ["MODEL ACTIVE"],
+        )
+
+        active_image = object()
+        active = gate.gate(
+            ENABLE=True,
+            **{
+                "MODEL ACTIVE": None,
+                "IMAGE ACTIVE": active_image,
+                "LOG ACTIVE": {},
+                "DIAGNOSTIC ACTIVE": None,
+            },
+        )
+        self.assertIsNone(active[0])
+        self.assertIs(active[1], active_image)
+        self.assertEqual(active[2], {})
+        self.assertEqual(active[3]["type"], "CMK_DIAGNOSTIC")
+        self.assertTrue(active[3]["metadata"]["diagnostic_fallback"])
+
+    def test_controlnet_gates_accept_text2image_without_a_base_image(self):
+        path = ROOT / "pipe" / "cmk_family_result.py"
+        spec = importlib.util.spec_from_file_location("cmk_controlnet_gate_test", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        zit_inputs = {
+            "PROCESS ACTIVE": {},
+            "IMAGE ACTIVE": None,
+            "LOG ACTIVE": {},
+            "DIAGNOSTIC ACTIVE": {},
+        }
+        zit_gate = module.CMKZITControlNetBypassGate()
+        self.assertEqual([], zit_gate.check_lazy_status(ENABLE=True, **zit_inputs))
+        self.assertIsNone(zit_gate.gate(ENABLE=True, **zit_inputs)[1])
+
+        combined_inputs = {
+            "PROCESS SDXL ACTIVE": {},
+            "PROCESS ZIT ACTIVE": {},
+            "IMAGE ACTIVE": None,
+            "LOG ACTIVE": {},
+            "DIAGNOSTIC ACTIVE": {},
+        }
+        combined_gate = module.CMKCombinedControlNetBypassGate()
+        self.assertEqual([], combined_gate.check_lazy_status(ENABLE=True, **combined_inputs))
+        self.assertIsNone(combined_gate.gate(ENABLE=True, **combined_inputs)[2])
+
+    def test_bypass_subgraphs_route_public_results_through_lazy_gate(self):
+        expected = {
+            "CMK Flow · 15 InstantID-Sampler SDXL.json": "CMKSamplerBypassGate",
+            "CMK Flow · 23 Detailer SDXL.json": "CMKModuleBypassGate",
+            "CMK Flow · 23 Detailer SDXL · Advanced.json": "CMKModuleBypassGate",
+            "CMK Flow · 25 FaceRebuild SDXL.json": "CMKModuleBypassGate",
+            "CMK Flow · 25 FaceRebuild SDXL · Advanced.json": "CMKModuleBypassGate",
+            "CMK Flow · 30 FaceProcess SDXL.json": "CMKModuleBypassGate",
+            "CMK Flow · 30 FaceProcess SDXL · Advanced.json": "CMKModuleBypassGate",
+            "CMK Flow · 40 FaceSwap.json": "CMKModuleBypassGate",
+            "CMK Flow · 40 FaceSwap · Advanced.json": "CMKModuleBypassGate",
+        }
+        for filename, gate_type in expected.items():
+            with self.subTest(filename=filename):
+                definition = json.loads(
+                    (ROOT / "subgraphs" / filename).read_text(encoding="utf-8")
+                )["definitions"]["subgraphs"][0]
+                gate = next(node for node in definition["nodes"] if node["type"] == gate_type)
+                self.assertIsNotNone(gate["inputs"][0].get("link"))
+                providers = [node for node in definition["nodes"] if node["type"] == "CMKVisualProvider"]
+                for provider in providers:
+                    enable = next(item for item in provider["inputs"] if item["name"] == "enable")
+                    self.assertIsNotNone(enable.get("link"))
+
+        controlnet = json.loads(
+            (ROOT / "subgraphs" / "CMK Flow · 05 ControlNet SDXL.json").read_text(
+                encoding="utf-8"
+            )
+        )["definitions"]["subgraphs"][0]
+        self.assertTrue(any(
+            node["type"] == "CMKControlNetBypassGate"
+            for node in controlnet["nodes"]
+        ))
 
     def test_faceprocess_public_process_bypasses_inactive_boundary(self):
         for filename in (
@@ -160,11 +268,25 @@ class FamilyProcessContractTests(unittest.TestCase):
         )
         self.assertIn('"optional": {\n                "MODEL (opt)": ("CMK_MODEL_PIPE",)', save_source)
 
+    def test_faceswap_boundary_resolves_a_connected_model_on_cache_hit(self):
+        source = (ROOT / "pipe" / "cmk_module_boundary_cache.py").read_text(
+            encoding="utf-8"
+        )
+        section = source[source.index("class CMKFaceSwapBoundaryCache:"):]
+        self.assertIn(
+            'model_connected = "MODEL (opt)" in ((node or {}).get("inputs") or {})',
+            section,
+        )
+        self.assertGreaterEqual(
+            section.count('return ["MODEL (opt)"] if model_missing else []'),
+            2,
+        )
+
     def test_optional_model_nodes_use_runtime_input_order_in_saved_subgraphs(self):
         expected = {
             "CMKResultUnpackPipe": ["MODEL (opt)", "PROCESS", "IMAGE", "LOG"],
             "CMKResultPackPipe": ["MODEL (opt)", "PROCESS", "IMAGE", "LOG"],
-            "CMKFaceSwapBoundaryCache": ["MODEL (opt)", "PROCESS", "IMAGE", "LOG"],
+            "CMKFaceSwapBoundaryCache": ["MODEL (opt)", "IMAGE", "LOG", "diagnostic"],
             "CMK_SaveProjectImage": [
                 "MODEL (opt)",
                 "PROCESS",
@@ -205,10 +327,12 @@ class FamilyProcessContractTests(unittest.TestCase):
     def test_shared_module_public_inputs_keep_optional_model_first(self):
         expected = {
             "CMK Flow · 40 FaceSwap.json": [
-                "MODEL (opt)", "PROCESS", "IMAGE_TARGET", "LOG", "ENABLE"
+                "MODEL (opt)", "PROCESS", "IMAGE_TARGET", "LOG", "VISUAL",
+                "FACESWAP ENABLE", "image",
             ],
             "CMK Flow · 40 FaceSwap · Advanced.json": [
-                "MODEL (opt)", "PROCESS", "IMAGE_TARGET", "LOG", "ENABLE"
+                "MODEL (opt)", "PROCESS", "IMAGE_TARGET", "LOG", "VISUAL",
+                "FACESWAP ENABLE",
             ],
             "CMK Flow · 90 Upscale & Save.json": [
                 "MODEL (opt)", "PROCESS", "IMAGE", "LOG", "SAVE ENABLED",
@@ -261,19 +385,50 @@ class FamilyProcessContractTests(unittest.TestCase):
         self.assertNotIn("40 FaceSwap", metadata["CMK Flow · 30 FaceProcess SDXL.json"]["recommendedBefore"])
         self.assertIn("40 FaceSwap", face_after)
 
-    def test_faceprocess_boundary_is_an_sdxl_only_lazy_family_gate(self):
+    def test_boundary_caches_do_not_carry_process(self):
+        boundary_classes = (
+            "CMKRefinerBoundaryCache",
+            "CMKDetailerBoundaryCache",
+            "CMKFaceRebuildBoundaryCache",
+            "CMKZImageBoundaryCache",
+            "CMKFaceBoundaryCache",
+            "CMKFaceSwapBoundaryCache",
+        )
+        for filename in (
+            ROOT / "pipe" / "cmk_refiner_boundary_cache.py",
+            ROOT / "pipe" / "cmk_module_boundary_cache.py",
+        ):
+            source = filename.read_text(encoding="utf-8")
+            starts = [
+                (source.index(f"class {name}:"), name)
+                for name in boundary_classes
+                if f"class {name}:" in source
+            ]
+            starts.sort()
+            for index, (start, name) in enumerate(starts):
+                end = starts[index + 1][0] if index + 1 < len(starts) else len(source)
+                class_source = source[start:end]
+                with self.subTest(name=name):
+                    self.assertNotIn('"PROCESS": (', class_source)
+                    self.assertNotIn('"PROCESS",', class_source)
+
+        for path in (ROOT / "subgraphs").glob("*.json"):
+            document = json.loads(path.read_text(encoding="utf-8"))
+            for definition in document.get("definitions", {}).get("subgraphs", []):
+                for node in definition.get("nodes", []):
+                    if not str(node.get("type", "")).endswith("BoundaryCache"):
+                        continue
+                    with self.subTest(path=path.name, node=node["type"]):
+                        self.assertNotIn("PROCESS", [item["name"] for item in node.get("inputs", [])])
+                        self.assertNotIn("PROCESS", [item["name"] for item in node.get("outputs", [])])
+
+    def test_faceprocess_prepare_remains_an_sdxl_only_lazy_family_gate(self):
         source = (ROOT / "pipe" / "cmk_module_boundary_cache.py").read_text(
             encoding="utf-8"
         )
         start = source.index("class CMKFaceBoundaryCache:")
         face_boundary = source[start:]
-        self.assertIn('"PROCESS": ("CMK_PROCESS_SDXL", {"lazy": True})', face_boundary)
-        return_types = face_boundary[face_boundary.index("RETURN_TYPES = ("):]
-        return_types = return_types[:return_types.index(")")]
-        self.assertIn('"CMK_MODEL_PIPE"', return_types)
-        self.assertIn('"CMK_PROCESS_SDXL"', return_types)
-        self.assertIn('if PROCESS is None:\n            return ["PROCESS"]', face_boundary)
-        self.assertIn('accepts only PROCESS SDXL', face_boundary)
+        self.assertNotIn('"PROCESS": (', face_boundary)
 
         prepare_source = (ROOT / "pipe" / "cmk_faceprocess_prepare.py").read_text(
             encoding="utf-8"
@@ -288,9 +443,10 @@ class FamilyProcessContractTests(unittest.TestCase):
         start = source.index("class CMKDetailerBoundaryCache:")
         end = source.index("class CMKZImageBoundaryCache:")
         detailer_boundary = source[start:end]
-        self.assertIn('if PROCESS is None:\n            return ["PROCESS"]', detailer_boundary)
+        self.assertNotIn('"PROCESS": (', detailer_boundary)
         self.assertIn("_detailer_disabled_state", detailer_boundary)
         self.assertIn("DISABLED PASSTHROUGH -> CACHE SKIPPED", detailer_boundary)
+        self.assertIn('return MODEL, IMAGE, LOG', detailer_boundary)
         lazy_body = detailer_boundary[detailer_boundary.index("def check_lazy_status("):]
         disabled_pos = lazy_body.index("if module_disabled:")
         cache_pos = lazy_body.index("cache_key, detail = self._cache_key")
@@ -383,11 +539,8 @@ class FamilyProcessContractTests(unittest.TestCase):
         self.assertIn('USE SAMPLING FROM 1ST PASS', frontend)
         self.assertIn('migrated.splice(4, 0, false, true)', frontend)
 
-    def test_faceprocess_subgraphs_proxy_native_compare_without_routing_through_it(self):
-        for filename in (
-            "CMK Flow · 30 FaceProcess SDXL.json",
-            "CMK Flow · 30 FaceProcess SDXL · Advanced.json",
-        ):
+    def test_advanced_faceprocess_keeps_compare_internal_without_routing_through_it(self):
+        for filename in ("CMK Flow · 30 FaceProcess SDXL · Advanced.json",):
             graph = json.loads((ROOT / "subgraphs" / filename).read_text(encoding="utf-8"))
             definition = graph["definitions"]["subgraphs"][0]
             compare = next(node for node in definition["nodes"] if node["type"] == "ImageCompare")
@@ -412,13 +565,22 @@ class FamilyProcessContractTests(unittest.TestCase):
                 link for link in definition["links"]
                 if link["id"] == result_link_id
             )
-            self.assertEqual(image_link["origin_id"], result_input["origin_id"])
-            self.assertEqual(image_link["origin_slot"], result_input["origin_slot"])
-            self.assertEqual(compare["outputs"], [])
-            self.assertIn(
-                [str(compare["id"]), "compare_view"],
-                graph["nodes"][0]["properties"]["proxyWidgets"],
+            bypass_gate = next(
+                node for node in definition["nodes"]
+                if node["type"] == "CMKModuleBypassGate"
             )
+            active_image_link_id = next(
+                item["link"] for item in bypass_gate["inputs"]
+                if item["name"] == "IMAGE ACTIVE"
+            )
+            active_image = next(
+                link for link in definition["links"]
+                if link["id"] == active_image_link_id
+            )
+            self.assertEqual(active_image["origin_id"], result_input["origin_id"])
+            self.assertEqual(active_image["origin_slot"], result_input["origin_slot"])
+            self.assertEqual(compare["outputs"], [])
+            self.assertNotIn("proxyWidgets", graph["nodes"][0]["properties"])
 
     def test_refiner_materializes_first_pass_before_loading_refiner_model(self):
         prepare_source = (ROOT / "pipe" / "cmk_refiner_prepare.py").read_text(
@@ -447,18 +609,13 @@ class FamilyProcessContractTests(unittest.TestCase):
         self.assertLess(log_pos, first_pos)
         self.assertLess(first_pos, refined_pos)
 
-    def test_refiner_boundary_uses_model_first_port_order(self):
+    def test_refiner_boundary_has_no_process_port(self):
         source = (ROOT / "pipe" / "cmk_refiner_boundary_cache.py").read_text(
             encoding="utf-8"
         )
         class_source = source[source.index("class CMKRefinerBoundaryCache:"):]
-        self.assertLess(
-            class_source.index('"MODEL": ("CMK_MODEL_PIPE"'),
-            class_source.index('"PROCESS": ("CMK_PROCESS_SDXL"'),
-        )
-        self.assertIn(
-            'RETURN_NAMES = (\n        "MODEL",\n        "PROCESS",', class_source
-        )
+        self.assertNotIn('"PROCESS": (', class_source)
+        self.assertNotIn('        "PROCESS",', class_source)
 
         definition = json.loads(
             (ROOT / "subgraphs" / "CMK Flow · 20 Refiner SDXL.json").read_text(
@@ -471,11 +628,11 @@ class FamilyProcessContractTests(unittest.TestCase):
         )
         self.assertEqual(
             [item["name"] for item in node["inputs"]],
-            ["MODEL", "PROCESS", "IMAGE_1ST_PASS", "IMAGE_REFINED", "LOG"],
+            ["MODEL", "IMAGE_1ST_PASS", "IMAGE_REFINED", "LOG"],
         )
         self.assertEqual(
             [item["name"] for item in node["outputs"]],
-            ["MODEL", "PROCESS", "IMAGE 1ST PASS", "IMAGE REFINED", "LOG"],
+            ["MODEL", "IMAGE 1ST PASS", "IMAGE REFINED", "LOG"],
         )
         for slot, item in enumerate(node["inputs"]):
             if item.get("link") is None:
@@ -889,6 +1046,35 @@ class FamilyProcessContractTests(unittest.TestCase):
             'raise ValueError("CMK FaceProcess -Pipe-: FACE is missing")'
         )
         self.assertLess(cache_load, face_validation)
+
+    def test_faceprocess_detailer_center_uses_its_own_detected_segs(self):
+        pipe_source = (ROOT / "pipe" / "cmk_faceprocess.py").read_text(encoding="utf-8")
+        engine_source = (ROOT / "nodes" / "swap" / "face_process.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('if str(select_face) == "Center":', pipe_source)
+        self.assertIn('"select_face_selection": "center"', pipe_source)
+        self.assertIn('if normalized_selection == "center":', engine_source)
+        self.assertIn("image=image,\n                selection=select_face_selection", engine_source)
+
+    def test_faceprocess_restore_center_is_resolved_by_restore_detector(self):
+        pipe_source = (ROOT / "pipe" / "cmk_faceprocess.py").read_text(encoding="utf-8")
+        restore_source = (ROOT / "engine" / "native_face_restore.py").read_text(encoding="utf-8")
+
+        self.assertIn('if str(select_face) == "Center":', pipe_source)
+        self.assertIn('if str(selection) == "center":', restore_source)
+        self.assertIn("image_shape=original.shape", restore_source)
+        self.assertIn("distance_from_image_center", restore_source)
+        self.assertIn("cmk_faceprocess_branch_v7", pipe_source)
+
+    def test_externally_driven_faceprocess_mode_serializes_both_parameter_sets(self):
+        frontend = (
+            ROOT / "web" / "js" / "cmk_faceprocess_pipe_ui_v6.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn("function processModeIsExternallyDriven(node)", frontend)
+        self.assertIn('item?.name === "process_mode"', frontend)
+        self.assertIn('return processModeIsExternallyDriven(node) ? "external"', frontend)
+        self.assertIn('mode === "external" || widgetBelongsToMode(name, mode)', frontend)
 
     def test_finish_accepts_direct_family_or_neutral_result_contract(self):
         document = json.loads(

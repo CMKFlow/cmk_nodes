@@ -95,6 +95,30 @@ class CMKLoadImage:
         except Exception:
             return os.path.join(folder_paths.get_input_directory(), image)
 
+    @staticmethod
+    def _preview_descriptor(image: str) -> dict[str, str]:
+        """Describe the image that was actually supplied to this execution.
+
+        A subgraph input can override the loader's persisted widget value.  The
+        execution result must therefore drive the preview instead of that
+        potentially stale widget.
+        """
+        value = str(image or "")
+        if value in CMK_PACKAGED_REFERENCES:
+            return {"filename": value, "subfolder": "", "type": "input"}
+
+        clean_name, base_dir = folder_paths.annotated_filepath(value)
+        image_type = "input"
+        if base_dir == folder_paths.get_output_directory():
+            image_type = "output"
+        elif base_dir == folder_paths.get_temp_directory():
+            image_type = "temp"
+        return {
+            "filename": os.path.basename(clean_name),
+            "subfolder": os.path.dirname(clean_name),
+            "type": image_type,
+        }
+
     def load_image(self, image, opt_LOG=None):
         image_path = self._resolve_image_path(image)
 
@@ -171,7 +195,10 @@ class CMKLoadImage:
             True,
         )
 
-        return (pipe, loaded_image, loaded_mask, filename_string, log_pipe)
+        return {
+            "ui": {"images": [self._preview_descriptor(filename_string)]},
+            "result": (pipe, loaded_image, loaded_mask, filename_string, log_pipe),
+        }
 
     @classmethod
     def IS_CHANGED(cls, image):

@@ -4,6 +4,8 @@ import { api } from "/scripts/api.js";
 const VISUALIZER = "CMKVisualizer";
 const stateByNode = new WeakMap();
 const graphHookInstalled = Symbol("cmkVisualGraphHookInstalled");
+const providerWidgetHookInstalled = Symbol("cmkVisualProviderWidgetHookInstalled");
+const providerWidgetNames = new Set(["label", "sequence", "branch", "stage_key", "live_node_type"]);
 let executionId = null;
 let providerRefreshTimer = null;
 let lastMetadataPreviewBlob = null;
@@ -20,6 +22,12 @@ function imageUrl(info) {
 
 function parseVisual(message) {
   const value = message?.cmk_visual?.[0];
+  if (!value) return null;
+  try { return JSON.parse(value); } catch { return null; }
+}
+
+function parseVisualStage(output) {
+  const value = output?.cmk_visual_stage?.[0];
   if (!value) return null;
   try { return JSON.parse(value); } catch { return null; }
 }
@@ -48,13 +56,12 @@ function upstreamNode(node, wanted, visited = new Set()) {
 function remappedDeclaredProvider(outerNode, item) {
   const innerNodes = outerNode?.subgraph?.nodes || outerNode?.subgraph?._nodes || [];
   if (!innerNodes.length) return item;
-  const visualProvider = innerNodes.find((inner) => {
-    if (nodeKind(inner) !== "CMKVisualProvider") return false;
-    const stageKey = String(widgetValue(inner, "stage_key", ""));
-    const sequence = Number(widgetValue(inner, "sequence", 0));
-    return (item.stage_key && stageKey === String(item.stage_key))
-      || (!item.stage_key && sequence === Number(item.sequence || 0));
-  });
+  const visualProviders = innerNodes.filter((inner) => nodeKind(inner) === "CMKVisualProvider");
+  const visualProvider = visualProviders.find((inner) =>
+    item.stage_key && String(widgetValue(inner, "stage_key", "")) === String(item.stage_key)
+  ) || visualProviders.find((inner) =>
+    Number(widgetValue(inner, "sequence", 0)) === Number(item.sequence || 0)
+  ) || (visualProviders.length === 1 ? visualProviders[0] : null);
   const fallbackLiveTypes = {
     controlnet: "CMKControlNetPreparePipe",
     "first-pass": "CMKKSamplerPipe",
@@ -67,17 +74,41 @@ function remappedDeclaredProvider(outerNode, item) {
     || fallbackLiveTypes[item.key]
     || "",
   );
-  const liveNode = liveType
-    ? innerNodes.find((inner) => nodeKind(inner) === liveType)
-    : null;
+  const liveTypeAliases = {
+    FaceProcess: new Set(["CMKFaceProcessPipe", "CMK_FaceProcess", "CMKFaceProcess"]),
+  };
+  const matchesLiveType = (inner) => {
+    const actual = nodeKind(inner);
+    return actual === liveType || liveTypeAliases[liveType]?.has(actual);
+  };
+  const liveNodes = liveType
+    ? innerNodes.filter(matchesLiveType)
+    : [];
+  const liveNode = liveNodes[0] || null;
+  const scopedNodeId = (inner) => inner ? `${outerNode.id}:${inner.id}` : null;
   return {
     ...item,
+    label: visualProvider
+      ? String(widgetValue(visualProvider, "label", item.label || item.key || "Result"))
+      : item.label,
+    sequence: visualProvider
+      ? Number(widgetValue(visualProvider, "sequence", item.sequence || 0))
+      : item.sequence,
+    branch: visualProvider
+      ? String(widgetValue(visualProvider, "branch", item.branch || ""))
+      : item.branch,
+    stage_key: visualProvider
+      ? String(widgetValue(visualProvider, "stage_key", item.stage_key || ""))
+      : item.stage_key,
     provider_id: visualProvider
-      ? `cmk-CMKVisualProvider-${visualProvider.id}`
+      ? `cmk-CMKVisualProvider-${outerNode.id}-${visualProvider.id}`
       : item.provider_id,
-    provider_node_id: visualProvider ? String(visualProvider.id) : item.provider_node_id,
-    live_node_id: liveNode ? String(liveNode.id) : item.live_node_id,
-    live_node_resolved: Boolean(liveNode),
+    provider_node_id: scopedNodeId(visualProvider) || item.provider_node_id,
+    live_node_id: scopedNodeId(liveNode) || item.live_node_id,
+    live_node_ids: liveNodes.length
+      ? liveNodes.map(scopedNodeId)
+      : (item.live_node_ids || (item.live_node_id ? [item.live_node_id] : [])),
+    live_node_resolved: liveNodes.length > 0,
   };
 }
 
@@ -130,6 +161,7 @@ function graphProviders() {
       stage_key: String(item.stage_key || ""),
       status: "waiting",
       live_node_id: item.live_node_id == null ? null : String(item.live_node_id),
+      live_node_ids: (item.live_node_ids || []).map(String),
       live_node_resolved: Boolean(item.live_node_resolved),
       capabilities: { preview: true, multi_source: false, compare: false, live: false, ...(item.capabilities || {}) },
       channels: [],
@@ -157,6 +189,37 @@ function providerSemanticKey(provider) {
   return `${Number(provider?.sequence || 0)}\u0000${String(provider?.module_label || provider?.label || "")}`;
 }
 
+function completedDeclarations(declarations, completedProviders) {
+  const grouped = new Map();
+  for (const declaration of declarations) {
+    const key = providerSemanticKey(declaration);
+    const group = grouped.get(key) || [];
+    group.push(declaration);
+    grouped.set(key, group);
+  }
+  const consumed = new Set();
+  return completedProviders.map((provider) => {
+    const candidates = grouped.get(providerSemanticKey(provider)) || [];
+    const exact = candidates.find((candidate) =>
+      !consumed.has(candidate.provider_id)
+      && nodeIdMatches(candidate.provider_node_id, provider.module_instance_id)
+    );
+    const declaration = exact || candidates.find((candidate) => !consumed.has(candidate.provider_id));
+    if (declaration) consumed.add(declaration.provider_id);
+    return [provider, declaration];
+  });
+}
+
+function providerDisplayLabels(providers) {
+  const counts = new Map();
+  return providers.map((provider) => {
+    const base = String(provider.module_label || provider.label || "Result");
+    const count = (counts.get(base) || 0) + 1;
+    counts.set(base, count);
+    return count === 1 ? base : `${base} ${count}`;
+  });
+}
+
 function nodeIdMatches(expected, candidate) {
   if (expected == null || candidate == null) return false;
   const left = String(expected);
@@ -167,7 +230,9 @@ function nodeIdMatches(expected, candidate) {
 function providerForNode(state, ...nodeIds) {
   const catalog = state.catalog || [];
   const liveMatch = catalog.find((provider) =>
-    nodeIds.some((nodeId) => nodeIdMatches(provider.live_node_id, nodeId)),
+    (provider.live_node_ids || [provider.live_node_id])
+      .filter((nodeId) => nodeId != null)
+      .some((expected) => nodeIds.some((nodeId) => nodeIdMatches(expected, nodeId))),
   );
   if (liveMatch) return liveMatch;
   const moduleMatches = catalog.filter((provider) =>
@@ -269,6 +334,34 @@ function installGraphHooks(nodeType) {
   }
 }
 
+function installProviderWidgetRefresh(nodeType) {
+  if (nodeType.prototype[providerWidgetHookInstalled]) return;
+  nodeType.prototype[providerWidgetHookInstalled] = true;
+  const created = nodeType.prototype.onNodeCreated;
+  nodeType.prototype.onNodeCreated = function () {
+    const result = created?.apply(this, arguments);
+    setTimeout(() => {
+      for (const widget of this.widgets || []) {
+        if (!providerWidgetNames.has(widget.name) || widget.__cmkVisualRefreshWrapped) continue;
+        widget.__cmkVisualRefreshWrapped = true;
+        const callback = widget.callback;
+        widget.callback = function () {
+          const callbackResult = callback?.apply(this, arguments);
+          scheduleProviderRefresh();
+          return callbackResult;
+        };
+      }
+    }, 0);
+    return result;
+  };
+  const changed = nodeType.prototype.onWidgetChanged;
+  nodeType.prototype.onWidgetChanged = function (name) {
+    const result = changed?.apply(this, arguments);
+    if (providerWidgetNames.has(name)) scheduleProviderRefresh();
+    return result;
+  };
+}
+
 function channelUrl(state, channel) {
   return channel && state.images[channel.image_index] ? imageUrl(state.images[channel.image_index]) : "";
 }
@@ -336,9 +429,10 @@ function render(node) {
 
   const providerNav = document.createElement("div");
   providerNav.className = "cmk-visual-nav";
-  for (const item of state.providers) {
+  const displayLabels = providerDisplayLabels(state.providers);
+  for (const [index, item] of state.providers.entries()) {
     const button = document.createElement("button");
-    button.textContent = item.module_label;
+    button.textContent = displayLabels[index];
     button.className = item.provider_id === provider?.provider_id ? "active" : "";
     button.onclick = (event) => {
       event.stopPropagation();
@@ -438,6 +532,19 @@ api.addEventListener("executed", (event) => {
   const eventId = eventExecutionId(event);
   if (eventId && eventId !== executionId) return;
   const detail = event.detail || {};
+  const stage = parseVisualStage(detail.output);
+  const stageDescriptor = detail.output?.cmk_visual_stage_images?.[0];
+  if (stage && stageDescriptor) {
+    const sourceNodeIds = eventNodeIds(detail);
+    for (const node of app.graph?._nodes || []) {
+      const state = stateByNode.get(node);
+      if (!state || !state.runActive || state.executionId !== executionId) continue;
+      const startNode = upstreamNode(node, "CMKPipeCreateImage");
+      if (!startNode || !sourceNodeIds.some((id) => nodeIdMatches(startNode.id, id))) continue;
+      acceptExecutedImage(state, stage, stageDescriptor);
+      render(node);
+    }
+  }
   const descriptor = detail.output?.images?.[0];
   if (!descriptor) return;
   const sourceNodeIds = eventNodeIds(detail);
@@ -487,6 +594,7 @@ app.registerExtension({
   name: "cmk.visualizer",
   async beforeRegisterNodeDef(nodeType, nodeData) {
     installGraphHooks(nodeType);
+    if (nodeData.name === "CMKVisualProvider") installProviderWidgetRefresh(nodeType);
     if (nodeData.name !== VISUALIZER) return;
     const created = nodeType.prototype.onNodeCreated;
     nodeType.prototype.onNodeCreated = function () {
@@ -498,7 +606,6 @@ app.registerExtension({
       }
       this.addDOMWidget("cmk_visualizer", "visual", root, { serialize: false });
       stateByNode.set(this, { root, catalog: [], providers: [], images: [], providerId: null, channel: null, live: null, completedProviderIds: null, executionId, runActive: false, autoFollow: false });
-      this.setSize([Math.max(this.size[0], 520), Math.max(this.size[1], 480)]);
       setTimeout(() => loadWaitingProviders(this), 0);
       return result;
     };
@@ -516,17 +623,16 @@ app.registerExtension({
       if (state && visual) {
         const existing = new Map(state.providers.map((item) => [item.provider_id, item]));
         const declarations = state.catalog?.length ? state.catalog : graphProviders();
-        const declarationBySemanticKey = new Map(
-          declarations.map((item) => [providerSemanticKey(item), item]),
-        );
         // The completed backend payload is authoritative for this run. Cached
         // modules publish their own providers; a provider omitted here was
         // bypassed and must not survive merely because it existed previously.
         const completed = new Map();
         const incomingImages = message.cmk_visual_images || [];
         let lastCompletedId = null;
-        for (const completedProvider of visual.providers || []) {
-          const declaration = declarationBySemanticKey.get(providerSemanticKey(completedProvider));
+        for (const [completedProvider, declaration] of completedDeclarations(
+          declarations,
+          visual.providers || [],
+        )) {
           const providerId = declaration?.provider_id || completedProvider.provider_id;
           const provider = {
             ...completedProvider,
@@ -559,9 +665,9 @@ app.registerExtension({
 
 const style = document.createElement("style");
 style.textContent = `
-.cmk-visualizer{height:100%;display:flex;flex-direction:column;gap:7px;background:#111;padding:8px;box-sizing:border-box}
-.cmk-visual-nav{display:flex;gap:5px;flex-wrap:wrap}.cmk-visual-nav button{background:#282828;color:#bbb;border:1px solid #444;border-radius:4px;padding:4px 8px}.cmk-visual-nav button.active{background:#555;color:#fff}
-.cmk-visual-nav.channels button{font-size:11px}.cmk-visual-image{width:100%;min-height:160px;flex:1;object-fit:contain;background:#000}
-.cmk-visual-click-compare{position:relative;min-height:160px;flex:1;overflow:hidden;background:#000;cursor:pointer}.cmk-visual-click-compare img{width:100%;height:100%;object-fit:contain}.cmk-visual-click-compare span{position:absolute;right:8px;bottom:8px;padding:3px 6px;border-radius:3px;background:#000a;color:#ddd;font-size:10px;pointer-events:none}
+.cmk-visualizer{width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:7px;background:#111;padding:8px;box-sizing:border-box}
+.cmk-visual-nav{display:flex;gap:5px;flex-wrap:wrap;flex:0 1 auto;min-height:0;overflow:auto}.cmk-visual-nav button{background:#282828;color:#bbb;border:1px solid #444;border-radius:4px;padding:4px 8px}.cmk-visual-nav button.active{background:#555;color:#fff}
+.cmk-visual-nav.channels button{font-size:11px}.cmk-visual-image{display:block;width:100%;height:100%;min-width:0;min-height:0;flex:1 1 0;object-fit:contain;background:#000}
+.cmk-visual-click-compare{position:relative;min-width:0;min-height:0;flex:1 1 0;overflow:hidden;background:#000;cursor:pointer}.cmk-visual-click-compare img{display:block;width:100%;height:100%;object-fit:contain}.cmk-visual-click-compare span{position:absolute;right:8px;bottom:8px;padding:3px 6px;border-radius:3px;background:#000a;color:#ddd;font-size:10px;pointer-events:none}
 `;
 document.head.append(style);

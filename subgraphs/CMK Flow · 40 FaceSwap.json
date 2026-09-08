@@ -1,1 +1,1860 @@
-{"revision":0,"last_node_id":6223,"last_link_id":0,"nodes":[{"id":6223,"type":"779d2a54-4342-48bd-8497-07a9c1d6f35b","pos":[19080,-4220],"size":[600,1225],"flags":{},"order":13,"mode":0,"inputs":[{"name":"MODEL (opt)","shape":7,"type":"*","link":null},{"name":"PROCESS","shape":7,"type":"*","link":null},{"name":"IMAGE_TARGET","shape":7,"type":"*","link":null},{"name":"LOG","shape":7,"type":"*","link":null},{"label":"FACESWAP ENABLE","name":"ENABLE","shape":7,"type":"BOOLEAN","widget":{"name":"ENABLE"},"link":null}],"outputs":[{"name":"MODEL","type":"CMK_RESULT_MODEL","links":[]},{"name":"PROCESS","type":"CMK_RESULT_PROCESS","links":[]},{"name":"IMAGE","type":"CMK_RESULT_IMAGE","links":[]},{"name":"LOG","type":"CMK_RESULT_LOG","links":[]},{"name":"diagnostic","type":"CMK_DIAGNOSTIC","links":[]}],"properties":{"proxyWidgets":[["5207","GLOBAL ENABLE"],["5207","QUALITY PROFILE"],["5215","compare_view"],["5207","RESTORE VISIBILITY"]],"cmkOuterSize":[600,1225]},"widgets_values":[],"color":"#432","bgcolor":"#653","shape":1,"title":"CMK Flow · 40 FaceSwap"}],"links":[],"version":0.4,"definitions":{"subgraphs":[{"id":"779d2a54-4342-48bd-8497-07a9c1d6f35b","version":1,"state":{"lastGroupId":129,"lastNodeId":6233,"lastLinkId":15041,"lastRerouteId":0},"revision":4,"config":{},"name":"CMK Flow · 40 FaceSwap","inputNode":{"id":-10,"bounding":[510,530,162.38671875,148]},"outputNode":{"id":-20,"bounding":[2220,1520,128,148]},"inputs":[{"id":"1ae3c975-9243-4d4e-8cb0-cdaaef8e1bbe","name":"MODEL (opt)","type":"*","linkIds":[12290],"pos":[648.38671875,554]},{"id":"ea787d21-8f57-458c-8737-12b7ec21305d","name":"PROCESS","type":"*","linkIds":[12291],"pos":[648.38671875,574]},{"id":"0845146f-fbf1-4e7e-8466-4944f3a75603","name":"IMAGE_TARGET","type":"*","linkIds":[12292],"pos":[648.38671875,594]},{"id":"23feb23e-72ec-41fd-ae66-8bb03b5f8dbf","name":"LOG","type":"*","linkIds":[12293],"pos":[648.38671875,614]},{"id":"0b6755d3-bb3d-4bcc-b845-8a94c65f2bea","name":"ENABLE","type":"BOOLEAN","linkIds":[16],"label":"FACESWAP ENABLE","pos":[648.38671875,634]}],"outputs":[{"id":"9bc046d0-6bf9-4c9a-aee0-755f443e398b","name":"MODEL","type":"CMK_RESULT_MODEL","linkIds":[12294],"pos":[2244,1544]},{"id":"84697c60-0cc8-4d46-8c25-95845e8d8d2d","name":"PROCESS","type":"CMK_RESULT_PROCESS","linkIds":[12295],"pos":[2244,1564]},{"id":"22b74f14-be54-4de7-b5fa-156ed31d605c","name":"IMAGE","type":"CMK_RESULT_IMAGE","linkIds":[12296],"pos":[2244,1584]},{"id":"0bfb3f72-398c-4594-a702-44ccdb1b7e01","name":"LOG","type":"CMK_RESULT_LOG","linkIds":[12297],"pos":[2244,1604]},{"id":"39228901-8b28-4bdd-ae3a-420d1ff03871","name":"diagnostic","type":"CMK_DIAGNOSTIC","linkIds":[12251],"pos":[2244,1624]}],"widgets":[],"nodes":[{"id":5207,"type":"CMKFaceSwapImagePipe","pos":[720,1060],"size":[430,610],"flags":{},"order":4,"mode":0,"showAdvanced":false,"inputs":[{"localized_name":"IMAGE_TARGET","name":"IMAGE_TARGET","type":"IMAGE","link":12},{"localized_name":"IMAGE_SOURCE","name":"IMAGE_SOURCE","shape":7,"type":"IMAGE","link":3},{"localized_name":"PROCESS","name":"PROCESS","shape":7,"type":"CMK_PIPE","link":12298},{"localized_name":"GLOBAL ENABLE","name":"GLOBAL ENABLE","shape":7,"type":"BOOLEAN","widget":{"name":"GLOBAL ENABLE"},"link":16},{"localized_name":"ENABLE","name":"ENABLE","shape":7,"type":"BOOLEAN","widget":{"name":"ENABLE"},"link":null},{"localized_name":"SWAP MODEL","name":"SWAP MODEL","shape":7,"type":"COMBO","widget":{"name":"SWAP MODEL"},"link":null},{"localized_name":"DETECT MODEL","name":"DETECT MODEL","shape":7,"type":"COMBO","widget":{"name":"DETECT MODEL"},"link":null},{"localized_name":"TARGET FACE","name":"TARGET FACE","shape":7,"type":"COMBO","widget":{"name":"TARGET FACE"},"link":null},{"localized_name":"SOURCE FACE","name":"SOURCE FACE","shape":7,"type":"COMBO","widget":{"name":"SOURCE FACE"},"link":null},{"localized_name":"PATCH ENHANCER","name":"PATCH ENHANCER","shape":7,"type":"BOOLEAN","widget":{"name":"PATCH ENHANCER"},"link":null},{"localized_name":"PATCH ENHANCER MODEL","name":"PATCH ENHANCER MODEL","shape":7,"type":"COMBO","widget":{"name":"PATCH ENHANCER MODEL"},"link":null},{"localized_name":"PATCH ENHANCER STRENGTH","name":"PATCH ENHANCER STRENGTH","shape":7,"type":"FLOAT","widget":{"name":"PATCH ENHANCER STRENGTH"},"link":null},{"localized_name":"BLEND","name":"BLEND","shape":7,"type":"FLOAT","widget":{"name":"BLEND"},"link":null},{"localized_name":"bbox_dilation","name":"bbox_dilation","shape":7,"type":"INT","widget":{"name":"bbox_dilation"},"link":null},{"localized_name":"crop_factor","name":"crop_factor","shape":7,"type":"FLOAT","widget":{"name":"crop_factor"},"link":null},{"localized_name":"drop_size","name":"drop_size","shape":7,"type":"INT","widget":{"name":"drop_size"},"link":null},{"localized_name":"feather","name":"feather","shape":7,"type":"INT","widget":{"name":"feather"},"link":null},{"localized_name":"IDENTITY STRENGTH","name":"IDENTITY STRENGTH","shape":7,"type":"FLOAT","widget":{"name":"IDENTITY STRENGTH"},"link":null},{"localized_name":"QUALITY PROFILE","name":"QUALITY PROFILE","shape":7,"type":"COMBO","widget":{"name":"QUALITY PROFILE"},"link":null},{"localized_name":"POST RESTORE","name":"POST RESTORE","shape":7,"type":"BOOLEAN","widget":{"name":"POST RESTORE"},"link":null},{"localized_name":"POST RESTORE MODEL","name":"POST RESTORE MODEL","shape":7,"type":"COMBO","widget":{"name":"POST RESTORE MODEL"},"link":null},{"localized_name":"RESTORE VISIBILITY","name":"RESTORE VISIBILITY","shape":7,"type":"FLOAT","widget":{"name":"RESTORE VISIBILITY"},"link":null}],"outputs":[{"localized_name":"IMAGE PROCEED","name":"IMAGE PROCEED","type":"IMAGE","links":[19]},{"localized_name":"SEGS PROCESSED","name":"SEGS PROCESSED","type":"SEGS","links":[]},{"localized_name":"LOG BLOCK","name":"LOG BLOCK","type":"CMK_LOG_BLOCK","links":[12070]},{"localized_name":"diagnostic","name":"diagnostic","type":"CMK_DIAGNOSTIC","links":[12251]}],"properties":{"Node name for S&R":"CMKFaceSwapImagePipe"},"widgets_values":[true,true,"hyperswap_1b_256.onnx","buffalo_l","Leftmost","Largest",true,"GFPGAN",1,1,0,1.5,10,22,1,"Automatic",false,"GFPGANv1.4.pth",1],"shape":1},{"id":5063,"type":"CMKLoadImage","pos":[720,540],"size":[430,480],"flags":{},"order":0,"mode":0,"inputs":[{"localized_name":"opt_LOG","name":"opt_LOG","shape":7,"type":"CMK_LOG_PIPE","link":null},{"localized_name":"image","name":"image","type":"COMBO","widget":{"name":"image"},"link":null},{"localized_name":"upload","name":"upload","type":"IMAGEUPLOAD","widget":{"name":"upload"},"link":null}],"outputs":[{"localized_name":"PROCESS","name":"PROCESS","type":"CMK_PIPE","links":[]},{"localized_name":"IMAGE","name":"IMAGE","type":"IMAGE","links":[3]},{"localized_name":"MASK","name":"MASK","type":"MASK","links":[]},{"localized_name":"FILENAME_STRING","name":"FILENAME_STRING","type":"STRING","links":null},{"localized_name":"LOG","name":"LOG","type":"CMK_LOG_PIPE","links":null}],"properties":{"Node name for S&R":"CMKLoadImage","cmkOuterSize":[430,480]},"widgets_values":["CMK Package · face_reference.png","image"],"shape":1},{"id":5064,"type":"CMKFaceSwapBoundaryCache","pos":[1930,1340],"size":[230,150],"flags":{"collapsed":false},"order":1,"mode":0,"inputs":[{"localized_name":"MODEL (opt)","name":"MODEL (opt)","shape":7,"type":"CMK_MODEL_PIPE","link":26},{"localized_name":"PROCESS","name":"PROCESS","shape":7,"type":"CMK_PIPE","link":12068},{"localized_name":"IMAGE","name":"IMAGE","shape":7,"type":"IMAGE","link":19},{"localized_name":"LOG","name":"LOG","shape":7,"type":"CMK_LOG_PIPE","link":12071}],"outputs":[{"localized_name":"MODEL","name":"MODEL","type":"CMK_MODEL_PIPE","links":[21]},{"localized_name":"PROCESS","name":"PROCESS","type":"CMK_PIPE","links":[22]},{"localized_name":"IMAGE","name":"IMAGE","type":"IMAGE","links":[12633,12635]},{"localized_name":"LOG","name":"LOG","type":"CMK_LOG_PIPE","links":[24]}],"properties":{"Node name for S&R":"CMKFaceSwapBoundaryCache"},"shape":1},{"id":5066,"type":"CMKLogConcat","pos":[1930,1180],"size":[230,120],"flags":{"collapsed":false},"order":2,"mode":0,"inputs":[{"label":"LOG","localized_name":"LOG","name":"LOG","type":"CMK_LOG_PIPE","link":12069},{"label":"LOG BLOCK 1","localized_name":"log_block","name":"log_block","shape":7,"type":"CMK_LOG_BLOCK","link":12070},{"label":"LOG BLOCK 2","localized_name":"log_block_2","name":"log_block_2","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_3","name":"log_block_3","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_4","name":"log_block_4","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_5","name":"log_block_5","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_6","name":"log_block_6","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_7","name":"log_block_7","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_8","name":"log_block_8","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_9","name":"log_block_9","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_10","name":"log_block_10","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_11","name":"log_block_11","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_12","name":"log_block_12","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_13","name":"log_block_13","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_14","name":"log_block_14","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_15","name":"log_block_15","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_16","name":"log_block_16","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_17","name":"log_block_17","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_18","name":"log_block_18","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_19","name":"log_block_19","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_20","name":"log_block_20","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_21","name":"log_block_21","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_22","name":"log_block_22","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_23","name":"log_block_23","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_24","name":"log_block_24","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_25","name":"log_block_25","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_26","name":"log_block_26","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_27","name":"log_block_27","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_28","name":"log_block_28","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_29","name":"log_block_29","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_30","name":"log_block_30","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_31","name":"log_block_31","shape":7,"type":"CMK_LOG_BLOCK","link":null},{"localized_name":"log_block_32","name":"log_block_32","shape":7,"type":"CMK_LOG_BLOCK","link":null}],"outputs":[{"localized_name":"LOG","name":"LOG","type":"CMK_LOG_PIPE","links":[12071]}],"properties":{"Node name for S&R":"CMKLogConcat"},"shape":1},{"id":5080,"type":"CMKResultUnpackPipe","pos":[800,610],"size":[240,10],"flags":{"collapsed":true},"order":3,"mode":0,"inputs":[{"localized_name":"MODEL (opt)","name":"MODEL (opt)","shape":7,"type":"*","link":12290},{"localized_name":"PROCESS","name":"PROCESS","shape":7,"type":"*","link":12291},{"localized_name":"IMAGE","name":"IMAGE","shape":7,"type":"*","link":12292},{"localized_name":"LOG","name":"LOG","shape":7,"type":"*","link":12293}],"outputs":[{"localized_name":"MODEL","name":"MODEL","type":"CMK_MODEL_PIPE","links":[26]},{"localized_name":"PROCESS","name":"PROCESS","type":"CMK_PIPE","links":[12068]},{"localized_name":"IMAGE","name":"IMAGE","type":"IMAGE","links":[12,12634]},{"localized_name":"LOG","name":"LOG","type":"CMK_LOG_PIPE","links":[12069]}],"properties":{"Node name for S&R":"CMKResultUnpackPipe"},"shape":1},{"id":6222,"type":"CMKResultPackPipe","pos":[1930,1520],"size":[230,150],"flags":{"collapsed":false},"order":7,"mode":0,"inputs":[{"localized_name":"MODEL (opt)","name":"MODEL (opt)","shape":7,"type":"CMK_MODEL_PIPE","link":21},{"localized_name":"PROCESS","name":"PROCESS","shape":7,"type":"CMK_PIPE","link":22},{"localized_name":"IMAGE","name":"IMAGE","shape":7,"type":"IMAGE","link":12635},{"localized_name":"LOG","name":"LOG","shape":7,"type":"CMK_LOG_PIPE","link":24}],"outputs":[{"localized_name":"MODEL","name":"MODEL","type":"CMK_RESULT_MODEL","links":[12294]},{"localized_name":"PROCESS","name":"PROCESS","type":"CMK_RESULT_PROCESS","links":[12295]},{"localized_name":"IMAGE","name":"IMAGE","type":"CMK_RESULT_IMAGE","links":[12296]},{"localized_name":"LOG","name":"LOG","type":"CMK_RESULT_LOG","links":[12297]}],"properties":{"Node name for S&R":"CMKResultPackPipe"},"shape":1},{"id":5215,"type":"ImageCompare","pos":[1160,540],"size":[740,1130],"flags":{"collapsed":false},"order":5,"mode":0,"inputs":[{"localized_name":"image_a","name":"image_a","shape":7,"type":"IMAGE","link":12637},{"localized_name":"image_b","name":"image_b","shape":7,"type":"IMAGE","link":12638},{"localized_name":"compare_view","name":"compare_view","type":"IMAGECOMPARE","widget":{"name":"compare_view"},"link":null}],"outputs":[],"properties":{"Node name for S&R":"ImageCompare","comparer_mode":"Click","default_output":"b"},"widgets_values":[],"shape":1},{"id":5216,"type":"CMKImageCompareEnableGate","pos":[900,540],"size":[270,10],"flags":{"collapsed":true},"order":6,"mode":0,"inputs":[{"localized_name":"IMAGE A","name":"IMAGE A","shape":7,"type":"IMAGE","link":12633},{"localized_name":"IMAGE B","name":"IMAGE B","shape":7,"type":"IMAGE","link":12634},{"localized_name":"ENABLE","name":"ENABLE","type":"BOOLEAN","widget":{"name":"ENABLE"},"link":12636}],"outputs":[{"localized_name":"IMAGE A","name":"IMAGE A","type":"IMAGE","links":[12637]},{"localized_name":"IMAGE B","name":"IMAGE B","type":"IMAGE","links":[12638]}],"properties":{"Node name for S&R":"CMKImageCompareEnableGate"},"widgets_values":[true],"shape":1}],"groups":[{"id":112,"title":"CMK Flow · 40 FaceSwap","bounding":[710,470,1200,1210],"color":"#b58b2a","flags":{}}],"links":[{"id":3,"origin_id":5063,"origin_slot":1,"target_id":5207,"target_slot":1,"type":"IMAGE"},{"id":12,"origin_id":5080,"origin_slot":2,"target_id":5207,"target_slot":0,"type":"IMAGE"},{"id":16,"origin_id":-10,"origin_slot":4,"target_id":5207,"target_slot":3,"type":"BOOLEAN"},{"id":19,"origin_id":5207,"origin_slot":0,"target_id":5064,"target_slot":2,"type":"IMAGE"},{"id":21,"origin_id":5064,"origin_slot":0,"target_id":6222,"target_slot":0,"type":"CMK_MODEL_PIPE"},{"id":22,"origin_id":5064,"origin_slot":1,"target_id":6222,"target_slot":1,"type":"CMK_PIPE"},{"id":24,"origin_id":5064,"origin_slot":3,"target_id":6222,"target_slot":3,"type":"CMK_LOG_PIPE"},{"id":26,"origin_id":5080,"origin_slot":0,"target_id":5064,"target_slot":0,"type":"CMK_MODEL_PIPE"},{"id":12068,"origin_id":5080,"origin_slot":1,"target_id":5064,"target_slot":1,"type":"CMK_PIPE"},{"id":12069,"origin_id":5080,"origin_slot":3,"target_id":5066,"target_slot":0,"type":"CMK_LOG_PIPE"},{"id":12070,"origin_id":5207,"origin_slot":2,"target_id":5066,"target_slot":1,"type":"CMK_LOG_BLOCK"},{"id":12071,"origin_id":5066,"origin_slot":0,"target_id":5064,"target_slot":3,"type":"CMK_LOG_PIPE"},{"id":12251,"origin_id":5207,"origin_slot":3,"target_id":-20,"target_slot":4,"type":"CMK_DIAGNOSTIC"},{"id":12290,"origin_id":-10,"origin_slot":0,"target_id":5080,"target_slot":0,"type":"*"},{"id":12291,"origin_id":-10,"origin_slot":1,"target_id":5080,"target_slot":1,"type":"*"},{"id":12292,"origin_id":-10,"origin_slot":2,"target_id":5080,"target_slot":2,"type":"*"},{"id":12293,"origin_id":-10,"origin_slot":3,"target_id":5080,"target_slot":3,"type":"*"},{"id":12294,"origin_id":6222,"origin_slot":0,"target_id":-20,"target_slot":0,"type":"CMK_RESULT_MODEL"},{"id":12295,"origin_id":6222,"origin_slot":1,"target_id":-20,"target_slot":1,"type":"CMK_RESULT_PROCESS"},{"id":12296,"origin_id":6222,"origin_slot":2,"target_id":-20,"target_slot":2,"type":"CMK_RESULT_IMAGE"},{"id":12297,"origin_id":6222,"origin_slot":3,"target_id":-20,"target_slot":3,"type":"CMK_RESULT_LOG"},{"id":12298,"origin_id":5080,"origin_slot":1,"target_id":5207,"target_slot":2,"type":"CMK_PIPE"},{"id":12633,"origin_id":5064,"origin_slot":2,"target_id":5216,"target_slot":1,"type":"IMAGE"},{"id":12634,"origin_id":5080,"origin_slot":2,"target_id":5216,"target_slot":2,"type":"IMAGE"},{"id":12635,"origin_id":5064,"origin_slot":2,"target_id":6222,"target_slot":2,"type":"IMAGE"},{"id":12636,"origin_id":-10,"origin_slot":4,"target_id":5216,"target_slot":0,"type":"BOOLEAN"},{"id":12637,"origin_id":5216,"origin_slot":0,"target_id":5215,"target_slot":0,"type":"IMAGE"},{"id":12638,"origin_id":5216,"origin_slot":1,"target_id":5215,"target_slot":1,"type":"IMAGE"}],"extra":{}}]},"extra":{"CMKFlow":{"schemaVersion":2,"published":true,"category":"Process","description":"Übernimmt direkt einen SDXL- oder ZIT-Ergebnisweg oder den zusammengeführten Ausgang von Modul 35 und führt den FaceSwap familienneutral weiter.","status":"STABLE","order":40,"searchAliases":["faceswap","face swap","swap"],"displayName":"40 FaceSwap","domain":"Face Processing","compatibility":["SDXL","Z-Image Turbo","CMK Native FaceSwap"],"version":"1.0.0","author":"CMK Nodes","features":["FaceSwap in der Flow-Pipeline","Zielbild verarbeiten","Modul zentral aktivieren oder überspringen"],"previews":[{"src":"assets/previews/CMK Flow · 40 FaceSwap - Modul.png","label":"Modul"},{"src":"assets/previews/CMK Flow · 40 FaceSwap - Aufbau.png","label":"Aufbau"}],"placementNote":"Gemeinsam genutztes, familienneutrales Modul: nach dem letzten SDXL- oder ZIT-Ergebnis beziehungsweise optional 35 und vor 90 platzieren.","recommendedBefore":["10 KSampler SDXL 1st Pass","10 KSampler Z-Image Turbo","20 Refiner SDXL","23 Detailer SDXL","30 FaceProcess SDXL","35 Active Family Result (optional)"],"recommendedAfter":["90 Upscale & Save"],"dependencyNote":"Bei einem einzelnen SDXL- oder ZIT-Pfad MODEL, PROCESS, IMAGE und LOG direkt anschließen. Modul 35 ist nur für parallel aufgebaute Familienpfade erforderlich.","previewAlt":"40 FaceSwap Vorschau"}}}
+{
+  "revision": 0,
+  "last_node_id": "7568",
+  "last_link_id": 0,
+  "nodes": [
+    {
+      "id": 7568,
+      "type": "74c26ac9-2db0-4212-8ba2-db820c65d1c8",
+      "pos": [
+        15880,
+        -7310
+      ],
+      "size": [
+        450,
+        230
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "MODEL (opt)",
+          "shape": 7,
+          "type": "*",
+          "link": null
+        },
+        {
+          "name": "PROCESS",
+          "type": "*",
+          "link": null
+        },
+        {
+          "name": "IMAGE_TARGET",
+          "shape": 7,
+          "type": "*",
+          "link": null
+        },
+        {
+          "name": "LOG",
+          "shape": 7,
+          "type": "*",
+          "link": null
+        },
+        {
+          "name": "VISUAL",
+          "shape": 7,
+          "type": "CMK_VISUAL_PIPE",
+          "link": null
+        },
+        {
+          "name": "FACESWAP ENABLE",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "FACESWAP ENABLE"
+          },
+          "link": null
+        },
+        {
+          "label": "source face",
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "CMK_RESULT_MODEL",
+          "links": []
+        },
+        {
+          "name": "PROCESS",
+          "type": "CMK_RESULT_PROCESS",
+          "links": []
+        },
+        {
+          "name": "IMAGE",
+          "type": "CMK_RESULT_IMAGE",
+          "links": []
+        },
+        {
+          "name": "LOG",
+          "type": "CMK_RESULT_LOG",
+          "links": []
+        },
+        {
+          "name": "VISUAL",
+          "type": "CMK_VISUAL_PIPE",
+          "links": []
+        },
+        {
+          "name": "diagnostic",
+          "type": "CMK_DIAGNOSTIC",
+          "links": []
+        }
+      ],
+      "properties": {
+        "comparer_mode": "Click",
+        "default_output": "b",
+        "cmkOuterSize": [
+          450,
+          230
+        ],
+        "previewExposures": [],
+        "cmkManualSize": [
+          450,
+          230
+        ],
+        "cmkVisualProviders": [
+          {
+            "provider_id": "cmk-CMKVisualProvider-6302",
+            "key": "faceswap",
+            "label": "FaceSwap",
+            "sequence": 40,
+            "live_node_id": "5207",
+            "capabilities": {
+              "preview": true,
+              "multi_source": true,
+              "compare": true,
+              "live": true
+            },
+            "branch": "result",
+            "stage_key": "result.faceswap.standard"
+          }
+        ]
+      },
+      "widgets_values": [
+        false,
+        "CMK Package · face_reference.png"
+      ],
+      "widgets_values_named": {
+        "FACESWAP ENABLE": false,
+        "image": "CMK Package · face_reference.png"
+      },
+      "color": "#432",
+      "bgcolor": "#653",
+      "shape": 1,
+      "title": "CMK Flow · 40 FaceSwap"
+    }
+  ],
+  "links": [],
+  "version": 0.4,
+  "definitions": {
+    "subgraphs": [
+      {
+        "id": "74c26ac9-2db0-4212-8ba2-db820c65d1c8",
+        "version": 1,
+        "state": {
+          "lastGroupId": 130,
+          "lastNodeId": 7569,
+          "lastLinkId": 20588,
+          "lastRerouteId": 1
+        },
+        "revision": 4,
+        "config": {},
+        "name": "CMK Flow · 40 FaceSwap",
+        "inputNode": {
+          "id": -10,
+          "bounding": [
+            510,
+            530,
+            162.38671875,
+            188
+          ]
+        },
+        "outputNode": {
+          "id": -20,
+          "bounding": [
+            2200,
+            1440,
+            128,
+            168
+          ]
+        },
+        "inputs": [
+          {
+            "id": "1ae3c975-9243-4d4e-8cb0-cdaaef8e1bbe",
+            "name": "MODEL (opt)",
+            "type": "*",
+            "linkIds": [
+              12290
+            ],
+            "pos": [
+              648.38671875,
+              554
+            ]
+          },
+          {
+            "id": "ea787d21-8f57-458c-8737-12b7ec21305d",
+            "name": "PROCESS",
+            "type": "*",
+            "linkIds": [
+              12291,
+              20516
+            ],
+            "pos": [
+              648.38671875,
+              574
+            ]
+          },
+          {
+            "id": "0845146f-fbf1-4e7e-8466-4944f3a75603",
+            "name": "IMAGE_TARGET",
+            "type": "*",
+            "linkIds": [
+              12292
+            ],
+            "pos": [
+              648.38671875,
+              594
+            ]
+          },
+          {
+            "id": "23feb23e-72ec-41fd-ae66-8bb03b5f8dbf",
+            "name": "LOG",
+            "type": "*",
+            "linkIds": [
+              12293
+            ],
+            "pos": [
+              648.38671875,
+              614
+            ]
+          },
+          {
+            "id": "a40f4b42-137a-4dd5-bf27-ff0000000040",
+            "name": "VISUAL",
+            "type": "CMK_VISUAL_PIPE",
+            "linkIds": [
+              16031
+            ],
+            "pos": [
+              648.38671875,
+              634
+            ]
+          },
+          {
+            "id": "0b6755d3-bb3d-4bcc-b845-8a94c65f2bea",
+            "name": "FACESWAP ENABLE",
+            "type": "BOOLEAN",
+            "linkIds": [
+              16,
+              20549
+            ],
+            "pos": [
+              648.38671875,
+              654
+            ]
+          },
+          {
+            "id": "a40f4b42-137a-4dd5-bf27-ff0000001040",
+            "name": "image",
+            "type": "COMBO",
+            "linkIds": [
+              16030
+            ],
+            "label": "source face",
+            "pos": [
+              648.38671875,
+              674
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "id": "9bc046d0-6bf9-4c9a-aee0-755f443e398b",
+            "name": "MODEL",
+            "type": "CMK_RESULT_MODEL",
+            "linkIds": [
+              12294
+            ],
+            "pos": [
+              2224,
+              1464
+            ]
+          },
+          {
+            "id": "84697c60-0cc8-4d46-8c25-95845e8d8d2d",
+            "name": "PROCESS",
+            "type": "CMK_RESULT_PROCESS",
+            "linkIds": [
+              20517
+            ],
+            "pos": [
+              2224,
+              1484
+            ]
+          },
+          {
+            "id": "22b74f14-be54-4de7-b5fa-156ed31d605c",
+            "name": "IMAGE",
+            "type": "CMK_RESULT_IMAGE",
+            "linkIds": [
+              12296
+            ],
+            "pos": [
+              2224,
+              1504
+            ]
+          },
+          {
+            "id": "0bfb3f72-398c-4594-a702-44ccdb1b7e01",
+            "name": "LOG",
+            "type": "CMK_RESULT_LOG",
+            "linkIds": [
+              12297
+            ],
+            "pos": [
+              2224,
+              1524
+            ]
+          },
+          {
+            "id": "b40f4b42-137a-4dd5-bf27-ff0000000040",
+            "name": "VISUAL",
+            "type": "CMK_VISUAL_PIPE",
+            "linkIds": [
+              16036
+            ],
+            "pos": [
+              2224,
+              1544
+            ]
+          },
+          {
+            "id": "39228901-8b28-4bdd-ae3a-420d1ff03871",
+            "name": "diagnostic",
+            "type": "CMK_DIAGNOSTIC",
+            "linkIds": [
+              20560
+            ],
+            "pos": [
+              2224,
+              1564
+            ]
+          }
+        ],
+        "widgets": [],
+        "nodes": [
+          {
+            "id": 7471,
+            "type": "CMKFaceSwapImagePipe",
+            "pos": [
+              720,
+              1060
+            ],
+            "size": [
+              430,
+              570
+            ],
+            "flags": {},
+            "order": 0,
+            "mode": 0,
+            "showAdvanced": false,
+            "inputs": [
+              {
+                "localized_name": "IMAGE_TARGET",
+                "name": "IMAGE_TARGET",
+                "type": "IMAGE",
+                "link": 12
+              },
+              {
+                "localized_name": "IMAGE_SOURCE",
+                "name": "IMAGE_SOURCE",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 3
+              },
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "shape": 7,
+                "type": "CMK_PIPE",
+                "link": 12298
+              },
+              {
+                "localized_name": "opt_log",
+                "name": "opt_log",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 16050
+              },
+              {
+                "localized_name": "opt_diagnostic",
+                "name": "opt_diagnostic",
+                "shape": 7,
+                "type": "CMK_DIAGNOSTIC",
+                "link": null
+              },
+              {
+                "localized_name": "GLOBAL ENABLE",
+                "name": "GLOBAL ENABLE",
+                "shape": 7,
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "GLOBAL ENABLE"
+                },
+                "link": 16
+              },
+              {
+                "localized_name": "ENABLE",
+                "name": "ENABLE",
+                "shape": 7,
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "ENABLE"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "SWAP MODEL",
+                "name": "SWAP MODEL",
+                "shape": 7,
+                "type": "COMBO",
+                "widget": {
+                  "name": "SWAP MODEL"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "DETECT MODEL",
+                "name": "DETECT MODEL",
+                "shape": 7,
+                "type": "COMBO",
+                "widget": {
+                  "name": "DETECT MODEL"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "TARGET FACE",
+                "name": "TARGET FACE",
+                "shape": 7,
+                "type": "COMBO",
+                "widget": {
+                  "name": "TARGET FACE"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "SOURCE FACE",
+                "name": "SOURCE FACE",
+                "shape": 7,
+                "type": "COMBO",
+                "widget": {
+                  "name": "SOURCE FACE"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "PATCH ENHANCER",
+                "name": "PATCH ENHANCER",
+                "shape": 7,
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "PATCH ENHANCER"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "PATCH ENHANCER MODEL",
+                "name": "PATCH ENHANCER MODEL",
+                "shape": 7,
+                "type": "COMBO",
+                "widget": {
+                  "name": "PATCH ENHANCER MODEL"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "PATCH ENHANCER STRENGTH",
+                "name": "PATCH ENHANCER STRENGTH",
+                "shape": 7,
+                "type": "FLOAT",
+                "widget": {
+                  "name": "PATCH ENHANCER STRENGTH"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "BLEND",
+                "name": "BLEND",
+                "shape": 7,
+                "type": "FLOAT",
+                "widget": {
+                  "name": "BLEND"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "bbox_dilation",
+                "name": "bbox_dilation",
+                "shape": 7,
+                "type": "INT",
+                "widget": {
+                  "name": "bbox_dilation"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "crop_factor",
+                "name": "crop_factor",
+                "shape": 7,
+                "type": "FLOAT",
+                "widget": {
+                  "name": "crop_factor"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "drop_size",
+                "name": "drop_size",
+                "shape": 7,
+                "type": "INT",
+                "widget": {
+                  "name": "drop_size"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "feather",
+                "name": "feather",
+                "shape": 7,
+                "type": "INT",
+                "widget": {
+                  "name": "feather"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "IDENTITY STRENGTH",
+                "name": "IDENTITY STRENGTH",
+                "shape": 7,
+                "type": "FLOAT",
+                "widget": {
+                  "name": "IDENTITY STRENGTH"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "QUALITY PROFILE",
+                "name": "QUALITY PROFILE",
+                "shape": 7,
+                "type": "COMBO",
+                "widget": {
+                  "name": "QUALITY PROFILE"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "POST RESTORE",
+                "name": "POST RESTORE",
+                "shape": 7,
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "POST RESTORE"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "POST RESTORE MODEL",
+                "name": "POST RESTORE MODEL",
+                "shape": 7,
+                "type": "COMBO",
+                "widget": {
+                  "name": "POST RESTORE MODEL"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "RESTORE VISIBILITY",
+                "name": "RESTORE VISIBILITY",
+                "shape": 7,
+                "type": "FLOAT",
+                "widget": {
+                  "name": "RESTORE VISIBILITY"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "IMAGE PROCEED",
+                "name": "IMAGE PROCEED",
+                "type": "IMAGE",
+                "links": [
+                  19
+                ]
+              },
+              {
+                "localized_name": "SEGS PROCESSED",
+                "name": "SEGS PROCESSED",
+                "type": "SEGS",
+                "links": []
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "links": [
+                  16051
+                ]
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  20556
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKFaceSwapImagePipe"
+            },
+            "widgets_values": [
+              true,
+              true,
+              "hyperswap_1b_256.onnx",
+              "buffalo_l",
+              "Center",
+              "Largest",
+              true,
+              "GFPGAN",
+              1,
+              1,
+              0,
+              1.5,
+              10,
+              22,
+              1,
+              "Automatic",
+              false,
+              "GFPGANv1.4.pth",
+              1
+            ],
+            "widgets_values_named": {
+              "GLOBAL ENABLE": true,
+              "ENABLE": true,
+              "SWAP MODEL": "hyperswap_1b_256.onnx",
+              "DETECT MODEL": "buffalo_l",
+              "TARGET FACE": "Center",
+              "SOURCE FACE": "Largest",
+              "PATCH ENHANCER": true,
+              "PATCH ENHANCER MODEL": "GFPGAN",
+              "PATCH ENHANCER STRENGTH": 1,
+              "BLEND": 1,
+              "bbox_dilation": 0,
+              "crop_factor": 1.5,
+              "drop_size": 10,
+              "feather": 22,
+              "IDENTITY STRENGTH": 1,
+              "QUALITY PROFILE": "Automatic",
+              "POST RESTORE": false,
+              "POST RESTORE MODEL": "GFPGANv1.4.pth",
+              "RESTORE VISIBILITY": 1
+            },
+            "shape": 1
+          },
+          {
+            "id": 7472,
+            "type": "CMKLoadImage",
+            "pos": [
+              720,
+              540
+            ],
+            "size": [
+              430,
+              480
+            ],
+            "flags": {
+              "collapsed": false
+            },
+            "order": 1,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "opt_LOG",
+                "name": "opt_LOG",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": null
+              },
+              {
+                "localized_name": "image",
+                "name": "image",
+                "type": "COMBO",
+                "widget": {
+                  "name": "image"
+                },
+                "link": 16030
+              },
+              {
+                "localized_name": "upload",
+                "name": "upload",
+                "type": "IMAGEUPLOAD",
+                "widget": {
+                  "name": "upload"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "CMK_PIPE",
+                "links": []
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  3
+                ]
+              },
+              {
+                "localized_name": "MASK",
+                "name": "MASK",
+                "type": "MASK",
+                "links": []
+              },
+              {
+                "localized_name": "FILENAME_STRING",
+                "name": "FILENAME_STRING",
+                "type": "STRING",
+                "links": null
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "links": null
+              }
+            ],
+            "properties": {
+              "comparer_mode": "Click",
+              "default_output": "b",
+              "Node name for S&R": "CMKLoadImage",
+              "cmkOuterSize": [
+                430,
+                480
+              ]
+            },
+            "widgets_values": [
+              "CMK Package · face_reference.png",
+              "image"
+            ],
+            "widgets_values_named": {
+              "image": "CMK Package · face_reference.png",
+              "upload": "image"
+            },
+            "shape": 1
+          },
+          {
+            "id": 7473,
+            "type": "CMKFaceSwapBoundaryCache",
+            "pos": [
+              1930,
+              1510
+            ],
+            "size": [
+              230,
+              120
+            ],
+            "flags": {
+              "collapsed": false
+            },
+            "order": 2,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "MODEL (opt)",
+                "name": "MODEL (opt)",
+                "shape": 7,
+                "type": "CMK_MODEL_PIPE",
+                "link": 26
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 19
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 16051
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "shape": 7,
+                "type": "CMK_DIAGNOSTIC",
+                "link": 20556
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "CMK_MODEL_PIPE",
+                "links": [
+                  20553
+                ]
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  12633,
+                  16032,
+                  16034,
+                  20554
+                ]
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "links": [
+                  20555
+                ]
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  20561
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKFaceSwapBoundaryCache"
+            },
+            "shape": 1
+          },
+          {
+            "id": 7474,
+            "type": "CMKResultUnpackPipe",
+            "pos": [
+              920,
+              540
+            ],
+            "size": [
+              230,
+              0
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 3,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "MODEL (opt)",
+                "name": "MODEL (opt)",
+                "shape": 7,
+                "type": "*",
+                "link": 12290
+              },
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "shape": 7,
+                "type": "*",
+                "link": 12291
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "shape": 7,
+                "type": "*",
+                "link": 12292
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "shape": 7,
+                "type": "*",
+                "link": 12293
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "CMK_MODEL_PIPE",
+                "links": [
+                  26,
+                  20550
+                ]
+              },
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "CMK_PIPE",
+                "links": [
+                  12298,
+                  20514
+                ]
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  12,
+                  12634,
+                  16033,
+                  20551
+                ]
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "links": [
+                  16050,
+                  20552
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKResultUnpackPipe"
+            },
+            "shape": 1
+          },
+          {
+            "id": 7475,
+            "type": "CMKResultPackPipe",
+            "pos": [
+              1930,
+              1480
+            ],
+            "size": [
+              230,
+              0
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 4,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "MODEL (opt)",
+                "name": "MODEL (opt)",
+                "shape": 7,
+                "type": "CMK_MODEL_PIPE",
+                "link": 20557
+              },
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "shape": 7,
+                "type": "CMK_PIPE",
+                "link": 20514
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 20558
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 20559
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "CMK_RESULT_MODEL",
+                "links": [
+                  12294
+                ]
+              },
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "CMK_RESULT_PROCESS",
+                "links": []
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "CMK_RESULT_IMAGE",
+                "links": [
+                  12296
+                ]
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_RESULT_LOG",
+                "links": [
+                  12297
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKResultPackPipe"
+            },
+            "shape": 1
+          },
+          {
+            "id": 7477,
+            "type": "CMKImageCompareEnableGate",
+            "pos": [
+              1930,
+              1390
+            ],
+            "size": [
+              230,
+              0
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 5,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "IMAGE A",
+                "name": "IMAGE A",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 12633
+              },
+              {
+                "localized_name": "IMAGE B",
+                "name": "IMAGE B",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 12634
+              },
+              {
+                "localized_name": "ENABLE",
+                "name": "ENABLE",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "ENABLE"
+                },
+                "link": 12636
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "IMAGE A",
+                "name": "IMAGE A",
+                "type": "IMAGE",
+                "links": [
+                  20547
+                ]
+              },
+              {
+                "localized_name": "IMAGE B",
+                "name": "IMAGE B",
+                "type": "IMAGE",
+                "links": [
+                  20548
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKImageCompareEnableGate"
+            },
+            "widgets_values": [
+              true
+            ],
+            "widgets_values_named": {
+              "ENABLE": true
+            },
+            "shape": 1
+          },
+          {
+            "id": 7478,
+            "type": "CMKVisualProvider",
+            "pos": [
+              1930,
+              1450
+            ],
+            "size": [
+              230,
+              0
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 6,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "shape": 7,
+                "type": "CMK_VISUAL_PIPE",
+                "link": 16031
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 16032
+              },
+              {
+                "localized_name": "SOURCE",
+                "name": "SOURCE",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": null
+              },
+              {
+                "localized_name": "BEFORE",
+                "name": "BEFORE",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 16033
+              },
+              {
+                "localized_name": "AFTER",
+                "name": "AFTER",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 16034
+              },
+              {
+                "localized_name": "enable",
+                "name": "enable",
+                "shape": 7,
+                "type": "BOOLEAN",
+                "link": 16035
+              },
+              {
+                "localized_name": "label",
+                "name": "label",
+                "type": "STRING",
+                "widget": {
+                  "name": "label"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "sequence",
+                "name": "sequence",
+                "type": "INT",
+                "widget": {
+                  "name": "sequence"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "live_node_type",
+                "name": "live_node_type",
+                "shape": 7,
+                "type": "STRING",
+                "widget": {
+                  "name": "live_node_type"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "branch",
+                "name": "branch",
+                "shape": 7,
+                "type": "STRING",
+                "widget": {
+                  "name": "branch"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "stage_key",
+                "name": "stage_key",
+                "shape": 7,
+                "type": "STRING",
+                "widget": {
+                  "name": "stage_key"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "type": "CMK_VISUAL_PIPE",
+                "links": [
+                  16036
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKVisualProvider"
+            },
+            "widgets_values": [
+              "FaceSwap",
+              40,
+              "CMKFaceSwapImagePipe",
+              "result",
+              "result.faceswap.standard"
+            ],
+            "widgets_values_named": {
+              "label": "FaceSwap",
+              "sequence": 40,
+              "live_node_type": "CMKFaceSwapImagePipe",
+              "branch": "result",
+              "stage_key": "result.faceswap.standard"
+            },
+            "shape": 1
+          },
+          {
+            "id": 7505,
+            "type": "CMKResultProcessForwardPipe",
+            "pos": [
+              1930,
+              1420
+            ],
+            "size": [
+              240,
+              0
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 7,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "*",
+                "link": 20516
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "CMK_RESULT_PROCESS",
+                "links": [
+                  20517
+                ]
+              }
+            ],
+            "title": "CMKResultProcessForward -Pipe-",
+            "properties": {
+              "Node name for S&R": "CMKResultProcessForwardPipe"
+            },
+            "shape": 1
+          },
+          {
+            "id": 7567,
+            "type": "ImageCompare",
+            "pos": [
+              1160,
+              540
+            ],
+            "size": [
+              750,
+              1090
+            ],
+            "flags": {
+              "collapsed": false
+            },
+            "order": 9,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "image_a",
+                "name": "image_a",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 20547
+              },
+              {
+                "localized_name": "image_b",
+                "name": "image_b",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 20548
+              },
+              {
+                "localized_name": "compare_view",
+                "name": "compare_view",
+                "type": "IMAGECOMPARE",
+                "widget": {
+                  "name": "compare_view"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [],
+            "properties": {
+              "comparer_mode": "Click",
+              "default_output": "b",
+              "Node name for S&R": "ImageCompare"
+            },
+            "widgets_values": [],
+            "widgets_values_named": {},
+            "shape": 1
+          },
+          {
+            "id": 7518,
+            "type": "CMKModuleBypassGate",
+            "pos": [
+              1930,
+              1360
+            ],
+            "size": [
+              230,
+              0
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 8,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "MODEL BYPASS",
+                "name": "MODEL BYPASS",
+                "shape": 7,
+                "type": "*",
+                "link": 20550
+              },
+              {
+                "localized_name": "IMAGE BYPASS",
+                "name": "IMAGE BYPASS",
+                "shape": 7,
+                "type": "*",
+                "link": 20551
+              },
+              {
+                "localized_name": "LOG BYPASS",
+                "name": "LOG BYPASS",
+                "shape": 7,
+                "type": "*",
+                "link": 20552
+              },
+              {
+                "localized_name": "MODEL ACTIVE",
+                "name": "MODEL ACTIVE",
+                "shape": 7,
+                "type": "*",
+                "link": 20553
+              },
+              {
+                "localized_name": "IMAGE ACTIVE",
+                "name": "IMAGE ACTIVE",
+                "shape": 7,
+                "type": "*",
+                "link": 20554
+              },
+              {
+                "localized_name": "LOG ACTIVE",
+                "name": "LOG ACTIVE",
+                "shape": 7,
+                "type": "*",
+                "link": 20555
+              },
+              {
+                "localized_name": "DIAGNOSTIC ACTIVE",
+                "name": "DIAGNOSTIC ACTIVE",
+                "shape": 7,
+                "type": "CMK_DIAGNOSTIC",
+                "link": 20561
+              },
+              {
+                "localized_name": "ENABLE",
+                "name": "ENABLE",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "ENABLE"
+                },
+                "link": 20549
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "CMK_MODEL_PIPE",
+                "links": [
+                  20557
+                ]
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  20558
+                ]
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "links": [
+                  20559
+                ]
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  20560
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKModuleBypassGate"
+            },
+            "widgets_values": [
+              false
+            ],
+            "widgets_values_named": {
+              "ENABLE": false
+            },
+            "shape": 1
+          }
+        ],
+        "groups": [
+          {
+            "id": 112,
+            "title": "CMK Flow · 40 FaceSwap",
+            "bounding": [
+              710,
+              470,
+              1200,
+              1170
+            ],
+            "color": "#b58b2a",
+            "flags": {}
+          }
+        ],
+        "links": [
+          {
+            "id": 3,
+            "origin_id": 7472,
+            "origin_slot": 1,
+            "target_id": 7471,
+            "target_slot": 1,
+            "type": "IMAGE"
+          },
+          {
+            "id": 12,
+            "origin_id": 7474,
+            "origin_slot": 2,
+            "target_id": 7471,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 16,
+            "origin_id": -10,
+            "origin_slot": 5,
+            "target_id": 7471,
+            "target_slot": 5,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 19,
+            "origin_id": 7471,
+            "origin_slot": 0,
+            "target_id": 7473,
+            "target_slot": 1,
+            "type": "IMAGE"
+          },
+          {
+            "id": 26,
+            "origin_id": 7474,
+            "origin_slot": 0,
+            "target_id": 7473,
+            "target_slot": 0,
+            "type": "CMK_MODEL_PIPE"
+          },
+          {
+            "id": 12290,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 7474,
+            "target_slot": 0,
+            "type": "*"
+          },
+          {
+            "id": 12291,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 7474,
+            "target_slot": 1,
+            "type": "*"
+          },
+          {
+            "id": 12292,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 7474,
+            "target_slot": 2,
+            "type": "*"
+          },
+          {
+            "id": 12293,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 7474,
+            "target_slot": 3,
+            "type": "*"
+          },
+          {
+            "id": 12294,
+            "origin_id": 7475,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 0,
+            "type": "CMK_RESULT_MODEL"
+          },
+          {
+            "id": 12296,
+            "origin_id": 7475,
+            "origin_slot": 2,
+            "target_id": -20,
+            "target_slot": 2,
+            "type": "CMK_RESULT_IMAGE"
+          },
+          {
+            "id": 12297,
+            "origin_id": 7475,
+            "origin_slot": 3,
+            "target_id": -20,
+            "target_slot": 3,
+            "type": "CMK_RESULT_LOG"
+          },
+          {
+            "id": 12298,
+            "origin_id": 7474,
+            "origin_slot": 1,
+            "target_id": 7471,
+            "target_slot": 2,
+            "type": "CMK_PIPE"
+          },
+          {
+            "id": 12633,
+            "origin_id": 7473,
+            "origin_slot": 1,
+            "target_id": 7477,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 12634,
+            "origin_id": 7474,
+            "origin_slot": 2,
+            "target_id": 7477,
+            "target_slot": 1,
+            "type": "IMAGE"
+          },
+          {
+            "id": 12636,
+            "origin_id": -10,
+            "origin_slot": 5,
+            "target_id": 7477,
+            "target_slot": 2,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 16030,
+            "origin_id": -10,
+            "origin_slot": 6,
+            "target_id": 7472,
+            "target_slot": 1,
+            "type": "COMBO"
+          },
+          {
+            "id": 16031,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 7478,
+            "target_slot": 1,
+            "type": "CMK_VISUAL_PIPE"
+          },
+          {
+            "id": 16032,
+            "origin_id": 7473,
+            "origin_slot": 1,
+            "target_id": 7478,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 16033,
+            "origin_id": 7474,
+            "origin_slot": 2,
+            "target_id": 7478,
+            "target_slot": 3,
+            "type": "IMAGE"
+          },
+          {
+            "id": 16034,
+            "origin_id": 7473,
+            "origin_slot": 1,
+            "target_id": 7478,
+            "target_slot": 4,
+            "type": "IMAGE"
+          },
+          {
+            "id": 16035,
+            "origin_id": -10,
+            "origin_slot": 5,
+            "target_id": 7478,
+            "target_slot": 5,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 16036,
+            "origin_id": 7478,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 4,
+            "type": "CMK_VISUAL_PIPE"
+          },
+          {
+            "id": 16050,
+            "origin_id": 7474,
+            "origin_slot": 3,
+            "target_id": 7471,
+            "target_slot": 3,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 16051,
+            "origin_id": 7471,
+            "origin_slot": 2,
+            "target_id": 7473,
+            "target_slot": 2,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 20514,
+            "origin_id": 7474,
+            "origin_slot": 1,
+            "target_id": 7475,
+            "target_slot": 1,
+            "type": "CMK_PIPE"
+          },
+          {
+            "id": 20516,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 7505,
+            "target_slot": 0,
+            "type": "*"
+          },
+          {
+            "id": 20517,
+            "origin_id": 7505,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 1,
+            "type": "CMK_RESULT_PROCESS"
+          },
+          {
+            "id": 20547,
+            "origin_id": 7477,
+            "origin_slot": 0,
+            "target_id": 7567,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 20548,
+            "origin_id": 7477,
+            "origin_slot": 1,
+            "target_id": 7567,
+            "target_slot": 1,
+            "type": "IMAGE"
+          },
+          {
+            "id": 20549,
+            "origin_id": -10,
+            "origin_slot": 5,
+            "target_id": 7518,
+            "target_slot": 0,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 20550,
+            "origin_id": 7474,
+            "origin_slot": 0,
+            "target_id": 7518,
+            "target_slot": 1,
+            "type": "CMK_MODEL_PIPE"
+          },
+          {
+            "id": 20551,
+            "origin_id": 7474,
+            "origin_slot": 2,
+            "target_id": 7518,
+            "target_slot": 2,
+            "type": "IMAGE"
+          },
+          {
+            "id": 20552,
+            "origin_id": 7474,
+            "origin_slot": 3,
+            "target_id": 7518,
+            "target_slot": 3,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 20553,
+            "origin_id": 7473,
+            "origin_slot": 0,
+            "target_id": 7518,
+            "target_slot": 4,
+            "type": "CMK_MODEL_PIPE"
+          },
+          {
+            "id": 20554,
+            "origin_id": 7473,
+            "origin_slot": 1,
+            "target_id": 7518,
+            "target_slot": 5,
+            "type": "IMAGE"
+          },
+          {
+            "id": 20555,
+            "origin_id": 7473,
+            "origin_slot": 2,
+            "target_id": 7518,
+            "target_slot": 6,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 20556,
+            "origin_id": 7471,
+            "origin_slot": 3,
+            "target_id": 7473,
+            "target_slot": 3,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 20557,
+            "origin_id": 7518,
+            "origin_slot": 0,
+            "target_id": 7475,
+            "target_slot": 0,
+            "type": "CMK_MODEL_PIPE"
+          },
+          {
+            "id": 20558,
+            "origin_id": 7518,
+            "origin_slot": 1,
+            "target_id": 7475,
+            "target_slot": 2,
+            "type": "IMAGE"
+          },
+          {
+            "id": 20559,
+            "origin_id": 7518,
+            "origin_slot": 2,
+            "target_id": 7475,
+            "target_slot": 3,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 20560,
+            "origin_id": 7518,
+            "origin_slot": 3,
+            "target_id": -20,
+            "target_slot": 5,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 20561,
+            "origin_id": 7473,
+            "origin_slot": 3,
+            "target_id": 7518,
+            "target_slot": 7,
+            "type": "CMK_DIAGNOSTIC"
+          }
+        ],
+        "extra": {}
+      }
+    ]
+  },
+  "extra": {
+    "CMKFlow": {
+      "schemaVersion": 2,
+      "published": true,
+      "category": "Process",
+      "description": "Übernimmt direkt einen SDXL- oder ZIT-Ergebnisweg oder den zusammengeführten Ausgang von Modul 35 und führt den FaceSwap familienneutral weiter.",
+      "status": "STABLE",
+      "order": 40,
+      "searchAliases": [
+        "faceswap",
+        "face swap",
+        "swap"
+      ],
+      "displayName": "40 FaceSwap",
+      "domain": "Face Processing",
+      "compatibility": [
+        "SDXL",
+        "Z-Image Turbo",
+        "CMK Native FaceSwap"
+      ],
+      "version": "1.0.1",
+      "author": "CMK Nodes",
+      "features": [
+        "FaceSwap in der Flow-Pipeline",
+        "Zielbild verarbeiten",
+        "Modul zentral aktivieren oder überspringen"
+      ],
+      "previews": [
+        {
+          "src": "assets/previews/CMK Flow · 40 FaceSwap - Modul.png",
+          "label": "Modul"
+        },
+        {
+          "src": "assets/previews/CMK Flow · 40 FaceSwap - Aufbau.png",
+          "label": "Aufbau"
+        }
+      ],
+      "placementNote": "Gemeinsam genutztes, familienneutrales Modul: nach dem letzten SDXL- oder ZIT-Ergebnis beziehungsweise optional 35 und vor 90 platzieren.",
+      "recommendedBefore": [
+        "10 KSampler Z-Image Turbo",
+        "20 Refiner SDXL",
+        "23 Detailer SDXL",
+        "25 FaceRebuild SDXL",
+        "30 FaceProcess SDXL",
+        "35 Active Family Result (optional)"
+      ],
+      "recommendedAfter": [
+        "100 Visualizer",
+        "90 Upscale & Save"
+      ],
+      "dependencyNote": "Bei einem einzelnen SDXL- oder ZIT-Pfad MODEL, PROCESS, IMAGE und LOG direkt anschließen. Modul 35 ist nur für parallel aufgebaute Familienpfade erforderlich.",
+      "previewAlt": "40 FaceSwap Vorschau"
+    }
+  }
+}

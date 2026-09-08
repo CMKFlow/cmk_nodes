@@ -274,6 +274,10 @@ CMK/Developer/Legacy
 
 Boundary-Cache-Nodes sind interne Infrastruktur und werden mit `DEV_ONLY = True` registriert. Sie bleiben für gespeicherte Module und Workflows verfügbar, erscheinen aber nicht in der normalen Anwendersuche. Ihr sichtbarer Laufzeitname ist unabhängig vom jeweiligen Modul einheitlich `CMK Boundary Cache`, damit die Statusanzeige keinen fachlichen Bearbeitungsschritt vortäuscht.
 
+`PROCESS` gehört grundsätzlich nicht zum Ein- oder Ausgangsvertrag eines Boundary-Cache-Nodes. Die Prozess-Pipe wird im Subgraphen parallel über den dafür vorgesehenen Process-Forward-Node weitergeführt.
+
+Jedes Flow-Modul mit Bypass besitzt am öffentlichen Ergebnis einen Lazy-Selection-Gate. Bei deaktiviertem Modul fordert dieser ausschließlich den unveränderten Bypass-Pfad an. Prepare, Execute, Merge, Preview und Boundary Cache müssen vollständig unangefordert bleiben. Ein nachgelagerter Family-Selector darf diesen Vertrag nicht erst herstellen oder verdecken.
+
 Öffentliche Flow-Anzeigenamen beginnen mit `CMK Flow ·`, damit die Produktrolle auch in der globalen Node-Suche erkennbar bleibt. Python-Klassennamen und Socket-Typen werden dadurch nicht verändert.
 
 Da ComfyUI Subgraphs nicht nach `CATEGORY` gliedert, bilden öffentliche Flow-Subgraphnamen eine sortierbare virtuelle Prozessfolge:

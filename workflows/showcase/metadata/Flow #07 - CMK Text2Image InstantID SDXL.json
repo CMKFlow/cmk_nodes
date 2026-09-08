@@ -1,1 +1,33 @@
-{"published":true,"order":7,"displayName":"Flow #07 - CMK Text2Image InstantID SDXL","category":"Identitätsgeführte Bilderzeugung","category_en":"Identity-Guided Generation","description":"Erzeugt ein SDXL-Bild mit Identitätsführung über InstantID.","description_en":"Generates an SDXL image with identity guidance through InstantID.","cmkHighlight":"Dokumentiert Bypass, Hybrid und Zero-Pass als drei Betriebsarten.","cmkHighlight_en":"Documents Bypass, Hybrid, and Zero-Pass as three operating modes.","previews":[{"src":"assets/showcase/Flow #07 - CMK Text2Image InstantID SDXL - Bypass.png","label":"Bypass","label_en":"Bypass"},{"src":"assets/showcase/Flow #07 - CMK Text2Image InstantID SDXL - Hybrid.png","label":"Hybrid","label_en":"Hybrid"},{"src":"assets/showcase/Flow #07 - CMK Text2Image InstantID SDXL - Zero-Pass.png","label":"Zero-Pass","label_en":"Zero-Pass"}]}
+{
+  "published": true,
+  "order": 7,
+  "displayName": "Flow #07 - CMK Text2Image InstantID SDXL",
+  "category": "Identitätsgeführte Bilderzeugung",
+  "category_en": "Identity-Guided Generation",
+  "description": "Erzeugt ein SDXL-Bild mit Identitätsführung über InstantID.",
+  "description_en": "Generates an SDXL image with identity guidance through InstantID.",
+  "cmkHighlight": "Dokumentiert Bypass, Hybrid und Zero-Pass als drei Betriebsarten.",
+  "cmkHighlight_en": "Documents Bypass, Hybrid, and Zero-Pass as three operating modes.",
+  "previews": [
+    {
+      "src": "assets/showcase/Flow #07 - CMK Text2Image InstantID SDXL - Bypass.png",
+      "label": "Bypass",
+      "label_en": "Bypass"
+    },
+    {
+      "src": "assets/showcase/Flow #07 - CMK Text2Image InstantID SDXL - Hybrid Ansicht 1.png",
+      "label": "Hybrid 1",
+      "label_en": "Hybrid 1"
+    },
+    {
+      "src": "assets/showcase/Flow #07 - CMK Text2Image InstantID SDXL - Hybrid Ansicht 2.png",
+      "label": "Hybrid 2",
+      "label_en": "Hybrid 2"
+    },
+    {
+      "src": "assets/showcase/Flow #07 - CMK Text2Image InstantID SDXL - Zero-Pass.png",
+      "label": "Zero-Pass",
+      "label_en": "Zero-Pass"
+    }
+  ]
+}

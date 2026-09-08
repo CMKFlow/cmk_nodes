@@ -66,14 +66,13 @@ class SaveProjectImagePathTests(unittest.TestCase):
             ["Text2Image", "InstantID", "FaceRebuild"],
         )
 
-    def test_faceswap_boundary_records_an_applied_marker(self):
+    def test_faceswap_boundary_does_not_mutate_process(self):
         source = (ROOT / "pipe" / "cmk_module_boundary_cache.py").read_text(
             encoding="utf-8"
         )
         start = source.index("class CMKFaceSwapBoundaryCache:")
         section = source[start:]
-        self.assertIn('process_out["faceswap_applied"] = True', section)
-        self.assertIn("PROCESS = self._mark_applied_process(PROCESS, LOG)", section)
+        self.assertNotIn("PROCESS", section)
 
 
 if __name__ == "__main__":

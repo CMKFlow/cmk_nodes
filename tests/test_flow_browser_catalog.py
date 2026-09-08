@@ -9,7 +9,9 @@ ROOT = Path(__file__).resolve().parents[1]
 class FlowBrowserCatalogTests(unittest.TestCase):
     EXPECTED_FLOWS = {
         "SDXL LoRA Stack",
-        "05 ControlNet SDXL",
+        "05 ControlNet",
+        "05 ControlNet ZIT",
+        "05 ControlNet Combined",
         "10 KSampler SDXL 1st Pass",
         "10 KSampler Z-Image Turbo",
         "15 InstantID-Sampler SDXL",
@@ -271,6 +273,12 @@ class FlowBrowserCatalogTests(unittest.TestCase):
             (ROOT / "web" / "flow_node_metadata.json").read_text(encoding="utf-8")
         )["nodes"]
         self.assertEqual(metadata["CMKControlNetPreparePipe"]["displayName"], "05 ControlNet")
+        primary_controlnet = json.loads(
+            (ROOT / "subgraphs" / "CMK Flow · 05 ControlNet SDXL.json").read_text(
+                encoding="utf-8"
+            )
+        )["extra"]["CMKFlow"]
+        self.assertEqual("SDXL", primary_controlnet["variantLabel"])
         self.assertEqual(
             metadata["CMKZITControlNetPreparePipe"]["variantOf"],
             "CMK Flow · 05 ControlNet SDXL",
@@ -296,6 +304,8 @@ class FlowBrowserCatalogTests(unittest.TestCase):
         self.assertEqual(lora_stack["variantLabel"], "SDXL LoRA Stack")
         source = (ROOT / "web" / "js" / "cmk_flow_browser.js").read_text(encoding="utf-8")
         self.assertIn("const allFlows = [...discovered, ...discoverCuratedNodes", source)
+        self.assertIn('nodeType === "CMKVisualizer"', source)
+        self.assertEqual(metadata["CMKVisualizer"]["category"], "Finish")
         self.assertIn("button.textContent = variant.variantLabel", source)
 
 

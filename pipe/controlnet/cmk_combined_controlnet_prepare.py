@@ -140,6 +140,9 @@ class CMKCombinedControlNetPreparePipe:
             },
             "optional": {
                 "LOG": ("CMK_LOG_PIPE",),
+                "VISUAL": ("CMK_VISUAL_PIPE",),
+                "REFERENCE IMAGE INPUT": ("IMAGE",),
+                "REFERENCE IMAGE NAME": ("STRING",),
             },
         }
 
@@ -148,9 +151,14 @@ class CMKCombinedControlNetPreparePipe:
         "CMK_PROCESS_Z_IMAGE",
         "IMAGE",
         "CMK_LOG_PIPE",
+        "CMK_VISUAL_PIPE",
         "CMK_DIAGNOSTIC",
+        "IMAGE",
     )
-    RETURN_NAMES = ("PROCESS SDXL", "PROCESS ZIT", "IMAGE", "LOG", "diagnostic")
+    RETURN_NAMES = (
+        "PROCESS SDXL", "PROCESS ZIT", "IMAGE", "LOG", "VISUAL", "diagnostic",
+        "CONTROLNET IMAGE",
+    )
     FUNCTION = "prepare"
     CATEGORY = "CMK/Flow/Process"
     OUTPUT_NODE = True
@@ -168,6 +176,8 @@ class CMKCombinedControlNetPreparePipe:
             "APPLY MASK": kwargs.get("APPLY MASK", False),
             "STRENGTH": kwargs.get("STRENGTH", 1.0),
             "LOG": kwargs.get("LOG"),
+            "REFERENCE IMAGE INPUT": kwargs.get("REFERENCE IMAGE INPUT"),
+            "REFERENCE IMAGE NAME": kwargs.get("REFERENCE IMAGE NAME"),
         }
         image = kwargs.get("IMAGE")
         enabled = bool(common["ENABLE"])
@@ -193,7 +203,7 @@ class CMKCombinedControlNetPreparePipe:
                 },
             )
             ui, result = _unpack_node_result(nested)
-            prepared_sdxl, _, log, diagnostic = result
+            prepared_sdxl, _, log, diagnostic, controlnet_image = result
             return {
                 "ui": _combined_preview_ui(
                     enabled=enabled,
@@ -202,7 +212,10 @@ class CMKCombinedControlNetPreparePipe:
                     image=image,
                     ui=ui,
                 ),
-                "result": (prepared_sdxl, process_zit, image, log, diagnostic),
+                "result": (
+                    prepared_sdxl, process_zit, image, log,
+                    kwargs.get("VISUAL"), diagnostic, controlnet_image,
+                ),
             }
 
         nested = CMKZITControlNetPreparePipe().prepare(
@@ -215,7 +228,7 @@ class CMKCombinedControlNetPreparePipe:
             **{"MODEL PATCH": kwargs.get("zit_model_patch", DEFAULT_ZIT_CONTROLNET_PATCH)},
         )
         ui, result = _unpack_node_result(nested)
-        prepared_zit, _, log, diagnostic = result
+        prepared_zit, _, log, _, diagnostic, controlnet_image = result
         return {
             "ui": _combined_preview_ui(
                 enabled=enabled,
@@ -224,5 +237,8 @@ class CMKCombinedControlNetPreparePipe:
                 image=image,
                 ui=ui,
             ),
-            "result": (process_sdxl, prepared_zit, image, log, diagnostic),
+            "result": (
+                process_sdxl, prepared_zit, image, log,
+                kwargs.get("VISUAL"), diagnostic, controlnet_image,
+            ),
         }

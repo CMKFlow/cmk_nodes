@@ -417,6 +417,12 @@ class CMK_SmartUpscalerPipe(CMK_SmartUpscaler):
             )
             return (image, result_log, diagnostic)
 
+        print(
+            "[CMK Smart Upscaler] "
+            f"input {input_width}x{input_height} ({input_mp:.3f} MP) "
+            f"-> {scale_factor}x | model: {selected_model}"
+        )
+
         # This module is the terminal image stage. Keeping SDXL/Refiner weights
         # resident while Spandrel constructs RealESRGAN can exceed unified
         # memory and trigger macOS libmalloc VM-reclaim assertions.

@@ -1,6 +1,6 @@
 # CMK Architecture
 
-**Vertragsstand:** 1.0  
+**Vertragsstand:** 1.1
 **Status:** verbindlicher Architektur- und Schnittstellenvertrag  
 **Referenzbasis:** veröffentlichte Module unter `subgraphs/` und kuratierte Workflows unter `workflows/showcase/`
 
@@ -61,6 +61,11 @@ Für `-Pipe-`-Nodes und die daraus gebildeten Module gelten verbindlich:
 - Die äußere Workflow-Topologie bleibt kompakt und möglichst linear.
 - Die normale Verwendung erfordert keine Kenntnis der internen Implementierung.
 - Module bleiben dennoch über die kanonischen CMK-Einstiegspunkte eigenständig nutzbar.
+- Zwei Module dürfen außer über ihre öffentliche funktionale Schnittstelle
+  keine Kenntnis voneinander benötigen. Integrationsprobleme eines neu
+  hinzugefügten Moduls werden in diesem Modul oder in einem nachweislich
+  allgemeinen Vertrag gelöst, nicht durch modulspezifische Sonderpfade in
+  bereits bestätigten Vorgängern.
 
 Eine Node ist erst dann als `-Pipe-`-Node fertig, wenn dieser Vertrag erfüllt ist.
 
@@ -118,6 +123,27 @@ unverdrahtet platzierter Visualizer die Prompt-Validierung nicht blockiert.
 Ohne Pipe zeigt er einen leeren Wartezustand; erst die angeschlossene `VISUAL`-
 Leitung liefert Provider und Channels.
 
+Der `CMK Visualizer` ist zugleich die verbindliche Endstation des Bildzweigs.
+Neben `VISUAL` nimmt er die öffentlichen Leitungen `MODEL (opt)`, `PROCESS`,
+`IMAGE` und `LOG` entgegen. In der Standardansicht liegen ausschließlich
+`SAVE ENABLED` und `filename prefix`; Ausgabeordner, Datumsordner, Upscale-
+Schalter, Megapixelgrenzen und 4x-/2x-Modellwahl sind Advanced-Eingaben.
+Er verwendet dafür die bestehenden Result-Unpack-, Smart-Upscale- und Save-
+Verträge und implementiert weder einen zweiten Cache noch eine abweichende
+Speicher- oder Upscale-Logik.
+
+`enable upscale = false` ist echter Bypass: kein Modell wird geladen, das Bild
+bleibt unverändert und es entsteht kein Register. Bei `true` wird das
+hochskalierte Ergebnis als reguläres Bildsignal im zusätzlichen Register
+`Upscale` publiziert; ein anschließend aktiviertes Save speichert genau dieses
+Endergebnis. `SAVE ENABLED = false` führt keinerlei Dateischreibvorgang aus.
+Die Grenzwerte beziehen sich auf die Megapixelzahl des Eingangsbildes: bis
+einschließlich `limit 4x MP` gilt der 4x-Zweig, anschließend bis einschließlich
+`limit 2x MP` der 2x-Zweig. `limit 4x MP = 0.0` deaktiviert den 4x-Zweig.
+Der bisherige Subgraph `90 Upscale & Save` bleibt bis zur bestätigten Migration
+lediglich als unveränderte Rückfalloption bestehen und ist danach kein regulärer
+Bestandteil neuer Flow-Ketten mehr.
+
 ### 3.1 Warum IMAGE eine eigene Leitung ist
 
 `IMAGE` liegt bewusst nicht im öffentlichen `PROCESS`-Transport:
@@ -154,8 +180,22 @@ Provider werden capability-driven ausgewertet; der Visualizer enthält keine
 Liste bekannter CMK-Module. `CMK Visual Provider -Pipe-` registriert Result- und
 optional Source-/Before-/After-Channels. Wiederholte Registrierung derselben
 Provider-ID ersetzt nur deren Status und Channels, während die übrige
-akkumulierte Pipe erhalten bleibt. `CMK Visual Forward -Pipe-` reicht Module
-ohne eigenen visuellen Beitrag identisch durch.
+akkumulierte Pipe erhalten bleibt. Die Provider-ID bezeichnet immer eine
+**konkrete Modulinstanz**, nicht einen Modultyp. `branch`, `stage_key`, Label und
+`sequence` sind semantische Klassifikation beziehungsweise Sortierinformation
+und dürfen nie als eindeutige Identität verwendet werden.
+
+Mehrere Instanzen desselben Moduls dürfen deshalb dieselbe `sequence`, denselben
+`stage_key` und dasselbe Label besitzen. Sie bleiben getrennte Provider. Bei
+gleicher `sequence` gilt ihre Reihenfolge in der tatsächlich durchlaufenen
+`VISUAL`-Kette. Der Visualizer ergänzt nur für die Darstellung fortlaufende
+Suffixe (`Detailer`, `Detailer 2`, `Detailer 3`); diese Anzeigenamen verändern
+weder Provider-ID noch Cache. `CMK Visual Forward -Pipe-` reicht Module ohne
+eigenen visuellen Beitrag identisch durch.
+
+`sequence` bestimmt ausschließlich die grobe sichtbare Registersortierung. Sie
+erzwingt keine Prozessreihenfolge und ist kein Zähler, Cachebestandteil oder
+Ersatz für die konkrete Instanzidentität.
 
 Provider-Auswahl, die per gedrückter Maustaste temporäre Before-/After-Ansicht und abgeschlossene History
 sind reiner Frontend-Presentation-State. Sie verändern weder Prompt-Eingaben
@@ -165,8 +205,9 @@ die vorherige History; verspätete Live-Ereignisse werden nur für die aktive
 Execution angenommen.
 
 Sampler-Livebilder laufen weiterhin über ComfyUIs bestehenden Latent-Preview-
-Callback und WebSocket-Sidechannel. Der Provider verweist dafür auf die
-zugehörige Sampler-Node-ID. Der Visualizer übernimmt den bereits decodierten
+Callback und WebSocket-Sidechannel. Ein Provider verweist dafür auf eine oder
+mehrere zugehörige Sampler-Node-IDs innerhalb derselben konkreten
+Subgraph-Instanz. Der Visualizer übernimmt den bereits decodierten
 Preview-Frame, folgt dem aktiven Provider und ersetzt ihn nach Abschluss immer
 durch dessen autoritativen Final-Channel. Es gibt keinen zweiten Preview-Decode.
 Für aktuelle ComfyUI-Versionen ist `b_preview_with_metadata` der authoritative
@@ -176,36 +217,45 @@ liefert Schritt, Gesamtzahl und Running-Status. Das metadatenlose `b_preview`
 bleibt ausschließlich als Legacy-Fallback bestehen und wird nicht zusätzlich
 verarbeitet, wenn derselbe Blob bereits über den Metadatenkanal eingetroffen ist.
 
-Lifecycle Ownership bleibt getrennt: Processing-Nodes publizieren semantische
-Provider-Zustände (`waiting`, `active`, `completed`, `skipped`, `disabled`);
-alle Entscheidungen über Anzeigen, Folgen, Behalten, Leeren, Verbergen und
-Neuaufbau gehören dem `CMK Visualizer`.
+Lifecycle Ownership bleibt getrennt: Processing-Nodes publizieren Bildkanäle
+und deren Instanzidentität; alle Entscheidungen über Anzeigen, Folgen,
+Behalten, Leeren, Verbergen und Neuaufbau gehören dem `CMK Visualizer`.
+ComfyUI-Running-Status, globale Fortschrittsanzeige und bloße Existenz eines
+Subgraphs sind ausdrücklich **kein Bildsignal** und dürfen kein Register
+anlegen.
 
-Die frühe Registrierung erfolgt deklarativ über die Subgraph-Metadaten
-`cmkVisualProviders`. Sie beschreibt ausschließlich Identität, Label,
-Reihenfolge und Capabilities und löst keine Verarbeitung aus. Beim Start einer
-Execution baut der Visualizer daraus den Zustand `waiting` auf. Die tatsächlich
-ausgeführten Publish-Nodes ersetzen diese Deklarationen anschließend anhand
-derselben stabilen `provider_id` durch die finalen Channels. Damit sind spätere
-Stufen schon vor ihrer Ausführung bekannt, ohne dass `VISUAL` einen zusätzlichen
-Compute- oder Cache-Zweig erzeugt.
+Subgraph-Metadaten `cmkVisualProviders` beschreiben ausschließlich Identität,
+Label, Reihenfolge, Capabilities, Aktivierung und die Zuordnung von
+Live-Node-IDs. Sie bilden einen internen Ereigniskatalog, lösen keine
+Verarbeitung aus und erzeugen **keine vorauseilenden Register**. Ein Register
+entsteht erst, wenn für seine konkrete Instanz ein Livebild oder ein finaler
+Bildchannel eintrifft. Ein Cache-Hit gilt dabei als reguläres finales Bildsignal.
+Der abschließende Backend-Payload ist für die Execution autoritativ: nicht darin
+enthaltene, deaktivierte Provider dürfen weder leer noch mit einem
+durchgereichten Fremdbild fortbestehen.
+
+Der optionale `enable`-Eingang des Providers ist ein reiner `forceInput`-Socket
+ohne positionsgebundenes Widget. Unverbunden gilt er als `true`; ein Modul mit
+GLOBAL ENABLE verbindet ihn ausdrücklich. Dadurch kann Bypass die Registrierung
+verhindern, ohne die gespeicherten Widgetpositionen bestehender Provider zu
+verschieben.
 
 Diese Deklarationen werden zusätzlich bei Graphänderungen neu ausgewertet.
-Einfügen, Entfernen oder Neuverbinden eines Moduls aktualisiert die Provider-
-Registerkarten unmittelbar und UI-seitig; es wird weder ein Prompt gestartet
-noch ein Processing-Cache invalidiert. Ereignisserien beim Aufbau eines
-Subgraphs werden zu einem Refresh zusammengefasst. Während einer aktiven
-Execution ist dieser Struktur-Refresh gesperrt, damit Live- und Final-State
-nicht durch einen parallelen Editor-Lifecycle überschrieben werden.
+Einfügen, Entfernen oder Neuverbinden eines Moduls aktualisiert ausschließlich
+den internen Providerkatalog; sichtbare Register entstehen daraus nicht. Es
+wird weder ein Prompt gestartet noch ein Processing-Cache invalidiert.
+Ereignisserien beim Aufbau eines Subgraphs werden zu einem Refresh
+zusammengefasst. Während einer aktiven Execution ist dieser Struktur-Refresh
+gesperrt, damit Live- und Final-State nicht durch einen parallelen
+Editor-Lifecycle überschrieben werden.
 
 Der erste verbindliche End-to-End-Slice verläuft über die Module 10 und 20:
 
 ```text
 10 KSampler SDXL 1st Pass
-    VISUAL unverändert weiterreichen bzw. leer eröffnen
+    Provider 1st Pass → result + Sampler-Live-Sidechannel
         ↓
 20 Refiner SDXL
-    Provider 1st Pass  → result + Sampler-Live-Sidechannel
     Provider Refiner   → AFTER; BEFORE nur solange die Maustaste gedrückt bleibt
         ↓
 CMK Visualizer
@@ -232,6 +282,20 @@ Provider-Navigation und der Klickvergleich bleiben reine UI-Aktionen. Die
 Bildreferenzen werden unter dem privaten UI-Feld `cmk_visual_images` übertragen;
 dadurch erzeugt ComfyUI unterhalb des Visualizers keine zusätzliche native
 Thumbnail-Galerie.
+
+Ein interner `CMK Load Image` mit nach außen geführter Dateiauswahl behandelt
+den tatsächlich ausgeführten Eingang als einzige Wahrheitsquelle. Seine innere
+Vorschau muss nach der Ausführung genau dieses Bild anzeigen und darf nicht am
+gespeicherten Defaultwert seines lokalen Widgets festhalten. Dieser Vertrag
+gilt gemeinsam für ControlNet-, InstantID-, FaceRebuild- und FaceSwap-Module;
+modulspezifische Synchronisationsregeln sind verboten.
+
+Kompakte Flow-Module im Format `450 × 230` verwenden ein gemeinsames äußeres
+UI-Raster. Der sichtbare Widgetblock ist unmittelbar oberhalb der
+`Enter subgraph`-Leiste bottom-aligned. Advanced-Varianten mit ausschließlich
+einem globalen Schalter erhalten darunter einen rein visuellen, leeren Spacer
+in Höhe einer Combo-Zeile. Dieser Spacer ist kein Eingang, wird nicht
+serialisiert und besitzt keinerlei Einfluss auf Prompt, Cache oder Ausführung.
 
 ### 3.3 Modellfamilien sind mechanisch getrennte Verträge
 
@@ -287,7 +351,7 @@ Die folgenden Typen sind keine zusätzlichen allgemeinen Workflow-Leitungen. Sie
 | `CMK_REFINER_PIPE` / `REFINER` | `CMK Refiner Prepare SDXL -Pipe-` | `CMK Refiner -Pipe-` | vollständig vorbereiteter Refiner-Kontext |
 | `CMK_DETAILER_PIPE` / `DETAILER` | `CMK Detailer Prepare -Pipe-` | parallele `CMK Smart Detailer -Pipe-` | unveränderlicher gemeinsamer Detailer-Kontext |
 | `CMK_FACE_PIPE` / `FACE` | `CMK FaceProcess Prepare -Pipe-` | parallele `CMK FaceProcess -Pipe-` | unveränderlicher gemeinsamer FaceProcess-Kontext |
-| `CMK_LOG_BLOCK` / `LOG BLOCK` | einzelne Execute-Instanz | ausschließlich `CMK LOG CONCAT` | lokaler Logbeitrag ohne Verkettung vollständiger LOG-Pipes |
+| `CMK_LOG_BLOCK` / `LOG BLOCK` | parallele Execute-Instanz ohne seriellen Transportvertrag | ausschließlich `CMK LOG CONCAT` | lokaler Logbeitrag für ausdrücklich parallele Merge-Architekturen |
 
 Diese Typen verhindern, dass ein allgemeiner `PROCESS`-, `IMAGE`- oder `LOG`-Socket eine geschützte Modulschnittstelle ersetzt.
 
@@ -384,10 +448,8 @@ MODEL (opt) + PROCESS + IMAGE_TARGET + LOG + ENABLE
 [CMK Load Image -Pipe- nur für IMAGE_SOURCE]
     ↓
 CMK FaceSwap Image -Pipe-
-    ↓
-CMK Boundary Cache
-    ↓
-MODEL + PROCESS + IMAGE + LOG
+    ├─→ CMK Boundary Cache → MODEL + IMAGE + LOG
+    └─→ CMK Process Forward -Pipe- → PROCESS
 ```
 
 Modulregeln:
@@ -395,9 +457,9 @@ Modulregeln:
 - Das eingehende `IMAGE_TARGET` bleibt das authoritative Workflowbild.
 - `CMK Load Image -Pipe-` liefert intern ausschließlich das Referenzbild an `IMAGE_SOURCE`; sein `PROCESS` und `LOG` ersetzen niemals den eingehenden Modulzustand.
 - `MODEL` bleibt read-only und wird durch den FaceSwap-Boundary geführt, ohne von FaceSwap verwendet oder verändert zu werden.
-- Öffentliche Ausgänge und interne Ergebnis-Previews beziehen `MODEL`, `PROCESS`, `IMAGE` beziehungsweise `LOG` ausschließlich vom verpflichtenden `CMK Boundary Cache`.
+- Öffentliche Bild-, Modell- und Log-Ausgänge sowie interne Ergebnis-Previews beziehen `MODEL`, `IMAGE` und `LOG` vom verpflichtenden `CMK Boundary Cache`. `PROCESS` wird ausschließlich über den separaten Forward-Pfad weitergeführt.
 - `ENABLE = OFF` ist ein echter Lazy-Passthrough: `IMAGE_TARGET` wird unverändert ausgegeben; interner Source-Loader, Face Detection und Swap werden nicht angefordert.
-- Der persistente FaceSwap-Boundary materialisiert `PROCESS`, `IMAGE` und `LOG` gemeinsam. `MODEL` wird aufgrund seiner read-only Rolle nur aktuell durchgereicht und nicht serialisiert.
+- Der persistente FaceSwap-Boundary materialisiert `IMAGE` und `LOG` gemeinsam. `MODEL` wird aufgrund seiner read-only Rolle nur aktuell durchgereicht und nicht serialisiert; `PROCESS` gehört nicht zum Cache-Vertrag.
 - Der standalone Einstieg über `CMK Swap Image Loader -Pipe-` und das eingeschleifte Subgraph-Modul bleiben zwei gleichwertige Einsatzformen derselben FaceSwap-Engine.
 
 ### 5.2 Modellquelle
@@ -641,9 +703,9 @@ Damit kann weder ein Comparer noch ein nachfolgendes Modul den Sampler/Refiner e
 Öffentliche Moduloberfläche:
 
 ```text
-MODEL + PROCESS + IMAGE + LOG + GLOBAL ENABLE
+MODEL + PROCESS + IMAGE + LOG + VISUAL + GLOBAL ENABLE
     ↓
-MODEL + PROCESS + IMAGE + LOG
+MODEL + PROCESS + IMAGE + LOG + VISUAL + diagnostic
 ```
 
 Prepare:
@@ -661,28 +723,24 @@ DETAILER + LOG + diagnostic
 Einzelne Execute-Instanz:
 
 ```text
-DETAILER + LOCAL ENABLE + lokale Detailer-Parameter
+DETAILER + optional LOG + optional diagnostic
+         + LOCAL ENABLE + lokale Detailer-Parameter
     ↓
 SEGS DETECTED
 SEGS PROCEED
-IMAGE PROCEED
+IMAGE PROCEED (optionaler Komfortausgang)
+DETAILER IMAGE (internes vollständiges Ergebnis)
 diagnostic
-LOG BLOCK
+LOG
 ```
 
-Bewusst nicht vorhanden:
+Verbindlich gilt:
 
-```text
-kein DETAILER-Ausgang
-kein vollständiger LOG-Ausgang
-kein unverändertes IMAGE-Ausgangskabel
-```
-
-Begründung:
-
-- Ein weitergereichter `DETAILER`-Ausgang würde Detailer 2 formal von Detailer 1 abhängig machen.
-- Ein vollständiger `LOG → LOG`-Durchlauf würde dieselbe künstliche Kette erzeugen.
-- Ein unverändertes `IMAGE` am Execute-Knoten wäre fachfremder Transport und eine Umgehungsmöglichkeit des Merge-/Boundary-Pfads.
+- `DETAILER` bleibt gemeinsamer unveränderlicher Arbeitskontext und wird nicht seriell durch Execute-Instanzen geführt.
+- `opt_log` und `opt_diagnostic` dürfen ausschließlich Dokumentation durch mehrere Instanzen transportieren. Sie beeinflussen weder Pixelberechnung noch Branch-Cache-Schlüssel.
+- `IMAGE PROCEED` darf in parallelen Advanced-Modulen deaktiviert bleiben; die Zusammenführung verwendet `SEGS PROCEED`.
+- `DETAILER IMAGE` dient Preview-/Provider-Pfaden, darf den verpflichtenden Merge-/Boundary-Ausgang aber nicht ersetzen.
+- Bei mehreren internen Samplern deklariert ein Visual Provider alle zugehörigen Live-Node-IDs derselben Subgraph-Instanz und zeigt ihre Frames nacheinander im gemeinsamen Modulregister.
 
 Zusammenführung:
 
@@ -693,11 +751,11 @@ CMK SEGS CONCAT
     ↓
 zusammengesetztes IMAGE
 
-Basis-LOG + LOG BLOCK 1 ... N
+Basis-LOG + Basis-diagnostic
     ↓
-CMK LOG CONCAT
+Smart Detailer 1 → LOG + diagnostic
     ↓
-zusammengeführtes LOG
+Smart Detailer 2 ... N → LOG + diagnostic
 ```
 
 `CMK SEGS CONCAT` behandelt jeden parallelen SEGS-Eingang als unabhängigen Branch. CMK-Branches liefern ein vollständig komponiertes Branch-Bild und einen räumlichen Support aus den tatsächlich zugeordneten SEG-Crop-Regionen. Der Merge übernimmt das Branch-Bild ausschließlich innerhalb dieses Supports. Eine Pixel-Differenzmaske ist verboten, weil sie Quell- und Ergebnisbild pixelweise verschachteln kann. Unveränderte Geschwistersegmente besitzen keine überschreibende Wirkung. Bei tatsächlicher räumlicher Überlappung zweier bearbeiteter Branches definiert die Eingangsreihenfolge die Priorität; der spätere Eingang gewinnt.
@@ -713,15 +771,19 @@ CMK Boundary Cache
 ```
 
 Alle öffentlichen Detailer-Ausgänge und der Comparer liegen hinter diesem Boundary.
+Der Boundary stempelt das tatsächlich ausgegebene Bild als aktuelles öffentliches
+Cache-Artefakt in einer kopierten `PROCESS`-Pipe. Ein nachfolgendes weiteres
+Detailer-Modul verwendet damit das unmittelbare Detailer-Ergebnis und nicht
+fälschlich weiterhin das ältere Refiner-Artefakt.
 
 ### 5.7 FaceProcess-Modul
 
 Öffentliche Moduloberfläche:
 
 ```text
-MODEL + PROCESS + IMAGE + LOG + GLOBAL ENABLE
+MODEL + PROCESS + IMAGE + LOG + VISUAL + GLOBAL ENABLE + PROCESS MODE
     ↓
-MODEL + PROCESS + IMAGE + LOG
+MODEL + PROCESS + IMAGE + LOG + VISUAL + diagnostic
 ```
 
 Prepare:
@@ -740,6 +802,8 @@ Einzelne Execute-Instanz:
 
 ```text
 FACE
++ optional LOG
++ optional diagnostic
 + LOCAL ENABLE
 + PROCESS MODE: restore | detailer
 + FACE SELECTION
@@ -750,19 +814,35 @@ IMAGE PROCEED
 SELECTED FACE
 SEGS PROCESSED
 ENABLED
+LOG
 diagnostic
-LOG BLOCK
 ```
 
-Bewusst nicht vorhanden:
+Die Execute-Instanz führt angeschlossene `opt_log`- und `opt_diagnostic`-
+Transporte intern in Anschlussreihenfolge mit ihrer eigenen Dokumentation
+zusammen. Diese Transporteingänge sind vom Rechen-Fingerprint ausgeschlossen:
+Sie verändern weder Auswahl noch Bildberechnung und dürfen daher einen gültigen
+Branch-Cache nicht invalidieren. Auch bei einem Cache-Hit werden jedoch die
+aktuellen Transportwerte mit dem gecachten lokalen Beitrag verbunden.
+
+Bewusst nicht vorhanden ist weiterhin:
 
 ```text
 kein FACE-Ausgang
-kein vollständiger LOG-Ausgang
 kein unverändertes IMAGE-Ausgangskabel
 ```
 
-`SEGS PROCESSED` mehrerer Instanzen werden über `CMK SEGS CONCAT` auf das gemeinsame authoritative Eingangsbild angewendet. Jede FaceProcess-Instanz darf darin ausschließlich die ausgewählten und tatsächlich von ihr verantworteten Gesichter ausgeben. Das cache-stabile Branch-Bild wird über deren räumlichen SEG-Support übernommen; unveränderte Geschwistergesichter sind kein Branch-Beitrag. Die Logbeiträge werden über `CMK LOG CONCAT` zusammengeführt.
+Im Standardmodul übernimmt die einzelne Execute-Instanz den vollständigen
+seriellen `LOG`-/`diagnostic`-Transport. Im Advanced-Modul werden mehrere
+Execute-Instanzen ausschließlich dokumentarisch über `opt_log` und
+`opt_diagnostic` verkettet; ihre Bildberechnungen bleiben durch die vom
+Fingerprint ausgeschlossenen Transporteingänge modular und cache-unabhängig.
+`SEGS PROCESSED` mehrerer Instanzen werden weiterhin über `CMK SEGS CONCAT` auf
+das gemeinsame authoritative Eingangsbild angewendet. Jede FaceProcess-Instanz
+darf darin ausschließlich die ausgewählten und tatsächlich von ihr
+verantworteten Gesichter ausgeben. Das cache-stabile Branch-Bild wird über deren
+räumlichen SEG-Support übernommen; unveränderte Geschwistergesichter sind kein
+Branch-Beitrag.
 
 Der Modulabschluss ist ein verpflichtender `CMK Boundary Cache`:
 
@@ -771,13 +851,31 @@ MODEL + PROCESS + zusammengesetztes IMAGE + zusammengeführtes LOG
     ↓
 CMK Boundary Cache
     ↓
-öffentliche FaceProcess-Ausgänge und interner Comparer
+öffentliche FaceProcess-Ausgänge, interner Comparer und Visual Provider
 ```
 
 Der FaceProcess-Boundary serialisiert weiterhin ausschließlich das berechnete
 Bild und das zusammengeführte Log. `MODEL` und `PROCESS` werden read-only durch
 den aktuellen ComfyUI-Prozess geführt und sind damit nach FaceProcess wieder
 frei mit jedem kompatiblen Flow-Modul kombinierbar.
+
+Die äußere Standardoberfläche ist anzeigefrei und besitzt ausschließlich
+`FACEPROCESS ENABLE` sowie das kleingeschriebene Combo `process mode`. Der
+interne Comparer bleibt Bestandteil des Subgraphen, wird jedoch weder als
+Proxy-Widget noch als Bildanzeige auf der äußeren Oberfläche exponiert. Das
+äußere `process mode` bleibt ein regulärer Subgraph-Eingang und ist kein
+Proxy-Widget. Ist der gleichnamige Eingang des inneren FaceProcess-Nodes
+verkabelt, hält dessen dynamische UI vor der Prompt-Serialisierung beide
+Parametersätze (Restore und Detailer) serialisierbar. Erst der eingehende Wert
+wählt zur Laufzeit den wirksamen Satz. Bei einem unverkabelten Eingang bleibt
+die normale dynamische Projektion auf den lokal gewählten Modus erhalten.
+
+Der
+`CMK Visual Provider -Pipe-` registriert das Ergebnis unter dem sichtbaren Label
+`FaceProcess` mit Sequenz 30. Seine semantische Live-Quellenkennung lautet
+ebenfalls `FaceProcess` und wird unabhängig vom gewählten `process mode` auf die
+unterstützten konkreten FaceProcess-Node-Typen aufgelöst. Restore und Detailer
+erzeugen daher niemals unterschiedliche Registeridentitäten.
 
 ### 5.8 Upscale und Save
 
@@ -917,34 +1015,91 @@ Jede teure Smart-Detailer- und FaceProcess-Instanz besitzt einen eigenen persist
 Der Fingerprint enthält:
 
 - den eigenen unveränderlichen Arbeitskontext;
-- das eigene authoritative Quellbild;
+- den kompakten Artefakttoken des unmittelbar vorgelagerten autoritativen
+  Modulergebnisses;
 - die eigenen lokalen Parameter;
 - die eigene Aktivierung.
 
 Er enthält keine Geschwisterinstanz. Deshalb verändert das Aktivieren von Detailer 2 nicht den Fingerprint von Detailer 1.
 
-Bei `CMK Smart Detailer -Pipe-` ist `output_image_proceed` ausdrücklich vom Rechen-Fingerprint ausgeschlossen, weil dieser Schalter nur die optionale Ausgabe sichtbar macht und nicht das Detailer-Ergebnis berechnet.
+Bei `CMK Smart Detailer -Pipe-` sind `output_image_proceed`, `opt_log` und
+`opt_diagnostic` ausdrücklich vom Rechen-Fingerprint ausgeschlossen, weil sie
+nur optionale Ausgabe beziehungsweise Dokumentation transportieren und nicht
+das Detailer-Ergebnis berechnen.
+
+Bei `CMK FaceProcess -Pipe-` sind `opt_log` und `opt_diagnostic` aus demselben
+Grund ausgeschlossen. Frische Ausführung, deaktivierter Passthrough und
+persistenter Cache-Hit müssen alle denselben vollständigen Rückgabevertrag
+`IMAGE/SEGS/ENABLED/LOG/diagnostic` liefern.
 
 Persistente Branch-Caches speichern zusätzlich ein cache-stabiles internes Branch-Artefakt aus vollständig zusammengesetztem Branch-Bild und räumlichem Support der tatsächlich zugeordneten SEG-Crop-Regionen. Der Support darf niemals aus einzelnen Pixel-Differenzen zwischen Quelle und Ergebnis abgeleitet werden. `CMK SEGS CONCAT` verwendet dieses Artefakt bei Cache-Hits direkt. Der öffentliche Wert bleibt strukturell ein Impact-kompatibles `SEGS`; Ports und Kabel ändern sich nicht. Ein Cache-Hit muss pixelidentisch zu einer frischen Branch-Ausführung sein.
 
+Das Branch-Artefakt trägt zusätzlich die Signatur seines autoritativen
+Quellbildes. `CMK SEGS CONCAT` muss eine Montage ablehnen, wenn diese Signatur
+nicht zum aktuellen Ausgangsbild passt. Diese Ablehnung ist ein letzter
+Integritätsschutz; im Normalfall verhindert bereits der vorgelagerte
+Artefakttoken den falschen Cache-Hit.
+
 #### Module Boundary Cache
 
-Nach `SEGS CONCAT` und `LOG CONCAT` materialisiert ein Boundary das vollständige Modulergebnis.
+Nach `SEGS CONCAT` und – sofern das Modul unabhängige `LOG BLOCK`-Zweige
+verwendet – `LOG CONCAT` materialisiert ein Boundary das vollständige
+bildbezogene Modulergebnis. `PROCESS` ist grundsätzlich kein Ein- oder Ausgang
+eines `CMK Boundary Cache`, sondern wird parallel über den jeweiligen
+Process-Forward-Node weitergeführt.
 
-Ein Boundary-Hit ist nur gültig, wenn zusätzlich zum eigenen Prompt-Fingerprint die gespeicherte Dependency-Manifest-Version exakt mit den aktuell materialisierten Branch-Caches übereinstimmt. Jede Branch-Cache-Datei besitzt dafür einen kleinen Revisionsmarker. Wird ein einzelner Detailer-/FaceProcess-Zweig unter demselben Rechen-Fingerprint neu geschrieben, ändert sich dessen Revision; der Boundary fordert daraufhin `SEGS CONCAT` und `LOG CONCAT` erneut an und materialisiert erst danach ein neues vollständiges Modulergebnis. Ein veralteter Boundary darf niemals ein neu zusammengeführtes Ergebnis übergehen.
+Ein Boundary-Hit ist nur gültig, wenn zusätzlich zum eigenen Prompt-Fingerprint die gespeicherte Dependency-Manifest-Version exakt mit den aktuell materialisierten Branch-Caches übereinstimmt. Jede Branch-Cache-Datei besitzt dafür einen kleinen Revisionsmarker. Wird ein einzelner Detailer-/FaceProcess-Zweig unter demselben Rechen-Fingerprint neu geschrieben, ändert sich dessen Revision; der Boundary fordert daraufhin `SEGS CONCAT` und die jeweilige LOG-/Diagnostic-Zusammenführung erneut an und materialisiert erst danach ein neues vollständiges Modulergebnis. Ein veralteter Boundary darf niemals ein neu zusammengeführtes Ergebnis übergehen.
 
 Branch- und Module-Boundary-Fingerprints sind instanzgebunden. Zwei formal identische parallele Node-Instanzen besitzen deshalb getrennte persistente Cache-Einträge.
 
-Alle folgenden Verbraucher müssen diesen Boundary verwenden:
+Bei aktivem Modul müssen alle folgenden Verbraucher diesen Boundary verwenden:
 
 - öffentliche Modul-Ausgänge;
 - interne Image Comparer;
 - nachfolgende Module;
 - Save-/Exportpfade.
 
+Bei deaktiviertem Modul gilt dagegen ein harter Lazy-Bypass am öffentlichen
+Ergebnis: Nur die unveränderten Eingänge werden angefordert. Der komplette aktive
+Pfad einschließlich Prepare, Execute, Merge, Preview und Boundary bleibt ruhig.
+Diese Eigenschaft muss jedes Modul mit Bypass selbst garantieren und darf nicht
+von Modul 35 oder einem anderen nachgelagerten Auswahlknoten abhängen.
+
 Damit kann eine Änderung in FaceProcess nicht den gesamten Detailer erneut anfordern, und ein Save-/Comparer-Zweig kann keinen internen Compute-Knoten umgehen.
 
-### 6.3 Cache-Speicherung
+### 6.3 Unmittelbare Artefaktlinie zwischen Modulen
+
+`PROCESS` darf keine Pixel transportieren, führt aber kompakte Identitäten der
+bereits erzeugten öffentlichen Ergebnisse unter `cmk_cache_artifacts`. Jede
+erfolgreiche Modulgrenze aktualisiert zusätzlich
+`cmk_cache_current_artifact`. Dieser Token bezeichnet ausschließlich das
+unmittelbar ausgegebene autoritative Ergebnis der letzten aktiven Stufe.
+
+```text
+Modul A erzeugt IMAGE A
+    ↓ stamp_artifact(A)
+PROCESS.current = Artefakt A
+    ↓
+Modul B verwendet Artefakt A + eigene wirksame Einstellungen
+    ↓ erzeugt IMAGE B und stamp_artifact(B)
+PROCESS.current = Artefakt B
+```
+
+Damit ist kein Modul an einen namentlich vorausgesetzten Vorgänger gebunden.
+Ein Detailer darf auf Refiner, InstantID, 1st Pass, einen anderen Detailer oder
+einen künftig ergänzten kompatiblen Bildprozessor folgen. Ein deaktiviertes
+Modul stempelt nichts und lässt die vorherige aktuelle Artefaktidentität
+unverändert. Die stage-spezifische Historie bleibt erhalten; für den nächsten
+Verbraucher hat jedoch `cmk_cache_current_artifact` Vorrang. Alte Workflows ohne
+diesen Wert dürfen nur über einen ausdrücklich dokumentierten Legacy-Fallback
+auf einen bekannten Stage-Token bedient werden.
+
+Mehrere gleichartige Module dürfen denselben Stage-Key verwenden. Jede aktive
+Boundary überschreibt lediglich `current` mit ihrem eigenen Ergebnis und
+aktualisiert den Stage-Eintrag. Dadurch funktionieren beliebig lange Folgen
+gleichartiger Module ohne Positionsannahme oder Sonderregel.
+
+### 6.4 Cache-Speicherung
 
 Cache-Dateien liegen ausschließlich unter:
 
@@ -958,20 +1113,20 @@ Aktuelle Implementierung:
 |---|---|---|---|
 | Refiner Boundary | First-Pass-Bild, Refiner-Bild, LOG | `safetensors` + JSON | `MODEL` und `PROCESS` im aktuellen ComfyUI-Prozess |
 | Smart-Detailer-Branch | SEGS, optionales Bild, Diagnostic, LOG BLOCK | lokales Pickle-Bundle + Revisionsmarker | keine öffentliche API |
-| FaceProcess-Branch | Bild/SEGS, Status, Diagnostic, LOG BLOCK | lokales Pickle-Bundle + Revisionsmarker | keine öffentliche API |
+| FaceProcess-Branch | Bild/SEGS, Status, lokaler Diagnostic-/Logbeitrag | lokales Pickle-Bundle + Revisionsmarker | aktueller vollständiger LOG-/diagnostic-Transport wird nach dem Cache-Lesen ergänzt |
 | Detailer Boundary | Modulbild, LOG, Branch-Dependency-Manifest | `safetensors` + JSON + internes Manifest | `MODEL` und `PROCESS` im aktuellen ComfyUI-Prozess |
 | FaceProcess Boundary | Modulbild, LOG, Branch-Dependency-Manifest | `safetensors` + JSON + internes Manifest | keine weitere Leitung |
 | FaceSwap Boundary | PROCESS, Modulbild, LOG | `safetensors` + JSON | `MODEL` wird read-only aktuell durchgereicht |
 
 Diese Caches sind Beschleuniger, kein portables Projektformat. Nach einem Neustart, einer Codeänderung, einer geänderten Upstream-Konfiguration oder einer Cache-Bereinigung ist ein erster `MISS → STORED` erwartbar.
 
-### 6.4 Warum nicht anders
+### 6.5 Warum nicht anders
 
 | Verworfene Lösung | Grund der Ablehnung |
 |---|---|
 | serielle DETAILER-/FACE-/LOG-Durchleitung | macht frühere Instanzen zu formalen Vorgängern späterer Instanzen |
 | nur sternförmige Parallelverkabelung | Merge-Nodes können unveränderte Zweige trotzdem erneut anfordern |
-| vollständiges `LOG` an jeder Execute-Instanz | erzeugt Verarbeitungsketten und erlaubt Fehlverkabelungen |
+| vollständiges `LOG` an parallelen Execute-Instanzen | erzeugt Verarbeitungsketten und erlaubt Fehlverkabelungen; eine ausdrücklich serielle Modulfolge darf LOG/diagnostic dagegen dokumentarisch durchreichen |
 | `STRING` statt `CMK_LOG_BLOCK` | ein beliebiger Text könnte an die Log-Zusammenführung angeschlossen werden; Logblöcke wären nicht typgeschützt |
 | unverändertes `IMAGE` durch Execute-Nodes | fachfremder Transport, zusätzliche Invalidierung und Umgehung des Merge-Pfads |
 | allein auf den normalen ComfyUI-Cache vertrauen | nicht hinreichend stabil bei Merge-Pfaden, Cache-Eviction und begrenztem Speicher |
@@ -984,7 +1139,12 @@ Diese Caches sind Beschleuniger, kein portables Projektformat. Nach einem Neusta
 
 `LOG` dokumentiert. Es verarbeitet nicht.
 
-Ein vollständiger `CMK_LOG_PIPE` wird nur an Modulgrenzen weitergegeben. Parallele Execute-Instanzen geben ausschließlich `CMK_LOG_BLOCK` aus.
+Ein vollständiger `CMK_LOG_PIPE` wird grundsätzlich an Modulgrenzen
+weitergegeben. FaceProcess- und FaceSwap-Zweige geben unabhängige
+`CMK_LOG_BLOCK`-Beiträge aus und werden per `CMK LOG CONCAT` gesammelt.
+Smart-Detailer dürfen dagegen `opt_log` und `opt_diagnostic` seriell
+durchreichen, weil diese Transportkette nicht ihre gemeinsame `DETAILER`-
+Arbeitsgrundlage und nicht ihre Rechen-Cacheidentität verändert.
 
 Verbindlicher Ablauf:
 
@@ -1088,8 +1248,11 @@ Eine Änderung ist architektonisch unzulässig, wenn sie eine der folgenden Rege
 
 1. `MODEL` wird von einem Modul mutiert.
 2. Das authoritative Bild wird nur versteckt in `PROCESS` transportiert.
-3. `LOG` oder `LOG BLOCK` steuert eine Bildberechnung.
-4. Eine Execute-Instanz schleift `DETAILER`, `FACE` oder ein vollständiges `LOG` zur nächsten Instanz durch.
+3. `LOG`, `LOG BLOCK` oder `diagnostic` steuert eine Bildberechnung oder ihre
+   Cacheidentität.
+4. Eine Execute-Instanz schleift `DETAILER` oder `FACE` zur nächsten Instanz
+   durch. Serieller `LOG`-/`diagnostic`-Transport ist nur zulässig, wenn er die
+   Pixelberechnung und deren Cacheidentität nicht beeinflusst.
 5. Ein interner Comparer oder öffentlicher Ausgang umgeht den zugehörigen Boundary.
 6. Eine Änderung an einem späteren parallelen Zweig führt zu einer tatsächlichen Neuberechnung eines unveränderten früheren Zweigs.
 7. Ein nachfolgendes Modul zieht ein unverändertes vorheriges Modul erneut durch dessen Compute-Knoten.
@@ -1130,6 +1293,22 @@ Eine Instanz unter identischem Fingerprint neu materialisieren
 
 Save oder internen Comparer anfordern
 → kein direkter Rückgriff auf Compute-Nodes hinter einer gültigen Boundary
+
+Unveränderten Workflow erneut ausführen
+→ kein Sampling
+→ alle tatsächlich publizierten Register und Bilder kommen aus den jeweiligen Modul-Caches
+
+Gleichartigen Bildprozessor ein zweites Mal einschleifen
+→ getrennte Provider-Instanzen und Register, zum Beispiel Detailer und Detailer 2
+→ gleiche sequence und gleicher Stage-Typ überschreiben einander nicht
+
+Vorgeschalteten Detailer aktivieren oder deaktivieren
+→ der nachfolgende Detailer verwendet jeweils einen getrennten Cache für das tatsächlich andere Eingangsbild
+→ kein Zusammenführen von SEGS mit abweichender Quellbildsignatur
+
+Modul auf GLOBAL BYPASS stellen
+→ unverändertes IMAGE und vorheriger current-Artefakttoken werden durchgereicht
+→ kein leeres oder mit einem Fremdbild gefülltes Visualizer-Register
 ```
 
 ## 14. Dokumentationspflege
@@ -1466,28 +1645,29 @@ Bei deaktivierter Instanz wird ein gültiges leeres SEGS ausgegeben. Die Paralle
 
 Die Pasteback-Maske wird zentral von der gemeinsamen Swap-Engine bereitgestellt. Eine Rekonstruktion über Pixel-Differenzen ist unzulässig.
 
-#### LOG-Ausgang im parallelen FaceSwap-Modul
+#### LOG- und Diagnostic-Transport im parallelen FaceSwap-Modul
 
-`CMK FaceSwap Image -Pipe-` behält den Eingang `LOG` als Dokumentationskontext, gibt jedoch bewusst **keine durchgeschleifte `CMK_LOG_PIPE`** aus.
+`CMK FaceSwap Image -Pipe-` besitzt die optionalen Eingänge `opt_log` und
+`opt_diagnostic`. Beide Transporte werden intern mit dem eigenen Beitrag
+zusammengeführt; der öffentliche Log-Ausgang ist ein normaler `LOG` vom Typ
+`CMK_LOG_PIPE`.
 
-Der öffentliche Ausgang lautet:
-
-```text
-LOG BLOCK    CMK_LOG_BLOCK
-```
-
-Jede parallele FaceSwap-Instanz erzeugt ausschließlich ihren eigenen serialisierten Dokumentationsblock. Mehrere `LOG BLOCK`-Ausgänge werden über `CMK LOG CONCAT` gesammelt und dort gemeinsam mit der autoritativen Haupt-LOG-Pipe wieder zusammengeführt.
-
-Verbindlicher Parallelaufbau:
+Mehrere FaceSwap-Instanzen bleiben hinsichtlich ihrer Bildberechnung parallel,
+werden für den rein dokumentarischen Transport jedoch seriell verkettet:
 
 ```text
-FaceSwap A.LOG BLOCK ─┐
-FaceSwap B.LOG BLOCK ─┼─> CMK LOG CONCAT
-FaceSwap C.LOG BLOCK ─┘
-Haupt-LOG ───────────────> CMK LOG CONCAT.LOG
+Haupt-LOG -> FaceSwap A.opt_log -> A.LOG -> FaceSwap B.opt_log
+          -> B.LOG -> FaceSwap C.opt_log -> C.LOG -> Boundary
+
+FaceSwap A.diagnostic -> FaceSwap B.opt_diagnostic
+FaceSwap B.diagnostic -> FaceSwap C.opt_diagnostic
+FaceSwap C.diagnostic -> Modulausgang
 ```
 
-Damit wird verhindert, dass mehrere parallele Branches jeweils die vollständige eingehende LOG-Kette duplizieren oder unabhängig weiterführen. `LOG` dokumentiert weiterhin ausschließlich und beeinflusst weder Swap-Ausführung noch SEGS-Zusammenführung.
+`opt_log` und `opt_diagnostic` beeinflussen weder Gesichtserkennung,
+Swap-Ausführung, SEGS-Zusammenführung noch deren Cache-Identität. Nachträgliche
+`CMK LOG CONCAT`- oder `CMK Diagnostic Concat`-Nodes sind innerhalb der
+Standard- und Advanced-40-Subgraphen nicht zulässig.
 
 ### Globaler Early-Bypass von `CMK FaceProcess Prepare -Pipe-`
 
@@ -1519,7 +1699,7 @@ initialisieren, auch wenn ein lokaler Branch-Schalter weiterhin ON steht.
 
 ### Disabled branch execution and cache rule
 
-For Detailer and FaceProcess modules, GLOBAL OFF or LOCAL OFF is a hard execution boundary. Detector, SAM, model preparation, selection, processing, preview generation and persistent branch caching must be skipped. Disabled branches return the authoritative source image, ordinary empty SEGS and a LOG BLOCK only. Boundary caches must not persist results when their branch dependency manifest is incomplete; this is the expected state for disabled branches.
+For Detailer and FaceProcess modules, GLOBAL OFF or LOCAL OFF is a hard execution boundary. Detector, SAM, model preparation, selection, processing, preview generation and persistent branch caching must be skipped. Disabled branches return the authoritative source image where their interface exposes it, ordinary empty SEGS and only neutral documentation in their declared LOG/diagnostic form. Boundary caches must not persist results when their branch dependency manifest is incomplete; this is the expected state for disabled branches.
 
 ### ControlNet-AIO-Auflösung ohne globale Modulinspektion
 

@@ -1,4 +1,7 @@
+import json
+
 from .cmk_log_pipe import cmk_add_block, cmk_bool, cmk_clean_text
+from .cmk_visual import empty_visual, register_provider
 from ..utils.cmk_diagnostic import make_diagnostic_payload
 from comfy.utils import common_upscale
 
@@ -59,11 +62,16 @@ def parse_resolution(resolution, fallback_width=1024, fallback_height=1024):
         return fallback_width, fallback_height
 
 
-def normalize_resolution_for_family(resolution, model_family):
+def normalize_resolution_for_family(resolution, model_family, inpaint_mode=False):
     value = str(resolution or "").strip()
     token = value.split()[-1] if value else ""
     if model_family == "z_image_turbo":
-        return token if token in ZIT_RESOLUTION_PRESETS else ZIT_DEFAULT_RESOLUTION
+        allowed = (
+            tuple(NEUTRAL_RESOLUTION_PRESETS)
+            if bool(inpaint_mode)
+            else ZIT_RESOLUTION_PRESETS
+        )
+        return token if token in allowed else ZIT_DEFAULT_RESOLUTION
     return value or "SDXL 1152x832"
 
 
@@ -655,9 +663,9 @@ class CMKPipeCreateImage:
                             "before sampling and uses spatial inpaint guidance with the normal SDXL prompt, noise "
                             "fill, denoise 1.00, noise mask ON, context reference OFF and outpaint OFF; user prompt "
                             "and LoRAs remain active. "
-                            "Remove Object uses noise fill and full-strength Fooocus inpaint guidance for "
-                            "prompt-free background reconstruction; "
-                            "existing prompts and all LoRAs are bypassed. "
+                            "Remove Object uses noise fill and full-strength Fooocus inpaint guidance. "
+                            "An existing prompt directs the reconstruction; without one, neutral internal "
+                            "background guidance is used. All LoRAs are bypassed. "
                             "Extend Image uses Fit to create its outpaint canvas and mask, Navier-Stokes fill, "
                             "denoise 1.00, noise mask ON and context reference ON. "
                             "Guided modes override fill_masked_area."
@@ -761,6 +769,7 @@ class CMKPipeCreateImage:
                     },
                 ),
             },
+            "hidden": {"unique_id": "UNIQUE_ID"},
         }
 
     RETURN_TYPES = (
@@ -768,6 +777,7 @@ class CMKPipeCreateImage:
         "CMK_PROCESS_Z_IMAGE",
         "IMAGE",
         "CMK_LOG_PIPE",
+        "CMK_VISUAL_PIPE",
         "CMK_DIAGNOSTIC",
     )
     RETURN_NAMES = (
@@ -775,6 +785,7 @@ class CMKPipeCreateImage:
         "PROCESS ZIT",
         "IMAGE",
         "LOG",
+        "VISUAL",
         "diagnostic",
     )
     OUTPUT_TOOLTIPS = (
@@ -782,12 +793,14 @@ class CMKPipeCreateImage:
         "ZIT only. Continue to CMK Flow · 10 KSampler Z-Image Turbo.",
         "Authoritative image; route it beside PROCESS and LOG to the next Flow module.",
         "Structured Flow log; route it beside PROCESS and IMAGE to the next Flow module.",
+        "Inpaint preparation preview for the CMK Visualizer; empty in Text2Image mode.",
         "Optional diagnostic information for troubleshooting.",
     )
     FUNCTION = "create_image"
     CATEGORY = 'CMK/Flow/Input'
 
     def create_image(self, **inputs):
+        unique_id = inputs.get("unique_id")
         incoming_process = inputs.get("PROCESS")
         incoming_log = inputs.get("LOG")
         image = inputs.get("IMAGE")
@@ -833,6 +846,7 @@ class CMKPipeCreateImage:
         resolution = normalize_resolution_for_family(
             inputs.get("resolution", "SDXL 1152x832"),
             model_family,
+            INPAINT_MODE,
         )
         swap_dimensions = inputs.get("swap_dimensions", False)
         resize_mode = inputs.get("resize_mode", "Fit")
@@ -888,10 +902,10 @@ class CMKPipeCreateImage:
         # now uses diffusion and therefore is no longer an isolated LaMa task.
         remove_isolated = False
         if remove_mode:
-            # Remove Object is prompt-free. Existing workflow styling must not
-            # recreate the masked subject.
-            prompt_pos = ""
-            prompt_neg = ""
+            # Keep source prompts so Remove can reconstruct toward the requested
+            # scene. The sampler adds its internal subject-removal guard and
+            # supplies neutral background guidance only when no positive prompt
+            # was provided. LoRAs remain bypassed to avoid recreating the subject.
             lora_syntax = ""
             lora_stack = None
             outpaint_on = False
@@ -968,11 +982,10 @@ class CMKPipeCreateImage:
             if bool(INPAINT_MODE)
             else image_resized
         )
-        # Remove performs noise injection in latent space. Feeding the visible
-        # noise prefill into a soft sampler edge leaves the painted mask stroke
-        # behind. Keep the untouched source on the IMAGE cable and use the
-        # filled variant only as diagnostics for this guided mode.
-        image_out = image_resized if remove_mode else filled_image
+        # Feed the prepared fill to every Inpaint mode. Remove in particular
+        # must not retain the encoded structure of the object it is meant to
+        # erase; its mask and later soft composite still protect the exterior.
+        image_out = filled_image
 
         pipe = dict(incoming_process) if isinstance(incoming_process, dict) else {}
         pipe.update({
@@ -1056,7 +1069,7 @@ class CMKPipeCreateImage:
                     "",
                     "REMOVE ENGINE   : Fooocus reconstruction",
                     "DIFFUSION       : Enabled",
-                    "SOURCE PROMPTS  : Ignored",
+                    "SOURCE PROMPTS  : Used when present",
                     "SOURCE LORAS    : Ignored",
                 ]
             )
@@ -1137,27 +1150,49 @@ class CMKPipeCreateImage:
             "model_family": "z_image_turbo",
             "family_active": model_family == "z_image_turbo",
         })
+        visual = empty_visual()
+        if bool(INPAINT_MODE):
+            # Keep the authoritative IMAGE cable unchanged in Remove mode,
+            # while exposing its deterministic noise preparation as the
+            # Visualizer preview. Other Inpaint modes show IMAGE as prepared.
+            preview_image = filled_image if remove_mode else image_out
+            visual = register_provider(
+                visual,
+                module_instance_id=unique_id or "start",
+                module_type="CMKPipeCreateImage",
+                module_label="Inpaint Preparation",
+                sequence=1,
+                channels={"result": preview_image},
+                status="completed",
+                branch=model_family,
+                stage_key=f"{model_family}.input.inpaint",
+            )
+
         result = (
             process_sdxl,
             process_z_image,
             image_out,
             log_pipe,
+            visual,
             diagnostic,
         )
-        # Text2Image does not use the optional IMAGE input as layout source.
-        # Send an explicit empty native preview payload so the Vue frontend
-        # also clears a preview retained from an earlier Inpaint execution.
-        if not bool(INPAINT_MODE):
-            return {"ui": {"images": []}, "result": result}
-        # Remove keeps the authoritative IMAGE cable untouched so Fooocus can
-        # encode the real scene context. Its node preview still needs to expose
-        # the selected mask like the other guided modes; show the deterministic
-        # noise preparation without changing the returned IMAGE payload.
-        preview_image = filled_image if remove_mode else image_out
-        preview_ui = image_node_preview(preview_image)
-        if preview_ui is None:
-            return result
-        return {"ui": preview_ui, "result": result}
+        # Node 01 no longer owns an image preview. The custom stage payload
+        # lets the Visualizer show register 01 immediately after preparation,
+        # without waiting for the complete workflow to reach its output node.
+        ui = {"images": []}
+        if bool(INPAINT_MODE):
+            preview_ui = image_node_preview(preview_image) or {}
+            preview_descriptors = list(preview_ui.get("images", []) or [])
+            if preview_descriptors:
+                provider = {
+                    key: value
+                    for key, value in visual["providers"][-1].items()
+                    if key != "channels"
+                }
+                provider["channels"] = [{"name": "result", "image_index": 0}]
+                ui["cmk_visual_stage"] = [json.dumps(provider)]
+                ui["cmk_visual_stage_images"] = preview_descriptors
+        return {"ui": ui, "result": result}
 
 
 class CMKPipePeekPreprocessImage:

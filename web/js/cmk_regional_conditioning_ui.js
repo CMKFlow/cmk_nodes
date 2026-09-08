@@ -276,7 +276,7 @@ function configure(node, applyDefaultSize = false) {
     node.widgets = [...visible, ...inactive];
     // Let LiteGraph derive the node height from the currently visible widget
     // set. This removes both the inactive Vue rows and the fixed bottom area.
-    if (applyDefaultSize) {
+    if (applyDefaultSize && !node._cmkRegionalLoadedFromWorkflow) {
       node.setSize?.([DEFAULT_NODE_WIDTH, DEFAULT_NODE_HEIGHT]);
     }
     node.graph?.trigger?.("node:widget:changed", { nodeId: node.id });
@@ -324,6 +324,7 @@ app.registerExtension({
     for (const hook of ["onNodeCreated", "onConfigure", "onAdded"]) {
       const original = nodeType.prototype[hook];
       nodeType.prototype[hook] = function() {
+        if (hook === "onConfigure") this._cmkRegionalLoadedFromWorkflow = true;
         const result = original?.apply(this, arguments);
         schedule(this, hook === "onNodeCreated");
         return result;
@@ -331,5 +332,9 @@ app.registerExtension({
     }
   },
   nodeCreated(node) { if (isTarget(node)) schedule(node, true); },
-  loadedGraphNode(node) { if (isTarget(node)) schedule(node, false); },
+  loadedGraphNode(node) {
+    if (!isTarget(node)) return;
+    node._cmkRegionalLoadedFromWorkflow = true;
+    schedule(node, false);
+  },
 });

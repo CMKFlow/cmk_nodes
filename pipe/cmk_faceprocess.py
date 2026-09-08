@@ -4,7 +4,8 @@ from ..nodes.swap.face_process import CMK_FaceProcess
 from ..nodes.swap.face_select import resolve_legacy_face_selection
 from ..utils.cmk_diagnostic import make_diagnostic_payload
 from ..utils.stable_segs import make_stable_segs, segs_with_image_crops
-from .cmk_log_pipe import cmk_block_to_string
+from .cmk_log_pipe import CMKLogConcat, cmk_block_to_string
+from ..nodes.utils.diagnostic_concat import CMKDiagnosticConcat
 from .cmk_persistent_cache import (
     build_node_fingerprint,
     load_pickle,
@@ -36,6 +37,9 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
             "process_mode",
         ):
             optional.pop(name, None)
+
+        optional["opt_log"] = ("CMK_LOG_PIPE",)
+        optional["opt_diagnostic"] = ("CMK_DIAGNOSTIC",)
 
         # The legacy ReActor selection controls remain an implementation detail.
         for name in (
@@ -106,22 +110,22 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
         "SEGS",
         "SEGS",
         "BOOLEAN",
+        "CMK_LOG_PIPE",
         "CMK_DIAGNOSTIC",
-        "CMK_LOG_BLOCK",
     )
     RETURN_NAMES = (
         "IMAGE PROCEED",
         "SELECTED FACE",
         "SEGS PROCESSED",
         "ENABLED",
+        "LOG",
         "diagnostic",
-        "LOG BLOCK",
     )
     FUNCTION = "run_pipe"
     CATEGORY = "CMK/Developer/Pipe/Execute"
 
     _CACHE_SCOPE = "faceprocess_branch"
-    _CACHE_SCHEMA = "cmk_faceprocess_branch_v5"
+    _CACHE_SCHEMA = "cmk_faceprocess_branch_v7"
 
     def _cache_key(self, prompt, unique_id):
         return build_node_fingerprint(
@@ -129,6 +133,7 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
             unique_id,
             ("CMKFaceProcessPipe",),
             self._CACHE_SCHEMA,
+            exclude_inputs=("opt_log", "opt_diagnostic"),
             include_node_identity=True,
         )
 
@@ -169,6 +174,8 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
         enable=True,
         process_mode="restore",
         select_face="Largest",
+        opt_log=None,
+        opt_diagnostic=None,
         prompt=None,
         unique_id=None,
         **kwargs,
@@ -194,13 +201,15 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
                     "[CMK FaceProcess -Pipe-] CACHE HIT "
                     f"{cache_key[:12]}"
                 )
-                return (
+                return self._merge_transport(
                     payload.get("image_proceed"),
                     payload.get("selected_face"),
                     payload.get("segs_processed"),
                     bool(payload.get("enabled", False)),
-                    payload.get("diagnostic"),
                     payload.get("log_block", ""),
+                    payload.get("diagnostic"),
+                    opt_log,
+                    opt_diagnostic,
                 )
             except Exception as exc:
                 write_status(
@@ -239,10 +248,23 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
                     "local_enabled": bool(enable),
                 },
             )
-            return (image,empty,empty,False,diagnostic,block)
+            return self._merge_transport(
+                image, empty, empty, False, block, diagnostic, opt_log, opt_diagnostic
+            )
         refine_mode = kwargs.pop("refine_mode", "Off")
 
         selection = resolve_legacy_face_selection(image, select_face)
+        # Center must be resolved by the detector that performs the selected
+        # operation. Translating it through a separate detection pass into a
+        # left-to-right rank can select a different face.
+        if str(select_face) == "Center":
+            selection = {
+                "select_face_selection": "center",
+                "select_sort_by": "x_position",
+                "select_reverse_order": False,
+                "select_take_start": 0,
+                "select_take_count": 1,
+            }
         kwargs.update(selection)
 
         result = super().run(
@@ -343,13 +365,41 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
                     f"{exc}"
                 )
 
+        return self._merge_transport(
+            image_proceed,
+            selected_face,
+            segs_processed,
+            bool(enabled),
+            log_block,
+            diagnostic,
+            opt_log,
+            opt_diagnostic,
+        )
+
+    @staticmethod
+    def _merge_transport(
+        image_proceed,
+        selected_face,
+        segs_processed,
+        enabled,
+        log_block,
+        diagnostic,
+        opt_log=None,
+        opt_diagnostic=None,
+    ):
+        log = CMKLogConcat().concat(opt_log, log_block)[0]
+        merged_diagnostic = CMKDiagnosticConcat().concat(
+            "CMK Flow · FaceProcess",
+            opt_diagnostic,
+            diagnostic_2=diagnostic,
+        )[0]
         return (
             image_proceed,
             selected_face,
             segs_processed,
             bool(enabled),
-            diagnostic,
-            log_block,
+            log,
+            merged_diagnostic,
         )
 
     def _select_output_segs(self, segs, image, selection):

@@ -1,1 +1,33 @@
-{"published":true,"order":9,"displayName":"Flow #09 - CMK Inpaint SDXL","category":"Bildbearbeitung","category_en":"Image Editing","description":"Fügt Objekte in maskierten Bildbereichen hinzu oder entfernt vorhandene Objekte mit dem SDXL-Inpaint-Pfad.","description_en":"Adds objects in masked image regions or removes existing objects with the SDXL inpaint path.","cmkHighlight":"Kein expliziter Checkpoint erforderlich. Enthält getrennte Ansichten für das Hinzufügen und Entfernen von Objekten.","cmkHighlight_en":"No explicit checkpoint is required. Includes separate views for adding and removing objects.","previews":[{"src":"assets/showcase/Flow #09 - CMK Inpaint SDXL - Inpaint Object.png","label":"Objekt hinzufügen","label_en":"Add Object"},{"src":"assets/showcase/Flow #09 - CMK Inpaint SDXL - Remove Object.png","label":"Objekt entfernen","label_en":"Remove Object"}]}
+{
+  "published": true,
+  "order": 9,
+  "displayName": "Flow #09 - CMK Inpaint SDXL",
+  "category": "Bildbearbeitung",
+  "category_en": "Image Editing",
+  "description": "Fügt Objekte in maskierten Bildbereichen hinzu oder entfernt vorhandene Objekte mit dem SDXL-Inpaint-Pfad.",
+  "description_en": "Adds objects in masked image regions or removes existing objects with the SDXL inpaint path.",
+  "cmkHighlight": "Kein expliziter Checkpoint erforderlich. Enthält getrennte Ansichten für das Hinzufügen und Entfernen von Objekten.",
+  "cmkHighlight_en": "No explicit checkpoint is required. Includes separate views for adding and removing objects.",
+  "previews": [
+    {
+      "src": "assets/showcase/Flow #09 - CMK Inpaint SDXL - Objekt einsetzen Ansicht 1.png",
+      "label": "Objekt einsetzen 1",
+      "label_en": "Insert object 1"
+    },
+    {
+      "src": "assets/showcase/Flow #09 - CMK Inpaint SDXL - Objekt einsetzen Ansicht 2.png",
+      "label": "Objekt einsetzen 2",
+      "label_en": "Insert object 2"
+    },
+    {
+      "src": "assets/showcase/Flow #09 - CMK Inpaint SDXL - Remove Objekt Ansicht 1.png",
+      "label": "Objekt entfernen 1",
+      "label_en": "Remove object 1"
+    },
+    {
+      "src": "assets/showcase/Flow #09 - CMK Inpaint SDXL - Remove Objekt Ansicht 2.png",
+      "label": "Objekt entfernen 2",
+      "label_en": "Remove object 2"
+    }
+  ]
+}

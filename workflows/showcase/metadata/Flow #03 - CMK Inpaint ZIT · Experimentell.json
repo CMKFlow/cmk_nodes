@@ -1,1 +1,23 @@
-{"published":true,"order":3,"displayName":"Flow #03 - CMK Inpaint ZIT · Experimentell","category":"Bildbearbeitung","category_en":"Image Editing","description":"Experimenteller Workflow für maskiertes Inpainting mit Z-Image Turbo.","description_en":"Experimental workflow for masked inpainting with Z-Image Turbo.","cmkHighlight":"Kein expliziter Checkpoint erforderlich. Die Bedienung ist vollständig umgesetzt; Qualität und Laufzeit bleiben experimentell.","cmkHighlight_en":"No explicit checkpoint is required. The interface is complete; quality and runtime remain experimental.","previews":[{"src":"assets/showcase/Flow #03 - CMK Inpaint ZIT · Experimentell.png","label":"Workflow","label_en":"Workflow"}]}
+{
+  "published": true,
+  "order": 3,
+  "displayName": "Flow #03 - CMK Inpaint ZIT · Experimentell",
+  "category": "Bildbearbeitung",
+  "category_en": "Image Editing",
+  "description": "Experimenteller Workflow für maskiertes Inpainting mit Z-Image Turbo.",
+  "description_en": "Experimental workflow for masked inpainting with Z-Image Turbo.",
+  "cmkHighlight": "Kein expliziter Checkpoint erforderlich. Die Bedienung ist vollständig umgesetzt; Qualität und Laufzeit bleiben experimentell.",
+  "cmkHighlight_en": "No explicit checkpoint is required. The interface is complete; quality and runtime remain experimental.",
+  "previews": [
+    {
+      "src": "assets/showcase/Flow #03 - CMK Inpaint ZIT · Experimentell - Ansicht 1.png",
+      "label": "Ansicht 1",
+      "label_en": "View 1"
+    },
+    {
+      "src": "assets/showcase/Flow #03 - CMK Inpaint ZIT · Experimentell - Ansicht 2.png",
+      "label": "Ansicht 2",
+      "label_en": "View 2"
+    }
+  ]
+}

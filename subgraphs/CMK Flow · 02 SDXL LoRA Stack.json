@@ -1,18 +1,18 @@
 {
   "revision": 0,
-  "last_node_id": 6252,
+  "last_node_id": 5068,
   "last_link_id": 0,
   "nodes": [
     {
-      "id": 6252,
-      "type": "6c70480e-f3a9-47bb-8ba5-8d66892294bd",
+      "id": 5068,
+      "type": "4326347f-0eb5-4671-a990-fc218dc4c6d9",
       "pos": [
-        7910,
-        2010
+        7640.476504304859,
+        668.1746908686465
       ],
       "size": [
-        600,
-        130
+        584.484375,
+        126.71875
       ],
       "flags": {},
       "order": 0,
@@ -40,24 +40,18 @@
           "links": []
         }
       ],
-      "title": "SDXL LoRA Stack",
       "properties": {
         "proxyWidgets": [],
-        "comparer_mode": "Click",
-        "default_output": "b",
         "cmkOuterSize": [
-          600,
-          130
-        ],
-        "cmkManualSize": [
-          600,
+          400,
           130
         ]
       },
       "widgets_values": [],
       "color": "#332922",
       "bgcolor": "#593930",
-      "shape": 1
+      "shape": 1,
+      "title": "SDXL LoRA Stack"
     }
   ],
   "links": [],
@@ -65,13 +59,13 @@
   "definitions": {
     "subgraphs": [
       {
-        "id": "6c70480e-f3a9-47bb-8ba5-8d66892294bd",
+        "id": "4326347f-0eb5-4671-a990-fc218dc4c6d9",
         "version": 1,
         "state": {
-          "lastGroupId": 130,
-          "lastNodeId": 7333,
-          "lastLinkId": 20099,
-          "lastRerouteId": 1
+          "lastGroupId": 119,
+          "lastNodeId": 5195,
+          "lastLinkId": 12597,
+          "lastRerouteId": 0
         },
         "revision": 2,
         "config": {},
@@ -141,15 +135,15 @@
         "widgets": [],
         "nodes": [
           {
-            "id": 5352,
+            "id": 5066,
             "type": "TriggerWord Toggle (LoraManager)",
             "pos": [
               7360,
-              1410
+              1405
             ],
             "size": [
-              570,
-              570
+              565,
+              565
             ],
             "flags": {
               "collapsed": false
@@ -207,29 +201,20 @@
             "widgets_values": [
               true,
               true,
-              false,
-              [],
-              ""
+              false
             ],
-            "widgets_values_named": {
-              "group_mode": true,
-              "default_active": true,
-              "allow_strength_adjustment": false,
-              "toggle_trigger_words": [],
-              "orinalMessage": ""
-            },
             "shape": 1
           },
           {
-            "id": 5353,
+            "id": 5067,
             "type": "Lora Stacker (LoraManager)",
             "pos": [
               6780,
-              1410
+              1405
             ],
             "size": [
               570,
-              570
+              565
             ],
             "flags": {
               "collapsed": false
@@ -310,29 +295,6 @@
                 }
               ]
             ],
-            "widgets_values_named": {
-              "__lm_autocomplete_meta_text": {
-                "version": 1,
-                "textWidgetName": "text",
-                "lastAccepted": {
-                  "start": 201,
-                  "end": 225,
-                  "insertedText": "<lora:Black Lingerie:1>,",
-                  "textSnapshot": "<lora:Super_Skin_Detailer_By_Stable_Yogi_PD0_V1:1.00>, <lora:PONY_BreastDetail:1.00>, <lora:Chitose_Style_Lingerie-000008:1.00>, <lora:SDXL FishnetLingerie:1.00>, <lora:SDXL Crotchless Lingerie:1.00>, <lora:Black Lingerie:1>,"
-                }
-              },
-              "text": "<lora:Super_Skin_Detailer_By_Stable_Yogi_PD0_V1:1.00>",
-              "loras": [
-                {
-                  "name": "Super_Skin_Detailer_By_Stable_Yogi_PD0_V1",
-                  "strength": 1,
-                  "active": false,
-                  "expanded": false,
-                  "clipStrength": 1,
-                  "locked": false
-                }
-              ]
-            },
             "shape": 1
           }
         ],
@@ -342,7 +304,7 @@
             "title": "CMK Flow LoRA Stack",
             "bounding": [
               6770,
-              1340,
+              1335,
               1165,
               645
             ],
@@ -353,15 +315,15 @@
         "links": [
           {
             "id": 11149,
-            "origin_id": 5353,
+            "origin_id": 5067,
             "origin_slot": 1,
-            "target_id": 5352,
+            "target_id": 5066,
             "target_slot": 3,
             "type": "string"
           },
           {
             "id": 11150,
-            "origin_id": 5353,
+            "origin_id": 5067,
             "origin_slot": 0,
             "target_id": -20,
             "target_slot": 0,
@@ -369,7 +331,7 @@
           },
           {
             "id": 11151,
-            "origin_id": 5353,
+            "origin_id": 5067,
             "origin_slot": 2,
             "target_id": -20,
             "target_slot": 1,
@@ -377,7 +339,7 @@
           },
           {
             "id": 12171,
-            "origin_id": 5352,
+            "origin_id": 5066,
             "origin_slot": 0,
             "target_id": -20,
             "target_slot": 2,

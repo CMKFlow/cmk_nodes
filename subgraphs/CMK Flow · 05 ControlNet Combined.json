@@ -1,0 +1,1322 @@
+{
+  "revision": 0,
+  "last_node_id": "7544",
+  "last_link_id": 0,
+  "nodes": [
+    {
+      "id": 7544,
+      "type": "37f21887-cdf1-4b8b-9a17-fe5a3c27af28",
+      "pos": [
+        14000,
+        -2080
+      ],
+      "size": [
+        450,
+        230
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "label": "PROCESS SDXL",
+          "name": "PROCESS SDXL",
+          "type": "CMK_PROCESS_SDXL",
+          "link": null
+        },
+        {
+          "label": "PROCESS ZIT",
+          "name": "PROCESS ZIT",
+          "type": "CMK_PROCESS_Z_IMAGE",
+          "link": null
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "link": null
+        },
+        {
+          "name": "LOG",
+          "type": "CMK_LOG_PIPE",
+          "link": null
+        },
+        {
+          "name": "VISUAL",
+          "shape": 7,
+          "type": "CMK_VISUAL_PIPE",
+          "link": null
+        },
+        {
+          "name": "ENABLE",
+          "shape": 7,
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "ENABLE"
+          },
+          "link": null
+        },
+        {
+          "name": "image",
+          "type": "COMBO",
+          "widget": {
+            "name": "image"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "PROCESS SDXL",
+          "type": "CMK_PROCESS_SDXL",
+          "links": null
+        },
+        {
+          "name": "PROCESS ZIT",
+          "type": "CMK_PROCESS_Z_IMAGE",
+          "links": null
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": null
+        },
+        {
+          "name": "LOG",
+          "type": "CMK_LOG_PIPE",
+          "links": null
+        },
+        {
+          "name": "VISUAL",
+          "type": "CMK_VISUAL_PIPE",
+          "links": null
+        },
+        {
+          "name": "diagnostic",
+          "type": "CMK_DIAGNOSTIC",
+          "links": null
+        }
+      ],
+      "properties": {
+        "comparer_mode": "Click",
+        "default_output": "b",
+        "cmkOuterSize": [
+          450,
+          230
+        ],
+        "cmkVisualProviders": [
+          {
+            "provider_id": "cmk-CMKVisualProvider-7007",
+            "key": "controlnet",
+            "stage_key": "controlnet",
+            "branch": "",
+            "label": "ControlNet",
+            "sequence": 5,
+            "live_node_id": null,
+            "capabilities": {
+              "preview": true,
+              "live": false
+            }
+          }
+        ],
+        "cmkManualSize": [
+          450,
+          230
+        ],
+        "proxyWidgetErrorQuarantine": [
+          {
+            "originalEntry": [
+              "1501",
+              "image"
+            ],
+            "reason": "missingSourceNode",
+            "attemptedAtVersion": 1
+          }
+        ],
+        "previewExposures": []
+      },
+      "widgets_values": [
+        true,
+        "CMK Package · controlnet_reference.png"
+      ],
+      "widgets_values_named": {
+        "ENABLE": true,
+        "image": "CMK Package · controlnet_reference.png"
+      },
+      "color": "#334155",
+      "bgcolor": "#1f2937",
+      "shape": 1,
+      "title": "CMK Flow · 05 ControlNet Combined"
+    }
+  ],
+  "links": [],
+  "version": 0.4,
+  "definitions": {
+    "subgraphs": [
+      {
+        "id": "37f21887-cdf1-4b8b-9a17-fe5a3c27af28",
+        "version": 1,
+        "state": {
+          "lastGroupId": 130,
+          "lastNodeId": 7548,
+          "lastLinkId": 20577,
+          "lastRerouteId": 1
+        },
+        "revision": 0,
+        "config": {},
+        "name": "CMK Flow · 05 ControlNet Combined",
+        "inputNode": {
+          "id": -10,
+          "bounding": [
+            8170,
+            -300,
+            138.234375,
+            188
+          ]
+        },
+        "outputNode": {
+          "id": -20,
+          "bounding": [
+            9900,
+            800,
+            138.234375,
+            168
+          ]
+        },
+        "inputs": [
+          {
+            "id": "05-combined-process-sdxl",
+            "name": "PROCESS SDXL",
+            "type": "CMK_PROCESS_SDXL",
+            "linkIds": [
+              1,
+              20048
+            ],
+            "pos": [
+              8284.234375,
+              -276
+            ]
+          },
+          {
+            "id": "05-combined-process-zit",
+            "name": "PROCESS ZIT",
+            "type": "CMK_PROCESS_Z_IMAGE",
+            "linkIds": [
+              2,
+              20049
+            ],
+            "pos": [
+              8284.234375,
+              -256
+            ]
+          },
+          {
+            "id": "05-combined-image",
+            "name": "IMAGE",
+            "type": "IMAGE",
+            "linkIds": [
+              3,
+              20050
+            ],
+            "pos": [
+              8284.234375,
+              -236
+            ]
+          },
+          {
+            "id": "05-combined-log",
+            "name": "LOG",
+            "type": "CMK_LOG_PIPE",
+            "linkIds": [
+              4,
+              20056
+            ],
+            "pos": [
+              8284.234375,
+              -216
+            ]
+          },
+          {
+            "id": "05-combined-visual",
+            "name": "VISUAL",
+            "type": "CMK_VISUAL_PIPE",
+            "linkIds": [
+              5
+            ],
+            "pos": [
+              8284.234375,
+              -196
+            ]
+          },
+          {
+            "id": "fb218417-aedf-4cbf-a9d4-3c8b177dc2f5",
+            "name": "ENABLE",
+            "type": "BOOLEAN",
+            "linkIds": [
+              20044,
+              20046,
+              20047
+            ],
+            "pos": [
+              8284.234375,
+              -176
+            ]
+          },
+          {
+            "id": "7db155e9-1cf5-4c8b-a803-a142dab87113",
+            "name": "image",
+            "type": "COMBO",
+            "linkIds": [
+              20045
+            ],
+            "pos": [
+              8284.234375,
+              -156
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "id": "05-combined-process-sdxl-out",
+            "name": "PROCESS SDXL",
+            "type": "CMK_PROCESS_SDXL",
+            "linkIds": [
+              20057
+            ],
+            "pos": [
+              9924,
+              824
+            ]
+          },
+          {
+            "id": "05-combined-process-zit-out",
+            "name": "PROCESS ZIT",
+            "type": "CMK_PROCESS_Z_IMAGE",
+            "linkIds": [
+              20058
+            ],
+            "pos": [
+              9924,
+              844
+            ]
+          },
+          {
+            "id": "05-combined-image-out",
+            "name": "IMAGE",
+            "type": "IMAGE",
+            "linkIds": [
+              20059
+            ],
+            "pos": [
+              9924,
+              864
+            ]
+          },
+          {
+            "id": "05-combined-log-out",
+            "name": "LOG",
+            "type": "CMK_LOG_PIPE",
+            "linkIds": [
+              20060
+            ],
+            "pos": [
+              9924,
+              884
+            ]
+          },
+          {
+            "id": "05-combined-visual-out",
+            "name": "VISUAL",
+            "type": "CMK_VISUAL_PIPE",
+            "linkIds": [
+              8
+            ],
+            "pos": [
+              9924,
+              904
+            ]
+          },
+          {
+            "id": "05-combined-diagnostic",
+            "name": "diagnostic",
+            "type": "CMK_DIAGNOSTIC",
+            "linkIds": [
+              20061
+            ],
+            "pos": [
+              9924,
+              924
+            ]
+          }
+        ],
+        "widgets": [],
+        "nodes": [
+          {
+            "id": 7541,
+            "type": "CMKLoadImage",
+            "pos": [
+              8370,
+              -290
+            ],
+            "size": [
+              600,
+              1230
+            ],
+            "flags": {},
+            "order": 1,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "opt_LOG",
+                "name": "opt_LOG",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": null
+              },
+              {
+                "localized_name": "image",
+                "name": "image",
+                "type": "COMBO",
+                "widget": {
+                  "name": "image"
+                },
+                "link": 20045
+              },
+              {
+                "localized_name": "upload",
+                "name": "upload",
+                "type": "IMAGEUPLOAD",
+                "widget": {
+                  "name": "upload"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "CMK_PIPE",
+                "links": []
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  11
+                ]
+              },
+              {
+                "localized_name": "MASK",
+                "name": "MASK",
+                "type": "MASK",
+                "links": []
+              },
+              {
+                "localized_name": "FILENAME_STRING",
+                "name": "FILENAME_STRING",
+                "type": "STRING",
+                "links": [
+                  12
+                ]
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "links": []
+              }
+            ],
+            "properties": {
+              "comparer_mode": "Click",
+              "default_output": "b",
+              "Node name for S&R": "CMKLoadImage",
+              "cmkOuterSize": [
+                600,
+                1230
+              ],
+              "cmkManualSize": [
+                600,
+                1230
+              ]
+            },
+            "widgets_values": [
+              "CMK Package · controlnet_reference.png",
+              "image"
+            ],
+            "widgets_values_named": {
+              "image": "CMK Package · controlnet_reference.png",
+              "upload": "image"
+            },
+            "shape": 1
+          },
+          {
+            "id": 7542,
+            "type": "CMKCombinedControlNetPreparePipe",
+            "pos": [
+              8980,
+              -290
+            ],
+            "size": [
+              600,
+              1230
+            ],
+            "flags": {},
+            "order": 2,
+            "mode": 0,
+            "showAdvanced": true,
+            "inputs": [
+              {
+                "localized_name": "PROCESS SDXL",
+                "name": "PROCESS SDXL",
+                "type": "CMK_PROCESS_SDXL",
+                "link": 1
+              },
+              {
+                "localized_name": "PROCESS ZIT",
+                "name": "PROCESS ZIT",
+                "type": "CMK_PROCESS_Z_IMAGE",
+                "link": 2
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "link": 3
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 4
+              },
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "shape": 7,
+                "type": "CMK_VISUAL_PIPE",
+                "link": null
+              },
+              {
+                "localized_name": "REFERENCE IMAGE INPUT",
+                "name": "REFERENCE IMAGE INPUT",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 11
+              },
+              {
+                "localized_name": "ENABLE",
+                "name": "ENABLE",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "ENABLE"
+                },
+                "link": 20044
+              },
+              {
+                "localized_name": "IMAGE SOURCE",
+                "name": "IMAGE SOURCE",
+                "type": "COMBO",
+                "widget": {
+                  "name": "IMAGE SOURCE"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "REFERENCE IMAGE",
+                "name": "REFERENCE IMAGE",
+                "type": "COMBO",
+                "widget": {
+                  "name": "REFERENCE IMAGE"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "APPLY MASK",
+                "name": "APPLY MASK",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "APPLY MASK"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "STRENGTH",
+                "name": "STRENGTH",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "STRENGTH"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "RESOLUTION",
+                "name": "RESOLUTION",
+                "type": "INT",
+                "widget": {
+                  "name": "RESOLUTION"
+                },
+                "link": null
+              },
+              {
+                "label": "SDXL · CONTROLNET MODEL",
+                "localized_name": "sdxl_controlnet_model",
+                "name": "sdxl_controlnet_model",
+                "type": "COMBO",
+                "widget": {
+                  "name": "sdxl_controlnet_model"
+                },
+                "link": null
+              },
+              {
+                "label": "SDXL · PREPROCESSOR",
+                "localized_name": "sdxl_preprocessor",
+                "name": "sdxl_preprocessor",
+                "type": "COMBO",
+                "widget": {
+                  "name": "sdxl_preprocessor"
+                },
+                "link": null
+              },
+              {
+                "label": "SDXL · START PERCENT",
+                "localized_name": "sdxl_start_percent",
+                "name": "sdxl_start_percent",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "sdxl_start_percent"
+                },
+                "link": null
+              },
+              {
+                "label": "SDXL · END PERCENT",
+                "localized_name": "sdxl_end_percent",
+                "name": "sdxl_end_percent",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "sdxl_end_percent"
+                },
+                "link": null
+              },
+              {
+                "label": "SDXL · INVERT HINT",
+                "localized_name": "sdxl_invert_hint",
+                "name": "sdxl_invert_hint",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "sdxl_invert_hint"
+                },
+                "link": null
+              },
+              {
+                "label": "ZIT · LOW THRESHOLD",
+                "localized_name": "zit_low_threshold",
+                "name": "zit_low_threshold",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "zit_low_threshold"
+                },
+                "link": null
+              },
+              {
+                "label": "ZIT · HIGH THRESHOLD",
+                "localized_name": "zit_high_threshold",
+                "name": "zit_high_threshold",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "zit_high_threshold"
+                },
+                "link": null
+              },
+              {
+                "label": "ZIT · MODEL PATCH",
+                "localized_name": "zit_model_patch",
+                "name": "zit_model_patch",
+                "type": "COMBO",
+                "widget": {
+                  "name": "zit_model_patch"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "REFERENCE IMAGE NAME",
+                "name": "REFERENCE IMAGE NAME",
+                "shape": 7,
+                "type": "STRING",
+                "widget": {
+                  "name": "REFERENCE IMAGE NAME"
+                },
+                "link": 12
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "PROCESS SDXL",
+                "name": "PROCESS SDXL",
+                "type": "CMK_PROCESS_SDXL",
+                "links": [
+                  20051
+                ]
+              },
+              {
+                "localized_name": "PROCESS ZIT",
+                "name": "PROCESS ZIT",
+                "type": "CMK_PROCESS_Z_IMAGE",
+                "links": [
+                  20052
+                ]
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  20053
+                ]
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "links": [
+                  20054
+                ]
+              },
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "type": "CMK_VISUAL_PIPE",
+                "links": []
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  20055
+                ]
+              },
+              {
+                "localized_name": "CONTROLNET IMAGE",
+                "name": "CONTROLNET IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  10
+                ]
+              }
+            ],
+            "properties": {
+              "comparer_mode": "Click",
+              "default_output": "b",
+              "Node name for S&R": "CMKCombinedControlNetPreparePipe",
+              "cmkOuterSize": [
+                600,
+                1230
+              ],
+              "cmkManualSize": [
+                600,
+                1230
+              ]
+            },
+            "widgets_values": [
+              false,
+              "Reference Image",
+              "CMK Package · controlnet_reference.png",
+              false,
+              1,
+              768,
+              "controlnetxlCNXL_2vxpswa7AnytestV4.safetensors",
+              "LineArtPreprocessor",
+              0,
+              30,
+              false,
+              0.1,
+              0.32,
+              "Z-Image-Turbo-Fun-Controlnet-Union.safetensors",
+              ""
+            ],
+            "widgets_values_named": {
+              "ENABLE": false,
+              "IMAGE SOURCE": "Reference Image",
+              "REFERENCE IMAGE": "CMK Package · controlnet_reference.png",
+              "APPLY MASK": false,
+              "STRENGTH": 1,
+              "RESOLUTION": 768,
+              "sdxl_controlnet_model": "controlnetxlCNXL_2vxpswa7AnytestV4.safetensors",
+              "sdxl_preprocessor": "LineArtPreprocessor",
+              "sdxl_start_percent": 0,
+              "sdxl_end_percent": 30,
+              "sdxl_invert_hint": false,
+              "zit_low_threshold": 0.1,
+              "zit_high_threshold": 0.32,
+              "zit_model_patch": "Z-Image-Turbo-Fun-Controlnet-Union.safetensors",
+              "REFERENCE IMAGE NAME": ""
+            },
+            "shape": 1
+          },
+          {
+            "id": 7007,
+            "type": "CMKVisualProvider",
+            "pos": [
+              9610,
+              910
+            ],
+            "size": [
+              230,
+              0
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 0,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "shape": 7,
+                "type": "CMK_VISUAL_PIPE",
+                "link": 5
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 10
+              },
+              {
+                "localized_name": "SOURCE",
+                "name": "SOURCE",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": null
+              },
+              {
+                "localized_name": "BEFORE",
+                "name": "BEFORE",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": null
+              },
+              {
+                "localized_name": "AFTER",
+                "name": "AFTER",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": null
+              },
+              {
+                "localized_name": "enable",
+                "name": "enable",
+                "shape": 7,
+                "type": "BOOLEAN",
+                "link": 20047
+              },
+              {
+                "localized_name": "label",
+                "name": "label",
+                "type": "STRING",
+                "widget": {
+                  "name": "label"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "sequence",
+                "name": "sequence",
+                "type": "INT",
+                "widget": {
+                  "name": "sequence"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "live_node_type",
+                "name": "live_node_type",
+                "shape": 7,
+                "type": "STRING",
+                "widget": {
+                  "name": "live_node_type"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "branch",
+                "name": "branch",
+                "shape": 7,
+                "type": "STRING",
+                "widget": {
+                  "name": "branch"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "stage_key",
+                "name": "stage_key",
+                "shape": 7,
+                "type": "STRING",
+                "widget": {
+                  "name": "stage_key"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "type": "CMK_VISUAL_PIPE",
+                "links": [
+                  8
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKVisualProvider"
+            },
+            "widgets_values": [
+              "ControlNet",
+              5,
+              "",
+              "",
+              "controlnet"
+            ],
+            "widgets_values_named": {
+              "label": "ControlNet",
+              "sequence": 5,
+              "live_node_type": "",
+              "branch": "",
+              "stage_key": "controlnet"
+            },
+            "shape": 1
+          },
+          {
+            "id": 7543,
+            "type": "CMKCombinedControlNetBypassGate",
+            "pos": [
+              9610,
+              940
+            ],
+            "size": [
+              270,
+              0
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 3,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "PROCESS SDXL BYPASS",
+                "name": "PROCESS SDXL BYPASS",
+                "shape": 7,
+                "type": "CMK_PROCESS_SDXL",
+                "link": 20048
+              },
+              {
+                "localized_name": "PROCESS ZIT BYPASS",
+                "name": "PROCESS ZIT BYPASS",
+                "shape": 7,
+                "type": "CMK_PROCESS_Z_IMAGE",
+                "link": 20049
+              },
+              {
+                "localized_name": "IMAGE BYPASS",
+                "name": "IMAGE BYPASS",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 20050
+              },
+              {
+                "localized_name": "LOG BYPASS",
+                "name": "LOG BYPASS",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 20056
+              },
+              {
+                "localized_name": "PROCESS SDXL ACTIVE",
+                "name": "PROCESS SDXL ACTIVE",
+                "shape": 7,
+                "type": "CMK_PROCESS_SDXL",
+                "link": 20051
+              },
+              {
+                "localized_name": "PROCESS ZIT ACTIVE",
+                "name": "PROCESS ZIT ACTIVE",
+                "shape": 7,
+                "type": "CMK_PROCESS_Z_IMAGE",
+                "link": 20052
+              },
+              {
+                "localized_name": "IMAGE ACTIVE",
+                "name": "IMAGE ACTIVE",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 20053
+              },
+              {
+                "localized_name": "LOG ACTIVE",
+                "name": "LOG ACTIVE",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 20054
+              },
+              {
+                "localized_name": "DIAGNOSTIC ACTIVE",
+                "name": "DIAGNOSTIC ACTIVE",
+                "shape": 7,
+                "type": "CMK_DIAGNOSTIC",
+                "link": 20055
+              },
+              {
+                "localized_name": "ENABLE",
+                "name": "ENABLE",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "ENABLE"
+                },
+                "link": 20046
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "PROCESS SDXL",
+                "name": "PROCESS SDXL",
+                "type": "CMK_PROCESS_SDXL",
+                "links": [
+                  20057
+                ]
+              },
+              {
+                "localized_name": "PROCESS ZIT",
+                "name": "PROCESS ZIT",
+                "type": "CMK_PROCESS_Z_IMAGE",
+                "links": [
+                  20058
+                ]
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  20059
+                ]
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "links": [
+                  20060
+                ]
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  20061
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKCombinedControlNetBypassGate"
+            },
+            "widgets_values": [
+              false
+            ],
+            "widgets_values_named": {
+              "ENABLE": false
+            },
+            "shape": 1
+          }
+        ],
+        "groups": [
+          {
+            "id": 1,
+            "title": "CMK Flow · 05 ControlNet Combined",
+            "bounding": [
+              8360,
+              -360,
+              1230,
+              1310
+            ],
+            "color": "#3b526e",
+            "flags": {}
+          }
+        ],
+        "links": [
+          {
+            "id": 1,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 7542,
+            "target_slot": 0,
+            "type": "CMK_PROCESS_SDXL"
+          },
+          {
+            "id": 2,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 7542,
+            "target_slot": 1,
+            "type": "CMK_PROCESS_Z_IMAGE"
+          },
+          {
+            "id": 3,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 7542,
+            "target_slot": 2,
+            "type": "IMAGE"
+          },
+          {
+            "id": 4,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 7542,
+            "target_slot": 17,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 5,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 7007,
+            "target_slot": 1,
+            "type": "CMK_VISUAL_PIPE"
+          },
+          {
+            "id": 8,
+            "origin_id": 7007,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 4,
+            "type": "CMK_VISUAL_PIPE"
+          },
+          {
+            "id": 10,
+            "origin_id": 7542,
+            "origin_slot": 6,
+            "target_id": 7007,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 11,
+            "origin_id": 7541,
+            "origin_slot": 1,
+            "target_id": 7542,
+            "target_slot": 19,
+            "type": "IMAGE"
+          },
+          {
+            "id": 12,
+            "origin_id": 7541,
+            "origin_slot": 3,
+            "target_id": 7542,
+            "target_slot": 20,
+            "type": "STRING"
+          },
+          {
+            "id": 20044,
+            "origin_id": -10,
+            "origin_slot": 5,
+            "target_id": 7542,
+            "target_slot": 3,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 20045,
+            "origin_id": -10,
+            "origin_slot": 6,
+            "target_id": 7541,
+            "target_slot": 1,
+            "type": "COMBO"
+          },
+          {
+            "id": 20046,
+            "origin_id": -10,
+            "origin_slot": 5,
+            "target_id": 7543,
+            "target_slot": 0,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 20047,
+            "origin_id": -10,
+            "origin_slot": 5,
+            "target_id": 7007,
+            "target_slot": 10,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 20048,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 7543,
+            "target_slot": 1,
+            "type": "CMK_PROCESS_SDXL"
+          },
+          {
+            "id": 20049,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 7543,
+            "target_slot": 2,
+            "type": "CMK_PROCESS_Z_IMAGE"
+          },
+          {
+            "id": 20050,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 7543,
+            "target_slot": 3,
+            "type": "IMAGE"
+          },
+          {
+            "id": 20051,
+            "origin_id": 7542,
+            "origin_slot": 0,
+            "target_id": 7543,
+            "target_slot": 5,
+            "type": "CMK_PROCESS_SDXL"
+          },
+          {
+            "id": 20052,
+            "origin_id": 7542,
+            "origin_slot": 1,
+            "target_id": 7543,
+            "target_slot": 6,
+            "type": "CMK_PROCESS_Z_IMAGE"
+          },
+          {
+            "id": 20053,
+            "origin_id": 7542,
+            "origin_slot": 2,
+            "target_id": 7543,
+            "target_slot": 7,
+            "type": "IMAGE"
+          },
+          {
+            "id": 20054,
+            "origin_id": 7542,
+            "origin_slot": 3,
+            "target_id": 7543,
+            "target_slot": 8,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 20055,
+            "origin_id": 7542,
+            "origin_slot": 5,
+            "target_id": 7543,
+            "target_slot": 9,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 20056,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 7543,
+            "target_slot": 4,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 20057,
+            "origin_id": 7543,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 0,
+            "type": "CMK_PROCESS_SDXL"
+          },
+          {
+            "id": 20058,
+            "origin_id": 7543,
+            "origin_slot": 1,
+            "target_id": -20,
+            "target_slot": 1,
+            "type": "CMK_PROCESS_Z_IMAGE"
+          },
+          {
+            "id": 20059,
+            "origin_id": 7543,
+            "origin_slot": 2,
+            "target_id": -20,
+            "target_slot": 2,
+            "type": "IMAGE"
+          },
+          {
+            "id": 20060,
+            "origin_id": 7543,
+            "origin_slot": 3,
+            "target_id": -20,
+            "target_slot": 3,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 20061,
+            "origin_id": 7543,
+            "origin_slot": 4,
+            "target_id": -20,
+            "target_slot": 5,
+            "type": "CMK_DIAGNOSTIC"
+          }
+        ],
+        "extra": {}
+      }
+    ]
+  },
+  "extra": {
+    "CMKFlow": {
+      "schemaVersion": 2,
+      "published": true,
+      "variantOf": "CMK Flow · 05 ControlNet SDXL",
+      "variantLabel": "COMBINED",
+      "category": "Process",
+      "description": "Bereitet eine gemeinsame optionale ControlNet-Bildführung für SDXL und ZIT vor.",
+      "status": "STABLE",
+      "order": 5,
+      "searchAliases": [
+        "controlnet",
+        "combined",
+        "zit",
+        "guidance",
+        "reference"
+      ],
+      "displayName": "05 ControlNet Combined",
+      "domain": "Image Guidance",
+      "compatibility": [
+        "SDXL",
+        "Z-Image Turbo"
+      ],
+      "version": "1.0.1",
+      "author": "CMK Nodes",
+      "features": [
+        "Gemeinsame zweigneutrale IMAGE-, LOG- und VISUAL-Führung",
+        "Nur PROCESS ist nach SDXL und ZIT getrennt",
+        "Verarbeitetes ControlNet-Bild im Visualizer veröffentlichen"
+      ],
+      "recommendedBefore": [
+        "01 START HERE · Create Image"
+      ],
+      "recommendedAfter": [
+        "10 KSampler SDXL 1st Pass",
+        "10 KSampler Z-Image Turbo"
+      ],
+      "placementNote": "Im kombinierten Flow zwischen Modul 01 und den beiden Modulen 10 platzieren.",
+      "previews": [
+        {
+          "src": "assets/previews/CMK Flow · 05 ControlNet Combined.png",
+          "label": "Modul"
+        }
+      ],
+      "previewAlt": "CMK Flow · 05 ControlNet Combined Vorschau"
+    }
+  }
+}

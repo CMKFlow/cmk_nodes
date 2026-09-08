@@ -25,13 +25,21 @@ def _effective_inpaint_prompts(
     inpaint_mode: bool,
     process_mode: str,
 ) -> tuple[str, str, str]:
-    """Return task conditioning; user prompts remain disabled for Remove."""
+    """Return task conditioning with guarded, user-directed Remove prompts."""
     if bool(inpaint_mode) and str(process_mode).strip().lower() == "remove":
-        return (
-            "empty unobstructed background, continuous sofa upholstery, continuous wall and surrounding scene",
-            "person, woman, man, human, face, head, hair, body, arms, hands, clothing, foreground subject",
-            "INTERNAL REMOVE GUIDANCE",
+        fallback_positive = (
+            "empty unobstructed background, seamless continuation of the surrounding scene, "
+            "coherent structures, materials, lighting and perspective"
         )
+        remove_guard = (
+            "person, woman, man, human, face, head, hair, body, arms, hands, clothing, foreground subject"
+        )
+        user_positive = str(prompt_pos or "").strip()
+        user_negative = str(prompt_neg or "").strip()
+        effective_positive = user_positive or fallback_positive
+        effective_negative = ", ".join(part for part in (user_negative, remove_guard) if part)
+        source = "SOURCE + INTERNAL REMOVE GUARD" if user_positive else "INTERNAL REMOVE GUIDANCE"
+        return effective_positive, effective_negative, source
     return prompt_pos, prompt_neg, "SOURCE"
 
 

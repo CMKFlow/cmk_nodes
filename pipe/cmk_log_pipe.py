@@ -225,7 +225,7 @@ class CMKLogSetBlock:
 class CMKLogExportText:
     @classmethod
     def INPUT_TYPES(cls):
-        return {"required": {"log_pipe": ("CMK_LOG_PIPE",)}}
+        return {"required": {"log_pipe": ("CMK_LOG_PIPE,CMK_RESULT_LOG",)}}
 
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("STRING",)

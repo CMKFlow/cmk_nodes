@@ -16,6 +16,12 @@ from .pipe.cmk_process_forward import CMKProcessForwardPipe
 from .pipe.cmk_visual import CMKVisualPass, CMKVisualProvider, CMKVisualizer
 from .pipe.cmk_family_result import (
     CMKImageCompareEnableGate,
+    CMKModuleBypassGate,
+    CMKControlNetBypassGate,
+    CMKZITControlNetBypassGate,
+    CMKCombinedControlNetBypassGate,
+    CMKSamplerBypassGate,
+    CMKProcessEnableFlag,
     CMKFamilyBranchGateSDXL,
     CMKFamilyBranchGateSDXLSampled,
     CMKFamilyBranchGateZImage,
@@ -23,6 +29,7 @@ from .pipe.cmk_family_result import (
     CMKFamilyResultMergePipe,
     CMKResultToLegacyBridgePipe,
     CMKZImageProcessForwardPipe,
+    CMKResultProcessForwardPipe,
     CMKResultUnpackPipe,
     CMKResultPackPipe,
 )
@@ -36,6 +43,7 @@ from .pipe.cmk_module_boundary_cache import (
     CMKFaceBoundaryCache,
     CMKFaceRebuildBoundaryCache,
     CMKFaceSwapBoundaryCache,
+    CMKUpscaleSaveBoundaryCache,
     CMKZImageBoundaryCache,
 )
 from .pipe.cmk_detailer_prepare import CMKDetailerPreparePipe
@@ -149,6 +157,12 @@ NODE_CLASS_MAPPINGS = {
     "CMKVisualProvider": CMKVisualProvider,
     "CMKVisualizer": CMKVisualizer,
     "CMKImageCompareEnableGate": CMKImageCompareEnableGate,
+    "CMKModuleBypassGate": CMKModuleBypassGate,
+    "CMKControlNetBypassGate": CMKControlNetBypassGate,
+    "CMKZITControlNetBypassGate": CMKZITControlNetBypassGate,
+    "CMKCombinedControlNetBypassGate": CMKCombinedControlNetBypassGate,
+    "CMKSamplerBypassGate": CMKSamplerBypassGate,
+    "CMKProcessEnableFlag": CMKProcessEnableFlag,
     "CMKFamilyBranchGateSDXL": CMKFamilyBranchGateSDXL,
     "CMKFamilyBranchGateSDXLSampled": CMKFamilyBranchGateSDXLSampled,
     "CMKFamilyBranchGateZImage": CMKFamilyBranchGateZImage,
@@ -183,6 +197,7 @@ NODE_CLASS_MAPPINGS = {
     "CMKFamilyResultMergePipe": CMKFamilyResultMergePipe,
     "CMKResultToLegacyBridgePipe": CMKResultToLegacyBridgePipe,
     "CMKZImageProcessForwardPipe": CMKZImageProcessForwardPipe,
+    "CMKResultProcessForwardPipe": CMKResultProcessForwardPipe,
     "CMKResultUnpackPipe": CMKResultUnpackPipe,
     "CMKResultPackPipe": CMKResultPackPipe,
     "CMKImageForward": CMKImageForward,
@@ -217,6 +232,7 @@ NODE_CLASS_MAPPINGS = {
     "CMKFaceBoundaryCache": CMKFaceBoundaryCache,
     "CMKFaceRebuildBoundaryCache": CMKFaceRebuildBoundaryCache,
     "CMKFaceSwapBoundaryCache": CMKFaceSwapBoundaryCache,
+    "CMKUpscaleSaveBoundaryCache": CMKUpscaleSaveBoundaryCache,
     "CMKZImageBoundaryCache": CMKZImageBoundaryCache,
 
 
@@ -293,7 +309,7 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "CMKVisualPass": "CMK Visual Forward -Pipe-",
     "CMKVisualProvider": "CMK Visual Provider -Pipe-",
-    "CMKVisualizer": "CMK Visualizer",
+    "CMKVisualizer": "CMK Flow · 100 Visualizer",
     "CMKCheckpointVAELoader": "CMK Checkpoint VAE Loader",
     "CMKCheckpointVAELoaderPipe": "CMK Flow · Checkpoint & VAE",
     "CMKZImageTurboLoaderPipe": "CMK Z-Image Turbo Loader -Pipe-",
@@ -324,10 +340,17 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CMKPipeSetKSampler": "CMK Pipe Set KSampler",
     "CMKKSamplerPipe": "CMK KSampler -Pipe-",
     "CMKProcessForwardPipe": "CMK Process Forward -Pipe-",
+    "CMKModuleBypassGate": "CMK Module Bypass Gate",
+    "CMKControlNetBypassGate": "CMK ControlNet Bypass Gate",
+    "CMKZITControlNetBypassGate": "CMK ZIT ControlNet Bypass Gate",
+    "CMKCombinedControlNetBypassGate": "CMK Combined ControlNet Bypass Gate",
+    "CMKSamplerBypassGate": "CMK Sampler Bypass Gate",
+    "CMKProcessEnableFlag": "CMK Process Enable Flag",
     "CMKSDXLResultBridgePipe": "CMK SDXL Result Bridge -Pipe-",
     "CMKFamilyResultMergePipe": "CMK Flow · 35 Active Family Result",
     "CMKResultToLegacyBridgePipe": "CMK Result Bridge -Pipe-",
     "CMKZImageProcessForwardPipe": "CMK Z-Image Process Forward -Pipe-",
+    "CMKResultProcessForwardPipe": "CMK Result Process Forward -Pipe-",
     "CMKResultUnpackPipe": "CMK Result Unpack -Pipe-",
     "CMKResultPackPipe": "CMK Result Pack -Pipe-",
     "CMKImageForward": "CMK Image Forward -Pipe-",
@@ -360,6 +383,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CMKFaceBoundaryCache": "CMK Boundary Cache",
     "CMKFaceRebuildBoundaryCache": "CMK Boundary Cache",
     "CMKFaceSwapBoundaryCache": "CMK Boundary Cache",
+    "CMKUpscaleSaveBoundaryCache": "CMK Boundary Cache",
     "CMKZImageBoundaryCache": "CMK Boundary Cache",
 
 

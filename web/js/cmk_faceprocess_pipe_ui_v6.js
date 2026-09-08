@@ -151,6 +151,15 @@ function currentMode(node) {
     return value === "detailer" ? "detailer" : "restore";
 }
 
+function processModeIsExternallyDriven(node) {
+    const input = (node?.inputs ?? []).find((item) => item?.name === "process_mode");
+    return input?.link != null;
+}
+
+function projectionMode(node) {
+    return processModeIsExternallyDriven(node) ? "external" : currentMode(node);
+}
+
 function widgetBelongsToMode(name, mode) {
     if (COMMON_WIDGETS.has(name)) return true;
     if (mode === "detailer") return DETAILER_WIDGETS.has(name);
@@ -172,13 +181,13 @@ function rebuildVisibleWidgets(node, force = false) {
     const state = captureWidgets(node);
     if (state.rebuilding) return;
 
-    const mode = currentMode(node);
+    const mode = projectionMode(node);
     if (!force && state.visibleMode === mode) return;
 
     state.rebuilding = true;
     try {
         const visible = state.canonicalOrder
-            .filter((name) => widgetBelongsToMode(name, mode))
+            .filter((name) => mode === "external" || widgetBelongsToMode(name, mode))
             .map((name) => state.widgetsByName.get(name))
             .filter(Boolean);
 
@@ -236,7 +245,7 @@ function startWatcher(node) {
         if (!isTarget(node)) return;
         captureWidgets(node);
         installModeCallback(node);
-        if (currentMode(node) !== state.visibleMode) {
+        if (projectionMode(node) !== state.visibleMode) {
             rebuildVisibleWidgets(node, true);
         }
     }, WATCH_INTERVAL_MS);

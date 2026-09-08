@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import sys
 import types
 import unittest
@@ -24,6 +25,17 @@ def _load_module():
     diagnostic_module = types.ModuleType("cmk_nodes.utils.cmk_diagnostic")
     diagnostic_module.make_diagnostic_payload = lambda **values: values
     sys.modules[diagnostic_module.__name__] = diagnostic_module
+
+    visual_module = types.ModuleType("cmk_nodes.pipe.cmk_visual")
+    visual_module.empty_visual = lambda: {
+        "type": "CMK_VISUAL_PIPE", "version": 1, "providers": []
+    }
+    def register_provider(visual, **provider):
+        result = dict(visual)
+        result["providers"] = list(visual.get("providers", [])) + [provider]
+        return result
+    visual_module.register_provider = register_provider
+    sys.modules[visual_module.__name__] = visual_module
 
     comfy_module = types.ModuleType("comfy")
     comfy_utils = types.ModuleType("comfy.utils")
@@ -133,8 +145,34 @@ class CreateImageMaskTests(unittest.TestCase):
     def test_z_image_rejects_low_resolution_but_sdxl_keeps_it(self):
         normalize = self.module.normalize_resolution_for_family
         self.assertEqual(normalize("512x768", "z_image_turbo"), "1024x1024")
+        self.assertEqual(
+            normalize("512x768", "z_image_turbo", inpaint_mode=True),
+            "512x768",
+        )
+        self.assertEqual(
+            normalize("768x512", "z_image_turbo", inpaint_mode=True),
+            "768x512",
+        )
         self.assertEqual(normalize("1344x768", "z_image_turbo"), "1344x768")
         self.assertEqual(normalize("512x768", "sdxl"), "512x768")
+
+    def test_z_image_inpaint_applies_the_selected_safe_preset(self):
+        image = torch.zeros((1, 900, 1400, 3))
+        mask = torch.ones((1, 900, 1400))
+        result = self.result(self.module.CMKPipeCreateImage().create_image(**{
+            "PROMPT POS": "photo",
+            "INPAINT_MODE": "Inpaint",
+            "model_family": "Z-Image Turbo",
+            "resolution": "768x512",
+            "IMAGE": image,
+            "MASK": mask,
+            "FILENAME": "zit-inpaint.png",
+        }))
+        pipe = result[1]
+        self.assertEqual(pipe["resolution"], "768x512")
+        self.assertEqual((pipe["width"], pipe["height"]), (768, 512))
+        self.assertEqual(tuple(result[2].shape), (1, 512, 768, 3))
+        self.assertEqual(tuple(pipe["mask"].shape), (1, 512, 768))
 
     def test_visible_family_tabs_drive_backend_when_technical_widget_is_hidden(self):
         result = self.module.CMKPipeCreateImage().create_image(
@@ -181,15 +219,15 @@ class CreateImageMaskTests(unittest.TestCase):
         self.assertIsInstance(sdxl[1], dict)
         self.assertFalse(sdxl[1]["family_active"])
 
-    def test_remove_uses_prompt_free_diffusion_instead_of_lama_bypass(self):
+    def test_remove_preserves_prompts_but_bypasses_loras(self):
         image = torch.zeros((1, 16, 16, 3))
         mask = torch.zeros((1, 16, 16))
         mask[:, 4:12, 4:12] = 1
 
-        pipe, *_ = self.module.CMKPipeCreateImage().create_image(
+        pipe, *_ = self.result(self.module.CMKPipeCreateImage().create_image(
             **{
-                "PROMPT POS": "must be ignored",
-                "PROMPT NEG": "must also be ignored",
+                "GLOBAL PROMPT POS": "futuristic botanical observatory",
+                "PROMPT NEG": "low quality",
                 "INPAINT_MODE": "Inpaint",
                 "process_mode": "Remove Object",
                 "resolution": "512x512",
@@ -198,44 +236,76 @@ class CreateImageMaskTests(unittest.TestCase):
                 "FILENAME": "test.png",
                 "ACTIVE LORAS": "must be ignored",
             }
-        )
+        ))
 
-        self.assertEqual(pipe["prompt_pos"], "")
-        self.assertEqual(pipe["prompt_neg"], "")
+        self.assertEqual(pipe["prompt_pos"], "futuristic botanical observatory")
+        self.assertEqual(pipe["prompt_neg"], "low quality")
         self.assertEqual(pipe["active_loras"], "")
         self.assertEqual(pipe["fill_masked_area"], "noise")
         self.assertFalse(pipe["remove_isolated"])
         self.assertIsNone(pipe["remove_result_image"])
 
-    def test_remove_preview_shows_noise_mask_but_image_output_stays_original(self):
+    def test_remove_sends_noise_filled_image_and_preserves_mask_exterior(self):
         image = torch.full((1, 16, 16, 3), 0.25)
         mask = torch.zeros((1, 16, 16))
         mask[:, 4:12, 4:12] = 1
-        captured = {}
-        original_preview = self.module.image_node_preview
-        def capture_preview(value):
-            captured["image"] = value.clone()
-            return None
-        self.module.image_node_preview = capture_preview
-        try:
-            result = self.module.CMKPipeCreateImage().create_image(
-                **{
-                    "INPAINT_MODE": "Inpaint",
-                    "process_mode": "Remove Object",
-                    "resolution": "512x512",
-                    "IMAGE": image,
-                    "MASK": mask,
-                    "FILENAME": "remove-preview.png",
-                }
-            )
-        finally:
-            self.module.image_node_preview = original_preview
+        payload = self.module.CMKPipeCreateImage().create_image(
+            **{
+                "INPAINT_MODE": "Inpaint",
+                "process_mode": "Remove Object",
+                "resolution": "512x512",
+                "IMAGE": image,
+                "MASK": mask,
+                "FILENAME": "remove-preview.png",
+                "unique_id": "node-01",
+            }
+        )
+        result = self.result(payload)
 
         process = result[0]
         image_output = result[2]
+        visual_image = result[4]["providers"][0]["channels"]["result"]
         self.assertGreater(float(process["mask"].sum()), 0.0)
-        self.assertTrue(torch.allclose(image_output, torch.full_like(image_output, 0.25)))
-        self.assertFalse(torch.allclose(captured["image"], image_output))
+        self.assertFalse(torch.allclose(image_output, torch.full_like(image_output, 0.25)))
+        exterior = process["mask_fill"] <= 0
+        self.assertTrue(torch.allclose(image_output[exterior], torch.full_like(image_output[exterior], 0.25)))
+        self.assertTrue(torch.allclose(visual_image, image_output))
+        self.assertEqual(payload["ui"], {"images": []})
+
+    def test_text2image_keeps_visual_empty(self):
+        payload = self.module.CMKPipeCreateImage().create_image(
+            **{"GLOBAL PROMPT POS": "photo", "INPAINT_MODE": "Text2Image"}
+        )
+        result = self.result(payload)
+        self.assertEqual(result[4]["providers"], [])
+        self.assertEqual(payload["ui"], {"images": []})
+
+    def test_inpaint_publishes_early_visualizer_stage_without_own_preview(self):
+        image = torch.zeros((1, 16, 16, 3))
+        mask = torch.ones((1, 16, 16))
+        original_preview = self.module.image_node_preview
+        self.module.image_node_preview = lambda _image: {
+            "images": [{"filename": "stage.png", "subfolder": "", "type": "temp"}]
+        }
+        try:
+            payload = self.module.CMKPipeCreateImage().create_image(**{
+                "INPAINT_MODE": "Inpaint",
+                "resolution": "512x512",
+                "IMAGE": image,
+                "MASK": mask,
+                "FILENAME": "inpaint.png",
+                "unique_id": "node-01",
+            })
+        finally:
+            self.module.image_node_preview = original_preview
+
+        stage = json.loads(payload["ui"]["cmk_visual_stage"][0])
+        self.assertEqual(stage["module_label"], "Inpaint Preparation")
+        self.assertEqual(stage["sequence"], 1)
+        self.assertEqual(stage["stage_key"], "sdxl.input.inpaint")
+        self.assertEqual(stage["channels"], [{"name": "result", "image_index": 0}])
+        self.assertEqual(payload["ui"]["images"], [])
+        self.assertEqual(payload["ui"]["cmk_visual_stage_images"][0]["filename"], "stage.png")
 
 
 if __name__ == "__main__":

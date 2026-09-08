@@ -131,6 +131,15 @@
       ],
       "placementNote": "Use between Face Rebuild Prepare and Pasteback with a CMK checkpoint MODEL and a separate Source Face."
     },
+    "CMKVisualizer": {
+      "description": "Displays the processing stages registered in the VISUAL pipe and can optionally upscale and save the final image.",
+      "features": [
+        "Central view of every registered visual provider",
+        "Preserves the manually selected node dimensions",
+        "Optional final-image upscaling and saving"
+      ],
+      "placementNote": "CMK Visualizer is the mandatory final stage of every CMK Flow chain. Connect VISUAL together with the final result pipes from the preceding module."
+    },
     "CMK_SaveProjectImage": {
       "description": "Saves the finished image with a project name and optional date folder.",
       "features": [
@@ -293,13 +302,15 @@
       "dependencyNote": "Each branch independently selects its target face and processing mode."
     },
     "CMK Flow · 90 Upscale & Save": {
-      "description": "Upscales the finished image and provides the saving finish of CMK Flow.",
+      "description": "Optionally saves an upscaled intermediate result while the unchanged input image continues through the flow without the upscale memory cost.",
       "features": [
-        "Upscale the output image",
-        "Control filename and destination folder",
-        "Save the image as the final flow step"
+        "Run upscale and saving in a persistently cached side branch",
+        "Forward the public IMAGE before the upscaler at its original working resolution",
+        "Preserve MODEL, PROCESS, LOG, and VISUAL for downstream modules",
+        "Register original and saved upscale output with the Visual provider",
+        "Lazy before/after comparison for direct visual inspection inside the opened subgraph"
       ],
-      "placementNote": "Shared family-neutral finish. Place after the final SDXL or ZIT result, optional 35, or 40 FaceSwap."
+      "placementNote": "Insert optionally between two image-carrying modules. The next module still receives the previous working-resolution image; Visualizer remains the mandatory final stage."
     }
   },
   "toolbox": {
@@ -326,6 +337,34 @@
     "CMKLogConcat": "Combines up to 32 log blocks in an existing CMK log pipe.",
     "CMKLogExportText": "Sorts a CMK log pipe and exports its complete content as readable text.",
     "CMK_ImageMetrics": "Reads image dimensions, batch size, and channels and also provides them as a CMK diagnostic.",
-    "CMK_ImageQuickMetrics": "Shows key image and tensor values directly in the node and passes the image through unchanged."
+    "CMK_ImageQuickMetrics": "Shows key image and tensor values directly in the node and passes the image through unchanged.",
+    "CMKCheckpointVAELoader": "Loads an SDXL checkpoint together with CLIP and VAE for standalone workflows outside the canonical CMK pipe flow.",
+    "CMKControlNetPrepare": "Loads a ControlNet model, prepares the guidance image, and builds conditioning for a standalone ControlNet step.",
+    "CMK_EmptyImageMask": "Creates an empty image and matching mask at a selectable size as a starting point for image and mask workflows.",
+    "CMKFaceCrop": "Crops detected face regions from an image and returns them separately for targeted processing.",
+    "CMKFaceMask": "Creates a mask from detected face regions for local face processing and pasteback.",
+    "CMKFaceRestore": "Restores detected faces with the selected restoration model and composites them back into the image.",
+    "CMKFaceSelect": "Selects target persons from detected faces by position or sequence.",
+    "CMK_FaceProcess": "Combines selection, masking, and restoration of detected faces into a standalone FaceProcess step.",
+    "CMKFaceSwapImage": "Transfers the identity of a source face to selected faces in a single target image.",
+    "CMKFaceSwapVideo": "Transfers the identity of a source face to selected faces across a video frame sequence.",
+    "CMKFaceSwapVideoLoader": "Loads a video as a frame sequence and provides the video data required by the standalone FaceSwap Video workflow.",
+    "CMK_FilenameBase": "Builds a consistent base filename from project and file information for downstream save nodes.",
+    "CMK_ImageMaskSwitch": "Switches image and mask together between two input paths and keeps both data streams synchronized.",
+    "CMKLoRAStackBuilder": "Builds a stack from multiple selectable LoRAs with separate model and CLIP strengths.",
+    "CMKLoRATextLoader": "Reads a text-based LoRA list and provides it for building a LoRA stack.",
+    "CMKMergeAndSaveVideo": "Merges processed video segments and saves the finished video with the selected output settings.",
+    "CMKStringDual": "Provides two separate text values, typically positive and negative prompts for standalone workflows.",
+    "CMK_SEGSConcate": "Combines multiple detected-region collections into one SEGS structure for further detail processing.",
+    "CMK_SaveProjectText": "Saves text content under a project-based, consistently constructed filename.",
+    "CMK_SaveProjectVideo": "Saves a video with project-based naming and the available metadata.",
+    "CMK_SmartDetailer": "Detects selected image regions and improves them using configurable inpaint sampling and masked compositing.",
+    "CMK_SmartOutpaintPad": "Expands an image canvas and creates the matching mask for subsequent outpainting.",
+    "CMK_SmartUpscaler": "Upscales images with a selectable model and controlled target size for final output.",
+    "CMK_SourcePathInfo": "Splits a source path into reusable directory, file, and name components.",
+    "CMKSplitVideoIntoSegments": "Splits a video into separately processable sections and frame sequences using the selected segmentation settings.",
+    "CMK_VideoMetrics": "Reads technical video properties and provides them for diagnostics and logging.",
+    "CMK_VideoQuickMetrics": "Shows the most important technical video values directly in the node.",
+    "CMKVideoCompare": "Compares video or segment data and prepares the detected differences for diagnostics and logging."
   }
 }

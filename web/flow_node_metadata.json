@@ -19,11 +19,12 @@
       ],
       "placementNote": "Als zentrales Startmodul vor dem optionalen ControlNet oder dem ersten KSampler platzieren. Für Inpaint IMAGE und MASK anschließen; Remove Object benötigt nur die Maske.",
       "recommendedBefore": [
-        "02 SDXL LoRA Stack (optional)",
+      "SDXL LoRA Stack (optional)",
         "Image Input (optional)"
       ],
-      "recommendedAfter": [
-        "05 ControlNet SDXL (optional)",
+    "recommendedAfter": [
+      "02 Regional Conditioning SDXL (optional)",
+      "05 ControlNet SDXL (optional)",
         "05 ControlNet ZIT (optional)",
         "10 KSampler SDXL 1st Pass",
         "10 KSampler Z-Image Turbo"
@@ -299,7 +300,7 @@
       ],
       "placementNote": "Direkt nach dem kurzen Layout-Sampler und vor 20 Refiner SDXL verwenden.",
       "recommendedBefore": [
-        "10 KSampler SDXL"
+        "10 KSampler SDXL 1st Pass"
       ],
       "recommendedAfter": [
         "20 Refiner SDXL"
@@ -461,19 +462,20 @@
       "features": [
         "Wählt ausschließlich den aktiven Familienzweig aus",
         "Verhindert die Ausführung des inaktiven Zweigs",
-        "Übergibt ein familienneutrales Ergebnis an FaceSwap oder 90"
+      "Übergibt ein familienneutrales Ergebnis an FaceSwap oder den Visualizer"
       ],
       "placementNote": "Nur verwenden, wenn SDXL und ZIT parallel im selben Workflow aufgebaut sind. Hinter beiden KSamplern und vor den gemeinsamen Nachbearbeitungsmodulen platzieren.",
       "recommendedBefore": [
-        "10 KSampler SDXL 1st Pass",
-        "10 KSampler Z-Image Turbo",
+      "10 KSampler Z-Image Turbo",
         "20 Refiner SDXL",
         "23 Detailer SDXL",
+        "25 FaceRebuild SDXL",
         "30 FaceProcess SDXL"
       ],
-      "recommendedAfter": [
-        "40 FaceSwap",
-        "90 Upscale & Save"
+    "recommendedAfter": [
+      "40 FaceSwap",
+      "90 Upscale & Save",
+      "100 Visualizer"
       ],
       "previews": [
         {
@@ -482,6 +484,35 @@
         }
       ],
       "previewAlt": "CMK Flow Active Family Result Node"
+    },
+    "CMKVisualizer": {
+      "displayName": "100 Visualizer",
+      "category": "Flow",
+      "domain": "Output & Inspection",
+      "compatibility": [
+        "SDXL",
+        "Z-Image Turbo",
+        "CMK Visual Pipe"
+      ],
+      "version": "1.0.0",
+      "author": "CMK Nodes",
+      "status": "STABLE",
+      "description": "Zeigt die im VISUAL-Pipe registrierten Bearbeitungsstufen an und kann das finale Bild optional hochskalieren und speichern.",
+      "features": [
+        "Zentrale Anzeige aller registrierten Visual-Provider",
+        "Manuell festgelegte Node-Dimension bleibt erhalten",
+        "Optionales Upscaling und Speichern des finalen Bildes"
+      ],
+      "placementNote": "CMK Flow · 100 Visualizer ist der verbindliche Abschluss jeder CMK-Flow-Kette. VISUAL sowie die finalen Ergebnisleitungen des letzten Moduls anschließen.",
+    "hideRecommendations": true,
+      "previews": [
+        {
+          "src": "assets/previews/visualizer.png",
+          "label": "Visualizer"
+        }
+      ],
+      "previewAlt": "CMK Flow · 100 Visualizer als zentrale visuelle Oberfläche von CMK Flow 2.0",
+    "order": 100
     },
     "CMK_SaveProjectImage": {
       "category": "Finish",

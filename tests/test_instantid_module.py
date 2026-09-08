@@ -261,12 +261,23 @@ class InstantIDModuleContractTests(unittest.TestCase):
         path = ROOT / "subgraphs/CMK Flow · 15 InstantID-Sampler SDXL.json"
         workflow = json.loads(path.read_text(encoding="utf-8"))
         outer = workflow["nodes"][0]
-        self.assertEqual(outer["size"], [600, 1225])
-        self.assertEqual([item["name"] for item in outer["inputs"]], ["MODEL", "PROCESS", "SAMPLED", "LOG", "VISUAL"])
+        self.assertEqual(outer["size"], [450, 230])
+        self.assertEqual(outer["properties"]["cmkOuterSize"], [450, 230])
+        self.assertEqual(outer["properties"]["cmkManualSize"], [450, 230])
+        self.assertEqual(outer["color"], "#332922")
+        self.assertEqual(outer["bgcolor"], "#593930")
+        self.assertEqual(
+            [item["name"] for item in outer["inputs"]],
+            ["MODEL", "PROCESS", "SAMPLED", "LOG", "VISUAL", "image"],
+        )
+        self.assertEqual(outer["inputs"][-1]["type"], "COMBO")
+        self.assertEqual(outer["inputs"][-1]["label"], "source face")
         self.assertEqual([item["name"] for item in outer["outputs"]], ["MODEL", "PROCESS", "SAMPLED", "LOG", "VISUAL", "diagnostic"])
-        self.assertEqual(outer["properties"]["proxyWidgets"], [["1501", "image"]])
+        self.assertNotIn("proxyWidgets", outer["properties"])
+        self.assertEqual(outer["widgets_values"], ["CMK Package · face_reference.png"])
         self.assertEqual(outer["properties"]["cmkVisualProviders"][0]["label"], "Identity")
         definition = workflow["definitions"]["subgraphs"][0]
+        self.assertEqual(definition["inputs"][-1]["label"], "source face")
         flow_metadata = workflow["extra"]["CMKFlow"]
         self.assertEqual(flow_metadata["status"], "STABLE")
         self.assertEqual(flow_metadata["version"], "1.0.0")
@@ -287,7 +298,24 @@ class InstantIDModuleContractTests(unittest.TestCase):
             ["IDENTITY IMAGE", "diagnostic"],
         )
         provider = next(node for node in definition["nodes"] if node["type"] == "CMKVisualProvider")
-        self.assertEqual(provider["widgets_values"], ["Identity", 15, "CMKInstantIDSamplerSDXLPipe", "", ""])
+        self.assertEqual(
+            provider["widgets_values"],
+            ["Identity", 15, "CMKInstantIDSamplerSDXLPipe", "sdxl", "sdxl.identity"],
+        )
+        self.assertEqual(
+            provider["widgets_values_named"],
+            {
+                "label": "Identity",
+                "sequence": 15,
+                "live_node_type": "CMKInstantIDSamplerSDXLPipe",
+                "branch": "sdxl",
+                "stage_key": "sdxl.identity",
+            },
+        )
+        self.assertEqual(definition["id"], "9b17ab76-4d80-4435-b69d-0e08eea53bca")
+        provider_meta = outer["properties"]["cmkVisualProviders"][0]
+        self.assertEqual(provider_meta["branch"], "sdxl")
+        self.assertEqual(provider_meta["stage_key"], "sdxl.identity")
         self.assertNotIn("end", input_names)
         self.assertNotIn("denoise", input_names)
         self.assertNotIn("sampler_name", input_names)

@@ -1,21 +1,21 @@
 {
   "revision": 0,
-  "last_node_id": 5315,
+  "last_node_id": "7560",
   "last_link_id": 0,
   "nodes": [
     {
-      "id": 5315,
-      "type": "ccafa98f-0e26-4cfb-aae2-98489797a6a7",
+      "id": 7560,
+      "type": "9100bfb0-f52f-4abc-96a8-1c6045c247bf",
       "pos": [
-        15050,
-        -3770
+        17270,
+        -6050
       ],
       "size": [
-        600,
-        1225
+        450,
+        230
       ],
       "flags": {},
-      "order": 4,
+      "order": 3,
       "mode": 0,
       "inputs": [
         {
@@ -33,6 +33,12 @@
           "name": "LOG",
           "shape": 7,
           "type": "CMK_LOG_PIPE",
+          "link": null
+        },
+        {
+          "name": "VISUAL",
+          "shape": 7,
+          "type": "CMK_VISUAL_PIPE",
           "link": null
         }
       ],
@@ -58,28 +64,45 @@
           "links": []
         },
         {
+          "name": "VISUAL",
+          "type": "CMK_VISUAL_PIPE",
+          "links": []
+        },
+        {
           "name": "diagnostic",
           "type": "CMK_DIAGNOSTIC",
           "links": []
         }
       ],
       "properties": {
-        "proxyWidgets": [
-          [
-            "2",
-            "sampler"
-          ]
-        ],
+        "comparer_mode": "Click",
+        "default_output": "b",
+        "proxyWidgets": [],
         "cmkOuterSize": [
-          600,
-          1225
+          450,
+          230
         ],
         "cmkManualSize": [
-          600,
-          1225
-        ]
+          450,
+          230
+        ],
+        "cmkVisualProviders": [
+          {
+            "provider_id": "cmk-CMKVisualProvider-7010",
+            "key": "sampling",
+            "label": "Sampling",
+            "sequence": 10,
+            "branch": "z_image_turbo",
+            "stage_key": "z_image_turbo.sampling",
+            "live_node_id": "3",
+            "capabilities": {
+              "preview": true,
+              "live": true
+            }
+          }
+        ],
+        "previewExposures": []
       },
-      "widgets_values": [],
       "color": "#2a363b",
       "bgcolor": "#3f5159",
       "shape": 1,
@@ -91,13 +114,13 @@
   "definitions": {
     "subgraphs": [
       {
-        "id": "ccafa98f-0e26-4cfb-aae2-98489797a6a7",
+        "id": "9100bfb0-f52f-4abc-96a8-1c6045c247bf",
         "version": 1,
         "state": {
-          "lastGroupId": 126,
-          "lastNodeId": 6232,
-          "lastLinkId": 15039,
-          "lastRerouteId": 0
+          "lastGroupId": 130,
+          "lastNodeId": 7560,
+          "lastLinkId": 20588,
+          "lastRerouteId": 1
         },
         "revision": 0,
         "config": {},
@@ -108,7 +131,7 @@
             20,
             20,
             128,
-            108
+            128
           ]
         },
         "outputNode": {
@@ -117,7 +140,7 @@
             2020,
             1140,
             128,
-            148
+            168
           ]
         },
         "inputs": [
@@ -159,6 +182,18 @@
             "pos": [
               124,
               84
+            ]
+          },
+          {
+            "id": "306a7c0a-1168-4b63-b4c5-4742bcaf0e76",
+            "name": "VISUAL",
+            "type": "CMK_VISUAL_PIPE",
+            "linkIds": [
+              12700
+            ],
+            "pos": [
+              124,
+              104
             ]
           }
         ],
@@ -212,6 +247,18 @@
             ]
           },
           {
+            "id": "5cc52b0f-759e-4b1e-9681-42f32eba0c16",
+            "name": "VISUAL",
+            "type": "CMK_VISUAL_PIPE",
+            "linkIds": [
+              12701
+            ],
+            "pos": [
+              2044,
+              1244
+            ]
+          },
+          {
             "id": "48714ff8-d4fd-4735-b45b-b8b0a056e3df",
             "name": "diagnostic",
             "type": "CMK_DIAGNOSTIC",
@@ -220,7 +267,7 @@
             ],
             "pos": [
               2044,
-              1244
+              1264
             ]
           }
         ],
@@ -338,6 +385,13 @@
               "default",
               "default"
             ],
+            "widgets_values_named": {
+              "diffusion_model": "z_image_turbo_bf16.safetensors",
+              "text_encoder": "qwen_3_4b.safetensors",
+              "vae": "ae.safetensors",
+              "weight_dtype": "default",
+              "clip_device": "default"
+            },
             "shape": 1
           },
           {
@@ -491,6 +545,16 @@
               3,
               "Z-Image-Turbo-Fun-Controlnet-Union-2.1.safetensors"
             ],
+            "widgets_values_named": {
+              "seed": 1565304366,
+              "fixed": "fixed",
+              "steps": 8,
+              "sampler": "res_multistep",
+              "scheduler": "simple",
+              "cfg": 1,
+              "model_shift": 3,
+              "inpaint_model_patch": "Z-Image-Turbo-Fun-Controlnet-Union-2.1.safetensors"
+            },
             "shape": 1
           },
           {
@@ -537,14 +601,14 @@
             "type": "CMKZImageTurboFinalizePipe",
             "pos": [
               1690,
-              760
+              1160
             ],
             "size": [
-              310,
-              170
+              240,
+              0
             ],
             "flags": {
-              "collapsed": false
+              "collapsed": true
             },
             "order": 2,
             "mode": 0,
@@ -588,9 +652,7 @@
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
                 "type": "CMK_PROCESS_Z_IMAGE",
-                "links": [
-                  12347
-                ]
+                "links": []
               },
               {
                 "localized_name": "IMAGE",
@@ -635,14 +697,14 @@
             "type": "CMKZImageProcessForwardPipe",
             "pos": [
               1690,
-              650
+              1100
             ],
             "size": [
-              310,
-              80
+              260,
+              0
             ],
             "flags": {
-              "collapsed": false
+              "collapsed": true
             },
             "order": 3,
             "mode": 0,
@@ -682,14 +744,14 @@
             "type": "CMKFamilyBranchGateZImage",
             "pos": [
               1690,
-              1160
+              1130
             ],
             "size": [
-              310,
-              150
+              230,
+              0
             ],
             "flags": {
-              "collapsed": false
+              "collapsed": true
             },
             "order": 4,
             "mode": 0,
@@ -737,7 +799,8 @@
                 "name": "IMAGE",
                 "type": "IMAGE",
                 "links": [
-                  12345
+                  12345,
+                  12702
                 ]
               },
               {
@@ -759,11 +822,11 @@
             "type": "CMKZImageBoundaryCache",
             "pos": [
               1690,
-              960
+              1190
             ],
             "size": [
-              310,
-              170
+              240,
+              120
             ],
             "flags": {
               "collapsed": false
@@ -776,12 +839,6 @@
                 "name": "MODEL",
                 "type": "CMK_MODEL_PIPE",
                 "link": 12346
-              },
-              {
-                "localized_name": "PROCESS",
-                "name": "PROCESS",
-                "type": "CMK_PROCESS_Z_IMAGE",
-                "link": 12347
               },
               {
                 "localized_name": "IMAGE",
@@ -809,14 +866,6 @@
                 "type": "CMK_MODEL_PIPE",
                 "links": [
                   12334
-                ]
-              },
-              {
-                "localized_name": "PROCESS",
-                "name": "PROCESS",
-                "type": "CMK_PROCESS_Z_IMAGE",
-                "links": [
-                  12353
                 ]
               },
               {
@@ -854,6 +903,143 @@
                 310,
                 168
               ]
+            },
+            "shape": 1
+          },
+          {
+            "id": 7010,
+            "type": "CMKVisualProvider",
+            "pos": [
+              1690,
+              1070
+            ],
+            "size": [
+              230,
+              0
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 7,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "shape": 7,
+                "type": "CMK_VISUAL_PIPE",
+                "link": 12700
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 12702
+              },
+              {
+                "localized_name": "SOURCE",
+                "name": "SOURCE",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": null
+              },
+              {
+                "localized_name": "BEFORE",
+                "name": "BEFORE",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": null
+              },
+              {
+                "localized_name": "AFTER",
+                "name": "AFTER",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": null
+              },
+              {
+                "localized_name": "enable",
+                "name": "enable",
+                "shape": 7,
+                "type": "BOOLEAN",
+                "link": null
+              },
+              {
+                "localized_name": "label",
+                "name": "label",
+                "type": "STRING",
+                "widget": {
+                  "name": "label"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "sequence",
+                "name": "sequence",
+                "type": "INT",
+                "widget": {
+                  "name": "sequence"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "live_node_type",
+                "name": "live_node_type",
+                "shape": 7,
+                "type": "STRING",
+                "widget": {
+                  "name": "live_node_type"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "branch",
+                "name": "branch",
+                "shape": 7,
+                "type": "STRING",
+                "widget": {
+                  "name": "branch"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "stage_key",
+                "name": "stage_key",
+                "shape": 7,
+                "type": "STRING",
+                "widget": {
+                  "name": "stage_key"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "type": "CMK_VISUAL_PIPE",
+                "links": [
+                  12701
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKVisualProvider"
+            },
+            "widgets_values": [
+              "Sampling",
+              10,
+              "CMKKSamplerPipe",
+              "z_image_turbo",
+              "z_image_turbo.sampling"
+            ],
+            "widgets_values_named": {
+              "label": "Sampling",
+              "sequence": 10,
+              "live_node_type": "CMKKSamplerPipe",
+              "branch": "z_image_turbo",
+              "stage_key": "z_image_turbo.sampling"
             },
             "shape": 1
           }
@@ -996,7 +1182,7 @@
           {
             "id": 12338,
             "origin_id": 5081,
-            "origin_slot": 2,
+            "origin_slot": 1,
             "target_id": 5079,
             "target_slot": 2,
             "type": "IMAGE"
@@ -1004,7 +1190,7 @@
           {
             "id": 12340,
             "origin_id": 5081,
-            "origin_slot": 3,
+            "origin_slot": 2,
             "target_id": 5079,
             "target_slot": 3,
             "type": "CMK_LOG_PIPE"
@@ -1022,15 +1208,15 @@
             "origin_id": 4,
             "origin_slot": 4,
             "target_id": 5081,
-            "target_slot": 4,
+            "target_slot": 3,
             "type": "CMK_DIAGNOSTIC"
           },
           {
             "id": 12343,
             "origin_id": 5081,
-            "origin_slot": 4,
+            "origin_slot": 3,
             "target_id": -20,
-            "target_slot": 4,
+            "target_slot": 5,
             "type": "CMK_DIAGNOSTIC"
           },
           {
@@ -1058,19 +1244,11 @@
             "type": "CMK_MODEL_PIPE"
           },
           {
-            "id": 12347,
-            "origin_id": 4,
-            "origin_slot": 1,
-            "target_id": 5081,
-            "target_slot": 1,
-            "type": "CMK_PROCESS_Z_IMAGE"
-          },
-          {
             "id": 12348,
             "origin_id": 4,
             "origin_slot": 2,
             "target_id": 5081,
-            "target_slot": 2,
+            "target_slot": 1,
             "type": "IMAGE"
           },
           {
@@ -1078,7 +1256,7 @@
             "origin_id": 4,
             "origin_slot": 3,
             "target_id": 5081,
-            "target_slot": 3,
+            "target_slot": 2,
             "type": "CMK_LOG_PIPE"
           },
           {
@@ -1103,6 +1281,30 @@
             "origin_slot": 1,
             "target_id": 2,
             "target_slot": 3,
+            "type": "IMAGE"
+          },
+          {
+            "id": 12700,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 7010,
+            "target_slot": 1,
+            "type": "CMK_VISUAL_PIPE"
+          },
+          {
+            "id": 12701,
+            "origin_id": 7010,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 4,
+            "type": "CMK_VISUAL_PIPE"
+          },
+          {
+            "id": 12702,
+            "origin_id": 5079,
+            "origin_slot": 1,
+            "target_id": 7010,
+            "target_slot": 0,
             "type": "IMAGE"
           }
         ],
@@ -1130,7 +1332,7 @@
       "compatibility": [
         "Z-Image Turbo"
       ],
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": "CMK Nodes",
       "features": [
         "Nativer Z-Image-Turbo-Loader",
@@ -1145,6 +1347,7 @@
       "recommendedAfter": [
         "35 Active Family Result (optional)",
         "40 FaceSwap",
+        "100 Visualizer",
         "90 Upscale & Save"
       ],
       "placementNote": "Nach 01 oder dem optionalen ZIT-ControlNet platzieren; der IMAGE-Ausgang führt direkt in die gemeinsamen Nachbearbeitungsmodule.",

@@ -17,6 +17,20 @@ ROOT = PATH.parents[1]
 
 
 class VisualPipeTests(unittest.TestCase):
+    def test_visual_provider_keeps_only_label_in_basic_settings(self):
+        contract = CMKVisualProvider.INPUT_TYPES()
+        self.assertNotIn("advanced", contract["required"]["label"][1])
+        self.assertTrue(contract["required"]["sequence"][1]["advanced"])
+        for name in ("live_node_type", "branch", "stage_key"):
+            self.assertTrue(contract["optional"][name][1]["advanced"])
+
+    def test_visual_provider_does_not_resolve_images_while_disabled(self):
+        source = (ROOT / "pipe" / "cmk_visual.py").read_text(encoding="utf-8")
+        section = source[source.index("class CMKVisualProvider:"):source.index("class CMKVisualizer:")]
+        self.assertIn('"IMAGE": ("IMAGE", {"lazy": True})', section)
+        self.assertIn('if not bool(enable):\n            return []', section)
+        self.assertIn('for name in ("IMAGE", "SOURCE", "BEFORE", "AFTER"):', section)
+
     def test_curated_subgraphs_do_not_share_provider_ids_between_stages(self):
         import json
 
@@ -53,6 +67,8 @@ class VisualPipeTests(unittest.TestCase):
         self.assertIs(visual, CMKVisualPass.forward(visual)[0])
 
     def test_provider_enable_is_the_authoritative_registration_gate(self):
+        enable_spec = CMKVisualProvider.INPUT_TYPES()["optional"]["enable"]
+        self.assertTrue(enable_spec[1]["forceInput"])
         visual = register_provider(
             None,
             module_instance_id="20",
@@ -71,6 +87,15 @@ class VisualPipeTests(unittest.TestCase):
         visual = register_provider(visual, module_instance_id="10", module_type="Sampler", module_label="Done", sequence=10, channels={"result": object()})
         self.assertEqual(1, len(visual["providers"]))
         self.assertEqual("completed", visual["providers"][0]["status"])
+
+    def test_repeated_stage_instances_keep_visual_chain_order(self):
+        first = object()
+        second = object()
+        visual = register_provider(None, module_instance_id="23:1", module_type="CMKVisualProvider", module_label="Detailer", sequence=23, channels={"result": first}, branch="sdxl", stage_key="sdxl.detailer")
+        visual = register_provider(visual, module_instance_id="23:2", module_type="CMKVisualProvider", module_label="Detailer", sequence=23, channels={"result": second}, branch="sdxl", stage_key="sdxl.detailer")
+        self.assertEqual(2, len(visual["providers"]))
+        self.assertIs(first, visual["providers"][0]["channels"]["result"])
+        self.assertIs(second, visual["providers"][1]["channels"]["result"])
 
     def test_late_convenience_provider_cannot_overwrite_an_intermediate_stage(self):
         identity = object()
@@ -104,6 +129,30 @@ class VisualPipeTests(unittest.TestCase):
         self.assertEqual("sdxl", provider["branch"])
         self.assertEqual("sdxl.controlnet", provider["stage_key"])
 
+    def test_provider_discovers_all_live_nodes_inside_its_own_subgraph(self):
+        prompt = {
+            "50:1": {"class_type": "CMKVisualProvider", "inputs": {"IMAGE": ["50:2", 0]}},
+            "50:2": {"class_type": "CMK_SEGSConcate", "inputs": {
+                "image": ["20:9", 0], "segs": ["50:3", 1], "segs_2": ["50:4", 1],
+            }},
+            "50:3": {"class_type": "CMK_SmartDetailerPipe", "inputs": {}},
+            "50:4": {"class_type": "CMK_SmartDetailerPipe", "inputs": {}},
+            "20:9": {"class_type": "CMK_SmartDetailerPipe", "inputs": {}},
+        }
+        result = MODULE.CMKVisualProvider.publish(
+            object(), "Detailer", 23, live_node_type="CMK_SmartDetailerPipe",
+            prompt=prompt, unique_id="50:1",
+        )[0]
+        provider = result["providers"][0]
+        self.assertEqual(["50:3", "50:4"], provider["live_node_ids"])
+        self.assertEqual("50:3", provider["live_node_id"])
+
+    def test_faceprocess_semantic_live_type_matches_all_supported_node_names(self):
+        for class_type in ("CMKFaceProcessPipe", "CMK_FaceProcess", "CMKFaceProcess"):
+            with self.subTest(class_type=class_type):
+                self.assertTrue(MODULE._matches_live_type(class_type, "FaceProcess"))
+        self.assertFalse(MODULE._matches_live_type("CMK_SmartDetailerPipe", "FaceProcess"))
+
     def test_sampler_and_refiner_form_a_visual_chain(self):
         sampler = json.loads(
             (ROOT / "subgraphs" / "CMK Flow · 10 KSampler SDXL 1st Pass.json").read_text(encoding="utf-8")
@@ -113,7 +162,9 @@ class VisualPipeTests(unittest.TestCase):
         )["definitions"]["subgraphs"][0]
         self.assertEqual(["LOG", "VISUAL", "diagnostic"], [item["name"] for item in sampler["outputs"][-3:]])
         self.assertEqual([12701], sampler["outputs"][-2]["linkIds"])
-        sampler_provider = next(node for node in sampler["nodes"] if node["id"] == 7000)
+        sampler_provider = next(
+            node for node in sampler["nodes"] if node["type"] == "CMKVisualProvider"
+        )
         self.assertEqual("CMKVisualProvider", sampler_provider["type"])
         self.assertEqual("1st Pass", sampler_provider["widgets_values"][0])
         self.assertEqual("sdxl.first_pass", sampler_provider["widgets_values"][4])
@@ -124,9 +175,51 @@ class VisualPipeTests(unittest.TestCase):
         self.assertEqual([12713], refiner["inputs"][-1]["linkIds"])
         self.assertEqual([12716], refiner["outputs"][-2]["linkIds"])
 
+    def test_zit_sampler_uses_single_sampling_stage(self):
+        payload = json.loads(
+            (ROOT / "subgraphs" / "CMK Flow · 10 KSampler Z-Image Turbo.json").read_text(encoding="utf-8")
+        )
+        outer_provider = payload["nodes"][0]["properties"]["cmkVisualProviders"][0]
+        graph = payload["definitions"]["subgraphs"][0]
+        inner_provider = next(
+            node for node in graph["nodes"] if node["type"] == "CMKVisualProvider"
+        )
+        self.assertEqual("sampling", outer_provider["key"])
+        self.assertEqual("Sampling", outer_provider["label"])
+        self.assertEqual("z_image_turbo.sampling", outer_provider["stage_key"])
+        self.assertEqual("Sampling", inner_provider["widgets_values"][0])
+        self.assertEqual("z_image_turbo.sampling", inner_provider["widgets_values"][4])
+        self.assertNotIn("1st Pass", json.dumps(payload))
+
     def test_visualizer_accepts_an_unconnected_visual_pipe(self):
-        self.assertNotIn("required", MODULE.CMKVisualizer.INPUT_TYPES())
-        self.assertIn("VISUAL", MODULE.CMKVisualizer.INPUT_TYPES()["optional"])
+        contract = MODULE.CMKVisualizer.INPUT_TYPES()
+        self.assertNotIn("required", contract)
+        optional = contract["optional"]
+        self.assertEqual(
+            [
+                "MODEL (opt)", "PROCESS", "IMAGE", "LOG", "VISUAL",
+                "SAVE ENABLED", "filename prefix", "output folder",
+                "use date folder", "enable upscale", "limit 4x MP",
+                "limit 2x MP", "model 4x", "model 2x",
+            ],
+            list(optional),
+        )
+        self.assertFalse(optional["enable upscale"][1]["default"])
+        self.assertEqual(0.0, optional["limit 4x MP"][1]["min"])
+        for name in (
+            "output folder", "use date folder", "enable upscale",
+            "limit 4x MP", "limit 2x MP", "model 4x", "model 2x",
+        ):
+            self.assertTrue(optional[name][1]["advanced"])
+
+    def test_visualizer_terminal_stage_reuses_upscale_and_save_implementations(self):
+        source = PATH.read_text(encoding="utf-8")
+        self.assertIn("CMKResultUnpackPipe.unpack(", source)
+        self.assertIn("CMK_SmartUpscalerPipe().run_pipe(", source)
+        self.assertIn("CMK_SaveProjectImage().run(", source)
+        self.assertIn('module_label="Upscale"', source)
+        self.assertIn('stage_key="result.upscale"', source)
+        self.assertIn('if image is not None and upscale_enabled:', source)
 
     def test_visualizer_owns_frontend_history_follow_and_compare(self):
         frontend = (ROOT / "web" / "js" / "cmk_visualizer.js").read_text(encoding="utf-8")
@@ -155,13 +248,22 @@ class VisualPipeTests(unittest.TestCase):
             "state.providers = []",
             "function remappedDeclaredProvider(outerNode, item)",
             "outerNode?.subgraph?.nodes",
+            "visualProviders.length === 1 ? visualProviders[0] : null",
+            'widgetValue(visualProvider, "label"',
+            'widgetValue(visualProvider, "stage_key"',
+            "function installProviderWidgetRefresh(nodeType)",
+            "providerWidgetNames.has(widget.name)",
+            "scheduleProviderRefresh();",
             "live_node_type",
-            "cmk-CMKVisualProvider-${visualProvider.id}",
+            "cmk-CMKVisualProvider-${outerNode.id}-${visualProvider.id}",
             "fallbackLiveTypes",
             '"first-pass": "CMKKSamplerPipe"',
             'controlnet: "CMKControlNetPreparePipe"',
-            "live_node_resolved: Boolean(liveNode)",
+            "live_node_resolved: liveNodes.length > 0",
             "live_node_resolved: Boolean(item.live_node_resolved)",
+            "live_node_ids: liveNodes.length",
+            "live_node_ids: (item.live_node_ids || []).map(String)",
+            "provider.live_node_ids || [provider.live_node_id]",
             "!current.live_node_resolved && provider.live_node_resolved",
             "lastMetadataPreviewBlob = accepted ? blob : null",
             'api.addEventListener("executed"',
@@ -171,7 +273,11 @@ class VisualPipeTests(unittest.TestCase):
             "function activateProvider(state, provider)",
             "provider.liveUrl",
             "function providerSemanticKey(provider)",
-            "const declarationBySemanticKey = new Map",
+            "function completedDeclarations(declarations, completedProviders)",
+            "consumed.add(declaration.provider_id)",
+            "function providerDisplayLabels(providers)",
+            "`${base} ${count}`",
+            "`${outerNode.id}:${inner.id}`",
             "provider_id: providerId",
             "const completed = new Map()",
             "state.providers = [...completed.values()]",

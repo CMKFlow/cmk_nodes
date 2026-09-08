@@ -89,21 +89,31 @@ class CMKZITControlNetPreparePipe:
             },
             "optional": {
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
+                "VISUAL": ("CMK_VISUAL_PIPE",),
+                "REFERENCE IMAGE INPUT": ("IMAGE", {"lazy": True}),
+                "REFERENCE IMAGE NAME": ("STRING",),
             },
+            "hidden": {"prompt": "PROMPT", "unique_id": "UNIQUE_ID"},
         }
 
     RETURN_TYPES = (
         "CMK_PROCESS_Z_IMAGE",
         "IMAGE",
         "CMK_LOG_PIPE",
+        "CMK_VISUAL_PIPE",
         "CMK_DIAGNOSTIC",
+        "IMAGE",
     )
-    RETURN_NAMES = ("PROCESS", "IMAGE", "LOG", "diagnostic")
+    RETURN_NAMES = (
+        "PROCESS", "IMAGE", "LOG", "VISUAL", "diagnostic", "CONTROLNET IMAGE",
+    )
     OUTPUT_TOOLTIPS = (
         "ZIT process with optional ControlNet preparation.",
         "Unchanged authoritative IMAGE for the following ZIT module.",
         "Structured Flow log.",
+        "Unchanged visual provider pipe.",
         "Optional diagnostic information.",
+        "Prepared ControlNet image for the visual provider.",
     )
     FUNCTION = "prepare"
     CATEGORY = "CMK/Flow/Process/ZIT"
@@ -127,6 +137,14 @@ class CMKZITControlNetPreparePipe:
             requested.append("IMAGE")
         if not bool(kwargs.get("ENABLE", False)):
             return requested
+        current = (kwargs.get("prompt") or {}).get(str(kwargs.get("unique_id")), {})
+        connected = current.get("inputs", {}) if isinstance(current, dict) else {}
+        if (
+            kwargs.get("IMAGE SOURCE", "Reference Image") == "Reference Image"
+            and "REFERENCE IMAGE INPUT" in connected
+            and kwargs.get("REFERENCE IMAGE INPUT") is None
+        ):
+            requested.append("REFERENCE IMAGE INPUT")
         if kwargs.get("LOG") is None:
             requested.append("LOG")
         return requested
@@ -140,7 +158,7 @@ class CMKZITControlNetPreparePipe:
         enabled = bool(kwargs.get("ENABLE", False))
         if not PROCESS.get("family_active", True):
             blocked = ExecutionBlocker(None)
-            return (PROCESS, blocked, blocked, blocked)
+            return (PROCESS, blocked, blocked, kwargs.get("VISUAL"), blocked, blocked)
 
         process = dict(PROCESS)
         if not enabled:
@@ -158,17 +176,22 @@ class CMKZITControlNetPreparePipe:
                     process,
                     kwargs.get("IMAGE"),
                     kwargs.get("LOG"),
+                    kwargs.get("VISUAL"),
+                    blocked,
                     blocked,
                 ),
             }
 
         image_source = str(kwargs.get("IMAGE SOURCE", "Reference Image"))
-        reference_image = str(kwargs.get("REFERENCE IMAGE", ""))
-        image = (
-            kwargs.get("IMAGE")
-            if image_source == "Base Image"
-            else _load_image_from_input(reference_image)
+        reference_image = str(
+            kwargs.get("REFERENCE IMAGE NAME") or kwargs.get("REFERENCE IMAGE", "")
         )
+        if image_source == "Base Image":
+            image = kwargs.get("IMAGE")
+        else:
+            image = kwargs.get("REFERENCE IMAGE INPUT")
+            if image is None:
+                image = _load_image_from_input(reference_image)
         if image is None:
             raise ValueError(
                 "CMK ZIT ControlNet requires a valid base or reference image when enabled."
@@ -236,5 +259,12 @@ class CMKZITControlNetPreparePipe:
         )
         return {
             "ui": {"images": _tensor_image_to_temp_ui(image, "cmk_zit_controlnet")},
-            "result": (process, kwargs.get("IMAGE"), log, diagnostic),
+            "result": (
+                process,
+                kwargs.get("IMAGE"),
+                log,
+                kwargs.get("VISUAL"),
+                diagnostic,
+                image,
+            ),
         }

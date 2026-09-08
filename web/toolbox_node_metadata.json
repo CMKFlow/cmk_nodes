@@ -93,78 +93,103 @@
       "previews": [{ "src": "assets/toolbox/video-compare.png", "label": "Node" }]
     },
     "CMKCheckpointVAELoader": {
+      "description": "Lädt ein SDXL-Checkpoint samt CLIP und VAE für eigenständige Workflows außerhalb des kanonischen CMK-Pipe-Flows.",
       "previews": [{ "src": "assets/toolbox/checkpoint-vae-loader.png", "label": "Node" }]
     },
     "CMKControlNetPrepare": {
+      "description": "Lädt ein ControlNet-Modell, bereitet das Führungsbild vor und erzeugt das Conditioning für einen eigenständigen ControlNet-Schritt.",
       "previews": [{ "src": "assets/toolbox/controlnet-prepare.png", "label": "Node" }]
     },
     "CMK_EmptyImageMask": {
+      "description": "Erzeugt ein leeres Bild und eine passende Maske in frei wählbarer Größe als Ausgangspunkt für Bild- und Maskenworkflows.",
       "previews": [{ "src": "assets/toolbox/empty-image-mask.png", "label": "Node" }]
     },
     "CMKFaceCrop": {
+      "description": "Schneidet erkannte Gesichtsbereiche aus einem Bild aus und gibt sie für gezielte Weiterverarbeitung separat aus.",
       "previews": [{ "src": "assets/toolbox/face-crop.png", "label": "Node" }]
     },
     "CMKFaceMask": {
+      "description": "Erzeugt aus erkannten Gesichtsbereichen eine Maske für lokale Gesichtsverarbeitung und Pasteback.",
       "previews": [{ "src": "assets/toolbox/face-mask.png", "label": "Node" }]
     },
     "CMKFaceRestore": {
+      "description": "Stellt erkannte Gesichter mit dem gewählten Wiederherstellungsmodell wieder her und führt sie in das Bild zurück.",
       "previews": [{ "src": "assets/toolbox/face-restore.png", "label": "Node" }]
     },
     "CMKFaceSelect": {
+      "description": "Wählt aus erkannten Gesichtern die gewünschten Zielpersonen anhand ihrer Position beziehungsweise Reihenfolge aus.",
       "previews": [{ "src": "assets/toolbox/face-select.png", "label": "Node" }]
     },
     "CMK_FaceProcess": {
+      "description": "Bündelt Auswahl, Maskierung und Wiederherstellung erkannter Gesichter zu einem eigenständigen FaceProcess-Schritt.",
       "previews": [{ "src": "assets/toolbox/face-process.png", "label": "Node" }]
     },
     "CMKFaceSwapImage": {
+      "description": "Überträgt die Identität eines Quellgesichts auf ausgewählte Gesichter in einem einzelnen Zielbild.",
       "previews": [{ "src": "assets/toolbox/faceswap-image.png", "label": "Node" }]
     },
     "CMKFaceSwapVideo": {
+      "description": "Überträgt die Identität eines Quellgesichts auf ausgewählte Gesichter einer Video-Bildfolge.",
       "previews": [{ "src": "assets/toolbox/faceswap-video.png", "label": "Node" }]
     },
     "CMKFaceSwapVideoLoader": {
+      "description": "Lädt ein Video als Bildfolge und stellt die für den eigenständigen FaceSwap-Video-Workflow benötigten Videodaten bereit.",
       "previews": [{ "src": "assets/toolbox/faceswap-video-loader.png", "label": "Node" }]
     },
     "CMK_FilenameBase": {
+      "description": "Bildet aus Projekt- und Dateiangaben einen konsistenten Basisnamen für nachfolgende Speicher-Nodes.",
       "previews": [{ "src": "assets/toolbox/filename-base.png", "label": "Node" }]
     },
     "CMK_ImageMaskSwitch": {
+      "description": "Schaltet Bild und Maske gemeinsam zwischen zwei Eingangswegen um und hält beide Datenströme synchron.",
       "previews": [{ "src": "assets/toolbox/image-mask-switch.png", "label": "Node" }]
     },
     "CMKLoRAStackBuilder": {
+      "description": "Baut aus mehreren auswählbaren LoRAs einen Stack mit getrennten Modell- und CLIP-Stärken auf.",
       "previews": [{ "src": "assets/toolbox/lora-stack-builder.png", "label": "Node" }]
     },
     "CMKLoRATextLoader": {
+      "description": "Liest eine textbasierte LoRA-Liste ein und stellt sie für den Aufbau eines LoRA-Stacks bereit.",
       "previews": [{ "src": "assets/toolbox/lora-text-loader.png", "label": "Node" }]
     },
     "CMKMergeAndSaveVideo": {
+      "description": "Fügt verarbeitete Videosegmente wieder zusammen und speichert das fertige Video mit den gewählten Ausgabeparametern.",
       "previews": [{ "src": "assets/toolbox/merge-save-video.png", "label": "Node" }]
     },
     "CMKStringDual": {
+      "description": "Stellt zwei getrennte Textwerte bereit, typischerweise als positiver und negativer Prompt für eigenständige Workflows.",
       "previews": [{ "src": "assets/toolbox/positive-negative-text.png", "label": "Node" }]
     },
     "CMK_SEGSConcate": {
+      "description": "Führt mehrere erkannte Bildbereichs-Sammlungen zu einer gemeinsamen SEGS-Struktur für die weitere Detailbearbeitung zusammen.",
       "previews": [{ "src": "assets/toolbox/segs-concat.png", "label": "Node" }]
     },
     "CMK_SaveProjectText": {
+      "description": "Speichert Textinhalte projektbezogen unter einem konsistent aufgebauten Dateinamen.",
       "previews": [{ "src": "assets/toolbox/save-project-text.png", "label": "Node" }]
     },
     "CMK_SaveProjectVideo": {
+      "description": "Speichert ein Video projektbezogen mit einheitlicher Benennung und den verfügbaren Metadaten.",
       "previews": [{ "src": "assets/toolbox/save-project-video.png", "label": "Node" }]
     },
     "CMK_SmartDetailer": {
+      "description": "Erkennt ausgewählte Bildbereiche und verbessert sie mit konfigurierbarem Inpaint-Sampling und maskierter Rückführung.",
       "previews": [{ "src": "assets/toolbox/smart-detailer.png", "label": "Node" }]
     },
     "CMK_SmartOutpaintPad": {
+      "description": "Erweitert die Arbeitsfläche eines Bildes und erzeugt zugleich die passende Maske für anschließendes Outpainting.",
       "previews": [{ "src": "assets/toolbox/smart-outpaint-pad.png", "label": "Node" }]
     },
     "CMK_SmartUpscaler": {
+      "description": "Skaliert Bilder mit wählbarem Upscale-Modell und kontrollierter Zielgröße für die finale Ausgabe.",
       "previews": [{ "src": "assets/toolbox/smart-upscaler.png", "label": "Node" }]
     },
     "CMK_SourcePathInfo": {
+      "description": "Zerlegt einen Quellpfad in wiederverwendbare Verzeichnis-, Datei- und Namensbestandteile.",
       "previews": [{ "src": "assets/toolbox/source-path-info.png", "label": "Node" }]
     },
     "CMKSplitVideoIntoSegments": {
+      "description": "Teilt ein Video anhand der gewählten Segmentierung in separat verarbeitbare Abschnitte und Bildfolgen auf.",
       "previews": [{ "src": "assets/toolbox/split-video-segments.png", "label": "Node" }]
     }
   }

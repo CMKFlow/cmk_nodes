@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .cmk_log_pipe import cmk_add_block, cmk_clean_text
+from .cmk_visual import normalize_visual
 from ..utils.cmk_diagnostic import make_diagnostic_payload
 
 
@@ -75,10 +76,16 @@ class CMKRegionalConditioningSDXL:
                 prefix + "area_prompt": ("STRING", {"default": "", "multiline": True}),
                 prefix + "strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0, "step": 0.05}),
             })
-        return {"required": required}
+        return {
+            "required": required,
+            "optional": {"VISUAL": ("CMK_VISUAL_PIPE",)},
+        }
 
-    RETURN_TYPES = ("CMK_PROCESS_SDXL", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
-    RETURN_NAMES = ("PROCESS", "IMAGE", "LOG", "diagnostic")
+    RETURN_TYPES = (
+        "CMK_PROCESS_SDXL", "IMAGE", "CMK_LOG_PIPE", "CMK_VISUAL_PIPE",
+        "CMK_DIAGNOSTIC",
+    )
+    RETURN_NAMES = ("PROCESS", "IMAGE", "LOG", "VISUAL", "diagnostic")
     FUNCTION = "configure"
     CATEGORY = "CMK/Flow/Conditioning"
     DESCRIPTION = "Adds up to three spatial prompt regions to the SDXL process before ControlNet and sampling."
@@ -130,6 +137,7 @@ class CMKRegionalConditioningSDXL:
                 f"x={region['x']:.2f} y={region['y']:.2f} w={region['width']:.2f} h={region['height']:.2f} | "
                 f"strength={region['strength']:.2f} end={region['end']:.2f}"
             )
+            lines.append(f"REGION {index} PROMPT: {region['prompt']}")
         log = cmk_add_block(LOG, "Regional Conditioning SDXL", 20, lines, True)
         diagnostic = make_diagnostic_payload(
             title="Regional Conditioning SDXL",
@@ -140,4 +148,4 @@ class CMKRegionalConditioningSDXL:
             mode="regional conditioning",
             metadata={"active_regions": len(added), "total_regions": len(regions)},
         )
-        return process, IMAGE, log, diagnostic
+        return process, IMAGE, log, normalize_visual(kwargs.get("VISUAL")), diagnostic

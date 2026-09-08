@@ -1,0 +1,28 @@
+{
+  "published": true,
+  "order": 6,
+  "displayName": "Flow #06 - CMK Text2Image ControlNet SDXL",
+  "category": "Geführte Bilderzeugung",
+  "category_en": "Guided Generation",
+  "description": "Erzeugt ein SDXL-Bild mit optionaler struktureller Führung durch ControlNet.",
+  "description_en": "Generates an SDXL image with optional structural guidance from ControlNet.",
+  "cmkHighlight": "Erweitert den SDXL-Grundpfad um den passenden ControlNet-Zweig.",
+  "cmkHighlight_en": "Extends the SDXL base path with its matching ControlNet branch.",
+  "previews": [
+    {
+      "src": "assets/showcase/Flow #06 - CMK Text2Image ControlNet SDXL - Ansicht 1.png",
+      "label": "Ansicht 1",
+      "label_en": "View 1"
+    },
+    {
+      "src": "assets/showcase/Flow #06 - CMK Text2Image ControlNet SDXL  - Ansicht 2.png",
+      "label": "Ansicht 2",
+      "label_en": "View 2"
+    },
+    {
+      "src": "assets/showcase/Flow #06 - CMK Text2Image ControlNet SDXL  - Ansicht 3.png",
+      "label": "Ansicht 3",
+      "label_en": "View 3"
+    }
+  ]
+}

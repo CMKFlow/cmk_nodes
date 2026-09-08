@@ -9,6 +9,14 @@ ASSETS = ROOT / "assets" / "references"
 
 
 class PackagedReferenceManifestTests(unittest.TestCase):
+    def test_loader_preview_is_driven_by_the_executed_input(self):
+        source = (ROOT / "pipe" / "loaders" / "cmk_load_image.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('"ui": {"images": [self._preview_descriptor(filename_string)]}', source)
+        self.assertIn('"result": (pipe, loaded_image, loaded_mask, filename_string, log_pipe)', source)
+        self.assertIn("folder_paths.annotated_filepath(value)", source)
+
     def test_manifest_hashes_match_packaged_files(self):
         manifest = json.loads((ASSETS / "manifest.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["schema"], "cmk.reference-assets.v1")

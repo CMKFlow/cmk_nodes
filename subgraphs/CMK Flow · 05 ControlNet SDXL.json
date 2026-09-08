@@ -1,18 +1,18 @@
 {
   "revision": 0,
-  "last_node_id": 5,
+  "last_node_id": "7532",
   "last_link_id": 0,
   "nodes": [
     {
-      "id": 5,
-      "type": "71e10df1-5e35-4a73-a855-c75cce522005",
+      "id": 7532,
+      "type": "4946b1c1-614a-4d6c-9dc8-114d804e457f",
       "pos": [
-        8544,
-        -629
+        13530,
+        -2080
       ],
       "size": [
         450,
-        210
+        230
       ],
       "flags": {},
       "order": 0,
@@ -31,11 +31,13 @@
         },
         {
           "name": "LOG",
+          "shape": 7,
           "type": "CMK_LOG_PIPE",
           "link": null
         },
         {
           "name": "VISUAL",
+          "shape": 7,
           "type": "CMK_VISUAL_PIPE",
           "link": null
         },
@@ -52,14 +54,6 @@
           "type": "COMBO",
           "widget": {
             "name": "image"
-          },
-          "link": null
-        },
-        {
-          "name": "upload",
-          "type": "IMAGEUPLOAD",
-          "widget": {
-            "name": "upload"
           },
           "link": null
         }
@@ -91,21 +85,12 @@
           "links": null
         }
       ],
-      "title": "CMK Flow · 05 ControlNet SDXL",
       "properties": {
-        "proxyWidgets": [
-          [
-            "1",
-            "ENABLE"
-          ],
-          [
-            "1501",
-            "image"
-          ]
-        ],
+        "comparer_mode": "Click",
+        "default_output": "b",
         "cmkOuterSize": [
           450,
-          210
+          230
         ],
         "cmkVisualProviders": [
           {
@@ -121,12 +106,35 @@
               "live": false
             }
           }
-        ]
+        ],
+        "cmkManualSize": [
+          450,
+          230
+        ],
+        "proxyWidgetErrorQuarantine": [
+          {
+            "originalEntry": [
+              "1501",
+              "image"
+            ],
+            "reason": "missingSourceNode",
+            "attemptedAtVersion": 1
+          }
+        ],
+        "previewExposures": []
       },
-      "widgets_values": [],
-      "shape": 1,
+      "widgets_values": [
+        true,
+        "CMK Package · controlnet_reference.png"
+      ],
+      "widgets_values_named": {
+        "ENABLE": true,
+        "image": "CMK Package · controlnet_reference.png"
+      },
       "color": "#334155",
-      "bgcolor": "#1f2937"
+      "bgcolor": "#1f2937",
+      "shape": 1,
+      "title": "CMK Flow · 05 ControlNet SDXL"
     }
   ],
   "links": [],
@@ -134,12 +142,12 @@
   "definitions": {
     "subgraphs": [
       {
-        "id": "71e10df1-5e35-4a73-a855-c75cce522005",
+        "id": "4946b1c1-614a-4d6c-9dc8-114d804e457f",
         "version": 1,
         "state": {
           "lastGroupId": 130,
-          "lastNodeId": 7333,
-          "lastLinkId": 20099,
+          "lastNodeId": 7548,
+          "lastLinkId": 20577,
           "lastRerouteId": 1
         },
         "revision": 0,
@@ -157,8 +165,8 @@
         "outputNode": {
           "id": -20,
           "bounding": [
-            9850,
-            -280,
+            9870,
+            820,
             128,
             148
           ]
@@ -169,7 +177,8 @@
             "name": "PROCESS",
             "type": "CMK_PROCESS_SDXL",
             "linkIds": [
-              1
+              1,
+              20048
             ],
             "label": "PROCESS SDXL",
             "pos": [
@@ -182,7 +191,8 @@
             "name": "IMAGE",
             "type": "IMAGE",
             "linkIds": [
-              2
+              2,
+              20049
             ],
             "pos": [
               8284.234375,
@@ -194,7 +204,8 @@
             "name": "LOG",
             "type": "CMK_LOG_PIPE",
             "linkIds": [
-              3
+              3,
+              20050
             ],
             "pos": [
               8284.234375,
@@ -218,7 +229,9 @@
             "name": "ENABLE",
             "type": "BOOLEAN",
             "linkIds": [
-              20044
+              20044,
+              20046,
+              20047
             ],
             "pos": [
               8284.234375,
@@ -244,11 +257,11 @@
             "name": "PROCESS",
             "type": "CMK_PROCESS_SDXL",
             "linkIds": [
-              5
+              20055
             ],
             "pos": [
-              9874,
-              -256
+              9894,
+              844
             ]
           },
           {
@@ -256,11 +269,11 @@
             "name": "IMAGE",
             "type": "IMAGE",
             "linkIds": [
-              6
+              20056
             ],
             "pos": [
-              9874,
-              -236
+              9894,
+              864
             ]
           },
           {
@@ -268,11 +281,11 @@
             "name": "LOG",
             "type": "CMK_LOG_PIPE",
             "linkIds": [
-              7
+              20057
             ],
             "pos": [
-              9874,
-              -216
+              9894,
+              884
             ]
           },
           {
@@ -283,8 +296,8 @@
               8
             ],
             "pos": [
-              9874,
-              -196
+              9894,
+              904
             ]
           },
           {
@@ -292,11 +305,11 @@
             "name": "diagnostic",
             "type": "CMK_DIAGNOSTIC",
             "linkIds": [
-              9
+              20058
             ],
             "pos": [
-              9874,
-              -176
+              9894,
+              924
             ]
           }
         ],
@@ -562,7 +575,7 @@
                 "name": "PROCESS",
                 "type": "CMK_PROCESS_SDXL",
                 "links": [
-                  5
+                  20051
                 ]
               },
               {
@@ -570,7 +583,7 @@
                 "name": "IMAGE",
                 "type": "IMAGE",
                 "links": [
-                  6
+                  20052
                 ]
               },
               {
@@ -578,7 +591,7 @@
                 "name": "LOG",
                 "type": "CMK_LOG_PIPE",
                 "links": [
-                  7
+                  20053
                 ]
               },
               {
@@ -586,7 +599,7 @@
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  9
+                  20054
                 ]
               },
               {
@@ -646,10 +659,10 @@
             "type": "CMKVisualProvider",
             "pos": [
               9610,
-              -180
+              910
             ],
             "size": [
-              225,
+              230,
               0
             ],
             "flags": {
@@ -659,17 +672,18 @@
             "mode": 0,
             "inputs": [
               {
-                "localized_name": "IMAGE",
-                "name": "IMAGE",
-                "type": "IMAGE",
-                "link": 10
-              },
-              {
                 "localized_name": "VISUAL",
                 "name": "VISUAL",
                 "shape": 7,
                 "type": "CMK_VISUAL_PIPE",
                 "link": 4
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 10
               },
               {
                 "localized_name": "SOURCE",
@@ -691,6 +705,13 @@
                 "shape": 7,
                 "type": "IMAGE",
                 "link": null
+              },
+              {
+                "localized_name": "enable",
+                "name": "enable",
+                "shape": 7,
+                "type": "BOOLEAN",
+                "link": 20047
               },
               {
                 "localized_name": "label",
@@ -769,6 +790,127 @@
               "stage_key": "sdxl.controlnet"
             },
             "shape": 1
+          },
+          {
+            "id": 7311,
+            "type": "CMKControlNetBypassGate",
+            "pos": [
+              9610,
+              940
+            ],
+            "size": [
+              230,
+              0
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 3,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "PROCESS BYPASS",
+                "name": "PROCESS BYPASS",
+                "shape": 7,
+                "type": "CMK_PROCESS_SDXL",
+                "link": 20048
+              },
+              {
+                "localized_name": "IMAGE BYPASS",
+                "name": "IMAGE BYPASS",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 20049
+              },
+              {
+                "localized_name": "LOG BYPASS",
+                "name": "LOG BYPASS",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 20050
+              },
+              {
+                "localized_name": "PROCESS ACTIVE",
+                "name": "PROCESS ACTIVE",
+                "shape": 7,
+                "type": "CMK_PROCESS_SDXL",
+                "link": 20051
+              },
+              {
+                "localized_name": "IMAGE ACTIVE",
+                "name": "IMAGE ACTIVE",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 20052
+              },
+              {
+                "localized_name": "LOG ACTIVE",
+                "name": "LOG ACTIVE",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 20053
+              },
+              {
+                "localized_name": "DIAGNOSTIC ACTIVE",
+                "name": "DIAGNOSTIC ACTIVE",
+                "shape": 7,
+                "type": "CMK_DIAGNOSTIC",
+                "link": 20054
+              },
+              {
+                "localized_name": "ENABLE",
+                "name": "ENABLE",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "ENABLE"
+                },
+                "link": 20046
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "CMK_PROCESS_SDXL",
+                "links": [
+                  20055
+                ]
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  20056
+                ]
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "links": [
+                  20057
+                ]
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  20058
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKControlNetBypassGate"
+            },
+            "widgets_values": [
+              false
+            ],
+            "widgets_values_named": {
+              "ENABLE": false
+            },
+            "shape": 1
           }
         ],
         "groups": [
@@ -819,44 +961,12 @@
             "type": "CMK_VISUAL_PIPE"
           },
           {
-            "id": 5,
-            "origin_id": 1,
-            "origin_slot": 0,
-            "target_id": -20,
-            "target_slot": 0,
-            "type": "CMK_PROCESS_SDXL"
-          },
-          {
-            "id": 6,
-            "origin_id": 1,
-            "origin_slot": 1,
-            "target_id": -20,
-            "target_slot": 1,
-            "type": "IMAGE"
-          },
-          {
-            "id": 7,
-            "origin_id": 1,
-            "origin_slot": 2,
-            "target_id": -20,
-            "target_slot": 2,
-            "type": "CMK_LOG_PIPE"
-          },
-          {
             "id": 8,
             "origin_id": 7310,
             "origin_slot": 0,
             "target_id": -20,
             "target_slot": 3,
             "type": "CMK_VISUAL_PIPE"
-          },
-          {
-            "id": 9,
-            "origin_id": 1,
-            "origin_slot": 3,
-            "target_id": -20,
-            "target_slot": 4,
-            "type": "CMK_DIAGNOSTIC"
           },
           {
             "id": 10,
@@ -897,6 +1007,110 @@
             "target_id": 7309,
             "target_slot": 1,
             "type": "COMBO"
+          },
+          {
+            "id": 20046,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 7311,
+            "target_slot": 0,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 20047,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 7310,
+            "target_slot": 10,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 20048,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 7311,
+            "target_slot": 1,
+            "type": "CMK_PROCESS_SDXL"
+          },
+          {
+            "id": 20049,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 7311,
+            "target_slot": 2,
+            "type": "IMAGE"
+          },
+          {
+            "id": 20050,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 7311,
+            "target_slot": 3,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 20051,
+            "origin_id": 1,
+            "origin_slot": 0,
+            "target_id": 7311,
+            "target_slot": 4,
+            "type": "CMK_PROCESS_SDXL"
+          },
+          {
+            "id": 20052,
+            "origin_id": 1,
+            "origin_slot": 1,
+            "target_id": 7311,
+            "target_slot": 5,
+            "type": "IMAGE"
+          },
+          {
+            "id": 20053,
+            "origin_id": 1,
+            "origin_slot": 2,
+            "target_id": 7311,
+            "target_slot": 6,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 20054,
+            "origin_id": 1,
+            "origin_slot": 3,
+            "target_id": 7311,
+            "target_slot": 7,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 20055,
+            "origin_id": 7311,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 0,
+            "type": "CMK_PROCESS_SDXL"
+          },
+          {
+            "id": 20056,
+            "origin_id": 7311,
+            "origin_slot": 1,
+            "target_id": -20,
+            "target_slot": 1,
+            "type": "IMAGE"
+          },
+          {
+            "id": 20057,
+            "origin_id": 7311,
+            "origin_slot": 2,
+            "target_id": -20,
+            "target_slot": 2,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 20058,
+            "origin_id": 7311,
+            "origin_slot": 3,
+            "target_id": -20,
+            "target_slot": 4,
+            "type": "CMK_DIAGNOSTIC"
           }
         ],
         "extra": {}
@@ -917,12 +1131,13 @@
         "guidance",
         "reference"
       ],
-      "displayName": "05 ControlNet SDXL",
+      "displayName": "05 ControlNet",
+      "variantLabel": "SDXL",
       "domain": "Image Guidance",
       "compatibility": [
         "SDXL"
       ],
-      "version": "1.0.0",
+      "version": "1.0.1",
       "author": "CMK Nodes",
       "features": [
         "ControlNet im SDXL-Zweig optional aktivieren",
@@ -939,8 +1154,12 @@
       "placementNote": "Optional im SDXL-Zweig zwischen Modul 01 und Modul 10 platzieren; Modul 35 ist für einen einzelnen Zweig nicht erforderlich.",
       "previews": [
         {
-          "src": "assets/previews/CMK Flow · 05 ControlNet SDXL.png",
+          "src": "assets/previews/CMK Flow · 05 ControlNet SDXL - Modul.png",
           "label": "Modul"
+        },
+        {
+          "src": "assets/previews/CMK Flow · 05 ControlNet SDXL - Aufbau.png",
+          "label": "Aufbau"
         }
       ],
       "previewAlt": "05 ControlNet SDXL Vorschau"

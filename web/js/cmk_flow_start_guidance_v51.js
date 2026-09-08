@@ -1,7 +1,7 @@
 import { app } from "../../../scripts/app.js";
 
 const NODE_CLASS = "CMKPipeCreateImage";
-const BASE_NODE_HEIGHT = 1060;
+const BASE_NODE_HEIGHT = 960;
 const RUNAWAY_NODE_HEIGHT = 1600;
 const PROMPT_POS_HEIGHT = 383;
 const PROMPT_NEG_HEIGHT = 121;
@@ -412,8 +412,10 @@ function resolutionToken(value, fallback = "") {
     return String(value ?? fallback).trim().split(/\s+/).at(-1);
 }
 
-function familyResolutionValues(family) {
-    return family === "Z-Image Turbo" ? ZIT_IMAGE_SIZES : NEUTRAL_IMAGE_SIZES;
+function familyResolutionValues(family, inpaint = false) {
+    return family === "Z-Image Turbo" && !inpaint
+        ? ZIT_IMAGE_SIZES
+        : NEUTRAL_IMAGE_SIZES;
 }
 
 function rememberFamilyResolution(node, family) {
@@ -429,7 +431,7 @@ function rememberFamilyResolution(node, family) {
 function restoreFamilyResolution(node, family) {
     const resolution = getWidget(node, "resolution");
     if (!resolution) return;
-    const values = familyResolutionValues(family);
+    const values = familyResolutionValues(family, family === "Z-Image Turbo" && isInpaintMode(node));
     node._cmkResolutionByFamily ??= {};
     const remembered = node._cmkResolutionByFamily[family];
     resolution.value = values.includes(remembered)
@@ -453,6 +455,13 @@ function rebuildModeWidgets(node, force = false) {
     state.rebuilding = true;
     try {
         const resolution = state.widgetsByName.get("resolution");
+        const resolutionValues = familyResolutionValues(
+            isZImage(node) ? "Z-Image Turbo" : "SDXL",
+            mode === "z-image-inpaint",
+        );
+        if (resolution) {
+            resolution.options = { ...(resolution.options ?? {}), values: resolutionValues };
+        }
         const enteringZitInpaint = mode === "z-image-inpaint"
             && state.visibleMode !== null
             && state.visibleMode !== mode;
@@ -621,7 +630,7 @@ function configure(node) {
     const resolution = getWidget(node, "resolution");
     if (resolution) {
         const family = isZImage(node) ? "Z-Image Turbo" : "SDXL";
-        const values = familyResolutionValues(family);
+        const values = familyResolutionValues(family, family === "Z-Image Turbo" && isInpaintMode(node));
         const sizeToken = resolutionToken(
             resolution.value,
             FAMILY_DEFAULT_IMAGE_SIZE[family],

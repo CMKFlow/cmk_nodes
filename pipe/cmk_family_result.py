@@ -25,6 +25,30 @@ class _CMKAnyType(str):
 CMK_FINISH_INPUT = _CMKAnyType("*")
 
 
+def _module_gate_diagnostic(value):
+    """Keep diagnostics auxiliary when a lazy producer did not materialize them."""
+    if value is not None:
+        return value
+    return {
+        "type": "CMK_DIAGNOSTIC",
+        "version": 1,
+        "title": "Module Result",
+        "node": "CMK Module Bypass Gate",
+        "mode": "Active / Diagnostic unavailable",
+        "summary": "Active module result materialized without a diagnostic payload.",
+        "details": (
+            "MODEL, IMAGE and LOG were forwarded normally. The optional diagnostic "
+            "output was not materialized by the lazy upstream path."
+        ),
+        "metadata": {"diagnostic_fallback": True},
+        "metrics": {},
+        "warnings": [],
+        "preview": [],
+        "images": [],
+        "stages": [],
+    }
+
+
 class CMKImageCompareEnableGate:
     """Prevent embedded ImageCompare UI output while a module is disabled."""
 
@@ -61,6 +85,239 @@ class CMKImageCompareEnableGate:
         if inputs.get("IMAGE A") is None or inputs.get("IMAGE B") is None:
             raise ValueError("CMK Image Compare Enable Gate requires both images when enabled")
         return inputs["IMAGE A"], inputs["IMAGE B"]
+
+
+class CMKModuleBypassGate:
+    """Select a complete module result without evaluating the inactive path."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"ENABLE": ("BOOLEAN", {"default": False})},
+            "optional": {
+                "MODEL BYPASS": (CMK_FINISH_INPUT, {"lazy": True}),
+                "IMAGE BYPASS": (CMK_FINISH_INPUT, {"lazy": True}),
+                "LOG BYPASS": (CMK_FINISH_INPUT, {"lazy": True}),
+                "MODEL ACTIVE": (CMK_FINISH_INPUT, {"lazy": True}),
+                "IMAGE ACTIVE": (CMK_FINISH_INPUT, {"lazy": True}),
+                "LOG ACTIVE": (CMK_FINISH_INPUT, {"lazy": True}),
+                "DIAGNOSTIC ACTIVE": ("CMK_DIAGNOSTIC", {"lazy": True}),
+            },
+            "hidden": {"prompt": "PROMPT", "unique_id": "UNIQUE_ID"},
+        }
+
+    RETURN_TYPES = ("CMK_MODEL_PIPE", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
+    RETURN_NAMES = ("MODEL", "IMAGE", "LOG", "diagnostic")
+    FUNCTION = "gate"
+    CATEGORY = "CMK/Developer/Boundary & Cache"
+    DEV_ONLY = True
+
+    def check_lazy_status(self, ENABLE=False, prompt=None, unique_id=None, **inputs):
+        prefix = "ACTIVE" if bool(ENABLE) else "BYPASS"
+        current = prompt.get(str(unique_id), {}) if isinstance(prompt, dict) else {}
+        connected = (current.get("inputs", {}) or {})
+        for name in (f"MODEL {prefix}", f"IMAGE {prefix}", f"LOG {prefix}"):
+            if name in connected and inputs.get(name) is None:
+                return [name]
+        if bool(ENABLE) and "DIAGNOSTIC ACTIVE" in connected and inputs.get("DIAGNOSTIC ACTIVE") is None:
+            return ["DIAGNOSTIC ACTIVE"]
+        return []
+
+    @staticmethod
+    def gate(ENABLE=False, **inputs):
+        prefix = "ACTIVE" if bool(ENABLE) else "BYPASS"
+        values = tuple(inputs.get(f"{name} {prefix}") for name in ("MODEL", "IMAGE", "LOG"))
+        if values[1] is None or values[2] is None:
+            raise ValueError(f"CMK Module Bypass Gate is missing the {prefix} result")
+        diagnostic = (
+            _module_gate_diagnostic(inputs.get("DIAGNOSTIC ACTIVE"))
+            if bool(ENABLE)
+            else ExecutionBlocker(None)
+        )
+        return (*values, diagnostic)
+
+
+class CMKControlNetBypassGate:
+    """Select ControlNet output or its unchanged SDXL input lazily."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"ENABLE": ("BOOLEAN", {"default": False})},
+            "optional": {
+                "PROCESS BYPASS": ("CMK_PROCESS_SDXL", {"lazy": True}),
+                "IMAGE BYPASS": ("IMAGE", {"lazy": True}),
+                "LOG BYPASS": ("CMK_LOG_PIPE", {"lazy": True}),
+                "PROCESS ACTIVE": ("CMK_PROCESS_SDXL", {"lazy": True}),
+                "IMAGE ACTIVE": ("IMAGE", {"lazy": True}),
+                "LOG ACTIVE": ("CMK_LOG_PIPE", {"lazy": True}),
+                "DIAGNOSTIC ACTIVE": ("CMK_DIAGNOSTIC", {"lazy": True}),
+            },
+        }
+
+    RETURN_TYPES = ("CMK_PROCESS_SDXL", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
+    RETURN_NAMES = ("PROCESS", "IMAGE", "LOG", "diagnostic")
+    FUNCTION = "gate"
+    CATEGORY = "CMK/Developer/Boundary & Cache"
+    DEV_ONLY = True
+
+    def check_lazy_status(self, ENABLE=False, **inputs):
+        prefix = "ACTIVE" if bool(ENABLE) else "BYPASS"
+        # IMAGE may legitimately be None for Text2Image.  PROCESS and LOG are
+        # the authoritative evidence that the selected branch was evaluated.
+        for name in (f"PROCESS {prefix}", f"LOG {prefix}"):
+            if inputs.get(name) is None:
+                return [name]
+        if bool(ENABLE) and inputs.get("DIAGNOSTIC ACTIVE") is None:
+            return ["DIAGNOSTIC ACTIVE"]
+        return []
+
+    @staticmethod
+    def gate(ENABLE=False, **inputs):
+        prefix = "ACTIVE" if bool(ENABLE) else "BYPASS"
+        values = tuple(inputs.get(f"{name} {prefix}") for name in ("PROCESS", "IMAGE", "LOG"))
+        if values[0] is None or values[2] is None:
+            raise ValueError(f"CMK ControlNet Bypass Gate is missing the {prefix} result")
+        diagnostic = inputs.get("DIAGNOSTIC ACTIVE") if bool(ENABLE) else ExecutionBlocker(None)
+        if bool(ENABLE) and diagnostic is None:
+            raise ValueError("CMK ControlNet Bypass Gate is missing the active diagnostic")
+        return (*values, diagnostic)
+
+
+class CMKZITControlNetBypassGate(CMKControlNetBypassGate):
+    """ZIT-typed counterpart of the established ControlNet bypass gate."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        contract = super().INPUT_TYPES()
+        for name in ("PROCESS BYPASS", "PROCESS ACTIVE"):
+            contract["optional"][name] = ("CMK_PROCESS_Z_IMAGE", {"lazy": True})
+        return contract
+
+    RETURN_TYPES = ("CMK_PROCESS_Z_IMAGE", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
+
+
+class CMKCombinedControlNetBypassGate:
+    """Select the active Combined ControlNet result lazily."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"ENABLE": ("BOOLEAN", {"default": False})},
+            "optional": {
+                "PROCESS SDXL BYPASS": ("CMK_PROCESS_SDXL", {"lazy": True}),
+                "PROCESS ZIT BYPASS": ("CMK_PROCESS_Z_IMAGE", {"lazy": True}),
+                "IMAGE BYPASS": ("IMAGE", {"lazy": True}),
+                "LOG BYPASS": ("CMK_LOG_PIPE", {"lazy": True}),
+                "PROCESS SDXL ACTIVE": ("CMK_PROCESS_SDXL", {"lazy": True}),
+                "PROCESS ZIT ACTIVE": ("CMK_PROCESS_Z_IMAGE", {"lazy": True}),
+                "IMAGE ACTIVE": ("IMAGE", {"lazy": True}),
+                "LOG ACTIVE": ("CMK_LOG_PIPE", {"lazy": True}),
+                "DIAGNOSTIC ACTIVE": ("CMK_DIAGNOSTIC", {"lazy": True}),
+            },
+        }
+
+    RETURN_TYPES = (
+        "CMK_PROCESS_SDXL", "CMK_PROCESS_Z_IMAGE", "IMAGE",
+        "CMK_LOG_PIPE", "CMK_DIAGNOSTIC",
+    )
+    RETURN_NAMES = ("PROCESS SDXL", "PROCESS ZIT", "IMAGE", "LOG", "diagnostic")
+    FUNCTION = "gate"
+    CATEGORY = "CMK/Developer/Boundary & Cache"
+    DEV_ONLY = True
+
+    def check_lazy_status(self, ENABLE=False, **inputs):
+        suffix = "ACTIVE" if bool(ENABLE) else "BYPASS"
+        for base in ("PROCESS SDXL", "PROCESS ZIT", "LOG"):
+            name = f"{base} {suffix}"
+            if inputs.get(name) is None:
+                return [name]
+        if bool(ENABLE) and inputs.get("DIAGNOSTIC ACTIVE") is None:
+            return ["DIAGNOSTIC ACTIVE"]
+        return []
+
+    @staticmethod
+    def gate(ENABLE=False, **inputs):
+        suffix = "ACTIVE" if bool(ENABLE) else "BYPASS"
+        values = tuple(inputs.get(f"{base} {suffix}") for base in (
+            "PROCESS SDXL", "PROCESS ZIT", "IMAGE", "LOG",
+        ))
+        if values[0] is None or values[1] is None or values[3] is None:
+            raise ValueError(
+                f"CMK Combined ControlNet Bypass Gate is missing the {suffix} result"
+            )
+        diagnostic = inputs.get("DIAGNOSTIC ACTIVE") if bool(ENABLE) else ExecutionBlocker(None)
+        return (*values, diagnostic)
+
+
+class CMKSamplerBypassGate:
+    """Select an InstantID sampler result or its unchanged sampled input."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"ENABLE": ("BOOLEAN", {"default": False})},
+            "optional": {
+                "MODEL BYPASS": ("CMK_MODEL_PIPE", {"lazy": True}),
+                "SAMPLED BYPASS": ("CMK_SAMPLED_PIPE", {"lazy": True}),
+                "LOG BYPASS": ("CMK_LOG_PIPE", {"lazy": True}),
+                "MODEL ACTIVE": ("CMK_MODEL_PIPE", {"lazy": True}),
+                "SAMPLED ACTIVE": ("CMK_SAMPLED_PIPE", {"lazy": True}),
+                "LOG ACTIVE": ("CMK_LOG_PIPE", {"lazy": True}),
+                "DIAGNOSTIC ACTIVE": ("CMK_DIAGNOSTIC", {"lazy": True}),
+            },
+        }
+
+    RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_SAMPLED_PIPE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
+    RETURN_NAMES = ("MODEL", "SAMPLED", "LOG", "diagnostic")
+    FUNCTION = "gate"
+    CATEGORY = "CMK/Developer/Boundary & Cache"
+    DEV_ONLY = True
+
+    def check_lazy_status(self, ENABLE=False, **inputs):
+        prefix = "ACTIVE" if bool(ENABLE) else "BYPASS"
+        for name in (f"MODEL {prefix}", f"SAMPLED {prefix}", f"LOG {prefix}"):
+            if inputs.get(name) is None:
+                return [name]
+        if bool(ENABLE) and inputs.get("DIAGNOSTIC ACTIVE") is None:
+            return ["DIAGNOSTIC ACTIVE"]
+        return []
+
+    @staticmethod
+    def gate(ENABLE=False, **inputs):
+        prefix = "ACTIVE" if bool(ENABLE) else "BYPASS"
+        values = tuple(inputs.get(f"{name} {prefix}") for name in ("MODEL", "SAMPLED", "LOG"))
+        if any(value is None for value in values):
+            raise ValueError(f"CMK Sampler Bypass Gate is missing the {prefix} result")
+        diagnostic = inputs.get("DIAGNOSTIC ACTIVE") if bool(ENABLE) else ExecutionBlocker(None)
+        if bool(ENABLE) and diagnostic is None:
+            raise ValueError("CMK Sampler Bypass Gate is missing the active diagnostic")
+        return (*values, diagnostic)
+
+
+class CMKProcessEnableFlag:
+    """Expose a Boolean module switch already stored in PROCESS."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "PROCESS": ("CMK_PROCESS_SDXL",),
+                "flag": ("STRING", {"default": "instantid_enabled"}),
+            },
+        }
+
+    RETURN_TYPES = ("BOOLEAN",)
+    RETURN_NAMES = ("ENABLE",)
+    FUNCTION = "read"
+    CATEGORY = "CMK/Developer/Pipe/Forward"
+    DEV_ONLY = True
+
+    @staticmethod
+    def read(PROCESS, flag="instantid_enabled"):
+        if not isinstance(PROCESS, dict):
+            raise TypeError("CMK Process Enable Flag requires a PROCESS dictionary")
+        return (bool(PROCESS.get(str(flag), False)),)
 
 
 class _CMKFamilyBranchGate:
@@ -336,11 +593,14 @@ class CMKFamilyResultMergePipe:
                 "PROCESS SDXL": ("CMK_PROCESS_SDXL", {"lazy": True}),
                 "IMAGE SDXL": ("IMAGE", {"lazy": True}),
                 "LOG SDXL": ("CMK_LOG_PIPE", {"lazy": True}),
+                "VISUAL SDXL": ("CMK_VISUAL_PIPE", {"lazy": True}),
                 "MODEL ZIT": ("CMK_MODEL_PIPE", {"lazy": True}),
                 "PROCESS ZIT": ("CMK_PROCESS_Z_IMAGE", {"lazy": True}),
                 "IMAGE ZIT": ("IMAGE", {"lazy": True}),
                 "LOG ZIT": ("CMK_LOG_PIPE", {"lazy": True}),
+                "VISUAL ZIT": ("CMK_VISUAL_PIPE", {"lazy": True}),
             },
+            "hidden": {"prompt": "PROMPT", "unique_id": "UNIQUE_ID"},
         }
 
     RETURN_TYPES = (
@@ -348,10 +608,19 @@ class CMKFamilyResultMergePipe:
         "CMK_RESULT_PROCESS",
         "CMK_RESULT_IMAGE",
         "CMK_RESULT_LOG",
+        "CMK_VISUAL_PIPE",
     )
-    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG")
+    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "VISUAL")
     FUNCTION = "merge"
     CATEGORY = "CMK/Flow/Finish"
+
+    @staticmethod
+    def _pending_visual(suffix, inputs):
+        name = f"VISUAL {suffix}"
+        prompt = inputs.get("prompt") or {}
+        entry = prompt.get(str(inputs.get("unique_id")), {})
+        connected = name in (entry.get("inputs") or {}) or name in inputs
+        return [name] if connected and inputs.get(name) is None else []
 
     @cmk_timed_call("LAZY FAMILY RESULT MERGE")
     def check_lazy_status(self, **inputs):
@@ -368,7 +637,7 @@ class CMKFamilyResultMergePipe:
                 input_name = f"{name} ZIT"
                 if inputs.get(input_name) is None:
                     return [input_name]
-            return []
+            return self._pending_visual("ZIT", inputs)
         if process_sdxl is None:
             return ["PROCESS SDXL"]
         active_sdxl = isinstance(process_sdxl, dict) and process_sdxl.get("family_active", True)
@@ -378,7 +647,7 @@ class CMKFamilyResultMergePipe:
             input_name = f"{name} SDXL"
             if inputs.get(input_name) is None:
                 return [input_name]
-        return []
+        return self._pending_visual("SDXL", inputs)
 
     def merge(self, **inputs):
         process_sdxl = inputs.get("PROCESS SDXL")
@@ -414,7 +683,34 @@ class CMKFamilyResultMergePipe:
         result = dict(process)
         result["result_contract"] = "family_neutral"
         result["source_model_family"] = family
-        return (model, result, image, log)
+        visual = inputs.get(f"VISUAL {suffix}")
+        if visual is None:
+            try:
+                from .cmk_visual import empty_visual
+            except ImportError:  # Direct source loading in contract tests.
+                from pipe.cmk_visual import empty_visual
+            visual = empty_visual()
+        return (model, result, image, log, visual)
+
+
+class CMKResultProcessForwardPipe:
+    """Forward a family-neutral PROCESS without resolving image or model."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {"PROCESS": (CMK_FINISH_INPUT,)}}
+
+    RETURN_TYPES = ("CMK_RESULT_PROCESS",)
+    RETURN_NAMES = ("PROCESS",)
+    FUNCTION = "forward"
+    CATEGORY = "CMK/Developer/Pipe/Forward"
+    DEV_ONLY = True
+
+    @staticmethod
+    def forward(PROCESS):
+        if not isinstance(PROCESS, dict):
+            raise TypeError("CMK Result Process Forward requires a PROCESS dictionary")
+        return (PROCESS,)
 
 
 class CMKZImageProcessForwardPipe:

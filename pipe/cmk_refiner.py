@@ -73,7 +73,7 @@ class CMKRefinerPipe:
                 source_decoded = VAEDecode().decode(vae, latent)
             source_image = source_decoded[0] if isinstance(source_decoded, (tuple, list)) else source_decoded
         if REFINER.get("inpaint_process_mode") == "remove":
-            # Preserve the prompt-free first-pass reconstruction and composite
+            # Preserve the first-pass Remove reconstruction and composite
             # only its soft generation area over the untouched source. This
             # prevents a synthetic mask fill from surviving at the hand-drawn
             # edge while retaining the original colour outside the mask.

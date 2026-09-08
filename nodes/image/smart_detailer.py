@@ -12,7 +12,7 @@ from ...engine.native_detailer import (
 
 from ...utils.cmk_diagnostic import make_diagnostic_payload
 from ...engine.detailer_limits import clamp_detailer_denoise
-from ...utils.stable_segs import make_stable_segs
+from ...utils.stable_segs import image_signature, make_stable_segs, stable_branch_components
 from ...pipe.cmk_log_pipe import CMKLogConcat, cmk_block_to_string
 from ..utils.diagnostic_concat import CMKDiagnosticConcat
 from ...pipe.cmk_persistent_cache import (
@@ -23,7 +23,7 @@ from ...pipe.cmk_persistent_cache import (
     write_pickle_revision,
     write_status,
 )
-from ...pipe.cmk_module_cache_contract import artifact_for, build_artifact_key
+from ...pipe.cmk_module_cache_contract import artifact_for, build_artifact_key, current_artifact
 
 
 def _sampling_entry_to_denoise(value):
@@ -684,7 +684,7 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
     CATEGORY = "CMK/Developer/Pipe/Execute"
 
     _CACHE_SCOPE = "detailer_branch"
-    _CACHE_SCHEMA = "cmk_detailer_branch_v5"
+    _CACHE_SCHEMA = "cmk_detailer_branch_v6"
     _UPSTREAM_STAGE_KEY = "sdxl.refiner"
     _RESULT_STAGE_KEY = "sdxl.detailer"
 
@@ -747,9 +747,8 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
     def _cache_key(self, prompt, unique_id, detailer_pipe=None, run_settings=None):
         if isinstance(detailer_pipe, dict):
             source_pipe = detailer_pipe.get("source_pipe")
-            upstream_artifact = artifact_for(
-                source_pipe,
-                self._UPSTREAM_STAGE_KEY,
+            upstream_artifact = current_artifact(source_pipe) or artifact_for(
+                source_pipe, self._UPSTREAM_STAGE_KEY,
             )
             if upstream_artifact:
                 return (
@@ -759,14 +758,14 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
                         self._effective_settings(detailer_pipe, run_settings),
                         schema=self._CACHE_SCHEMA,
                     ),
-                    f"upstream={self._UPSTREAM_STAGE_KEY}:{upstream_artifact[:12]}",
+                    f"upstream=current:{upstream_artifact[:12]}",
                 )
         return build_node_fingerprint(
             prompt,
             unique_id,
             ("CMK_SmartDetailerPipe",),
             self._CACHE_SCHEMA,
-            exclude_inputs=("output_image_proceed",),
+            exclude_inputs=("output_image_proceed", "opt_log", "opt_diagnostic"),
             include_node_identity=True,
         )
 
@@ -776,7 +775,7 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
             unique_id,
             ("CMK_SmartDetailerPipe",),
             self._CACHE_SCHEMA,
-            exclude_inputs=("output_image_proceed",),
+            exclude_inputs=("output_image_proceed", "opt_log", "opt_diagnostic"),
             include_node_identity=True,
         )
         if dependency_key:
@@ -789,6 +788,8 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
     def check_lazy_status(
         self,
         DETAILER=None,
+        opt_log=None,
+        opt_diagnostic=None,
         prompt=None,
         unique_id=None,
         **kwargs,
@@ -796,8 +797,15 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
         # DETAILER contains the authoritative global enable state.  It must be
         # materialized before consulting the result cache; otherwise a cached
         # active run can be returned after the module was switched to standby.
+        missing_transport = []
         if DETAILER is None:
-            return ["DETAILER"]
+            missing_transport.append("DETAILER")
+        if opt_log is None:
+            missing_transport.append("opt_log")
+        if opt_diagnostic is None:
+            missing_transport.append("opt_diagnostic")
+        if missing_transport:
+            return missing_transport
         if not bool(kwargs.get("enable", True)):
             return []
         cache_key, detail = self._cache_key(
@@ -832,6 +840,7 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
         self,
         cache_key,
         output_image_proceed,
+        authoritative_image,
         opt_log=None,
         opt_diagnostic=None,
         prompt=None,
@@ -840,6 +849,14 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
         payload = load_pickle(self._CACHE_SCOPE, cache_key)
         if not isinstance(payload, dict):
             raise TypeError("cached detailer payload is invalid")
+
+        stable = stable_branch_components(payload.get("segs_proceed"))
+        if stable is not None:
+            _branch_image, _branch_mask, source_signature = stable
+            if source_signature and source_signature != image_signature(authoritative_image):
+                raise RuntimeError(
+                    "cached detailer branch belongs to a different authoritative image"
+                )
 
         result = self._merge_transport(
             payload.get("segs_detected"),
@@ -964,6 +981,7 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
                 return self._load_cached_result(
                     cache_key,
                     output_image_proceed,
+                    self._required(DETAILER, "detailer_image"),
                     opt_log,
                     opt_diagnostic,
                     prompt,

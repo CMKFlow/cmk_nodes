@@ -5,7 +5,7 @@ const EXTENSION_NAME = "CMK.FlowBrowser";
 const COMMAND_ID = "cmk.openFlowBrowser";
 const NODE_PACK = "custom_nodes.cmk_nodes";
 const ALLOWED_STATUS = new Set(["STABLE", "BETA", "EXPERIMENTAL"]);
-const PREVIEW_CACHE_VERSION = "20260829-reference-path-encoding";
+const PREVIEW_CACHE_VERSION = "20260908-final-flow-browser-refresh-3";
 const MEMORY_DISPLAY_KEY = "cmk-flow-memory-display";
 const MEMORY_POLL_MS = 2000;
 
@@ -209,7 +209,7 @@ function addStyles() {
 }
 
 async function fetchJson(path) {
-  const response = await api.fetchApi(path);
+  const response = await api.fetchApi(path, { cache: "no-store" });
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
   return response.json();
 }
@@ -288,8 +288,19 @@ function isCableInput(spec) {
 }
 
 function discoverCuratedNodes(nodeRegistry, nodeMetadata, englishContent) {
+  const packagedControlNetImplementations = new Set([
+    "CMKControlNetPreparePipe",
+    "CMKZITControlNetPreparePipe",
+    "CMKCombinedControlNetPreparePipe",
+  ]);
   return Object.entries(nodeRegistry)
-    .filter(([, nodeDef]) => String(nodeDef?.category || "").startsWith("CMK/Flow/"))
+    .filter(([nodeType, nodeDef]) => (
+      (
+        String(nodeDef?.category || "").startsWith("CMK/Flow/")
+        || nodeType === "CMKVisualizer"
+      )
+      && !packagedControlNetImplementations.has(nodeType)
+    ))
     .map(([nodeType, nodeDef]) => {
       const metadata = { ...(nodeMetadata[nodeType] || {}), ...(language === "en" ? englishContent.flows?.[nodeType] : {}) };
       const displayName = nodeDef.display_name || nodeDef.name || nodeType;
@@ -338,6 +349,7 @@ function discoverCuratedNodes(nodeRegistry, nodeMetadata, englishContent) {
         recommendedAfter: Array.isArray(metadata.recommendedSuccessors)
           ? metadata.recommendedSuccessors
           : (Array.isArray(metadata.recommendedAfter) ? metadata.recommendedAfter : []),
+        hideRecommendations: Boolean(metadata.hideRecommendations),
         dependencyNote: metadata.dependencyNote || "",
         placementNote: metadata.placementNote || "Kann an der passenden Stelle in einen CMK Flow eingefügt werden.",
         previews: normalizePreviews(metadata),
@@ -630,10 +642,44 @@ function focusLoadedWorkflowAfterRender() {
   window.setTimeout(focusLoadedWorkflow, 180);
 }
 
+function visibleCanvasInsertionPosition(canvas) {
+  const visible = canvas?.ds?.visible_area;
+  if (
+    Array.isArray(visible)
+    && visible.length >= 4
+    && visible.every((value) => Number.isFinite(Number(value)))
+    && Number(visible[2]) > 0
+    && Number(visible[3]) > 0
+  ) {
+    return [
+      Number(visible[0]) + Number(visible[2]) / 2,
+      Number(visible[1]) + Number(visible[3]) / 2,
+    ];
+  }
+
+  const surface = canvas?.canvas;
+  const ds = canvas?.ds;
+  const width = Number(surface?.clientWidth || surface?.width);
+  const height = Number(surface?.clientHeight || surface?.height);
+  const scale = Number(ds?.scale);
+  const offsetX = Number(ds?.offset?.[0]);
+  const offsetY = Number(ds?.offset?.[1]);
+  if (
+    width > 0 && height > 0 && scale > 0
+    && Number.isFinite(offsetX) && Number.isFinite(offsetY)
+  ) {
+    return [width / (2 * scale) - offsetX, height / (2 * scale) - offsetY];
+  }
+
+  const mouse = canvas?.graph_mouse;
+  return Array.isArray(mouse) ? [mouse[0], mouse[1]] : [0, 0];
+}
+
 function placeAndAddFlow(flow) {
   const canvas = app.canvas;
-  const mouse = canvas?.graph_mouse;
-  const position = Array.isArray(mouse) ? [mouse[0], mouse[1]] : [0, 0];
+  // graph_mouse freezes at the last canvas event while the modal browser is
+  // open. Using it directly can paste a module thousands of graph units away.
+  const position = visibleCanvasInsertionPosition(canvas);
 
   if (flow.kind === "node") {
     const node = LiteGraph.createNode(flow.nodeType);
@@ -905,6 +951,7 @@ function renderFlowBrowser(root, flows) {
     detail.querySelector('[data-sockets="inputs"]').textContent = compactSocketNames(selected.inputs).join(" · ") || t("none");
     detail.querySelector('[data-sockets="outputs"]').textContent = selected.outputs.join(" · ") || t("none");
     const sequence = detail.querySelector(".cmk-flow-sequence");
+    sequence.hidden = Boolean(selected.hideRecommendations);
     const renderRecommendations = (container, recommendations, fallback) => {
       container.replaceChildren();
       const values = recommendations.length ? recommendations : [fallback];
@@ -942,8 +989,10 @@ function renderFlowBrowser(root, flows) {
       }
       container.append(links);
     };
-    renderRecommendations(sequence.querySelector('[data-sequence="before"]'), selected.recommendedBefore, t("canStart"));
-    renderRecommendations(sequence.querySelector('[data-sequence="after"]'), selected.recommendedAfter, t("canFinish"));
+    if (!selected.hideRecommendations) {
+      renderRecommendations(sequence.querySelector('[data-sequence="before"]'), selected.recommendedBefore, t("canStart"));
+      renderRecommendations(sequence.querySelector('[data-sequence="after"]'), selected.recommendedAfter, t("canFinish"));
+    }
     const note = sequence.querySelector(".cmk-flow-dependency-note");
     note.textContent = selected.dependencyNote;
     note.hidden = !selected.dependencyNote;
@@ -1706,6 +1755,9 @@ function matchMemoryIndicatorGeometry(launcherElement) {
 }
 
 async function openFlowBrowser() {
+  // Workflows, metadata and previews are package content that may be updated
+  // while ComfyUI stays open. Never reuse an earlier in-session registry.
+  browserDataPromise = undefined;
   document.querySelector(".cmk-flow-overlay")?.remove();
   addStyles();
 

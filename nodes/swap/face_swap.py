@@ -21,7 +21,8 @@ from ...utils.face_set_utils import (
 )
 from ...utils.preview_utils import draw_face_boxes
 from ...utils.cmk_diagnostic import make_diagnostic_payload
-from ...pipe.cmk_log_pipe import cmk_add_block, cmk_block_to_string
+from ...pipe.cmk_log_pipe import CMKLogConcat, cmk_add_block, cmk_block_to_string
+from ..utils.diagnostic_concat import CMKDiagnosticConcat
 from ...utils.tensor_utils import tensor_to_uint8_rgb, uint8_rgb_to_tensor
 from ...utils.stable_segs import CMKStableSEGS, image_signature
 
@@ -449,8 +450,8 @@ class CMKFaceSwapImagePipe:
     """Flow-safe FaceSwap execution without pass-through inputs or outputs."""
 
     CATEGORY = "CMK/Developer/Pipe/Execute"
-    RETURN_TYPES = ("IMAGE", "SEGS", "CMK_LOG_BLOCK", "CMK_DIAGNOSTIC")
-    RETURN_NAMES = ("IMAGE PROCEED", "SEGS PROCESSED", "LOG BLOCK", "diagnostic")
+    RETURN_TYPES = ("IMAGE", "SEGS", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
+    RETURN_NAMES = ("IMAGE PROCEED", "SEGS PROCESSED", "LOG", "diagnostic")
     FUNCTION = "run_pipe"
 
     @classmethod
@@ -482,8 +483,20 @@ class CMKFaceSwapImagePipe:
                 "POST RESTORE MODEL": (restore_models, {"default": _default_restore_model(restore_models)}),
                 "RESTORE VISIBILITY": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.05, "advanced": True}),
                 "PROCESS": ("CMK_PIPE",),
+                "opt_log": ("CMK_LOG_PIPE",),
+                "opt_diagnostic": ("CMK_DIAGNOSTIC",),
             },
         }
+
+    @staticmethod
+    def _merge_transport(image, segs, log_block, diagnostic, opt_log=None, opt_diagnostic=None):
+        log = CMKLogConcat().concat(opt_log, log_block)[0]
+        merged_diagnostic = CMKDiagnosticConcat().concat(
+            "CMK Flow · FaceSwap",
+            opt_diagnostic,
+            diagnostic_2=diagnostic,
+        )[0]
+        return image, segs, log, merged_diagnostic
 
     def check_lazy_status(self, IMAGE_SOURCE=None, ENABLE=True, **kwargs):
         global_enable = bool(kwargs.get("GLOBAL ENABLE", True))
@@ -492,6 +505,8 @@ class CMKFaceSwapImagePipe:
         return []
 
     def run_pipe(self, **inputs):
+        opt_log = inputs.get("opt_log")
+        opt_diagnostic = inputs.get("opt_diagnostic")
         target_image = inputs.get("IMAGE_TARGET")
         if target_image is None:
             raise ValueError("CMK FaceSwap Image -Pipe-: IMAGE_TARGET is required")
@@ -575,7 +590,14 @@ class CMKFaceSwapImagePipe:
             )
             _, height, width, _ = target_image.shape
             empty_segs = ((int(width), int(height)), [])
-            return target_image, empty_segs, log_block, diagnostic
+            return self._merge_transport(
+                target_image,
+                empty_segs,
+                log_block,
+                diagnostic,
+                opt_log,
+                opt_diagnostic,
+            )
 
         source_image = inputs.get("IMAGE_SOURCE")
         if source_image is None:
@@ -808,4 +830,11 @@ class CMKFaceSwapImagePipe:
             branch_mask=branch_mask.detach().to(device="cpu").contiguous(),
             source_signature=image_signature(target_image),
         )
-        return branch_image, processed_segs, log_block, diagnostic
+        return self._merge_transport(
+            branch_image,
+            processed_segs,
+            log_block,
+            diagnostic,
+            opt_log,
+            opt_diagnostic,
+        )
