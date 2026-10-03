@@ -13,7 +13,9 @@ from .pipe.cmk_pipe_sampler import (
 from .pipe.cmk_sampler_prepare import CMKSamplerPrepareSDXLPipe
 from .pipe.cmk_regional_conditioning import CMKRegionalConditioningSDXL
 from .pipe.cmk_process_forward import CMKProcessForwardPipe
-from .pipe.cmk_visual import CMKVisualPass, CMKVisualProvider, CMKVisualizer
+from .pipe.cmk_lora_pipe import CMKLoRASDXLPackPipe, CMKLoRAZITPackPipe
+from .pipe.cmk_hybrid_bridge import CMKHybridZITInputPipe
+from .pipe.cmk_visual import CMKVisualCompare, CMKVisualPass, CMKVisualProvider, CMKVisualizer
 from .pipe.cmk_family_result import (
     CMKImageCompareEnableGate,
     CMKModuleBypassGate,
@@ -27,6 +29,8 @@ from .pipe.cmk_family_result import (
     CMKFamilyBranchGateZImage,
     CMKSDXLResultBridgePipe,
     CMKFamilyResultMergePipe,
+    CMKPostProcessBoundarySDXLPipe,
+    CMKPostProcessBoundaryZITPipe,
     CMKResultToLegacyBridgePipe,
     CMKZImageProcessForwardPipe,
     CMKResultProcessForwardPipe,
@@ -72,6 +76,12 @@ from .nodes.image.empty_image_mask import CMK_EmptyImageMask
 from .nodes.image.image_mask_switch import CMK_ImageMaskSwitch
 from .nodes.image.image_metrics import CMK_ImageMetrics, CMK_ImageQuickMetrics
 from .nodes.image.smart_detailer import CMK_SmartDetailer, CMK_SmartDetailerPipe
+from .nodes.image.mask_detailer import (
+    CMKMaskDetailerFlowGate,
+    CMKMaskDetailerIntake,
+    CMKMaskDetailerPrepare,
+    CMKMaskDetailerProcess,
+)
 from .nodes.image.segs_concate import CMK_SEGSConcate
 from .nodes.image.smart_outpaint_pad import CMK_SmartOutpaintPad
 from .nodes.image.smart_upscale import CMK_SmartUpscaler, CMK_SmartUpscalerPipe
@@ -126,7 +136,7 @@ from .pipe.cmk_z_image_turbo import (
     CMKSamplerPrepareZImageTurboPipe,
     CMKZImageTurboFinalizePipe,
 )
-from .pipe.loaders.cmk_load_image import CMKLoadImage
+from .pipe.loaders.cmk_load_image import CMKImageFileLoader, CMKLoadImage
 from .pipe.loaders.cmk_image_load_resize import CMKImageLoadAndResizePipe
 from .pipe.loaders.cmk_swap_image_loader import CMKSwapImageLoaderPipe
 from .loader.cmk_lora_text_loader import CMKLoRATextLoader
@@ -156,6 +166,11 @@ NODE_CLASS_MAPPINGS = {
     "CMKVisualPass": CMKVisualPass,
     "CMKVisualProvider": CMKVisualProvider,
     "CMKVisualizer": CMKVisualizer,
+    "CMKVisualCompare": CMKVisualCompare,
+    "CMKMaskDetailerFlowGate": CMKMaskDetailerFlowGate,
+    "CMKMaskDetailerIntake": CMKMaskDetailerIntake,
+    "CMKMaskDetailerPrepare": CMKMaskDetailerPrepare,
+    "CMKMaskDetailerProcess": CMKMaskDetailerProcess,
     "CMKImageCompareEnableGate": CMKImageCompareEnableGate,
     "CMKModuleBypassGate": CMKModuleBypassGate,
     "CMKControlNetBypassGate": CMKControlNetBypassGate,
@@ -170,6 +185,7 @@ NODE_CLASS_MAPPINGS = {
     "CMKCheckpointVAELoader": CMKCheckpointVAELoader,
     "CMKCheckpointVAELoaderPipe": CMKCheckpointVAELoaderPipe,
     "CMKZImageTurboLoaderPipe": CMKZImageTurboLoaderPipe,
+    "CMKImageFileLoader": CMKImageFileLoader,
     "CMKLoadImage": CMKLoadImage,
     "CMKImageLoadAndResizePipe": CMKImageLoadAndResizePipe,
     "CMKSwapImageLoaderPipe": CMKSwapImageLoaderPipe,
@@ -179,6 +195,9 @@ NODE_CLASS_MAPPINGS = {
     "CMKGetPipe": CMKGetPipe,
     "CMKPipeInspect": CMKPipeInspect,
     "CMKPipeCreateImage": CMKPipeCreateImage,
+    "CMKLoRASDXLPackPipe": CMKLoRASDXLPackPipe,
+    "CMKLoRAZITPackPipe": CMKLoRAZITPackPipe,
+    "CMKHybridZITInputPipe": CMKHybridZITInputPipe,
     "CMKRegionalConditioningSDXL": CMKRegionalConditioningSDXL,
     "CMKPipePeekPreprocessImage": CMKPipePeekPreprocessImage,
     "CMKPipePeekControlNetSource": CMKPipePeekControlNetSource,
@@ -195,6 +214,8 @@ NODE_CLASS_MAPPINGS = {
     "CMKProcessForwardPipe": CMKProcessForwardPipe,
     "CMKSDXLResultBridgePipe": CMKSDXLResultBridgePipe,
     "CMKFamilyResultMergePipe": CMKFamilyResultMergePipe,
+    "CMKPostProcessBoundarySDXLPipe": CMKPostProcessBoundarySDXLPipe,
+    "CMKPostProcessBoundaryZITPipe": CMKPostProcessBoundaryZITPipe,
     "CMKResultToLegacyBridgePipe": CMKResultToLegacyBridgePipe,
     "CMKZImageProcessForwardPipe": CMKZImageProcessForwardPipe,
     "CMKResultProcessForwardPipe": CMKResultProcessForwardPipe,
@@ -309,12 +330,18 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "CMKVisualPass": "CMK Visual Forward -Pipe-",
     "CMKVisualProvider": "CMK Visual Provider -Pipe-",
-    "CMKVisualizer": "CMK Flow · 100 Visualizer",
+    "CMKVisualizer": "CMK Flow · Visualizer",
+    "CMKVisualCompare": "CMK Preview & Compare",
+    "CMKMaskDetailerFlowGate": "CMK Mask Detailer Flow Gate",
+    "CMKMaskDetailerIntake": "CMK Mask Detailer · Intake",
+    "CMKMaskDetailerPrepare": "CMK Mask Detailer · Prepare",
+    "CMKMaskDetailerProcess": "CMK Mask Detailer · Process",
     "CMKCheckpointVAELoader": "CMK Checkpoint VAE Loader",
     "CMKCheckpointVAELoaderPipe": "CMK Flow · Checkpoint & VAE",
     "CMKZImageTurboLoaderPipe": "CMK Z-Image Turbo Loader -Pipe-",
+    "CMKImageFileLoader": "CMK Image File Loader",
     "CMKLoadImage": "CMK Flow · Load Image",
-    "CMKImageLoadAndResizePipe": "CMK Flow · Image Input",
+    "CMKImageLoadAndResizePipe": "CMK Load Image",
     "CMKSwapImageLoaderPipe": "CMK FaceSwap Image Input",
     "CMKLoRATextLoader": "CMK LoRA Text Loader",
     "CMKImageCompare": "CMK Image Compare",
@@ -327,6 +354,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CMKGetPipe": "CMK Pipe Get",
     "CMKPipeInspect": "CMK Pipe Inspect",
     "CMKPipeCreateImage": "CMK Flow · 01 START HERE · Create Image",
+    "CMKLoRASDXLPackPipe": "CMK LoRA SDXL Pack -Pipe-",
+    "CMKLoRAZITPackPipe": "CMK LoRA ZIT Pack -Pipe-",
+    "CMKHybridZITInputPipe": "CMK Hybrid SDXL → ZIT Bridge -Pipe-",
     "CMKRegionalConditioningSDXL": "CMK Flow · 02 Regional Conditioning SDXL",
     "CMKPipePeekPreprocessImage": "CMK Pipe Peek Preprocess Image",
     "CMKPipePeekControlNetSource": "CMK Pipe Peek ControlNet Source",
@@ -347,7 +377,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CMKSamplerBypassGate": "CMK Sampler Bypass Gate",
     "CMKProcessEnableFlag": "CMK Process Enable Flag",
     "CMKSDXLResultBridgePipe": "CMK SDXL Result Bridge -Pipe-",
-    "CMKFamilyResultMergePipe": "CMK Flow · 35 Active Family Result",
+    "CMKPostProcessBoundarySDXLPipe": "CMK Flow · PostProcess Boundary SDXL",
+    "CMKPostProcessBoundaryZITPipe": "CMK Flow · PostProcess Boundary ZIT",
+    "CMKFamilyResultMergePipe": "CMK Flow · PostProcess Boundary Combined",
     "CMKResultToLegacyBridgePipe": "CMK Result Bridge -Pipe-",
     "CMKZImageProcessForwardPipe": "CMK Z-Image Process Forward -Pipe-",
     "CMKResultProcessForwardPipe": "CMK Result Process Forward -Pipe-",

@@ -1,0 +1,24 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · MaskDetailer · Modul",
+  "kind": "module",
+  "order": 208,
+  "category": "MODULE WORKFLOWS",
+  "category_en": "MODULE WORKFLOWS",
+  "description": "Zeigt den MaskDetailer als fertiges CMK-Modul für wiederholte manuelle Detailbearbeitung auf einem festgehaltenen Bildzustand.",
+  "description_en": "Shows MaskDetailer as a complete CMK module for repeated manual detail work on a retained image state.",
+  "cmkHighlight": "Das Modul friert das aktuelle Bild als Arbeitsgrundlage ein und verwendet diesen Zustand für weitere Maskenbearbeitungen erneut. Erst wenn sich der Eingang ändert, wird die Bindung gelöst und ein neuer Bildzustand übernommen.",
+  "cmkHighlight_en": "The module freezes the current image as its working basis and reuses that state for subsequent mask edits. The binding is released and a new image state adopted only when the input changes.",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · MaskDetailer · Modul/CMK 2.5 · MaskDetailer · Modul.png",
+      "label": "Modul",
+      "label_en": "Modul"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · MaskDetailer · Modul/CMK 2.5 · MaskDetailer · Modul - Aufbau.png",
+      "label": "Aufbau",
+      "label_en": "Aufbau"
+    }
+  ]
+}

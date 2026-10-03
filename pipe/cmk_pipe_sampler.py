@@ -1,6 +1,190 @@
 from ..cmk_common import SAMPLERS, SCHEDULERS
+from .cmk_final_preview import send_final_preview
+from .cmk_visual import empty_visual, register_provider
 from ..utils.cmk_timing import cmk_timed
 from ..utils.cmk_sampling_warnings import ignore_torchsde_boundary_rounding
+
+
+def _unload_completed_controlnet(pipe):
+    """Unload ControlNet/model-patch weights after their sampler terminates."""
+    zit_patch_keys = (
+        "zit_controlnet_model_patch",
+        "zit_inpaint_model_patch",
+    )
+    zit_controlnet_patch = pipe.get("zit_controlnet_model_patch")
+    zit_inpaint_patch = pipe.get("zit_inpaint_model_patch")
+    has_zit_patch = (
+        zit_controlnet_patch is not None or zit_inpaint_patch is not None
+    )
+    if not bool(pipe.get("boolean_controlnet_enable", False)) and not has_zit_patch:
+        return "NOT ACTIVE"
+    if not bool(pipe.get("unload_models_after_use", True)):
+        return "KEPT LOADED"
+
+    import gc
+    import comfy.model_management
+
+    models = []
+    conditioning_controls = []
+    for key in (
+        "conditioning_pos", "conditioning_neg",
+        "conditioning_identity_pos", "conditioning_identity_neg",
+        "positive", "negative",
+    ):
+        conditioning = pipe.get(key)
+        if not isinstance(conditioning, (list, tuple)):
+            continue
+        for entry in conditioning:
+            if not isinstance(entry, (list, tuple)) or len(entry) < 2:
+                continue
+            metadata = entry[1]
+            if not isinstance(metadata, dict):
+                continue
+            attached = metadata.get("control")
+            if attached is not None:
+                conditioning_controls.append(attached)
+
+    control_net = pipe.get("control_net")
+    for attached_control in [control_net, *conditioning_controls]:
+        if attached_control is not None:
+            try:
+                models.extend(attached_control.get_models())
+            except Exception:
+                pass
+            try:
+                attached_control.cleanup()
+            except Exception:
+                pass
+
+    if control_net is not None:
+        pipe.pop("control_net", None)
+
+    # ControlNetApplyAdvanced stores copies in conditioning metadata. Module 10
+    # is their terminal consumer; remove those references from the cached
+    # sampler result before collecting the offloaded model.
+    released_conditioning_refs = 0
+    for key in (
+        "conditioning_pos", "conditioning_neg",
+        "conditioning_identity_pos", "conditioning_identity_neg",
+        "positive", "negative",
+    ):
+        conditioning = pipe.get(key)
+        if not isinstance(conditioning, (list, tuple)):
+            continue
+        for entry in conditioning:
+            if not isinstance(entry, (list, tuple)) or len(entry) < 2:
+                continue
+            metadata = entry[1]
+            if not isinstance(metadata, dict):
+                continue
+            if metadata.pop("control", None) is not None:
+                released_conditioning_refs += 1
+            metadata.pop("control_apply_to_uncond", None)
+
+    zit_patches = [
+        patch
+        for patch in (zit_controlnet_patch, zit_inpaint_patch)
+        if patch is not None
+    ]
+    models.extend(zit_patches)
+
+    unique_models = []
+    seen = set()
+    for model in models:
+        identity = getattr(model, "clone_base_uuid", None) or id(model)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        unique_models.append(model)
+
+    for model in unique_models:
+        comfy.model_management.unload_model_and_clones(
+            model, unload_additional_models=False
+        )
+
+    released_patch_refs = 0
+    if zit_patches:
+        # ZIT ControlNet is installed as transformer patches on two successive
+        # clones (ControlNet apply -> AuraFlow sampling). Merely offloading the
+        # additional model leaves both cached sampler objects holding its full
+        # patch, encoded hint and temporary tensors in unified RAM. Module 10 is
+        # terminal for these patches, so remove only the ControlNet callbacks;
+        # the ZIT base model and unrelated model options stay intact.
+        for patcher in (pipe.get("model"), pipe.get("model_patched")):
+            options = getattr(patcher, "model_options", None)
+            if not isinstance(options, dict):
+                continue
+            transformer = options.get("transformer_options")
+            if not isinstance(transformer, dict):
+                continue
+            patches = transformer.get("patches")
+            if not isinstance(patches, dict):
+                continue
+            for name in ("double_block", "noise_refiner"):
+                entries = patches.pop(name, None)
+                if isinstance(entries, (list, tuple)):
+                    released_patch_refs += len(entries)
+                elif entries is not None:
+                    released_patch_refs += 1
+            if not patches:
+                transformer.pop("patches", None)
+        # Mutate the cached prepare result as well as preventing propagation to
+        # SAMPLED. This is intentional: the patch has completed its only job.
+        for key in zit_patch_keys:
+            pipe.pop(key, None)
+
+    if unique_models:
+        model_count = len(unique_models)
+        # Drop the helper's own final references before collecting; otherwise
+        # the 3 GB ZIT patch survives until after this function returns.
+        models.clear()
+        unique_models.clear()
+        zit_patches.clear()
+        zit_controlnet_patch = None
+        zit_inpaint_patch = None
+        control_net = None
+        try:
+            del model
+        except UnboundLocalError:
+            pass
+        gc.collect()
+        comfy.model_management.soft_empty_cache(force=True)
+        details = []
+        if released_patch_refs:
+            details.append(f"{released_patch_refs} patch refs released")
+        if released_conditioning_refs:
+            details.append(f"{released_conditioning_refs} conditioning refs released")
+        detail_text = "; ".join(details) if details else "references released"
+        status = f"UNLOADED ({model_count} model; {detail_text})"
+        print(f"[CMK ControlNet] {status}")
+        return status
+    return "NO SEPARATE MODEL"
+
+
+def _cleanup_interrupted_sampling(pipe):
+    """Best-effort cleanup that must not replace the sampler's primary error."""
+    try:
+        _unload_completed_controlnet(pipe)
+    except Exception as exc:
+        print(
+            f"[CMK ControlNet] INTERRUPTED CLEANUP FAILED: {exc}",
+            flush=True,
+        )
+
+    family = str(pipe.get("model_family", "")).strip().lower()
+    if family != "z_image_turbo" or not bool(
+        pipe.get("unload_models_after_use", True)
+    ):
+        return
+    try:
+        from .loaders.z_image_turbo_loader import invalidate_zit_resource_cache
+
+        invalidate_zit_resource_cache("10 ZIT interrupted")
+    except Exception as exc:
+        print(
+            f"[CMK Model Lifecycle] 10 ZIT interrupted: CLEANUP FAILED: {exc}",
+            flush=True,
+        )
 
 
 class CMKPipeSetSampler:
@@ -268,10 +452,14 @@ class CMKKSamplerPipe:
 
     @classmethod
     def INPUT_TYPES(cls):
-        return {"required": {"SAMPLER": ("CMK_SAMPLER_PIPE",)}}
+        return {
+            "required": {"SAMPLER": ("CMK_SAMPLER_PIPE",)},
+            "optional": {"VISUAL": ("CMK_VISUAL_PIPE",)},
+            "hidden": {"unique_id": "UNIQUE_ID"},
+        }
 
-    RETURN_TYPES = ("CMK_SAMPLED_PIPE",)
-    RETURN_NAMES = ("SAMPLED",)
+    RETURN_TYPES = ("CMK_SAMPLED_PIPE", "CMK_VISUAL_PIPE")
+    RETURN_NAMES = ("SAMPLED", "VISUAL")
     FUNCTION = "run"
     CATEGORY = "CMK/Developer/Pipe/Execute"
 
@@ -294,10 +482,21 @@ class CMKKSamplerPipe:
             raise TypeError(f"CMK KSampler -Pipe-: pipe['{label}'] is not CONDITIONING (type={type(value).__name__})")
         return value
 
-    def run(self, SAMPLER):
+    def run(self, SAMPLER, VISUAL=None, unique_id=None):
+        completed = False
+        try:
+            result = self._run(SAMPLER, VISUAL, unique_id)
+            completed = True
+            return result
+        finally:
+            if not completed and isinstance(SAMPLER, dict):
+                _cleanup_interrupted_sampling(SAMPLER)
+
+    def _run(self, SAMPLER, VISUAL=None, unique_id=None):
         pipe = SAMPLER
         if pipe is None:
             raise ValueError("CMK KSampler -Pipe-: pipe is missing")
+        visual = empty_visual() if VISUAL is None else VISUAL
 
         model = pipe.get("model_patched") or pipe.get("model")
         if model is None:
@@ -315,15 +514,7 @@ class CMKKSamplerPipe:
         sampler_name = pipe.get("sampler", "euler_ancestral")
         scheduler = pipe.get("scheduler", "karras")
         denoise = float(pipe.get("denoise", 1.0))
-
-        if pipe.get("inpaint_process_mode") == "remove" and pipe.get("remove_result_image") is not None:
-            new_pipe = dict(pipe)
-            new_pipe["samples"] = latent_image
-            new_pipe["latent"] = latent_image
-            new_pipe["latent_image"] = latent_image
-            new_pipe["latent_1st_pass"] = latent_image
-            new_pipe["ksampler_log"] = "CMK KSampler -Pipe- | BYPASSED | Remove Object uses LaMa"
-            return (new_pipe,)
+        family = str(pipe.get("model_family", "sdxl")).strip().lower()
 
         if pipe.get("instantid_reference_latent_mode", False):
             new_pipe = dict(pipe)
@@ -336,7 +527,7 @@ class CMKKSamplerPipe:
                 "CMK KSampler -Pipe- | BYPASSED | "
                 "InstantID reference latent is encoded and sampled in module 15"
             )
-            return (new_pipe,)
+            return (new_pipe, visual)
 
         if pipe.get("instantid_enabled", False) and int(pipe.get("instantid_end_at_step", 2)) == 0:
             new_pipe = dict(pipe)
@@ -349,14 +540,76 @@ class CMKKSamplerPipe:
             new_pipe["ksampler_log"] = (
                 "CMK KSampler -Pipe- | BYPASSED | InstantID zero-pass test"
             )
-            return (new_pipe,)
+            return (new_pipe, visual)
 
         try:
             from nodes import KSampler
         except Exception as exc:
             raise RuntimeError(f"CMK KSampler -Pipe-: ComfyUI KSampler unavailable: {exc}") from exc
 
-        if pipe.get("instantid_enabled", False):
+        if pipe.get("hybrid_mode", False) and family != "z_image_turbo":
+            import math
+            import comfy.sample
+            import comfy.utils
+            import latent_preview
+
+            handoff_percent = min(
+                95, max(80, int(pipe.get("hybrid_sdxl_handoff", 90)))
+            )
+            handoff_step = min(
+                steps - 1,
+                max(1, int(math.ceil(steps * handoff_percent / 100.0))),
+            )
+            latent_tensor = latent_image["samples"]
+            latent_tensor = comfy.sample.fix_empty_latent_channels(
+                model,
+                latent_tensor,
+                latent_image.get("downscale_ratio_spacial"),
+                latent_image.get("downscale_ratio_temporal"),
+            )
+            noise = comfy.sample.prepare_noise(
+                latent_tensor, seed, latent_image.get("batch_index")
+            )
+            x0_output = {}
+            preview_callback = latent_preview.prepare_callback(
+                model, steps, x0_output
+            )
+            with cmk_timed(
+                "10 SDXL HYBRID HANDOFF",
+                f"steps 0-{handoff_step}/{steps} | {handoff_percent}%",
+            ):
+                with ignore_torchsde_boundary_rounding():
+                    comfy.sample.sample(
+                        model,
+                        noise,
+                        steps,
+                        cfg,
+                        sampler_name,
+                        scheduler,
+                        positive,
+                        negative,
+                        latent_tensor,
+                        denoise=denoise,
+                        start_step=0,
+                        last_step=handoff_step,
+                        force_full_denoise=False,
+                        noise_mask=latent_image.get("noise_mask"),
+                        callback=preview_callback,
+                        disable_pbar=not comfy.utils.PROGRESS_BAR_ENABLED,
+                        seed=seed,
+                    )
+            if "x0" not in x0_output:
+                raise RuntimeError(
+                    "CMK KSampler -Pipe-: HYBRID handoff produced no clean x0 prediction"
+                )
+            clean = latent_image.copy()
+            clean.pop("downscale_ratio_spacial", None)
+            clean.pop("downscale_ratio_temporal", None)
+            clean["samples"] = model.model.process_latent_out(
+                x0_output["x0"].cpu()
+            )
+            samples = clean
+        elif pipe.get("instantid_enabled", False):
             import comfy.sample
             import comfy.utils
             import latent_preview
@@ -494,11 +747,17 @@ class CMKKSamplerPipe:
                 )
             samples = result[0] if isinstance(result, (tuple, list)) else result
 
+        controlnet_unload_status = _unload_completed_controlnet(pipe)
+
         new_pipe = dict(pipe)
         new_pipe["samples"] = samples
         new_pipe["latent"] = samples
         new_pipe["latent_image"] = samples
         new_pipe["latent_1st_pass"] = samples
+        new_pipe["controlnet_model_status"] = controlnet_unload_status
+        if pipe.get("hybrid_mode", False) and family != "z_image_turbo":
+            new_pipe["hybrid_x0_latent"] = samples
+            new_pipe["hybrid_handoff_complete"] = True
         if pipe.get("instantid_enabled", False) and keypoints_latent is not None:
             new_pipe["instantid_keypoints_latent"] = keypoints_latent
             new_pipe["instantid_inpaint_bridge"] = bool(instantid_inpaint_bridge)
@@ -506,22 +765,77 @@ class CMKKSamplerPipe:
             "CMK KSampler -Pipe- | "
             f"seed={seed} | steps={steps} | cfg={cfg} | sampler={sampler_name} | "
             f"scheduler={scheduler} | denoise={denoise} | "
+            f"controlnet_model={controlnet_unload_status} | "
             f"instantid_inpaint_bridge={bool(pipe.get('instantid_enabled', False) and instantid_inpaint_bridge)}"
         )
-        if str(pipe.get("model_family", "")).lower() == "z_image_turbo":
-            vae = pipe.get("vae")
-            if vae is not None:
-                try:
-                    from nodes import VAEDecode
-                    from .cmk_final_preview import send_final_preview
+        vae = pipe.get("vae")
+        if vae is None:
+            raise ValueError("CMK KSampler -Pipe-: pipe['vae'] is missing")
+        visual_latent = new_pipe.get("instantid_keypoints_latent")
+        if visual_latent is None:
+            visual_latent = samples
+        try:
+            from nodes import VAEDecode
+        except Exception as exc:
+            raise RuntimeError(f"CMK KSampler -Pipe-: VAE Decode unavailable: {exc}") from exc
+        with cmk_timed("10 KSAMPLER VISUAL VAE DECODE"):
+            decoded = VAEDecode().decode(vae, visual_latent)
+        image = decoded[0] if isinstance(decoded, (tuple, list)) else decoded
+        new_pipe["image_1st_pass"] = image
 
-                    decoded = VAEDecode().decode(vae, samples)
-                    image = decoded[0] if isinstance(decoded, (tuple, list)) else decoded
-                    new_pipe["image"] = image
-                    send_final_preview(image)
-                    return (new_pipe,)
-                except Exception:
-                    # Sampling remains valid even if the optional UI preview
-                    # cannot be produced; Finalize will still decode it.
-                    pass
-        return (new_pipe,)
+        family = str(pipe.get("model_family", "sdxl")).strip().lower()
+        hybrid_mode = bool(pipe.get("hybrid_mode", False))
+        if family == "z_image_turbo":
+            new_pipe["image"] = image
+            if hybrid_mode:
+                before = pipe.get("hybrid_source_image")
+                after = image
+                if before is not None and bool(pipe.get("hybrid_masked_finish", False)):
+                    finish_mask = pipe.get("hybrid_finish_mask")
+                    if finish_mask is not None:
+                        from .cmk_z_image_turbo import _hybrid_masked_composite
+
+                        after = _hybrid_masked_composite(before, after, finish_mask)
+                label = "2nd-Pass ZIT"
+                branch = "hybrid"
+                stage_key = "hybrid.second_pass"
+                channels = (
+                    {"before": before, "after": after}
+                    if before is not None
+                    else {"result": after}
+                )
+            else:
+                label = "Sampling ZIT"
+                branch = "z_image_turbo"
+                stage_key = "z_image_turbo.sampling"
+                channels = {"result": image}
+        else:
+            label = "1st-Pass SDXL"
+            branch = "sdxl"
+            stage_key = "sdxl.first_pass"
+            channels = {"result": image}
+        send_final_preview(image)
+        visual = register_provider(
+            visual,
+            module_instance_id=unique_id or "ksampler",
+            module_type="CMKKSamplerPipe",
+            module_label=label,
+            sequence=10,
+            channels=channels,
+            status="completed",
+            live_node_id=unique_id,
+            branch=branch,
+            stage_key=stage_key,
+        )
+        if (
+            bool(pipe.get("unload_models_after_use", True))
+            and family == "sdxl"
+            and not hybrid_mode
+            and not bool(pipe.get("instantid_enabled", False))
+        ):
+            from .loaders.checkpoint_vae_loader import unload_all_phase_models
+
+            new_pipe["generation_model_status"] = unload_all_phase_models(
+                "10 SDXL complete"
+            )
+        return (new_pipe, visual)

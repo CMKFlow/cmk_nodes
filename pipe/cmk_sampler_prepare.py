@@ -15,32 +15,11 @@ from ..utils.cmk_translation import translate_prompt
 from .cmk_pipe_sampler import CMKPipeSetSampler
 from ..utils.cmk_diagnostic import make_diagnostic_payload
 from ..utils.cmk_timing import cmk_timed_call
+from .loaders.checkpoint_vae_loader import evict_sdxl_text_encoder
 
 
 SAMPLING_MODES = ["eps", "v_prediction", "lcm"]
 CMK_FIXED_SEED_WIDGET = {"default": 1565304366, "min": 0, "max": 0xffffffffffffffff, "control_after_generate": "fixed"}
-def _effective_inpaint_prompts(
-    prompt_pos: str,
-    prompt_neg: str,
-    inpaint_mode: bool,
-    process_mode: str,
-) -> tuple[str, str, str]:
-    """Return task conditioning with guarded, user-directed Remove prompts."""
-    if bool(inpaint_mode) and str(process_mode).strip().lower() == "remove":
-        fallback_positive = (
-            "empty unobstructed background, seamless continuation of the surrounding scene, "
-            "coherent structures, materials, lighting and perspective"
-        )
-        remove_guard = (
-            "person, woman, man, human, face, head, hair, body, arms, hands, clothing, foreground subject"
-        )
-        user_positive = str(prompt_pos or "").strip()
-        user_negative = str(prompt_neg or "").strip()
-        effective_positive = user_positive or fallback_positive
-        effective_negative = ", ".join(part for part in (user_negative, remove_guard) if part)
-        source = "SOURCE + INTERNAL REMOVE GUARD" if user_positive else "INTERNAL REMOVE GUIDANCE"
-        return effective_positive, effective_negative, source
-    return prompt_pos, prompt_neg, "SOURCE"
 
 
 def _get_node_class(*names: str):
@@ -164,6 +143,32 @@ def _maybe_invert_controlnet_hint(image, enabled):
         return 1.0 - image
     except Exception:
         return image
+
+
+def _ensure_sdxl_controlnet_loaded(pipe):
+    """Load deferred module-05 SDXL ControlNet at its point of use."""
+    if not bool(pipe.get("boolean_controlnet_enable", False)):
+        return None, "ControlNet disabled"
+    control_net = pipe.get("control_net")
+    if control_net is not None:
+        return control_net, "ControlNet already loaded"
+    model_name = str(pipe.get("controlnet_model_name", "") or "").strip()
+    if not model_name:
+        return None, "ControlNet bypass | model name missing"
+    try:
+        result = _call_node_kwargs(
+            ("ControlNetLoader",), control_net_name=model_name
+        )
+        if isinstance(result, dict) and "result" in result:
+            result = result["result"]
+        control_net = _first(result)
+    except Exception as exc:
+        return None, f"ControlNet load failed | {exc}"
+    if control_net is None:
+        return None, "ControlNet load failed | loader returned no model"
+    pipe["control_net"] = control_net
+    pipe["controlnet_load_deferred"] = False
+    return control_net, f"ControlNet loaded on demand | {model_name}"
 
 
 def _apply_controlnet_from_pipe(pipe, conditioning_pos, conditioning_neg, vae):
@@ -704,12 +709,9 @@ class CMKSamplerPrepareSDXLPipe:
             effective_noise_mask = False
             effective_context_reference = False
 
-        effective_prompt_pos, effective_prompt_neg, prompt_source = _effective_inpaint_prompts(
-            prompt_pos,
-            prompt_neg,
-            inpaint_mode,
-            requested_process_mode,
-        )
+        effective_prompt_pos = _clean_text(pipe.get("effective_prompt_pos"), prompt_pos)
+        effective_prompt_neg = _clean_text(pipe.get("effective_prompt_neg"), prompt_neg)
+        prompt_source = _clean_text(pipe.get("prompt_source"), "SOURCE")
 
         # Build the shared MODEL/CLIP base before selecting the complete
         # NORMAL or INPAINT sampling state.
@@ -1016,6 +1018,7 @@ class CMKSamplerPrepareSDXLPipe:
 
         # 8) ControlNet is attached only after the final branch selection, so it
         # affects exactly the conditioning that reaches the KSampler.
+        _control_net, controlnet_load_log = _ensure_sdxl_controlnet_loaded(pipe)
         if inpaint_mode:
             # Keep the reconstructed INPAINT branch unchanged.
             selected_conditioning_pos, selected_conditioning_neg, controlnet_applied, controlnet_log = (
@@ -1047,6 +1050,7 @@ class CMKSamplerPrepareSDXLPipe:
                 )
             )
             controlnet_log = (
+                f"{controlnet_load_log} | "
                 f"INVERT HINT={'ON' if pipe.get('controlnet_invert_hint', False) else 'OFF'} | "
                 + str(controlnet_log)
             )
@@ -1238,4 +1242,27 @@ class CMKSamplerPrepareSDXLPipe:
                 "seed": new_pipe["seed"],
             },
         )
+        if bool(
+            PROCESS.get(
+                "unload_models_after_use",
+                PROCESS.get("unload_zit_after", True),
+            )
+        ):
+            new_pipe["text_encoder_status"] = evict_sdxl_text_encoder(
+                MODEL, pipe, new_pipe
+            )
+            # Local base and LoRA/CLIPSetLastLayer clones must not survive this
+            # frame merely because their conditioning tensors do.
+            clip = None
+            prepared_clip = None
+            import gc
+
+            gc.collect()
+            try:
+                import comfy.model_management
+
+                comfy.model_management.cleanup_models_gc()
+                comfy.model_management.soft_empty_cache(force=True)
+            except Exception:
+                pass
         return (new_pipe, log_pipe, diagnostic)

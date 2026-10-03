@@ -1,0 +1,19 @@
+{
+  "published": true,
+  "displayName": "FaceSwap vs FaceRebuild",
+  "kind": "comparison",
+  "order": 301,
+  "category": "COMPARISONS",
+  "category_en": "COMPARISONS",
+  "description": "Vergleicht FaceSwap und FaceRebuild am selben Ziel- und Referenzbild und stellt ihre unterschiedlichen Ergebnisse direkt gegenüber.",
+  "description_en": "Compares FaceSwap and FaceRebuild using the same target and reference images, presenting their different results side by side.",
+  "cmkHighlight": "Beide Verfahren sind im selben Vergleichsworkflow parallel aufgebaut, sodass Wirkung und Prozessunterschiede unmittelbar gegenübergestellt werden können.",
+  "cmkHighlight_en": "Both methods are set up in parallel within the same comparison workflow, allowing their effects and process differences to be compared directly.",
+  "previews": [
+    {
+      "src": "assets/showcase/COMPARISONS/FaceSwap vs FaceRebuild/FaceSwap vs FaceRebuild.png",
+      "label": "Vorschau",
+      "label_en": "Vorschau"
+    }
+  ]
+}

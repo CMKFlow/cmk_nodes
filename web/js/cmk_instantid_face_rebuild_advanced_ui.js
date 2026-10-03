@@ -4,7 +4,7 @@ import { installSourceTargetSlider } from "./cmk_source_target_slider.js";
 const NODE_CLASS = "CMKInstantIDFaceRebuildAdvancedSDXL";
 const STANDARD_NODE_CLASS = "CMKInstantIDFaceRebuildSDXL";
 const NODE_SIZE = [600, 1400];
-const STANDARD_NODE_SIZE = [580, 1080];
+const STANDARD_MIN_SIZE = [450, 590];
 const ADVANCED = new Set([
     "DETECT MODEL", "DETECT SIZE", "instantid_model", "SAMPLING START",
     "controlnet_model", "provider", "cfg", "identity_noise",
@@ -37,6 +37,16 @@ function isStandardTarget(node) {
     );
 }
 
+function enforceStandardMinimum(node) {
+    const width = Math.max(Number(node?.size?.[0]) || 0, STANDARD_MIN_SIZE[0]);
+    const height = Math.max(Number(node?.size?.[1]) || 0, STANDARD_MIN_SIZE[1]);
+    node.properties ||= {};
+    delete node.properties.cmkFixedSize;
+    if (width !== Number(node?.size?.[0]) || height !== Number(node?.size?.[1])) {
+        node.setSize?.([width, height]);
+    }
+}
+
 function lineElement() {
     const element = document.createElement("div");
     element.style.width = "100%";
@@ -65,7 +75,7 @@ function installStableSerialization(node, canonical) {
 function configureStandard(node) {
     if (!isStandardTarget(node) || !Array.isArray(node.widgets)) return;
     if (node._cmkFaceRebuildStandardUi) {
-        node.setSize?.(STANDARD_NODE_SIZE);
+        enforceStandardMinimum(node);
         return;
     }
     node._cmkFaceRebuildStandardUi = true;
@@ -110,10 +120,7 @@ function configureStandard(node) {
         ...canonical.filter((widget) => !included.has(widget) && widget !== sampling),
     ];
     node.properties ??= {};
-    node.properties.cmkFixedSize = [...STANDARD_NODE_SIZE];
-    node.properties.cmkOuterSize = [...STANDARD_NODE_SIZE];
-    node.properties.cmkManualSize = [...STANDARD_NODE_SIZE];
-    node.setSize?.(STANDARD_NODE_SIZE);
+    enforceStandardMinimum(node);
     node.setDirtyCanvas?.(true, true);
 }
 

@@ -1,0 +1,34 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · Text2Image",
+  "kind": "real-world",
+  "order": 401,
+  "category": "REAL-WORLD WORKFLOWS",
+  "category_en": "REAL-WORLD WORKFLOWS",
+  "description": "Zeigt einen vollständigen Text2Image-Arbeitsablauf mit HYBRID-Generierung, ControlNet, anschließendem Detailer und optionalem Upscaling.",
+  "description_en": "Shows a complete Text2Image workflow with HYBRID generation, ControlNet, subsequent detailing, and optional upscaling.",
+  "cmkHighlight": "Mehrere CMK-Bausteine arbeiten in einem durchgängigen Workflow zusammen: ControlNet führt den SDXL-Aufbau, Z-Image Turbo übernimmt den finalen HYBRID-Pass und der Detailer bearbeitet das fertige Ergebnis anschließend weiter.",
+  "cmkHighlight_en": "Multiple CMK building blocks work together in one continuous workflow: ControlNet guides the SDXL image build, Z-Image Turbo handles the final HYBRID pass, and the Detailer then processes the completed result further.",
+  "previews": [
+    {
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.5 · Text2Image/CMK 2.5 · Text2Image - 1 ControlNet.png",
+      "label": "ControlNet",
+      "label_en": "ControlNet"
+    },
+    {
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.5 · Text2Image/CMK 2.5 · Text2Image - 2 1st-Pass SDXL.png",
+      "label": "1st-Pass SDXL",
+      "label_en": "1st-Pass SDXL"
+    },
+    {
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.5 · Text2Image/CMK 2.5 · Text2Image - 3 2nd-Pass ZIT.png",
+      "label": "2nd-Pass ZIT",
+      "label_en": "2nd-Pass ZIT"
+    },
+    {
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.5 · Text2Image/CMK 2.5 · Text2Image - 4 Detailer.png",
+      "label": "Detailer",
+      "label_en": "Detailer"
+    }
+  ]
+}

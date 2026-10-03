@@ -6,7 +6,8 @@ const LABEL_SELECTOR = 'label, [data-testid="widget-layout-field-label"]';
 const POSITIONS = ["TOP LEFT", "TOP", "TOP RIGHT", "LEFT", "CENTER", "RIGHT", "BOTTOM LEFT", "BOTTOM", "BOTTOM RIGHT"];
 const EXTENTS = { SMALL: 0.33, MEDIUM: 0.50, LARGE: 0.67 };
 const DEFAULT_NODE_WIDTH = 600;
-const DEFAULT_NODE_HEIGHT = 1225;
+const MIN_NODE_HEIGHT = 800;
+const LEGACY_DEFAULT_NODE_HEIGHT = 1225;
 
 function isTarget(node) {
   return Boolean(node) && (
@@ -53,7 +54,11 @@ function setStructuralVisibility(widget, visible) {
 function setPromptHeight(widget, height) {
   if (!widget) return;
   widget._cmkRegionalPromptComputeSize ??= widget.computeSize;
-  widget.computeSize = (width) => [Math.max(Number(width) || 560, 560), height];
+  // Current ComfyUI DOM widgets must remain flexible. Fixing computeSize
+  // leaves manually added node height as an empty row above the prompt.
+  widget.computeSize = typeof widget.computeLayoutSize === "function"
+    ? undefined
+    : (width) => [Math.max(Number(width) || 560, 560), height];
   // Multiline STRING inputs are DOM widgets in current ComfyUI frontends.
   // Their layout ignores computeSize and distributes space from these options.
   widget.options ??= {};
@@ -70,6 +75,26 @@ function setPromptHeight(widget, height) {
     element.style.height = "100%";
     element.style.minHeight = `${height}px`;
     element.setAttribute?.("rows", String(widget.options.rows));
+  }
+}
+
+function fixDomWidgetHeight(widget, height) {
+  if (!widget) return;
+  widget.computeSize = (width) => [Math.max(Number(width) || 560, 560), height];
+  // Tabs and decorative bands must not absorb spare node height.
+  widget.computeLayoutSize = undefined;
+  widget.options ??= {};
+  widget.options.getMinHeight = () => height;
+  widget.options.getHeight = () => height;
+  widget.options.getMaxHeight = () => height;
+}
+
+function enforceMinimumNodeHeight(node) {
+  const width = Number(node.size?.[0]) || DEFAULT_NODE_WIDTH;
+  const height = Number(node.size?.[1]) || 0;
+  const isLegacyDefault = Math.abs(height - LEGACY_DEFAULT_NODE_HEIGHT) < 0.5;
+  if (height < MIN_NODE_HEIGHT || isLegacyDefault) {
+    node.setSize?.([width, MIN_NODE_HEIGHT]);
   }
 }
 
@@ -191,6 +216,7 @@ function configure(node, applyDefaultSize = false) {
     hideOnZoom: false, getMinHeight: () => 36, getHeight: () => 36,
   });
   tabs.serialize = false;
+  fixDomWidgetHeight(tabs, 36);
 
   const headers = [];
   const separators = [];
@@ -198,12 +224,12 @@ function configure(node, applyDefaultSize = false) {
     const header = node.addDOMWidget(`CMK REGION ${index}`, "cmk_region_header", makeBand(`REGION ${index}`), {
       hideOnZoom: false, getMinHeight: () => 30, getHeight: () => 30,
     });
-    header.serialize = false; headers.push(header);
+    header.serialize = false; fixDomWidgetHeight(header, 30); headers.push(header);
     if (index < 3) {
       const separator = node.addDOMWidget(`CMK REGION SEPARATOR ${index}`, "cmk_region_separator", makeBand("", true), {
         hideOnZoom: false, getMinHeight: () => 17, getHeight: () => 17,
       });
-      separator.serialize = false; separators.push(separator);
+      separator.serialize = false; fixDomWidgetHeight(separator, 17); separators.push(separator);
     }
   }
 
@@ -274,10 +300,12 @@ function configure(node, applyDefaultSize = false) {
     // zero-height rows can no longer create gaps between visible controls.
     const inactive = canonical.filter((widget) => !visibleWidgets.has(widget));
     node.widgets = [...visible, ...inactive];
-    // Let LiteGraph derive the node height from the currently visible widget
-    // set. This removes both the inactive Vue rows and the fixed bottom area.
+    // New nodes use the shared 800 px minimum. Existing manually enlarged
+    // nodes retain their size; only the former 1225 px default is migrated.
     if (applyDefaultSize && !node._cmkRegionalLoadedFromWorkflow) {
-      node.setSize?.([DEFAULT_NODE_WIDTH, DEFAULT_NODE_HEIGHT]);
+      node.setSize?.([DEFAULT_NODE_WIDTH, MIN_NODE_HEIGHT]);
+    } else {
+      enforceMinimumNodeHeight(node);
     }
     node.graph?.trigger?.("node:widget:changed", { nodeId: node.id });
     node.setDirtyCanvas?.(true, true); app.graph?.setDirtyCanvas?.(true, true);
@@ -315,8 +343,8 @@ function schedule(node, applyDefaultSize = false) {
 }
 
 app.registerExtension({
-  name: import.meta.url.includes("cmk-layout-v5")
-    ? "cmk.regional.conditioning.ui.v5"
+  name: import.meta.url.includes("cmk-layout-v6")
+    ? "cmk.regional.conditioning.ui.v6"
     : "cmk.regional.conditioning.ui.v1",
   setup() { installDomBehavior(); },
   beforeRegisterNodeDef(nodeType, nodeData) {

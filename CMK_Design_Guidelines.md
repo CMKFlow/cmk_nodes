@@ -288,15 +288,17 @@ CMK Flow · 02 SDXL LoRA Stack
 CMK Flow · 05 ControlNet SDXL (optional)
 CMK Flow · 10 KSampler SDXL 1st Pass
 CMK Flow · 20 Refiner SDXL
-CMK Flow · 25 Detailer SDXL
-CMK Flow · 40 FaceSwap
-CMK Flow · 30 FaceProcess SDXL
-CMK Flow · 90 Upscale & Save
+CMK Flow · Detailer SDXL
+CMK Flow · FaceSwap
+CMK Flow · FaceProcess SDXL
+CMK Flow · Upscale & Save
 ```
 
-Nummern kennzeichnen die empfohlene Standardposition und sind kein Ausführungszwang. Zwischenräume bleiben für zukünftige Module reserviert.
-
-Die Nummer ist zugleich ein fester Bestandteil des Modulnamens und der Suche. Anwender können ein Modul im CMK Flow Browser und in der ComfyUI-Suche gezielt über `30`, `40` oder `50` finden. Standard- und Advanced-Varianten behalten deshalb immer dieselbe Modulnummer.
+Die Nummern 01 bis 20 kennzeichnen ausschließlich die gerichtete
+Generationspipeline. Danach beginnt die unnummerierte PostProcess-Zone; dort
+bestimmt allein die Verkabelung die Reihenfolge. Standard- und
+Advanced-Varianten teilen ihre technische Variantenidentität, aber keine
+künstliche Ablaufnummer.
 
 ### Unabhängigkeit der Flow-Module
 
@@ -312,7 +314,7 @@ Bei FaceSwap sind `IDENTITY STRENGTH` und `BLEND` fachlich getrennt. `IDENTITY S
 
 Die Trennung in empfohlenen Einstieg und `Advanced` gilt entsprechend für den Detailer. Der empfohlene Detailer besitzt einen Ausführungszweig und führt `IMAGE PROCEED` direkt zur Boundary. Advanced besitzt zwei unabhängig konfigurierte Zweige und führt deren `SEGS PROCEED` erst außerhalb der Execute-Nodes zusammen. Beide Varianten bleiben unter einem Haupteintrag im Flow Browser gebündelt.
 
-FaceProcess folgt derselben Trennung. Der empfohlene Einstieg `30 FaceProcess SDXL` besitzt einen Execute-Zweig und führt `IMAGE PROCEED` direkt zur Boundary. `30 FaceProcess SDXL · Advanced` besitzt kongruent zu `40 FaceSwap · Advanced` bis zu drei unabhängig ausgewählte Gesichts-Zweige und führt deren `SEGS PROCESSED` gemeinsam zusammen.
+FaceProcess folgt derselben Trennung. Der empfohlene Einstieg `FaceProcess SDXL` besitzt einen Execute-Zweig und führt `IMAGE PROCEED` direkt zur Boundary. `FaceProcess SDXL · Advanced` besitzt kongruent zu `FaceSwap · Advanced` bis zu drei unabhängig ausgewählte Gesichts-Zweige und führt deren `SEGS PROCESSED` gemeinsam zusammen.
 
 ## 12. Änderungsregel
 

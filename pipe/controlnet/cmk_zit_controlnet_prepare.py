@@ -14,6 +14,7 @@ from ...nodes.controlnet.controlnet import (
 from ...utils.cmk_diagnostic import make_diagnostic_payload
 from ..cmk_log_pipe import cmk_add_block
 from ..cmk_sampler_prepare import _call_node_kwargs, _unwrap_node_output
+from .cmk_controlnet_prepare import _controlnet_visual
 
 
 DEFAULT_ZIT_CONTROLNET_PATCH = "Z-Image-Turbo-Fun-Controlnet-Union.safetensors"
@@ -257,13 +258,22 @@ class CMKZITControlNetPreparePipe:
                 "model_patch": patch_name,
             },
         )
+        visual = _controlnet_visual(
+            kwargs.get("VISUAL"),
+            enabled=True,
+            image=image,
+            unique_id=kwargs.get("unique_id"),
+            module_type="CMKZITControlNetPreparePipe",
+            branch="zit",
+            stage_key="zit.controlnet",
+        ) if kwargs.get("_register_visual", True) else kwargs.get("VISUAL")
         return {
             "ui": {"images": _tensor_image_to_temp_ui(image, "cmk_zit_controlnet")},
             "result": (
                 process,
                 kwargs.get("IMAGE"),
                 log,
-                kwargs.get("VISUAL"),
+                visual,
                 diagnostic,
                 image,
             ),

@@ -8,6 +8,7 @@ from ..pipe.instantid.upstream import CMK_INSTANTID_CLASSES
 from ..utils.cmk_diagnostic import make_diagnostic_payload
 from ..utils.cmk_sampling_warnings import ignore_torchsde_boundary_rounding
 from ..utils.cmk_translation import translate_prompt
+from ..pipe.loaders.checkpoint_vae_loader import resolve_postprocess_model
 
 
 INSTANTID_PROVIDERS = ["CoreML", "CPU", "CUDA", "ROCM"]
@@ -49,7 +50,7 @@ class CMKInstantIDFaceDetailerSDXL:
 
     CATEGORY = "CMK/Toolbox/Face"
     FUNCTION = "detail"
-    RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_PROCESS_SDXL", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
+    RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_RESULT_PROCESS", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
     RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "diagnostic")
 
     @classmethod
@@ -57,7 +58,7 @@ class CMKInstantIDFaceDetailerSDXL:
         return {
             "required": {
                 "MODEL": ("CMK_MODEL_PIPE",),
-                "PROCESS": ("CMK_PROCESS_SDXL",),
+                "PROCESS": ("CMK_RESULT_PROCESS",),
                 "TARGET ROI": ("IMAGE",),
                 "SOURCE FACE": ("IMAGE",),
                 "LOG": ("CMK_LOG_PIPE",),
@@ -86,8 +87,8 @@ class CMKInstantIDFaceDetailerSDXL:
         log_pipe = inputs["LOG"]
         if not isinstance(model_pipe, dict) or not isinstance(process, dict):
             raise TypeError("CMK InstantID Face Detailer requires CMK MODEL and PROCESS pipes")
-        if str(process.get("model_family", "sdxl")).strip().lower() != "sdxl":
-            raise ValueError("CMK InstantID Face Detailer supports SDXL only")
+        if process.get("result_contract") != "family_neutral":
+            raise ValueError("CMK InstantID Face Detailer requires the PostProcess Boundary")
         if not bool(process.get("face_rebuild_enabled", True)):
             lines = [
                 "Workflow          : INSTANTID FACE REBUILD · IMG2IMG DETAILER",
@@ -106,6 +107,7 @@ class CMKInstantIDFaceDetailerSDXL:
                 metadata={"enabled": False, "bypassed": True},
             )
             return model_pipe, process, target_roi, log_out, diagnostic
+        model_pipe = resolve_postprocess_model(model_pipe)
         model = model_pipe.get("model")
         clip = model_pipe.get("clip")
         vae = model_pipe.get("vae")

@@ -5,8 +5,13 @@ const NODE_CLASS = "cmk-compact-subgraph-bottom-widgets";
 const ADVANCED_NODE_CLASS = "cmk-compact-subgraph-advanced";
 const NODE_SELECTOR = '.lg-node[data-node-id], [data-testid^="node-body-"]';
 const OBSOLETE_SPACER_NAME = "cmk_advanced_combo_spacer";
-const UPSCALE_SAVE_TITLE = "CMK Flow · 90 Upscale & Save";
 const UPSCALE_SAVE_MIN_HEIGHT_REDUCTION = 2;
+const NATURAL_WIDGET_LAYOUT_STAGES = new Set([
+    "sdxl.detailer.advanced",
+    "sdxl.facerebuild.advanced",
+    "sdxl.faceprocess.advanced",
+    "result.faceswap.advanced",
+]);
 
 function installStyle() {
     if (document.getElementById(STYLE_ID)) return;
@@ -45,9 +50,22 @@ function graphNode(nodeId) {
 
 function isCmkVisualSubgraph(node) {
     return Boolean(
-        node?.isSubgraphNode?.()
-        && Array.isArray(node?.properties?.cmkVisualProviders),
+        Array.isArray(node?.properties?.cmkOuterSize)
+        && Number(node.properties.cmkOuterSize[0]) > 0
+        && Number(node.properties.cmkOuterSize[1]) > 0
+        && Array.isArray(node?.properties?.cmkVisualProviders)
+        && !node.properties.cmkVisualProviders.some((provider) =>
+            NATURAL_WIDGET_LAYOUT_STAGES.has(String(provider?.stage_key || "")),
+        ),
     );
+}
+
+function isUpscaleSaveSubgraph(node) {
+    const names = new Set((node?.widgets || []).map((widget) => String(widget?.name || "")));
+    return isCmkVisualSubgraph(node)
+        && names.has("enable upscale")
+        && names.has("model 4x")
+        && names.has("model 2x");
 }
 
 function isAdvancedSubgraph(node) {
@@ -57,7 +75,7 @@ function isAdvancedSubgraph(node) {
 }
 
 function compactUpscaleSaveMinimumHeight(node) {
-    if (String(node?.title || "") !== UPSCALE_SAVE_TITLE) return;
+    if (!isUpscaleSaveSubgraph(node)) return;
     if (node.__cmkUpscaleSaveCompactMinimum) return;
     node.__cmkUpscaleSaveCompactMinimum = true;
     const originalComputeSize = node.computeSize;

@@ -4,6 +4,12 @@ const COMPACT_FLOW_SIZE = [450, 230];
 const SUBGRAPH_FOOTER_HEIGHT = 24;
 const ADVANCED_SPACER_NAME = "cmk_advanced_combo_spacer";
 const WIDGET_ROW_HEIGHT = 26;
+const NATURAL_WIDGET_LAYOUT_STAGES = new Set([
+    "sdxl.detailer.advanced",
+    "sdxl.facerebuild.advanced",
+    "sdxl.faceprocess.advanced",
+    "result.faceswap.advanced",
+]);
 
 function text(value) {
     return String(value ?? "");
@@ -22,9 +28,21 @@ function hasVisualProviderContract(node) {
     return Array.isArray(node?.properties?.cmkVisualProviders);
 }
 
+function hasOuterCmkMarker(node) {
+    const size = node?.properties?.cmkOuterSize;
+    return Array.isArray(size) && Number(size[0]) > 0 && Number(size[1]) > 0;
+}
+
+function usesNaturalWidgetLayout(node) {
+    return (node?.properties?.cmkVisualProviders || []).some((provider) =>
+        NATURAL_WIDGET_LAYOUT_STAGES.has(text(provider?.stage_key)),
+    );
+}
+
 function isCompactFlowModule(node) {
+    if (usesNaturalWidgetLayout(node)) return false;
     return (
-        (nodeTitle(node).startsWith("CMK Flow · ") || hasVisualProviderContract(node)) &&
+        (hasOuterCmkMarker(node) || hasVisualProviderContract(node)) &&
         (node?.isSubgraphNode?.() || hasVisualProviderContract(node))
     );
 }

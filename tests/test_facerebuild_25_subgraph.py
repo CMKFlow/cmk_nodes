@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PATH = ROOT / "subgraphs" / "CMK Flow · 25 FaceRebuild SDXL.json"
+PATH = ROOT / "subgraphs" / "CMK Flow · FaceRebuild SDXL.json"
 
 
 class FaceRebuild25SubgraphTests(unittest.TestCase):
@@ -15,66 +15,43 @@ class FaceRebuild25SubgraphTests(unittest.TestCase):
         cls.definition = cls.workflow["definitions"]["subgraphs"][0]
 
     def test_outer_ui_is_compact_and_has_no_image_views(self):
-        self.assertEqual(self.outer["size"], [450, 230])
-        self.assertEqual(self.outer["properties"]["cmkOuterSize"], [450, 230])
-        self.assertEqual(self.outer["properties"]["cmkManualSize"], [450, 230])
-        self.assertEqual(
-            self.outer["properties"]["proxyWidgets"],
-            [["6200", "FACEREBUILD ENABLE"]],
-        )
-        self.assertNotIn("previewExposures", self.outer["properties"])
+        self.assertEqual(self.outer["size"], [300, 190])
+        self.assertEqual(self.outer["properties"]["cmkOuterSize"], [300, 100])
+        self.assertEqual(self.outer["properties"]["cmkManualSize"], [300, 100])
+        self.assertNotIn("proxyWidgets", self.outer["properties"])
+        self.assertEqual([], self.outer["properties"]["previewExposures"])
 
     def test_source_selection_is_a_direct_outer_combo(self):
         self.assertEqual(
             [item["name"] for item in self.outer["inputs"]],
-            ["MODEL", "PROCESS", "IMAGE", "LOG", "VISUAL", "FACEREBUILD ENABLE", "image"],
+            ["MODEL", "PROCESS", "IMAGE", "LOG", "VISUAL", "FACEREBUILD ENABLE", "opt_image_file"],
         )
-        self.assertEqual(self.outer["inputs"][-1]["type"], "COMBO")
-        self.assertEqual(self.outer["inputs"][-1]["label"], "source face")
+        self.assertEqual(self.outer["inputs"][-1]["type"], "STRING")
         self.assertEqual(
             self.outer["widgets_values_named"],
-            {"image": "CMK Package · face_reference.png"},
+            {"FACEREBUILD ENABLE": True},
         )
-
-        exposed = next(item for item in self.definition["inputs"] if item["name"] == "image")
-        self.assertEqual(exposed["type"], "COMBO")
-        self.assertEqual(exposed["label"], "source face")
-        self.assertEqual(exposed["linkIds"], [15042])
+        self.assertNotIn("image", [item["name"] for item in self.definition["inputs"]])
         source = next(node for node in self.definition["nodes"] if node["type"] == "CMKLoadImage")
-        source_image = next(item for item in source["inputs"] if item["name"] == "image")
-        self.assertEqual(source_image["link"], 15042)
-        link = next(item for item in self.definition["links"] if item["id"] == 15042)
-        self.assertEqual(
-            (link["origin_id"], link["origin_slot"], link["target_id"], link["target_slot"]),
-            (-10, 6, source["id"], 1),
-        )
+        self.assertIn("CMK Package · face_identity_reference.png", source["widgets_values"])
 
-    def test_visualizer_receives_live_and_boundary_result_without_outer_view(self):
+    def test_process_owns_visual_and_internal_preview_compare(self):
         self.assertEqual(
             [item["name"] for item in self.outer["outputs"]],
             ["MODEL", "PROCESS", "IMAGE", "LOG", "VISUAL", "diagnostic"],
         )
-        provider = next(
-            node for node in self.definition["nodes"] if node["type"] == "CMKVisualProvider"
-        )
-        self.assertEqual(
-            provider["widgets_values"],
-            [
-                "FaceRebuild",
-                25,
-                "CMKInstantIDFaceRebuildSDXL",
-                "sdxl",
-                "sdxl.facerebuild.standard",
-            ],
-        )
-        self.assertEqual(provider["inputs"][0]["link"], 15044)
-        self.assertEqual(provider["inputs"][3]["link"], 15045)
-        self.assertEqual(provider["inputs"][4]["link"], 15046)
-        self.assertEqual(provider["inputs"][5]["link"], 15047)
-        self.assertEqual(provider["outputs"][0]["links"], [15048])
+        process = next(node for node in self.definition["nodes"] if node["type"] == "CMKInstantIDFaceRebuildSDXL")
+        compare = next(node for node in self.definition["nodes"] if node["type"] == "CMKVisualCompare")
+        self.assertIn("VISUAL", [item["name"] for item in process["inputs"]])
+        self.assertEqual(["VISUAL", "diagnostic"], [item["name"] for item in process["outputs"][-2:]])
+        self.assertEqual(["VISUAL", "enable"], [item["name"] for item in compare["inputs"]])
+        self.assertFalse({"CMKVisualProvider", "CMKImageCompareEnableGate", "ImageCompare"} & {
+            node["type"] for node in self.definition["nodes"]
+        })
         metadata = self.outer["properties"]["cmkVisualProviders"]
         self.assertEqual(len(metadata), 1)
         self.assertEqual(metadata[0]["live_node_id"], "6200")
+        self.assertEqual(metadata[0]["enable_widget"], "FACEREBUILD ENABLE")
         self.assertEqual(metadata[0]["stage_key"], "sdxl.facerebuild.standard")
 
     def test_pasteback_neck_is_enabled_by_default(self):
@@ -95,11 +72,19 @@ class FaceRebuild25SubgraphTests(unittest.TestCase):
         )
         self.assertIs(rebuild["widgets_values"][widget_index], True)
 
+    def test_both_backend_processes_publish_their_own_visual(self):
+        source = (ROOT / "nodes" / "instantid_face_rebuild_advanced.py").read_text(encoding="utf-8")
+        self.assertIn('"optional": {"VISUAL": ("CMK_VISUAL_PIPE",)}', source)
+        self.assertIn('module_type="CMKInstantIDFaceRebuildSDXL"', source)
+        self.assertIn('stage_key="sdxl.facerebuild.standard"', source)
+        self.assertIn('module_type="CMKInstantIDFaceRebuildAdvancedSDXL"', source)
+        self.assertIn('stage_key="sdxl.facerebuild.advanced"', source)
+
 
 class FaceRebuild25AdvancedSubgraphTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        path = ROOT / "subgraphs" / "CMK Flow · 25 FaceRebuild SDXL · Advanced.json"
+        path = ROOT / "subgraphs" / "CMK Flow · FaceRebuild SDXL · Advanced.json"
         cls.workflow = json.loads(path.read_text(encoding="utf-8"))
         cls.outer = cls.workflow["nodes"][0]
         cls.definition = cls.workflow["definitions"]["subgraphs"][0]
@@ -107,14 +92,15 @@ class FaceRebuild25AdvancedSubgraphTests(unittest.TestCase):
     def test_outer_ui_matches_advanced_contract(self):
         expected_inputs = [
             "MODEL", "PROCESS", "IMAGE", "LOG", "VISUAL", "facerebuild_global_enable",
+            "opt_image_file",
         ]
         expected_outputs = ["MODEL", "PROCESS", "IMAGE", "LOG", "VISUAL", "diagnostic"]
-        self.assertEqual([450, 230], self.outer["size"])
+        self.assertEqual([300, 190], self.outer["size"])
         self.assertEqual(expected_inputs, [item["name"] for item in self.outer["inputs"]])
         self.assertEqual(expected_outputs, [item["name"] for item in self.outer["outputs"]])
         self.assertEqual(expected_inputs, [item["name"] for item in self.definition["inputs"]])
         self.assertEqual(expected_outputs, [item["name"] for item in self.definition["outputs"]])
-        self.assertEqual("FACEREBUILD ENABLE", self.outer["inputs"][-1]["label"])
+        self.assertEqual("FACEREBUILD ENABLE", self.outer["inputs"][-2]["label"])
         self.assertNotIn("proxyWidgets", self.outer["properties"])
         self.assertEqual([True], self.outer["widgets_values"])
 
@@ -130,20 +116,19 @@ class FaceRebuild25AdvancedSubgraphTests(unittest.TestCase):
         )
         self.assertEqual(15042, next(item for item in rebuild["inputs"] if item["name"] == "FACEREBUILD ENABLE")["link"])
 
-    def test_visual_provider_uses_boundary_and_global_enable(self):
-        provider = next(
-            node for node in self.definition["nodes"] if node["type"] == "CMKVisualProvider"
-        )
-        self.assertEqual(
-            ["FaceRebuild", 25, "CMKInstantIDFaceRebuildAdvancedSDXL", "sdxl", "sdxl.facerebuild.advanced"],
-            provider["widgets_values"],
-        )
-        self.assertEqual(15044, provider["inputs"][0]["link"])
-        self.assertEqual(15043, provider["inputs"][1]["link"])
-        self.assertEqual(15045, provider["inputs"][3]["link"])
-        self.assertEqual(15046, provider["inputs"][4]["link"])
-        self.assertEqual(15047, provider["inputs"][5]["link"])
-        self.assertEqual([15048], provider["outputs"][0]["links"])
+    def test_process_owns_visual_and_global_compare_enable(self):
+        process = next(node for node in self.definition["nodes"] if node["type"] == "CMKInstantIDFaceRebuildAdvancedSDXL")
+        compare = next(node for node in self.definition["nodes"] if node["type"] == "CMKVisualCompare")
+        self.assertIn("VISUAL", [item["name"] for item in process["inputs"]])
+        self.assertEqual(["VISUAL", "diagnostic"], [item["name"] for item in process["outputs"][-2:]])
+        self.assertEqual(["VISUAL", "enable"], [item["name"] for item in compare["inputs"]])
+        self.assertFalse({"CMKVisualProvider", "CMKImageCompareEnableGate", "ImageCompare"} & {
+            node["type"] for node in self.definition["nodes"]
+        })
+        metadata = self.outer["properties"]["cmkVisualProviders"][0]
+        self.assertEqual("6213", metadata["live_node_id"])
+        self.assertEqual("facerebuild_global_enable", metadata["enable_widget"])
+        self.assertEqual("sdxl.facerebuild.advanced", metadata["stage_key"])
 
 
 if __name__ == "__main__":

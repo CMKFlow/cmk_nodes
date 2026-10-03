@@ -22,11 +22,11 @@ Es wurden keine byte-identischen Subgraph-Dubletten gefunden. Ähnliche Namen st
 | `CMK Flow · 10 KSampler SDXL 1st Pass` | `b9c63c18-5314-4f7c-b47d-b12f03249857` | erster SDXL-Sampling-Pass | familiengebunden behalten |
 | `CMK Flow · 10 KSampler Z-Image Turbo` | `29a47c62-8fd9-4614-864f-e155b84038ed` | getesteter nativer Z-Image-Turbo-Text2Image-Pass mit direktem IMAGE-Ausgang | als Basis der weiteren Z-Entwicklung behalten |
 | `CMK Flow · 20 Refiner SDXL` | `d4b8a6e3-9d91-4573-afc7-9b5e9241b5c4` | SDXL-Refiner-Pass | familiengebunden behalten |
-| `CMK Flow · 25 Detailer SDXL` | `3b19b6b4-853d-432f-82bb-64f174cffc6a` | SDXL-Detailer-Modul | ausschließlich im SDXL-Zweig behalten |
-| `CMK Flow · 30 FaceProcess SDXL` | `6e6466c2-7052-4fdc-b72f-8d8562a3c621` | SDXL-FaceProcess-Modul | ausschließlich im SDXL-Zweig behalten |
-| `CMK Flow · 40 FaceSwap` | `b4a00621-453d-4186-b783-2b8aaaa84f2b` | gemeinsam genutztes, familienneutrales FaceSwap-Modul | für SDXL und ZIT behalten |
+| `CMK Flow · Detailer SDXL` | `3b19b6b4-853d-432f-82bb-64f174cffc6a` | SDXL-Detailer-Modul | ausschließlich im SDXL-Zweig behalten |
+| `CMK Flow · FaceProcess SDXL` | `6e6466c2-7052-4fdc-b72f-8d8562a3c621` | SDXL-FaceProcess-Modul | ausschließlich im SDXL-Zweig behalten |
+| `CMK Flow · FaceSwap` | `b4a00621-453d-4186-b783-2b8aaaa84f2b` | gemeinsam genutztes, familienneutrales FaceSwap-Modul | für SDXL und ZIT behalten |
 | `CMK Toolbox · FaceSwap Image` | `de0cadaa-2b43-4c6a-91dc-95e793d104b5` | eigenständiger FaceSwap-Baustein; nicht Teil der geführten Flow-Reihenfolge | als vollständig funktionsfähigen Toolbox-Baustein behalten; spätere Anpassungen separat planen |
-| `CMK Flow · 90 Upscale & Save` | `a7bf2c5a-7242-4c0b-9092-bb63f85db8c7` | gemeinsam genutzter, familienneutraler Abschluss (`Flow/Finish`) | für SDXL und ZIT behalten |
+| `CMK Flow · Upscale & Save` | `a7bf2c5a-7242-4c0b-9092-bb63f85db8c7` | gemeinsam genutzter, familienneutraler Abschluss (`Flow/Finish`) | für SDXL und ZIT behalten |
 
 Der aktuelle Referenzworkflow verwendet für die Bild-/Prozessquelle direkt die Python-Node `CMKPipeCreateImage`. Der frühere Entwicklungs-Subgraph `CMK Pipe Create Image v2` wurde deshalb entfernt.
 

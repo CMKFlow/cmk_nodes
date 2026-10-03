@@ -27,6 +27,19 @@ class RegionalConditioningUITests(unittest.TestCase):
         self.assertIn("node._cmkRegionalLoadedFromWorkflow = true;", self.source)
         self.assertIn("schedule(node, false);", self.source)
 
+    def test_node_uses_800_px_minimum_and_migrates_legacy_default(self):
+        self.assertIn("const MIN_NODE_HEIGHT = 800;", self.source)
+        self.assertIn("const LEGACY_DEFAULT_NODE_HEIGHT = 1225;", self.source)
+        self.assertIn("height < MIN_NODE_HEIGHT || isLegacyDefault", self.source)
+
+    def test_prompt_rows_remain_flexible_without_spacer_rows(self):
+        self.assertIn(
+            'widget.computeSize = typeof widget.computeLayoutSize === "function"',
+            self.source,
+        )
+        self.assertIn("widget.computeLayoutSize = undefined;", self.source)
+        self.assertNotIn("const DEFAULT_NODE_HEIGHT = 1225;", self.source)
+
 
 if __name__ == "__main__":
     unittest.main()

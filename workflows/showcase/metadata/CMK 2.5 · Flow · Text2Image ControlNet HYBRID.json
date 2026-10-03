@@ -1,0 +1,31 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · Flow · Text2Image ControlNet HYBRID",
+  "kind": "task",
+  "order": 107,
+  "category": "TASK WORKFLOWS",
+  "category_en": "TASK WORKFLOWS",
+  "description": "Führt eine Text2Image-Generierung mit ControlNet im HYBRID-Modus aus – von der strukturellen Bildführung über den SDXL 1st-Pass bis zum abschließenden ZIT-Pass.",
+  "description_en": "Runs a Text2Image generation with ControlNet in HYBRID mode—from structural image guidance through the SDXL 1st pass to the final ZIT pass.",
+  "cmkHighlight": "ControlNet steuert die Komposition im SDXL-Teil des HYBRID-Pfads; Z-Image Turbo übernimmt anschließend das erzeugte Bild für den finalen Finish.",
+  "cmkHighlight_en": "ControlNet guides the composition within the SDXL stage of the HYBRID path; Z-Image Turbo then takes over the generated image for the final finishing pass.",
+  "info": "Die Dimension des ControlNet-Referenzbildes bestimmt die Ausgabeauflösung und kann damit die in `01 START HERE` gewählte Bildgröße überschreiben.",
+  "info_en": "The dimensions of the ControlNet reference image determine the output resolution and can therefore override the image size selected in `01 START HERE`.",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image ControlNet HYBRID/CMK 2.5 · Flow · Text2Image ControlNet HYBRID - 1 ControlNet.png",
+      "label": "ControlNet",
+      "label_en": "ControlNet"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image ControlNet HYBRID/CMK 2.5 · Flow · Text2Image ControlNet HYBRID - 2 1st-Pass SDXL.png",
+      "label": "1st-Pass SDXL",
+      "label_en": "1st-Pass SDXL"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image ControlNet HYBRID/CMK 2.5 · Flow · Text2Image ControlNet HYBRID - 3 2nd-Pass ZIT.png",
+      "label": "2nd-Pass ZIT",
+      "label_en": "2nd-Pass ZIT"
+    }
+  ]
+}

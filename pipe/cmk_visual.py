@@ -336,7 +336,8 @@ class CMKVisualizer:
         if image is not None and upscale_enabled:
             from ..nodes.image.smart_upscale import CMK_SmartUpscalerPipe
 
-            image, log, _upscale_diagnostic = CMK_SmartUpscalerPipe().run_pipe(
+            upscale_source = image
+            image, log, _upscale_visual, _upscale_diagnostic = CMK_SmartUpscalerPipe().run_pipe(
                 IMAGE=image,
                 LOG=log,
                 enable=True,
@@ -351,7 +352,7 @@ class CMKVisualizer:
                 module_type="CMKVisualizerUpscale",
                 module_label="Upscale",
                 sequence=90,
-                channels={"result": image},
+                channels={"before": upscale_source, "after": image},
                 status="completed",
                 branch="result",
                 stage_key="result.upscale",
@@ -370,7 +371,6 @@ class CMKVisualizer:
                     "FILENAME PREFIX": kwargs.get("filename prefix", "image"),
                     "OUTPUT FOLDER": kwargs.get("output folder", ""),
                     "USE DATE FOLDER": bool(kwargs.get("use date folder", True)),
-                    "PROJECT FOLDER": "",
                 },
             )
             save_text = (save_result.get("ui", {}) or {}).get("text")
@@ -394,4 +394,66 @@ class CMKVisualizer:
         ui = {"cmk_visual_images": ui_images, "cmk_visual": [json.dumps(payload)]}
         if save_text:
             ui["text"] = save_text
+        if (
+            isinstance(model, dict)
+            and model.get("model_role") == "postprocess"
+            and bool(process.get("unload_models_after_use", True))
+        ):
+            from .loaders.checkpoint_vae_loader import unload_model_pipe
+
+            status = unload_model_pipe(model)
+            print(f"[CMK PostProcess Model] {status} at Visualizer")
         return {"ui": ui}
+
+
+class CMKVisualCompare:
+    """Pure VISUAL endpoint for a preview or before/after comparison."""
+
+    OUTPUT_NODE = True
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"VISUAL": (VISUAL_TYPE, {"lazy": True})},
+            "optional": {"enable": ("BOOLEAN", {"forceInput": True})},
+        }
+
+    RETURN_TYPES = ()
+    FUNCTION = "show"
+    CATEGORY = "CMK/Toolbox/Image"
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        return float("nan")
+
+    @staticmethod
+    def check_lazy_status(VISUAL=None, enable=True):
+        if not bool(enable):
+            return []
+        return ["VISUAL"] if VISUAL is None else []
+
+    @staticmethod
+    def show(VISUAL=None, enable=True):
+        if not bool(enable):
+            return {
+                "ui": {
+                    "cmk_visual_enabled": [False],
+                    "cmk_visual_images": [],
+                    "cmk_visual": [json.dumps(empty_visual())],
+                }
+            }
+        visual = normalize_visual(VISUAL)
+        selected = next(
+            (provider for provider in reversed(visual["providers"]) if provider.get("channels")),
+            None,
+        )
+        for provider in reversed(visual["providers"]):
+            channels = provider.get("channels", {}) or {}
+            has_before = channels.get("before") is not None or channels.get("source") is not None
+            has_after = channels.get("after") is not None or channels.get("result") is not None
+            if has_before and has_after:
+                selected = provider
+                break
+        compare_visual = dict(visual)
+        compare_visual["providers"] = [selected] if selected is not None else []
+        return CMKVisualizer.show(VISUAL=compare_visual)

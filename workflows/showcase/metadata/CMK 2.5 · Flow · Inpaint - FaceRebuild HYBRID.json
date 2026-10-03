@@ -1,0 +1,39 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID",
+  "kind": "task",
+  "order": 119,
+  "category": "TASK WORKFLOWS",
+  "category_en": "TASK WORKFLOWS",
+  "description": "Führt ein HYBRID-Inpaint von der Vorbereitung über SDXL und ZIT bis zur anschließenden Gesichtsrekonstruktion mit FaceRebuild aus.",
+  "description_en": "Runs a HYBRID inpainting workflow from preparation through SDXL and ZIT, followed by facial reconstruction with FaceRebuild.",
+  "cmkHighlight": "FaceRebuild arbeitet nach dem HYBRID-Handoff auf dem fertigen Bild weiter und kann dafür ein separates PostProcess-Modell verwenden.",
+  "cmkHighlight_en": "After the HYBRID handoff, FaceRebuild continues processing the completed image and can use a separate PostProcess model.",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID/CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID - 1 Preparation.png",
+      "label": "Preparation",
+      "label_en": "Preparation"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID/CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID - 2 1st-Pass SDXL.png",
+      "label": "1st-Pass SDXL",
+      "label_en": "1st-Pass SDXL"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID/CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID - 3 2nd-Pass ZIT.png",
+      "label": "2nd-Pass ZIT",
+      "label_en": "2nd-Pass ZIT"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID/CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID - 4 FaceRebuild.png",
+      "label": "FaceRebuild",
+      "label_en": "FaceRebuild"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID/portrait_reference_00003.png",
+      "label": "Source",
+      "label_en": "Source"
+    }
+  ]
+}

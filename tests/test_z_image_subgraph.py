@@ -17,11 +17,11 @@ class ZImageSubgraphTests(unittest.TestCase):
     def test_public_contract_rejoins_common_image_flow(self):
         self.assertEqual(
             [item["name"] for item in self.definition["inputs"]],
-            ["PROCESS", "IMAGE", "LOG"],
+            ["PROCESS", "IMAGE", "LOG", "VISUAL", "SAMPLED SDXL", "LOG SDXL", "VISUAL SDXL"],
         )
         self.assertEqual(
             [item["name"] for item in self.definition["outputs"]],
-            ["MODEL", "PROCESS", "IMAGE", "LOG", "diagnostic"],
+            ["MODEL", "PROCESS", "IMAGE", "LOG", "VISUAL", "diagnostic"],
         )
         self.assertEqual(
             self.definition["inputs"][0]["type"],
@@ -61,8 +61,20 @@ class ZImageSubgraphTests(unittest.TestCase):
             link for link in self.definition["links"]
             if link["id"] == image_input["link"]
         )
-        self.assertEqual(image_link["origin_id"], -10)
-        self.assertEqual(image_link["origin_slot"], 1)
+        bridge = nodes["CMKHybridZITInputPipe"]
+        self.assertEqual(image_link["origin_id"], bridge["id"])
+        self.assertEqual(bridge["outputs"][image_link["origin_slot"]]["name"], "IMAGE")
+
+    def test_zit_prepare_applies_the_selected_lora_bundle(self):
+        source = (
+            Path(__file__).resolve().parents[1]
+            / "pipe"
+            / "cmk_z_image_turbo.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("CMKLoRATextLoader().load_loras", source)
+        self.assertIn('PROCESS.get("lora_stack")', source)
+        self.assertIn('PROCESS.get("lora_syntax", "")', source)
+        self.assertIn('"loaded_loras": loaded_loras', source)
 
     def test_loader_is_hard_gated_by_the_direct_z_process_signal(self):
         loader = next(
@@ -104,43 +116,40 @@ class ZImageSubgraphTests(unittest.TestCase):
             node for node in nodes.values()
             if node["type"] == "CMKFamilyBranchGateZImage"
         )
-        for slot in range(4):
+        for finalize_slot, boundary_slot in ((0, 0), (2, 1), (3, 2), (4, 3)):
             finalize_link = next(
                 link for link in self.definition["links"]
                 if link["origin_id"] == finalize["id"]
-                and link["origin_slot"] == slot
+                and link["origin_slot"] == finalize_slot
             )
             self.assertEqual(finalize_link["target_id"], boundary["id"])
+            self.assertEqual(finalize_link["target_slot"], boundary_slot)
             boundary_links = [
                 link for link in self.definition["links"]
                 if link["origin_id"] == boundary["id"]
-                and link["origin_slot"] == slot
+                and link["origin_slot"] == boundary_slot
             ]
-            if slot == 1:
-                self.assertEqual(boundary_links, [])
+            if finalize_slot == 4:
+                self.assertEqual(len(boundary_links), 1)
+                self.assertEqual(boundary_links[0]["target_id"], -20)
             else:
                 self.assertEqual(len(boundary_links), 1)
                 self.assertEqual(boundary_links[0]["target_id"], gate["id"])
-
-        diagnostic_link = next(
-            link for link in self.definition["links"]
-            if link["origin_id"] == boundary["id"]
-            and link["origin_slot"] == 4
-        )
-        self.assertEqual(diagnostic_link["target_id"], -20)
+        self.assertEqual([], finalize["outputs"][1]["links"])
 
     def test_confirmed_catalog_entry_is_published_as_beta(self):
         metadata = self.document["extra"]["CMKFlow"]
         self.assertTrue(metadata["published"])
         self.assertEqual(metadata["status"], "STABLE")
         self.assertEqual(metadata["compatibility"], ["Z-Image Turbo"])
-        self.assertIn("Experimentelles maskiertes Inpaint", metadata["features"])
+        self.assertIn("Experimentelles maskiertes Inpainting ausführen", metadata["features"])
         self.assertEqual(
             metadata["recommendedAfter"],
             [
-                "35 Active Family Result (optional)",
-                "40 FaceSwap",
-                "90 Upscale & Save",
+                {"label": "Active Family Result (optional)", "targetId": "CMKFamilyResultMergePipe"},
+                {"label": "FaceSwap", "targetId": "9993a5f9-7cd5-431c-8653-6e187ef9d214"},
+                {"label": "Visualizer", "targetId": "CMKVisualizer"},
+                {"label": "Upscale & Save", "targetId": "6f8d63a4-7ea5-4c18-9900-2ec3ed33c9b6"},
             ],
         )
 

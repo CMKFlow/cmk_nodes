@@ -41,9 +41,9 @@ SDXL: 01 → optional 05 → 10 → 20 → optional 25 → optional 30 → optio
 ZIT:  01 → optional 05 → 10                                → optional 40 → 90
 ```
 
-`25 Detailer SDXL` and `30 FaceProcess SDXL` are intentionally SDXL-only.
-`40 FaceSwap` and `90 Upscale & Save` are shared. A single family can connect
-to them directly; only a combined SDXL/ZIT workflow needs `35 Active Family
+`Detailer SDXL` and `FaceProcess SDXL` are intentionally SDXL-only.
+`FaceSwap` and `Upscale & Save` are shared. A single family can connect
+to them directly; only a combined SDXL/ZIT workflow needs `PostProcess Boundary
 Result` to select the active path first.
 
 The public transport roles are:

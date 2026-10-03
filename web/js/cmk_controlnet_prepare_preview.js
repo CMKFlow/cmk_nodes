@@ -30,7 +30,7 @@ function isCMKControlNetPrepare(node) {
         CMK_NODE_CLASSES.has(node.type) ||
         CMK_COMBINED_CONTROLNET_TYPES.has(node.comfyClass) ||
         CMK_COMBINED_CONTROLNET_TYPES.has(node.type) ||
-        node.title === "CMK Flow · 05 Combined ControlNet (optional)"
+        hasCombinedControlNetProvider(node)
     );
 }
 
@@ -38,8 +38,14 @@ function isCombinedControlNet(node) {
     return Boolean(node && (
         CMK_COMBINED_CONTROLNET_TYPES.has(node.comfyClass) ||
         CMK_COMBINED_CONTROLNET_TYPES.has(node.type) ||
-        node.title === "CMK Flow · 05 Combined ControlNet (optional)"
+        hasCombinedControlNetProvider(node)
     ));
+}
+
+function hasCombinedControlNetProvider(node) {
+    return node?.properties?.cmkVisualProviders?.some?.((provider) =>
+        String(provider?.provider_id || "").includes("CMKCombinedControlNetPreparePipe"),
+    ) || false;
 }
 
 function findReferenceWidget(node) {

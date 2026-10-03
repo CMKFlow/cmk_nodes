@@ -1,14 +1,21 @@
 {
   "published": true,
-  "order": 70,
   "displayName": "CMK FaceSwap Video",
-  "category": "Video",
-  "category_en": "Video",
-  "description": "Lädt ein Video, führt FaceSwap über die Bildfolge aus, vergleicht das Ergebnis und speichert Video sowie Protokoll.",
-  "description_en": "Loads a video, applies FaceSwap across its frames, compares the result, and saves both video and log.",
-  "cmkHighlight": "Überträgt die CMK-Idee aus klaren Arbeitsschritten, Diagnose, Vergleich und Protokollierung auf einen vollständigen Video-Workflow.",
-  "cmkHighlight_en": "Transfers the CMK idea of clear processing stages, diagnostics, comparison, and logging to a complete video workflow.",
+  "kind": "legacy",
+  "order": 601,
+  "category": "LEGACY",
+  "category_en": "LEGACY",
+  "description": "Zeigt den ursprünglichen Video-FaceSwap-Workflow, mit dem die Entwicklung von CMK begonnen hat.",
+  "description_en": "Shows the original video FaceSwap workflow that marked the beginning of CMK development.",
+  "cmkHighlight": "Dieser Workflow stammt aus CMK 1.0, wurde seitdem nicht modernisiert und läuft unverändert weiterhin im aktuellen CMK-2.5-Umfeld.",
+  "cmkHighlight_en": "This workflow dates back to CMK 1.0, has not been modernized since, and continues to run unchanged in the current CMK 2.5 environment.",
+  "info": "Historische Referenz. Der Aufbau entspricht bewusst nicht der aktuellen CMK-2.5-Architektur.",
+  "info_en": "Historical reference. Its structure intentionally does not reflect the current CMK 2.5 architecture.",
   "previews": [
-    { "src": "assets/showcase/FaceSwap Video-20260719.png", "label": "Workflow", "label_en": "Workflow" }
+    {
+      "src": "assets/showcase/LEGACY/CMK FaceSwap Video/CMK FaceSwap Video.png",
+      "label": "Vorschau",
+      "label_en": "Preview"
+    }
   ]
 }

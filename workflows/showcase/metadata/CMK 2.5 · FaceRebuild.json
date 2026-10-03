@@ -1,0 +1,19 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · FaceRebuild",
+  "kind": "module",
+  "order": 203,
+  "category": "MODULE WORKFLOWS",
+  "category_en": "MODULE WORKFLOWS",
+  "description": "Zeigt FaceRebuild als diskreten Stand-alone-Prozess und macht die Rekonstruktion eines ausgewählten Zielgesichts bis zum finalen Pasteback nachvollziehbar.\n\nDer Preview Render zeigt die einzelnen Verarbeitungsschritte und Veränderungen bis zum finalen Ergebnis.",
+  "description_en": "Shows FaceRebuild as a discrete standalone process, making it easy to follow the reconstruction of a selected target face through to the final pasteback.\n\nThe preview render shows each processing step and the changes leading to the final result.",
+  "cmkHighlight": "",
+  "cmkHighlight_en": "",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceRebuild/CMK 2.5 · FaceRebuild.png",
+      "label": "Vorschau",
+      "label_en": "Vorschau"
+    }
+  ]
+}

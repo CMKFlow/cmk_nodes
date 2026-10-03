@@ -1,0 +1,19 @@
+{
+  "published": true,
+  "displayName": "Identity Processing Matrix",
+  "kind": "comparison",
+  "order": 302,
+  "category": "COMPARISONS",
+  "category_en": "COMPARISONS",
+  "description": "Vergleicht Original, InstantID HYBRID und InstantID ZERO-PASS über Basissampling, FaceSwap und FaceRebuild.",
+  "description_en": "Compares the original, InstantID HYBRID, and InstantID ZERO-PASS across base sampling, FaceSwap, and FaceRebuild.",
+  "cmkHighlight": "Neun Prozessvarianten werden in einer gemeinsamen 3×3-Matrix direkt vergleichbar gemacht.",
+  "cmkHighlight_en": "Nine process variants are presented in a single 3×3 matrix for direct comparison.",
+  "previews": [
+    {
+      "src": "assets/showcase/COMPARISONS/Identity Processing Matrix/Identity Processing Matrix.png",
+      "label": "Vorschau",
+      "label_en": "Vorschau"
+    }
+  ]
+}

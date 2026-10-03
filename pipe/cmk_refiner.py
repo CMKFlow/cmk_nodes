@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import torch.nn.functional as F
-
 from .cmk_final_preview import send_final_preview
+from .cmk_visual import empty_visual, register_provider
 from ..utils.cmk_timing import cmk_timed
 from ..utils.cmk_sampling_warnings import ignore_torchsde_boundary_rounding
 
@@ -12,10 +11,14 @@ class CMKRefinerPipe:
 
     @classmethod
     def INPUT_TYPES(cls):
-        return {"required": {"REFINER": ("CMK_REFINER_PIPE",)}}
+        return {
+            "required": {"REFINER": ("CMK_REFINER_PIPE",)},
+            "optional": {"VISUAL": ("CMK_VISUAL_PIPE",)},
+            "hidden": {"unique_id": "UNIQUE_ID"},
+        }
 
-    RETURN_TYPES = ("IMAGE", "IMAGE")
-    RETURN_NAMES = ("IMAGE 1ST PASS", "IMAGE REFINED")
+    RETURN_TYPES = ("IMAGE", "IMAGE", "CMK_VISUAL_PIPE")
+    RETURN_NAMES = ("IMAGE 1ST PASS", "IMAGE REFINED", "VISUAL")
     FUNCTION = "run"
     CATEGORY = "CMK/Developer/Pipe/Execute"
 
@@ -26,14 +29,10 @@ class CMKRefinerPipe:
             raise ValueError(f"CMK Refiner -Pipe-: REFINER['{key}'] is missing")
         return value
 
-    def run(self, REFINER):
+    def run(self, REFINER, VISUAL=None, unique_id=None):
         if REFINER is None:
             raise ValueError("CMK Refiner -Pipe-: REFINER is missing")
-        if REFINER.get("inpaint_process_mode") == "remove":
-            remove_image = REFINER.get("remove_result_image")
-            if remove_image is not None:
-                send_final_preview(remove_image)
-                return (remove_image, remove_image)
+        visual = empty_visual() if VISUAL is None else VISUAL
 
         if REFINER.get("refiner_prepare_bypassed") or not REFINER.get("refiner_global_enable", True):
             latent = self._required(REFINER, "refiner_latent_image")
@@ -46,7 +45,7 @@ class CMKRefinerPipe:
                 decoded = VAEDecode().decode(vae, latent)
             image = decoded[0] if isinstance(decoded, (tuple, list)) else decoded
             send_final_preview(image)
-            return (image, image)
+            return (image, image, visual)
 
         model = self._required(REFINER, "refiner_model")
         positive = self._required(REFINER, "refiner_conditioning_pos")
@@ -72,37 +71,6 @@ class CMKRefinerPipe:
             with cmk_timed("20 REFINER SOURCE VAE DECODE"):
                 source_decoded = VAEDecode().decode(vae, latent)
             source_image = source_decoded[0] if isinstance(source_decoded, (tuple, list)) else source_decoded
-        if REFINER.get("inpaint_process_mode") == "remove":
-            # Preserve the first-pass Remove reconstruction and composite
-            # only its soft generation area over the untouched source. This
-            # prevents a synthetic mask fill from surviving at the hand-drawn
-            # edge while retaining the original colour outside the mask.
-            original = REFINER.get("inpaint_source_image")
-            mask = REFINER.get("mask")
-            if original is not None and mask is not None:
-                if original.shape[1:3] != source_image.shape[1:3]:
-                    original = F.interpolate(
-                        original.movedim(-1, 1),
-                        size=source_image.shape[1:3],
-                        mode="bilinear",
-                        align_corners=False,
-                    ).movedim(1, -1)
-                if mask.ndim == 2:
-                    mask = mask.unsqueeze(0)
-                if mask.ndim == 4:
-                    mask = mask[:, 0] if mask.shape[1] == 1 else mask[..., 0]
-                soft = F.interpolate(
-                    mask.float().unsqueeze(1),
-                    size=source_image.shape[1:3],
-                    mode="bilinear",
-                    align_corners=False,
-                ).squeeze(1).clamp(0.0, 1.0).unsqueeze(-1)
-                source_image = source_image * soft + original.to(source_image) * (1.0 - soft)
-            # A second diffusion pass with unrelated Refiner prompts can
-            # recreate the object that Remove deliberately discarded.
-            send_final_preview(source_image)
-            return (source_image, source_image)
-
         with cmk_timed("20 REFINER SAMPLE", f"steps {start_at_step}-{end_at_step}"):
             with ignore_torchsde_boundary_rounding():
                 sampled = KSamplerAdvanced().sample(
@@ -127,4 +95,20 @@ class CMKRefinerPipe:
         refined_image = decoded[0] if isinstance(decoded, (tuple, list)) else decoded
 
         send_final_preview(refined_image)
-        return (source_image, refined_image)
+        visual = register_provider(
+            visual,
+            module_instance_id=unique_id or "refiner",
+            module_type="CMKRefinerPipe",
+            module_label="2nd-Pass SDXL",
+            sequence=20,
+            channels={"before": source_image, "after": refined_image},
+            status="completed",
+            live_node_id=unique_id,
+            branch="sdxl",
+            stage_key="sdxl.refiner",
+        )
+        if bool(REFINER.get("unload_models_after_use", True)):
+            from .loaders.checkpoint_vae_loader import unload_all_phase_models
+
+            unload_all_phase_models("20 Refiner complete")
+        return (source_image, refined_image, visual)

@@ -31,9 +31,26 @@ class CombinedControlNetTests(unittest.TestCase):
     def test_has_one_shared_image_input_and_output(self):
         self.assertEqual(self.source.count('"IMAGE": ("IMAGE",)'), 1)
         self.assertIn(
-            'RETURN_NAMES = ("PROCESS SDXL", "PROCESS ZIT", "IMAGE", "LOG", "diagnostic")',
+            '"PROCESS SDXL", "PROCESS ZIT", "IMAGE", "LOG", "VISUAL", "diagnostic",',
             self.source,
         )
+
+    def test_hybrid_prepares_only_the_sdxl_family_branch(self):
+        self.assertNotIn("requires exactly one active model family", self.source)
+        self.assertIn("if not active_sdxl and not active_zit:", self.source)
+        self.assertIn('process_sdxl.get("hybrid_mode", False)', self.source)
+        self.assertIn("prepare_zit = active_zit and not hybrid_mode", self.source)
+        self.assertIn("if active_sdxl:", self.source)
+        self.assertIn("if prepare_zit:", self.source)
+        self.assertIn("prepared_sdxl, prepared_zit, image, log", self.source)
+
+    def test_hybrid_gate_keeps_zit_on_the_bypass_contract(self):
+        gates = (ROOT / "pipe" / "cmk_family_result.py").read_text(encoding="utf-8")
+        marker = "class CMKCombinedControlNetBypassGate"
+        section = gates[gates.index(marker):gates.index("class CMKSamplerBypassGate")]
+        self.assertIn('inputs.get("PROCESS SDXL ACTIVE")', section)
+        self.assertIn('inputs.get("PROCESS ZIT BYPASS")', section)
+        self.assertIn('result_label = "HYBRID SDXL ACTIVE / ZIT BYPASS"', section)
 
     def test_family_specific_settings_are_advanced_and_labelled(self):
         for label in (
@@ -87,7 +104,7 @@ class CombinedControlNetTests(unittest.TestCase):
         metadata = json.loads(
             (ROOT / "web" / "flow_node_metadata.json").read_text(encoding="utf-8")
         )["nodes"]["CMKCombinedControlNetPreparePipe"]
-        self.assertEqual(metadata["compatibility"], ["SDXL", "Z-Image Turbo"])
+        self.assertEqual(metadata["compatibility"], ["SDXL", "Z-Image Turbo", "Hybrid"])
 
 
 if __name__ == "__main__":

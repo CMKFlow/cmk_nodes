@@ -32,7 +32,49 @@ LEGACY_RESOLUTION_PRESETS = [
     "SD15 512x768",
 ]
 RESOLUTION_PRESETS = NEUTRAL_RESOLUTION_PRESETS + LEGACY_RESOLUTION_PRESETS
-MODEL_FAMILIES = ["SDXL", "Z-Image Turbo"]
+MODEL_FAMILIES = ["SDXL", "Z-Image Turbo", "Hybrid"]
+
+
+def _effective_inpaint_prompts(
+    prompt_pos: str,
+    prompt_neg: str,
+    inpaint_mode: bool,
+    process_mode: str,
+) -> tuple[str, str, str]:
+    """Resolve task conditioning once at the authoritative module-01 boundary."""
+    mode = str(process_mode).strip().lower()
+    if bool(inpaint_mode) and mode == "remove":
+        fallback_positive = (
+            "empty unobstructed background, seamless continuation of the surrounding scene, "
+            "coherent structures, materials, lighting and perspective"
+        )
+        remove_guard = (
+            "person, woman, man, human, face, head, hair, body, arms, hands, clothing, foreground subject"
+        )
+        user_positive = str(prompt_pos or "").strip()
+        user_negative = str(prompt_neg or "").strip()
+        effective_positive = user_positive or fallback_positive
+        effective_negative = ", ".join(part for part in (user_negative, remove_guard) if part)
+        source = "SOURCE + INTERNAL REMOVE GUARD" if user_positive else "INTERNAL REMOVE GUIDANCE"
+        return effective_positive, effective_negative, source
+    if bool(inpaint_mode) and mode == "extend":
+        user_positive = str(prompt_pos or "").strip()
+        effective_positive = user_positive or (
+            "seamless continuation of the existing image beyond its original boundaries, "
+            "coherent structures, materials, lighting and perspective"
+        )
+        source = "SOURCE" if user_positive else "INTERNAL EXTEND GUIDANCE"
+        return effective_positive, prompt_neg, source
+    return prompt_pos, prompt_neg, "SOURCE"
+
+
+HYBRID_TRANSITION_PROFILES = (
+    (90, 0.10),
+    (90, 0.15),
+    (85, 0.20),
+    (85, 0.25),
+    (80, 0.30),
+)
 ZIT_RESOLUTION_PRESETS = tuple(NEUTRAL_RESOLUTION_PRESETS[:7])
 ZIT_DEFAULT_RESOLUTION = "1024x1024"
 
@@ -42,7 +84,6 @@ CROP_POSITIONS = ["Center", "Top", "Bottom", "Left", "Right"]
 DEVICES = ["cpu", "mps", "cuda"]
 MASKED_AREA_FILL = [
     "neutral",
-    "lama",
     "telea",
     "navier-stokes",
     "original",
@@ -299,6 +340,62 @@ def feather_mask_tensor(mask, radius):
     return feathered
 
 
+def combine_inpaint_and_outpaint_masks(
+    source_mask,
+    uncovered_mask,
+    *,
+    outpaint_on=False,
+    outpaint_overlap=0,
+    feather_outpaint_fill=False,
+):
+    """Build generation/fill masks without modifying the source-mask edge.
+
+    Outpaint overlap and synthetic-fill feathering belong exclusively to the
+    uncovered canvas. Applying either operation after merging the source mask
+    creates a visible fill halo around ordinary inpaint regions.
+    """
+    outpaint_mask = uncovered_mask
+    if bool(outpaint_on) and outpaint_mask is not None:
+        outpaint_mask = expand_mask_tensor(outpaint_mask, outpaint_overlap)
+
+    generation_mask = source_mask
+    if outpaint_mask is not None:
+        generation_mask = (
+            outpaint_mask
+            if generation_mask is None
+            else generation_mask.to(
+                device=outpaint_mask.device,
+                dtype=outpaint_mask.dtype,
+            ).maximum(outpaint_mask)
+        )
+
+    outpaint_fill_mask = outpaint_mask
+    if (
+        bool(outpaint_on)
+        and bool(feather_outpaint_fill)
+        and outpaint_fill_mask is not None
+        and int(outpaint_overlap) > 0
+    ):
+        # Feather inward only. Multiplication preserves the authoritative
+        # outpaint support and cannot spill synthetic fill into source pixels.
+        outpaint_fill_mask = feather_mask_tensor(
+            outpaint_fill_mask,
+            min(32, max(1, int(outpaint_overlap) // 2)),
+        ) * outpaint_fill_mask
+
+    fill_mask = source_mask
+    if outpaint_fill_mask is not None:
+        fill_mask = (
+            outpaint_fill_mask
+            if fill_mask is None
+            else fill_mask.to(
+                device=outpaint_fill_mask.device,
+                dtype=outpaint_fill_mask.dtype,
+            ).maximum(outpaint_fill_mask)
+        )
+    return generation_mask, fill_mask
+
+
 def fill_mask_holes(mask):
     """Fill background regions fully enclosed by a mask."""
     if mask is None:
@@ -393,10 +490,6 @@ def apply_mask_fill(image, mask, fill_mode: str, seed: int = 0):
         device=image.device,
         dtype=image.dtype,
     )
-    if fill_mode == "lama":
-        from ..engine.lama_inpaint import lama_inpaint_tensor
-
-        return lama_inpaint_tensor(image, work_mask)
     if fill_mode in {"telea", "navier-stokes"}:
         import cv2
         import numpy as np
@@ -569,8 +662,9 @@ def build_image_log_block(
 
 class CMKPipeCreateImage:
     DESCRIPTION = (
-        "CMK FLOW START. Selects SDXL or Z-Image Turbo and creates exactly one "
-        "active, family-bound PROCESS together with IMAGE and LOG. Continue the "
+        "CMK FLOW START. Selects SDXL, Z-Image Turbo or the sequential HYBRID "
+        "path and creates the required family-bound PROCESS contracts together "
+        "with IMAGE and LOG. Continue the "
         "SDXL path with '05 ControlNet SDXL' or '10 KSampler SDXL 1st Pass'; "
         "continue the Z path with '10 KSampler Z-Image Turbo'."
     )
@@ -593,7 +687,9 @@ class CMKPipeCreateImage:
                         "tooltip": (
                             "Text2Image creates a new image. Inpaint uses IMAGE and MASK "
                             "and reveals the task-specific inpaint settings. "
-                            "Z-Image Turbo Inpaint is experimental."
+                            "Z-Image Turbo Inpaint is experimental. HYBRID Inpaint runs "
+                            "the patched Inpaint stage only in SDXL and uses ZIT solely "
+                            "for the subsequent low-denoise finish."
                         ),
                     },
                 ),
@@ -630,21 +726,16 @@ class CMKPipeCreateImage:
                         ),
                     },
                 ),
-                "LORA STACK": (
-                    "LORA_STACK",
+                "LoRA SDXL": (
+                    "CMK_LORA_SDXL_PIPE",
                     {
-                        "label": "SDXL LORA STACK",
-                        "tooltip": "SDXL only. Connect 'CMK Flow · 02 SDXL LoRA Stack'.",
+                        "tooltip": "Optional complete SDXL LoRA bundle from 'LoRA Stack'.",
                     },
                 ),
-                "ACTIVE LORAS": (
-                    "STRING",
+                "LoRA ZIT": (
+                    "CMK_LORA_ZIT_PIPE",
                     {
-                        "forceInput": True,
-                        "default": "",
-                        "multiline": True,
-                        "label": "SDXL ACTIVE LORAS",
-                        "tooltip": "SDXL only. Human-readable list of the active LoRAs.",
+                        "tooltip": "Optional complete Z-Image Turbo LoRA bundle from 'LoRA Stack'.",
                     },
                 ),
                 # Text2Image deliberately hides these widgets. They therefore
@@ -705,17 +796,6 @@ class CMKPipeCreateImage:
                         ),
                     },
                 ),
-                "ADDITIONAL PROMPT": (
-                    "STRING",
-                    {
-                        "forceInput": True,
-                        "label": "ADDITIONAL PROMPT",
-                        "tooltip": (
-                            "Optional additional positive prompt. When connected, "
-                            "it is appended after GLOBAL PROMPT POS."
-                        ),
-                    },
-                ),
                 # Appended to preserve positional values in existing workflows.
                 # The frontend moves this selector to the first visible row.
                 "model_family": (
@@ -725,7 +805,8 @@ class CMKPipeCreateImage:
                         "label": "MODEL FAMILY",
                         "tooltip": (
                             "SDXL exposes the complete current CMK workflow. "
-                            "Z-Image Turbo supports Text2Image and experimental masked Inpaint."
+                            "Z-Image Turbo supports Text2Image and experimental masked Inpaint. "
+                            "HYBRID supports Text2Image or SDXL Inpaint followed by a ZIT finish."
                         ),
                     },
                 ),
@@ -768,6 +849,48 @@ class CMKPipeCreateImage:
                         ),
                     },
                 ),
+                "hybrid_sdxl_handoff": (
+                    ["80%", "85%", "90%", "95%"],
+                    {
+                        "default": "90%",
+                        "label": "SDXL HANDOFF",
+                        "tooltip": "HYBRID only. Stops SDXL at this sampling progress and hands its clean x0 prediction to ZIT.",
+                    },
+                ),
+                "hybrid_zit_denoise": (
+                    ["0.10", "0.15", "0.20", "0.25", "0.30"],
+                    {
+                        "default": "0.20",
+                        "label": "ZIT DENOISE",
+                        "tooltip": "HYBRID only. Low-strength ZIT finishing pass after the SDXL handoff.",
+                    },
+                ),
+                "unload_models_after_use": (
+                    "BOOLEAN",
+                    {
+                        "default": True,
+                        "advanced": True,
+                        "label": "UNLOAD MODELS AFTER USE",
+                        "tooltip": (
+                            "Releases generation, ControlNet and Refiner models at their "
+                            "last consumer. Saves memory; disabling can accelerate repeated runs."
+                        ),
+                    },
+                ),
+                "HYBRID BALANCE": (
+                    "INT",
+                    {
+                        "default": 2,
+                        "min": 0,
+                        "max": 4,
+                        "step": 1,
+                        "display": "slider",
+                        "tooltip": (
+                            "HYBRID only. Five fixed SDXL-to-ZIT transition profiles; "
+                            "left preserves more SDXL, right gives ZIT more influence."
+                        ),
+                    },
+                ),
             },
             "hidden": {"unique_id": "UNIQUE_ID"},
         }
@@ -789,8 +912,8 @@ class CMKPipeCreateImage:
         "diagnostic",
     )
     OUTPUT_TOOLTIPS = (
-        "SDXL only. Continue to CMK Flow · 05 ControlNet (optional) or CMK Flow · 10 KSampler SDXL.",
-        "ZIT only. Continue to CMK Flow · 10 KSampler Z-Image Turbo.",
+        "SDXL and HYBRID pre-pass. Continue to CMK Flow · 05 ControlNet (optional) or CMK Flow · 10 KSampler SDXL.",
+        "ZIT and HYBRID finish. Continue to CMK Flow · 10 KSampler Z-Image Turbo.",
         "Authoritative image; route it beside PROCESS and LOG to the next Flow module.",
         "Structured Flow log; route it beside PROCESS and IMAGE to the next Flow module.",
         "Inpaint preparation preview for the CMK Visualizer; empty in Text2Image mode.",
@@ -808,14 +931,7 @@ class CMKPipeCreateImage:
         filename_string = str(
             inputs.get("FILENAME", inputs.get("FILENAME STRING", "")) or ""
         )
-        lora_stack = inputs.get("LORA STACK", inputs.get("lora_stack"))
-        lora_syntax = inputs.get(
-            "ACTIVE LORAS", inputs.get("lora_syntax", "")
-        ) or ""
         prompt_pos_primary = inputs.get("GLOBAL PROMPT POS", "") or ""
-        opt_prompt_pos = inputs.get(
-            "ADDITIONAL PROMPT", inputs.get("opt_prompt_pos", "")
-        ) or ""
         raw_model_family = str(
             inputs.get(
                 "model_family",
@@ -823,11 +939,29 @@ class CMKPipeCreateImage:
             )
             or "SDXL"
         ).strip().lower()
-        model_family = "z_image_turbo" if raw_model_family in {
-            "z-image turbo",
-            "z image turbo",
-            "z_image_turbo",
-        } else "sdxl"
+        model_family = "hybrid" if raw_model_family == "hybrid" else (
+            "z_image_turbo" if raw_model_family in {
+                "z-image turbo",
+                "z image turbo",
+                "z_image_turbo",
+            } else "sdxl"
+        )
+
+        def family_lora(name, expected_family):
+            value = inputs.get(name)
+            value = value if isinstance(value, dict) else {}
+            if value and value.get("family") != expected_family:
+                raise ValueError(
+                    f"CMK Flow · Create Image: {name} does not match its model family."
+                )
+            return value
+
+        sdxl_lora = family_lora("LoRA SDXL", "sdxl")
+        zit_lora = family_lora("LoRA ZIT", "z_image_turbo")
+        selected_lora = zit_lora if model_family == "z_image_turbo" else sdxl_lora
+        lora_stack = selected_lora.get("lora_stack")
+        lora_syntax = str(selected_lora.get("active_loras", "") or "")
+        opt_prompt_pos = str(selected_lora.get("trigger_words", "") or "")
         prompt_pos = "\n".join(
             part for part in (
                 str(prompt_pos_primary).strip(),
@@ -836,6 +970,17 @@ class CMKPipeCreateImage:
             if part
         )
         prompt_neg = inputs.get("PROMPT NEG", "") or ""
+        hybrid_mode = model_family == "hybrid"
+        hybrid_balance = max(0, min(4, int(inputs.get("HYBRID BALANCE", 2) or 0)))
+        hybrid_sdxl_handoff, hybrid_zit_denoise = HYBRID_TRANSITION_PROFILES[
+            hybrid_balance
+        ]
+        unload_models_after_use = bool(
+            inputs.get(
+                "unload_models_after_use",
+                inputs.get("unload_zit_after", True),
+            )
+        )
         raw_mode = inputs.get("INPAINT_MODE", "Text2Image")
         INPAINT_MODE = (
             bool(raw_mode)
@@ -877,6 +1022,12 @@ class CMKPipeCreateImage:
             "extend": "extend",
             "extend image": "extend",
         }.get(mode_key, "custom")
+        direct_zit_inpaint = bool(INPAINT_MODE) and model_family == "z_image_turbo"
+        if direct_zit_inpaint:
+            # ZIT exposes general masked inpaint only. Older workflows may
+            # still serialize hidden SDXL guided/outpaint values.
+            inpaint_process_mode = "custom"
+            outpaint_on = False
         requested_resize_mode = resize_mode
         if bool(INPAINT_MODE) and inpaint_process_mode == "extend":
             # Extending requires uncovered canvas. Make the guided preset a
@@ -898,9 +1049,6 @@ class CMKPipeCreateImage:
         source_lora_syntax = lora_syntax
         source_lora_stack = lora_stack
         remove_mode = bool(INPAINT_MODE) and inpaint_process_mode == "remove"
-        # Compatibility flag retained for old downstream nodes. Guided Remove
-        # now uses diffusion and therefore is no longer an isolated LaMa task.
-        remove_isolated = False
         if remove_mode:
             # Keep source prompts so Remove can reconstruct toward the requested
             # scene. The sampler adds its internal subject-removal guard and
@@ -951,31 +1099,18 @@ class CMKPipeCreateImage:
             resize_mode=resize_mode,
             crop_position=crop_position,
         )
-        if bool(INPAINT_MODE) and uncovered_mask is not None:
-            mask_process = (
-                uncovered_mask
-                if mask_process is None
-                else mask_process.to(
-                    device=uncovered_mask.device,
-                    dtype=uncovered_mask.dtype,
-                ).maximum(uncovered_mask)
-            )
         if bool(INPAINT_MODE) and bool(mask_fill_holes):
             mask_process = fill_mask_holes(mask_process)
-        if bool(INPAINT_MODE) and bool(outpaint_on):
-            mask_process = expand_mask_tensor(mask_process, outpaint_overlap)
         fill_mask_process = mask_process
-        if (
-            bool(INPAINT_MODE)
-            and bool(outpaint_on)
-            and effective_fill_mode in {"noise", "neutral", "black", "white"}
-        ):
-            # Keep the authoritative generation mask fully expanded, but
-            # cross-fade synthetic fills inside that overlap. Otherwise their
-            # binary edge remains visible even though diffusion has context.
-            fill_mask_process = feather_mask_tensor(
+        if bool(INPAINT_MODE):
+            mask_process, fill_mask_process = combine_inpaint_and_outpaint_masks(
                 mask_process,
-                min(32, max(1, outpaint_overlap // 2)),
+                uncovered_mask,
+                outpaint_on=outpaint_on,
+                outpaint_overlap=outpaint_overlap,
+                feather_outpaint_fill=(
+                    effective_fill_mode in {"noise", "neutral", "black", "white"}
+                ),
             )
         filled_image = (
             apply_mask_fill(image_resized, fill_mask_process, effective_fill_mode, seed=0)
@@ -992,6 +1127,13 @@ class CMKPipeCreateImage:
             "mask": mask_process,
             "mask_original": mask,
             "mask_fill": fill_mask_process,
+            # Direct ZIT Inpaint follows the native ZImageFun contract: its
+            # VAE/control hint sees the resized source, not the UI-selected
+            # SDXL fill.  Keep the public IMAGE output unchanged so the other
+            # families retain their established preparation contract.
+            "inpaint_source_image": (
+                image_resized if direct_zit_inpaint else None
+            ),
             "width": width,
             "height": height,
             "source_width": source_width,
@@ -1000,6 +1142,12 @@ class CMKPipeCreateImage:
             "target_height": height,
             "resolution": resolution,
             "model_family": model_family,
+            "hybrid_mode": hybrid_mode,
+            "hybrid_inpaint_mode": bool(hybrid_mode and INPAINT_MODE),
+            "hybrid_sdxl_handoff": hybrid_sdxl_handoff,
+            "hybrid_zit_denoise": hybrid_zit_denoise,
+            "hybrid_balance": hybrid_balance,
+            "unload_models_after_use": unload_models_after_use,
             "generation_mode": "inpaint" if INPAINT_MODE else "text2image",
             "swap_dimensions": swap_dimensions,
             "resize_mode": resize_mode,
@@ -1028,8 +1176,6 @@ class CMKPipeCreateImage:
             "source_prompt_neg": source_prompt_neg,
             "source_lora_syntax": source_lora_syntax,
             "source_lora_stack": source_lora_stack,
-            "remove_isolated": remove_isolated,
-            "remove_result_image": image_out if remove_isolated else None,
             "boolean_inpaint_mode": INPAINT_MODE,
             "inpaint_process_mode": inpaint_process_mode,
             "control_net": None,
@@ -1056,11 +1202,24 @@ class CMKPipeCreateImage:
             device=device,
             mask_fill_holes=mask_fill_holes,
             fill_masked_area=effective_fill_mode,
-            active_loras=lora_syntax,
+            active_loras="" if hybrid_mode else lora_syntax,
             prompt_pos=prompt_pos,
             prompt_neg=prompt_neg,
             inpaint_process_mode=inpaint_process_mode,
         )
+        if hybrid_mode:
+            log_lines.extend([
+                "",
+                "HYBRID PIPELINE:",
+                f"SDXL HANDOFF   : {hybrid_sdxl_handoff}%",
+                f"ZIT DENOISE     : {hybrid_zit_denoise:.2f}",
+                f"SDXL LORAS      : {str(sdxl_lora.get('active_loras', '') or 'None')}",
+                f"ZIT LORAS       : {str(zit_lora.get('active_loras', '') or 'None')}",
+            ])
+        log_lines.extend([
+            "",
+            f"MODEL LIFECYCLE : {'UNLOAD AFTER USE' if unload_models_after_use else 'KEEP LOADED'}",
+        ])
         if filename_string:
             log_lines.insert(0, f"FILE NAME       : {filename_string}")
         if remove_mode:
@@ -1143,13 +1302,51 @@ class CMKPipeCreateImage:
         process_sdxl = dict(pipe)
         process_sdxl.update({
             "model_family": "sdxl",
-            "family_active": model_family == "sdxl",
+            "family_active": model_family in {"sdxl", "hybrid"},
         })
         process_z_image = dict(pipe)
         process_z_image.update({
             "model_family": "z_image_turbo",
-            "family_active": model_family == "z_image_turbo",
+            "family_active": model_family in {"z_image_turbo", "hybrid"},
         })
+        if hybrid_mode:
+            # The SDXL branch owns all masking and model-patch work. ZIT sees
+            # only the decoded SDXL result and performs an ordinary low-denoise
+            # Img2Img finish without loading its experimental Inpaint patch.
+            process_z_image.update({
+                "boolean_inpaint_mode": False,
+                "inpaint_process_mode": "hybrid_finish",
+                "hybrid_inpaint_mode": bool(INPAINT_MODE),
+            })
+        for family_process, bundle in (
+            (process_sdxl, sdxl_lora),
+            (process_z_image, zit_lora),
+        ):
+            family_stack = None if remove_mode else bundle.get("lora_stack")
+            family_syntax = "" if remove_mode else str(bundle.get("active_loras", "") or "")
+            family_trigger = "" if remove_mode else str(bundle.get("trigger_words", "") or "")
+            family_prompt = "\n".join(
+                part for part in (str(prompt_pos_primary).strip(), family_trigger.strip()) if part
+            )
+            effective_prompt_pos, effective_prompt_neg, prompt_source = _effective_inpaint_prompts(
+                family_prompt,
+                prompt_neg,
+                INPAINT_MODE,
+                inpaint_process_mode,
+            )
+            family_process.update({
+                "prompt_pos": family_prompt,
+                "opt_prompt_pos": family_trigger,
+                "effective_prompt_pos": effective_prompt_pos,
+                "effective_prompt_neg": effective_prompt_neg,
+                "prompt_source": prompt_source,
+                "lora_syntax": family_syntax,
+                "active_loras": family_syntax,
+                "lora_stack": family_stack,
+                "source_prompt_pos": family_prompt,
+                "source_lora_syntax": family_syntax,
+                "source_lora_stack": family_stack,
+            })
         visual = empty_visual()
         if bool(INPAINT_MODE):
             # Keep the authoritative IMAGE cable unchanged in Remove mode,

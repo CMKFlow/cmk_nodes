@@ -1,0 +1,40 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · Flow · Text2Image-InstantID SDXL",
+  "kind": "task",
+  "order": 111,
+  "category": "TASK WORKFLOWS",
+  "category_en": "TASK WORKFLOWS",
+  "description": "Vergleicht InstantID im SDXL-Text2Image-Pfad im HYBRID- und ZERO-PASS-Modus und zeigt die jeweilige Weiterverarbeitung bis zum Refiner.",
+  "description_en": "Compares InstantID in HYBRID and ZERO-PASS modes within the SDXL Text2Image path and shows how each variant is processed through the Refiner.",
+  "cmkHighlight": "InstantID kann entweder auf einem begonnenen SDXL-Bildaufbau weiterarbeiten oder als ZERO-PASS direkt die Identitätsführung übernehmen; beide Varianten bleiben im selben SDXL-Prozess.",
+  "cmkHighlight_en": "InstantID can either continue from an SDXL image already in progress or take over identity guidance directly as a ZERO-PASS; both variants remain within the same SDXL process.",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image-InstantID/CMK 2.5 · Flow · Text2Image-InstantID SDXL - HYBRID - 1 1st-Pass SDXL.png",
+      "group": "HYBRID",
+      "group_en": "HYBRID",
+      "label": "1st-Pass SDXL",
+      "label_en": "1st-Pass SDXL"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image-InstantID/CMK 2.5 · Flow · Text2Image-InstantID SDXL - HYBRID - 2 Refined.png",
+      "group": "HYBRID",
+      "group_en": "HYBRID",
+      "label": "Refined",
+      "label_en": "Refined"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image-InstantID/CMK 2.5 · Flow · Text2Image-InstantID SDXL - Zero-Pass - Refined.png",
+      "group": "ZERO-PASS",
+      "group_en": "ZERO-PASS",
+      "label": "Refined",
+      "label_en": "Refined"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image-InstantID/portrait_reference_00003.png",
+      "label": "Source",
+      "label_en": "Source"
+    }
+  ]
+}

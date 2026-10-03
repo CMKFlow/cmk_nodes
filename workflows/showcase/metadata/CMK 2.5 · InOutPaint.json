@@ -1,0 +1,19 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · InOutPaint",
+  "kind": "real-world",
+  "order": 404,
+  "category": "REAL-WORLD WORKFLOWS",
+  "category_en": "REAL-WORLD WORKFLOWS",
+  "description": "Zeigt einen vollständigen InOutPaint-Arbeitsablauf im HYBRID-Modus – von der Inpaint-Vorbereitung über SDXL und Z-Image Turbo bis zur optionalen Nachbearbeitung mit FaceProcess und MaskDetailer.",
+  "description_en": "Shows a complete InOutPaint workflow in HYBRID mode—from inpainting preparation through SDXL and Z-Image Turbo to optional post-processing with FaceProcess and MaskDetailer.",
+  "cmkHighlight": "Automatischer Generationsprozess und manuelle Nachbearbeitung greifen im selben Workflow ineinander: Nach dem HYBRID-Inpaint kann das Ergebnis gezielt mit FaceProcess oder MaskDetailer weiterbearbeitet werden, ohne den Flow neu aufzubauen.",
+  "cmkHighlight_en": "Automated generation and manual post-processing work together within the same workflow: after HYBRID inpainting, the result can be refined selectively with FaceProcess or MaskDetailer without rebuilding the flow.",
+  "previews": [
+    {
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.5 · InOutPaint/CMK 2.5 · InOutPaint.png",
+      "label": "Vorschau",
+      "label_en": "Vorschau"
+    }
+  ]
+}

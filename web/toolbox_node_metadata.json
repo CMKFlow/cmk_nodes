@@ -1,5 +1,25 @@
 {
   "nodes": {
+    "CMKMaskDetailerIntake": {
+      "description": "Übernimmt das fertige Bild einer CMK-Kette ausdrücklich als lokalen, maskierbaren Snapshot und trennt danach die vorgelagerte Ausführung ab.",
+      "highlight": "Terminales Intervention-Gate: Ein neuer Flow-Lauf ersetzt weder Arbeitsbild noch Maske. Erst AKTUELLES BILD ÜBERNEHMEN eröffnet eine neue Mask-Session.",
+      "highlight_en": "Terminal intervention gate: a new Flow run replaces neither the working image nor its mask. Only CAPTURE CURRENT IMAGE starts a new mask session."
+    },
+    "CMKMaskDetailerPrepare": {
+      "description": "Bereitet Modell, gezeichnete Bildmaske, optionales LoRA und Prompt-Ergänzung aus CMK Load Image oder einem gesperrten Intake-Snapshot vor.",
+      "highlight": "Bewusst kein Flow-Modul: Diese Node eröffnet aus einer eigenständigen Bildquelle oder der terminalen Übergabe die eigene MASK-DETAILER-PROCESS-Familie.",
+      "highlight_en": "Deliberately not a Flow module: this node starts the dedicated MASK DETAILER PROCESS family from a standalone image source or terminal hand-off."
+    },
+    "CMKMaskDetailerProcess": {
+      "description": "Detailliert ausschließlich die in CMK Load Image maskierten Bereiche und reicht MODEL, Bild, LOG und VISUAL zum Visualizer weiter.",
+      "highlight": "Eigenständiger maskengesteuerter Detailer ohne Flow-Boundary-Cache; Vorher/Nachher wird über den Visualizer bereitgestellt.",
+      "highlight_en": "Standalone mask-guided detailer without a Flow boundary cache; before/after comparison is provided by the Visualizer."
+    },
+    "CMKVisualCompare": {
+      "description": "Zeigt den letzten über VISUAL bereitgestellten Bildstand als Vorschau oder Vorher/Nachher-Vergleich an.",
+      "highlight": "Reiner VISUAL-Abschluss: ein Eingang, keine Register, kein Upscale und kein Speichern. Linke Maustaste halten zeigt Before; Loslassen zeigt After.",
+      "highlight_en": "Pure VISUAL endpoint with one input, no tabs, upscale, or saving. Hold the left mouse button for Before; release for After."
+    },
     "CMKDetailerPreparePipe": { "description": "Bereitet Modell, Bildbereiche und Einstellungen für einen SDXL-Detailer-Durchlauf vor." },
     "CMKFaceProcessPreparePipe": { "description": "Erkennt und wählt Zielgesichter aus und bereitet sie für einen FaceProcess-Zweig vor." },
     "CMKFaceProcessPipe": { "description": "Führt die konfigurierte Gesichtsaufbereitung aus und liefert bearbeitete Bildbereiche sowie Protokolldaten zurück." },

@@ -2,42 +2,68 @@
   "schemaVersion": 2,
   "nodes": {
     "CMKPipeCreateImage": {
+      "order": 1,
+      "browserOrder": 40,
       "category": "Input",
       "domain": "Image Generation",
       "compatibility": [
         "SDXL",
-        "Z-Image Turbo"
+        "Z-Image Turbo",
+        "Hybrid"
       ],
       "version": "1.0.0",
       "author": "CMK Nodes",
       "status": "STABLE",
-      "description": "Zentraler Einstieg für Text2Image und Inpaint: wählt die Aufgabe und bereitet Bild, Maske, Prompts sowie den vollständigen PROCESS für den weiteren Flow vor.",
+      "description": "Zentraler Einstieg für Text2Image und Inpaint. Legt Aufgabe, Bild, Maske und Prompts fest und bereitet den vollständigen Prozess für den weiteren Flow vor.",
       "features": [
-        "MODE-Dropdown für Text2Image und Inpaint mit dynamischer Oberfläche",
-        "Geführte Inpaint-Aufgaben: Replace Object, Remove Object, Extend Image und Custom",
-        "Diagnostic zeigt Quellbild und die tatsächlich weitergereichte Maskenfüllung"
+        "Text2Image oder Inpaint als Prozess festlegen",
+        "Inpaint-Aufgaben wie Replace, Remove, Extend und Custom vorbereiten",
+        "Bild, Maske und Prompts zentral für den nachfolgenden Flow bereitstellen"
       ],
       "placementNote": "Als zentrales Startmodul vor dem optionalen ControlNet oder dem ersten KSampler platzieren. Für Inpaint IMAGE und MASK anschließen; Remove Object benötigt nur die Maske.",
       "recommendedBefore": [
-      "SDXL LoRA Stack (optional)",
-        "Image Input (optional)"
+        {
+          "label": "SDXL LoRA Stack (optional)",
+          "targetId": "29d596c9-48b8-4cf5-aa02-e1c50d125712"
+        },
+        {
+          "label": "Image Input (optional)",
+          "targetId": "CMKImageLoadAndResizePipe"
+        }
       ],
-    "recommendedAfter": [
-      "02 Regional Conditioning SDXL (optional)",
-      "05 ControlNet SDXL (optional)",
-        "05 ControlNet ZIT (optional)",
-        "10 KSampler SDXL 1st Pass",
-        "10 KSampler Z-Image Turbo"
+      "recommendedAfter": [
+        {
+          "label": "02 Regional Conditioning SDXL (optional)",
+          "targetId": "CMKRegionalConditioningSDXL"
+        },
+        {
+          "label": "05 ControlNet SDXL (optional)",
+          "targetId": "96aabb3d-a0c9-4539-86c0-2b2a7abb0712"
+        },
+        {
+          "label": "05 ControlNet ZIT (optional)",
+          "targetId": "aeec8af2-85bf-4969-8743-9b39bb5483ef"
+        },
+        {
+          "label": "10 KSampler SDXL 1st Pass",
+          "targetId": "e371220c-caba-4cfd-ae2b-81e59664d525"
+        },
+        {
+          "label": "10 KSampler Z-Image Turbo",
+          "targetId": "92cbb212-4e34-4b9a-8aa7-903d96ce39f2"
+        }
       ],
       "previews": [
         {
           "src": "assets/previews/CMK Flow · 01 START HERE · Create Image.png",
-          "label": "Modul"
+          "label": "Vorschau"
         }
       ],
       "previewAlt": "CMK Flow Create Image Node"
     },
     "CMKRegionalConditioningSDXL": {
+      "order": 2,
+      "browserOrder": 50,
       "category": "Conditioning",
       "domain": "Image Generation",
       "compatibility": [
@@ -46,35 +72,39 @@
       "version": "1.0.0",
       "author": "CMK Nodes",
       "status": "STABLE",
-      "description": "Ergänzt das globale SDXL-Conditioning um bis zu drei räumlich begrenzte Promptregionen.",
+      "description": "Ergänzt das globale SDXL-Conditioning um bis zu drei räumlich begrenzte Promptbereiche.",
       "features": [
-        "Drei unabhängig aktive Regionen ohne separate ON/OFF-Schalter",
-        "STANDARD-Presets für Position und Wirkungsbereich",
-        "ADVANCED-Koordinaten, Strength und zeitliches END pro Region",
-        "Mehrere Module lassen sich für zusätzliche Regionen hintereinander schalten"
+        "Bis zu drei unabhängig steuerbare Regionen verwenden",
+        "Standard-Presets für Position und Wirkungsbereich nutzen",
+        "Position, Stärke und Wirkungsdauer jeder Region individuell festlegen"
       ],
       "placementNote": "Direkt nach 01 START HERE und vor optionalem ControlNet oder 10 KSampler SDXL platzieren.",
       "recommendedBefore": [
-        "01 START HERE · Create Image"
+        {
+          "label": "01 START HERE · Create Image",
+          "targetId": "CMKPipeCreateImage"
+        }
       ],
       "recommendedAfter": [
-        "05 ControlNet SDXL (optional)",
-        "10 KSampler SDXL 1st Pass"
+        {
+          "label": "05 ControlNet SDXL (optional)",
+          "targetId": "96aabb3d-a0c9-4539-86c0-2b2a7abb0712"
+        },
+        {
+          "label": "10 KSampler SDXL 1st Pass",
+          "targetId": "e371220c-caba-4cfd-ae2b-81e59664d525"
+        }
       ],
+      "previewAlt": "CMK Flow Regional Conditioning SDXL",
       "previews": [
         {
           "src": "assets/previews/CMK Flow · 02 Regional Conditioning SDXL.png",
-          "label": "Standard"
-        },
-        {
-          "src": "assets/previews/CMK Flow · 02 Regional Conditioning SDXL - Advanced Settings.png",
-          "label": "Advanced"
+          "label": "Vorschau"
         }
-      ],
-      "previewAlt": "CMK Flow Regional Conditioning SDXL"
+      ]
     },
     "CMKCheckpointVAELoaderPipe": {
-      "variantOf": "CMK Flow · Image Input",
+      "variantOf": "CMKImageLoadAndResizePipe",
       "variantLabel": "Checkpoint & VAE",
       "category": "Input",
       "domain": "Model Setup",
@@ -90,20 +120,27 @@
       ],
       "placementNote": "Vor dem KSampler oder Refiner platzieren und den MODEL-Ausgang mit dessen MODEL-Eingang verbinden.",
       "recommendedAfter": [
-        "10 KSampler SDXL 1st Pass",
-        "20 Refiner SDXL"
+        {
+          "label": "10 KSampler SDXL 1st Pass",
+          "targetId": "e371220c-caba-4cfd-ae2b-81e59664d525"
+        },
+        {
+          "label": "20 Refiner SDXL",
+          "targetId": "79b164c2-6919-4e9f-81aa-c14469d1715f"
+        }
       ],
       "previews": [
         {
           "src": "assets/previews/CMK Flow · Checkpoint & VAE.png",
-          "label": "Node"
+          "label": "Vorschau"
         }
       ],
-      "previewAlt": "CMK Flow Checkpoint und VAE Node"
+      "previewAlt": "CMK Flow Checkpoint und VAE Node",
+      "variantOrder": 30
     },
     "CMKLoadImage": {
-      "variantOf": "CMK Flow · Image Input",
-      "variantLabel": "Load Image",
+      "variantOf": "CMKImageLoadAndResizePipe",
+      "variantLabel": "For Inpaint",
       "category": "Input",
       "domain": "Image Input",
       "compatibility": [
@@ -118,47 +155,75 @@
       ],
       "placementNote": "Vor einem Baustein platzieren, der ein vorhandenes Bild verarbeiten soll.",
       "recommendedAfter": [
-        "Save Project Image"
+        {
+          "label": "Save Project Image",
+          "targetId": "CMK_SaveProjectImage"
+        }
       ],
       "previews": [
         {
           "src": "assets/previews/CMK Flow · Load Image.png",
-          "label": "Node"
+          "label": "Vorschau"
         }
       ],
-      "previewAlt": "CMK Flow Load Image Node"
+      "previewAlt": "CMK Flow Load Image Node",
+      "variantOrder": 20
     },
     "CMKImageLoadAndResizePipe": {
       "displayName": "Loader",
-      "variantLabel": "Image Input",
-      "category": "Input",
-      "domain": "Image Input",
+      "browserOrder": 20,
+      "flowPublished": true,
+      "variantLabel": "For Detailing",
+      "category": "Toolbox",
+      "domain": "Stand-Alone Image Input",
       "compatibility": [
         "Image",
-        "SDXL"
+        "SDXL",
+        "Z-Image Turbo",
+        "Hybrid"
       ],
       "version": "1.0.0",
       "author": "CMK Nodes",
       "status": "STABLE",
-      "description": "Lädt ein Bild und passt es bei Bedarf an die gewünschte Arbeitsgröße an.",
+      "description": "Lädt ein Bild, passt es an die gewünschte Arbeitsgröße an und eröffnet einen familienneutralen PROCESS-Pfad für direkte Stand-Alone-Nachbearbeitung.",
+      "highlight": "Kein Flow-Generationsmodul: CMK Load Image beginnt unmittelbar mit einem bereits vorhandenen Bild. Für SDXL-Inpaint vor dem Sampling stattdessen CMK Flow · Load Image verwenden.",
+      "highlight_en": "Not a Flow generation module: CMK Load Image starts directly from an existing image. For SDXL inpaint before sampling, use CMK Flow · Load Image instead.",
       "features": [
         "Bild laden",
-        "Größe und Ausrichtung für den weiteren Flow vorbereiten"
+        "Größe und Ausrichtung für den weiteren Flow vorbereiten",
+        "Direkte Verbindung mit Detailer/FaceRebuild/FaceProcess ohne vorangehendes Sampling",
+        "Ausgewählte Bildadresse über image_file zentral an Identitätsmodule verteilen"
       ],
-      "placementNote": "Am Anfang eines bildbasierten Flows vor Create Image oder einem Verarbeitungsmodul platzieren.",
+      "placementNote": "Am Anfang eines bildbasierten Stand-Alone-Flows direkt vor einem familienneutralen PostProcess-Modul platzieren.",
       "recommendedAfter": [
-        "01 START HERE · Create Image",
-        "05 ControlNet SDXL (optional)"
+        {
+          "label": "Detailer SDXL",
+          "targetId": "c1b3b220-bc27-479a-ae12-a43e226d96e3"
+        },
+        {
+          "label": "FaceRebuild SDXL",
+          "targetId": "f1cd74c6-da65-40cb-91b5-2e27d16a4c04"
+        },
+        {
+          "label": "FaceProcess SDXL",
+          "targetId": "0a3f7a10-a21c-49ed-9faa-7e55e7b7a4dd"
+        },
+        {
+          "label": "FaceSwap",
+          "targetId": "9993a5f9-7cd5-431c-8653-6e187ef9d214"
+        }
       ],
       "previews": [
         {
-          "src": "assets/previews/CMK Flow · Image Input.png",
-          "label": "Node"
+          "src": "assets/previews/CMK Load Image.png",
+          "label": "Vorschau"
         }
       ],
-      "previewAlt": "CMK Flow Image Input Node"
+      "previewAlt": "CMK Flow Image Input Node",
+      "variantOrder": 10
     },
     "CMKSwapImageLoaderPipe": {
+      "flowPublished": true,
       "category": "Input",
       "domain": "Face Processing",
       "compatibility": [
@@ -175,15 +240,14 @@
       "recommendedAfter": [],
       "previews": [
         {
-          "src": "assets/previews/flow-faceswap-image-input-standard.png",
-          "label": "Standard"
-        },
-        {
-          "src": "assets/previews/flow-faceswap-image-input-advanced.png",
-          "label": "Advanced"
+          "src": "assets/previews/CMK FaceSwap Image Input.png",
+          "label": "Vorschau"
         }
       ],
-      "previewAlt": "CMK Flow FaceSwap Image Input mit Ziel- und Quellbild-Auswahl"
+      "previewAlt": "CMK Flow FaceSwap Image Input mit Ziel- und Quellbild-Auswahl",
+      "variantOf": "CMKImageLoadAndResizePipe",
+      "variantLabel": "FaceSwap Image Input",
+      "variantOrder": 40
     },
     "CMKControlNetPreparePipe": {
       "displayName": "05 ControlNet",
@@ -202,21 +266,22 @@
       ],
       "placementNote": "Zwischen Create Image und dem ersten KSampler platzieren. Wenn keine Bildführung gewünscht ist, kann der Baustein entfallen.",
       "recommendedBefore": [
-        "01 START HERE · Create Image"
-      ],
-      "recommendedAfter": [
-        "10 KSampler SDXL 1st Pass"
-      ],
-      "previews": [
         {
-          "src": "assets/previews/CMK Flow · 05 ControlNet SDXL.png",
-          "label": "Modul"
+          "label": "01 START HERE · Create Image",
+          "targetId": "CMKPipeCreateImage"
         }
       ],
-      "previewAlt": "CMK Flow ControlNet Node"
+      "recommendedAfter": [
+        {
+          "label": "10 KSampler SDXL 1st Pass",
+          "targetId": "e371220c-caba-4cfd-ae2b-81e59664d525"
+        }
+      ],
+      "previewAlt": "CMK Flow ControlNet Node",
+      "variantOrder": 10
     },
     "CMKZITControlNetPreparePipe": {
-      "variantOf": "CMK Flow · 05 ControlNet SDXL",
+      "variantOf": "CMKControlNetPreparePipe",
       "variantLabel": "Z-Image Turbo",
       "category": "Process",
       "domain": "Image Guidance",
@@ -232,27 +297,29 @@
       ],
       "placementNote": "Zwischen Create Image und dem ZIT KSampler platzieren. Wenn keine Bildführung gewünscht ist, kann der Baustein entfallen.",
       "recommendedBefore": [
-        "01 START HERE · Create Image"
-      ],
-      "recommendedAfter": [
-        "10 KSampler Z-Image Turbo"
-      ],
-      "previews": [
         {
-          "src": "assets/previews/CMK Flow · 05 ControlNet ZIT.png",
-          "label": "Modul"
+          "label": "01 START HERE · Create Image",
+          "targetId": "CMKPipeCreateImage"
         }
       ],
-      "previewAlt": "CMK Flow ControlNet ZIT Node"
+      "recommendedAfter": [
+        {
+          "label": "10 KSampler Z-Image Turbo",
+          "targetId": "92cbb212-4e34-4b9a-8aa7-903d96ce39f2"
+        }
+      ],
+      "previewAlt": "CMK Flow ControlNet ZIT Node",
+      "variantOrder": 20
     },
     "CMKCombinedControlNetPreparePipe": {
-      "variantOf": "CMK Flow · 05 ControlNet SDXL",
+      "variantOf": "CMKControlNetPreparePipe",
       "variantLabel": "Combined",
       "category": "Process",
       "domain": "Image Guidance",
       "compatibility": [
         "SDXL",
-        "Z-Image Turbo"
+        "Z-Image Turbo",
+        "Hybrid"
       ],
       "version": "0.1.0",
       "author": "CMK Nodes",
@@ -260,24 +327,29 @@
       "description": "Bereitet eine gemeinsame optionale ControlNet-Bildführung für kombinierte SDXL- und Z-Image-Turbo-Workflows vor.",
       "features": [
         "Gemeinsame Standardparameter für SDXL und ZIT",
+        "Führt im Hybrid-Modus ausschließlich die bildaufbauende SDXL-Phase; der ZIT-Finish bleibt ControlNet-frei",
         "Modelspezifische Einstellungen getrennt unter Advanced",
         "Referenzbild-Auswahl und verarbeitete ControlNet-Vorschau"
       ],
       "placementNote": "In kombinierten Workflows zwischen Create Image und den beiden KSampler-Zweigen platzieren.",
       "recommendedBefore": [
-        "01 START HERE · Create Image"
-      ],
-      "recommendedAfter": [
-        "10 KSampler SDXL 1st Pass",
-        "10 KSampler Z-Image Turbo"
-      ],
-      "previews": [
         {
-          "src": "assets/previews/CMK Flow · 05 ControlNet Combined.png",
-          "label": "Modul"
+          "label": "01 START HERE · Create Image",
+          "targetId": "CMKPipeCreateImage"
         }
       ],
-      "previewAlt": "CMK Flow Combined ControlNet Node"
+      "recommendedAfter": [
+        {
+          "label": "10 KSampler SDXL 1st Pass",
+          "targetId": "e371220c-caba-4cfd-ae2b-81e59664d525"
+        },
+        {
+          "label": "10 KSampler Z-Image Turbo",
+          "targetId": "92cbb212-4e34-4b9a-8aa7-903d96ce39f2"
+        }
+      ],
+      "previewAlt": "CMK Flow Combined ControlNet Node",
+      "variantOrder": 30
     },
     "CMKInstantIDSamplerSDXLPipe": {
       "category": "Process",
@@ -300,13 +372,18 @@
       ],
       "placementNote": "Direkt nach dem kurzen Layout-Sampler und vor 20 Refiner SDXL verwenden.",
       "recommendedBefore": [
-        "10 KSampler SDXL 1st Pass"
+        {
+          "label": "10 KSampler SDXL 1st Pass",
+          "targetId": "e371220c-caba-4cfd-ae2b-81e59664d525"
+        }
       ],
       "recommendedAfter": [
-        "20 Refiner SDXL"
+        {
+          "label": "20 Refiner SDXL",
+          "targetId": "79b164c2-6919-4e9f-81aa-c14469d1715f"
+        }
       ],
       "dependencyNote": "Der InstantID-Code wird von CMK Nodes mitinstalliert. Separat benötigt werden nur antelopev2, das InstantID-Modell und das zugehörige SDXL-ControlNet.",
-      "previews": [],
       "previewAlt": "CMK InstantID Sampler SDXL Pipe Node"
     },
     "CMKInstantIDFaceRebuildPrepare": {
@@ -329,12 +406,20 @@
       ],
       "placementNote": "Vor 01 Inpaint platzieren. TARGET ROI und INPAINT MASK durch den bestätigten Inpaint-Hybridpfad bis Modul 15 führen; SOURCE FACE ausschließlich an InstantID anschließen.",
       "recommendedAfter": [
-        "01 START HERE · Create Image",
-        "10 KSampler SDXL 1st Pass",
-        "15 InstantID-Sampler SDXL"
+        {
+          "label": "01 START HERE · Create Image",
+          "targetId": "CMKPipeCreateImage"
+        },
+        {
+          "label": "10 KSampler SDXL 1st Pass",
+          "targetId": "e371220c-caba-4cfd-ae2b-81e59664d525"
+        },
+        {
+          "label": "15 InstantID-Sampler SDXL",
+          "targetId": "1c91adfd-df9f-4729-90a1-35dc53915ca6"
+        }
       ],
       "dependencyNote": "Benötigt ein installiertes InsightFace-Analysemodell; antelopev2 wird empfohlen.",
-      "previews": [],
       "previewAlt": "CMK InstantID Face Rebuild Prepare Node"
     },
     "CMKInstantIDFaceRebuildPasteback": {
@@ -356,12 +441,17 @@
       ],
       "placementNote": "Direkt hinter dem dekodierten Ergebnis von Modul 15 platzieren und TARGET IMAGE, PASTEBACK MASK sowie REBUILD CONTEXT aus Prepare verbinden.",
       "recommendedBefore": [
-        "15 InstantID-Sampler SDXL"
+        {
+          "label": "15 InstantID-Sampler SDXL",
+          "targetId": "1c91adfd-df9f-4729-90a1-35dc53915ca6"
+        }
       ],
       "recommendedAfter": [
-        "Save Project Image"
+        {
+          "label": "Save Project Image",
+          "targetId": "CMK_SaveProjectImage"
+        }
       ],
-      "previews": [],
       "previewAlt": "CMK InstantID Face Rebuild Pasteback Node"
     },
     "CMKInstantIDFaceRebuildPreparePipe": {
@@ -383,12 +473,17 @@
       ],
       "placementNote": "Nach 01 START HERE und vor 10 KSampler SDXL einschleifen. PROCESS, IMAGE und LOG gerade durchführen; Source Face im sichtbaren Modul 15 wählen.",
       "recommendedBefore": [
-        "01 START HERE · Create Image"
+        {
+          "label": "01 START HERE · Create Image",
+          "targetId": "CMKPipeCreateImage"
+        }
       ],
       "recommendedAfter": [
-        "10 KSampler SDXL 1st Pass"
+        {
+          "label": "10 KSampler SDXL 1st Pass",
+          "targetId": "e371220c-caba-4cfd-ae2b-81e59664d525"
+        }
       ],
-      "previews": [],
       "previewAlt": "CMK Flow InstantID Face Rebuild Prepare Pipe Node"
     },
     "CMKInstantIDFaceRebuildPastebackPipe": {
@@ -410,13 +505,21 @@
       ],
       "placementNote": "Nach dem dekodierten InstantID-Ergebnis einschleifen; anschließend mit Refiner, Nachbearbeitung oder Save fortfahren.",
       "recommendedBefore": [
-        "15 InstantID-Sampler SDXL"
+        {
+          "label": "15 InstantID-Sampler SDXL",
+          "targetId": "1c91adfd-df9f-4729-90a1-35dc53915ca6"
+        }
       ],
       "recommendedAfter": [
-        "20 Refiner SDXL",
-        "Save Project Image"
+        {
+          "label": "20 Refiner SDXL",
+          "targetId": "79b164c2-6919-4e9f-81aa-c14469d1715f"
+        },
+        {
+          "label": "Save Project Image",
+          "targetId": "CMK_SaveProjectImage"
+        }
       ],
-      "previews": [],
       "previewAlt": "CMK Flow InstantID Face Rebuild Pasteback Pipe Node"
     },
     "CMKInstantIDFaceDetailerSDXL": {
@@ -439,54 +542,211 @@
       ],
       "placementNote": "Im Face-Rebuild-Versuchsaufbau zwischen Prepare und Pasteback verwenden. Benötigt einen CMK Checkpoint/VAE MODEL und ein separates Source Face.",
       "recommendedBefore": [
-        "InstantID Face Rebuild Prepare"
+        {
+          "label": "InstantID Face Rebuild Prepare",
+          "targetId": "CMKInstantIDFaceRebuildPrepare"
+        }
       ],
       "recommendedAfter": [
-        "InstantID Face Rebuild Pasteback"
+        {
+          "label": "InstantID Face Rebuild Pasteback",
+          "targetId": "CMKInstantIDFaceRebuildPasteback"
+        }
       ],
       "dependencyNote": "Benötigt antelopev2, das InstantID-Modell und das zugehörige SDXL-ControlNet.",
-      "previews": [],
       "previewAlt": "CMK InstantID Face Detailer SDXL"
     },
     "CMKFamilyResultMergePipe": {
+      "browserOrder": 100,
       "category": "Process",
-      "domain": "Flow Control",
+      "domain": "Generation / PostProcess Boundary",
       "compatibility": [
         "SDXL",
         "Z-Image Turbo"
       ],
-      "version": "1.0.0",
+      "version": "2.0.0",
       "author": "CMK Nodes",
       "status": "STABLE",
-      "description": "Führt parallele SDXL- und ZIT-Familienzweige anhand der in 01 gewählten aktiven Modellfamilie zusammen.",
+      "description": "Beendet den aktiven SDXL-, ZIT- oder HYBRID-Generationspfad und stellt einen unabhängigen Arbeitskontext für nachfolgende PostProcess-Module bereit.",
       "features": [
-        "Wählt ausschließlich den aktiven Familienzweig aus",
-        "Verhindert die Ausführung des inaktiven Zweigs",
-      "Übergibt ein familienneutrales Ergebnis an FaceSwap oder den Visualizer"
+        "Übernimmt ausschließlich den aktiven Generationszweig",
+        "Übergibt dessen Ergebnis an den PostProcess",
+        "Lädt ein separates PostProcess-Modell nur bei Bedarf"
       ],
-      "placementNote": "Nur verwenden, wenn SDXL und ZIT parallel im selben Workflow aufgebaut sind. Hinter beiden KSamplern und vor den gemeinsamen Nachbearbeitungsmodulen platzieren.",
+      "placementNote": "Combined-Variante direkt hinter den letzten SDXL- und ZIT-Generationsstufen und vor Detailer/FaceRebuild/FaceProcess platzieren. Rein modellfreie Wege laden das konfigurierte PostProcess-Modell nicht.",
       "recommendedBefore": [
-      "10 KSampler Z-Image Turbo",
-        "20 Refiner SDXL",
-        "23 Detailer SDXL",
-        "25 FaceRebuild SDXL",
-        "30 FaceProcess SDXL"
+        {
+          "label": "20 Refiner SDXL",
+          "targetId": "79b164c2-6919-4e9f-81aa-c14469d1715f"
+        },
+        {
+          "label": "10 KSampler Z-Image Turbo",
+          "targetId": "92cbb212-4e34-4b9a-8aa7-903d96ce39f2"
+        }
       ],
-    "recommendedAfter": [
-      "40 FaceSwap",
-      "90 Upscale & Save",
-      "100 Visualizer"
+      "recommendedAfter": [
+        {
+          "label": "Detailer SDXL",
+          "targetId": "c1b3b220-bc27-479a-ae12-a43e226d96e3"
+        },
+        {
+          "label": "FaceRebuild SDXL",
+          "targetId": "f1cd74c6-da65-40cb-91b5-2e27d16a4c04"
+        },
+        {
+          "label": "FaceProcess SDXL",
+          "targetId": "0a3f7a10-a21c-49ed-9faa-7e55e7b7a4dd"
+        },
+        {
+          "label": "FaceSwap",
+          "targetId": "9993a5f9-7cd5-431c-8653-6e187ef9d214"
+        },
+        {
+          "label": "Upscale & Save",
+          "targetId": "6f8d63a4-7ea5-4c18-9900-2ec3ed33c9b6"
+        },
+        {
+          "label": "Visualizer",
+          "targetId": "CMKVisualizer"
+        }
       ],
       "previews": [
         {
-          "src": "assets/previews/active-family-result.png",
-          "label": "Node"
+          "src": "assets/previews/CMK Flow · PostProcess Boundary Combined.png",
+          "label": "Vorschau"
         }
       ],
-      "previewAlt": "CMK Flow Active Family Result Node"
+      "previewAlt": "CMK Flow PostProcess Boundary Combined",
+      "catalogGroup": "postprocess",
+      "variantOf": "CMKPostProcessBoundarySDXLPipe",
+      "variantLabel": "Combined",
+      "variantOrder": 30
+    },
+    "CMKPostProcessBoundarySDXLPipe": {
+      "browserOrder": 100,
+      "displayName": "PostProcess Boundary",
+      "category": "Process",
+      "domain": "Generation / PostProcess Boundary",
+      "compatibility": [
+        "SDXL"
+      ],
+      "version": "2.0.0",
+      "author": "CMK Nodes",
+      "status": "STABLE",
+      "description": "Beendet einen reinen SDXL-Generationspfad und stellt einen unabhängigen Arbeitskontext für nachfolgende PostProcess-Module bereit.",
+      "features": [
+        "Übergibt das erzeugte Bild an den PostProcess",
+        "Gibt das SDXL-Generationsmodell frei",
+        "Lädt ein separates PostProcess-Modell nur bei Bedarf"
+      ],
+      "placementNote": "Direkt hinter dem letzten SDXL-Generationsmodul und vor Detailer/FaceRebuild/FaceProcess platzieren.",
+      "recommendedBefore": [
+        {
+          "label": "20 Refiner SDXL",
+          "targetId": "79b164c2-6919-4e9f-81aa-c14469d1715f"
+        }
+      ],
+      "recommendedAfter": [
+        {
+          "label": "Detailer SDXL",
+          "targetId": "c1b3b220-bc27-479a-ae12-a43e226d96e3"
+        },
+        {
+          "label": "FaceRebuild SDXL",
+          "targetId": "f1cd74c6-da65-40cb-91b5-2e27d16a4c04"
+        },
+        {
+          "label": "FaceProcess SDXL",
+          "targetId": "0a3f7a10-a21c-49ed-9faa-7e55e7b7a4dd"
+        },
+        {
+          "label": "FaceSwap",
+          "targetId": "9993a5f9-7cd5-431c-8653-6e187ef9d214"
+        },
+        {
+          "label": "Upscale & Save",
+          "targetId": "6f8d63a4-7ea5-4c18-9900-2ec3ed33c9b6"
+        },
+        {
+          "label": "Visualizer",
+          "targetId": "CMKVisualizer"
+        }
+      ],
+      "previews": [
+        {
+          "src": "assets/previews/CMK Flow · PostProcess Boundary SDXL.png",
+          "label": "Vorschau"
+        }
+      ],
+      "previewAlt": "CMK Flow PostProcess Boundary SDXL",
+      "catalogGroup": "postprocess",
+      "variantLabel": "SDXL",
+      "variantOrder": 10
+    },
+    "CMKPostProcessBoundaryZITPipe": {
+      "browserOrder": 100,
+      "category": "Process",
+      "domain": "Generation / PostProcess Boundary",
+      "compatibility": [
+        "Z-Image Turbo"
+      ],
+      "version": "2.0.0",
+      "author": "CMK Nodes",
+      "status": "STABLE",
+      "description": "Beendet einen reinen Z-Image-Turbo-Generationspfad und stellt einen unabhängigen Arbeitskontext für nachfolgende PostProcess-Module bereit.",
+      "features": [
+        "Übergibt das erzeugte Bild an den PostProcess",
+        "Gibt das ZIT-Generationsmodell frei",
+        "Lädt ein separates PostProcess-Modell nur bei Bedarf"
+      ],
+      "placementNote": "Direkt hinter dem ZIT-Finalizer und vor den für ZIT freigegebenen Modulen Detailer/FaceRebuild/FaceProcess platzieren.",
+      "recommendedBefore": [
+        {
+          "label": "10 KSampler Z-Image Turbo",
+          "targetId": "92cbb212-4e34-4b9a-8aa7-903d96ce39f2"
+        }
+      ],
+      "recommendedAfter": [
+        {
+          "label": "Detailer SDXL",
+          "targetId": "c1b3b220-bc27-479a-ae12-a43e226d96e3"
+        },
+        {
+          "label": "FaceRebuild SDXL",
+          "targetId": "f1cd74c6-da65-40cb-91b5-2e27d16a4c04"
+        },
+        {
+          "label": "FaceProcess SDXL",
+          "targetId": "0a3f7a10-a21c-49ed-9faa-7e55e7b7a4dd"
+        },
+        {
+          "label": "FaceSwap",
+          "targetId": "9993a5f9-7cd5-431c-8653-6e187ef9d214"
+        },
+        {
+          "label": "Upscale & Save",
+          "targetId": "6f8d63a4-7ea5-4c18-9900-2ec3ed33c9b6"
+        },
+        {
+          "label": "Visualizer",
+          "targetId": "CMKVisualizer"
+        }
+      ],
+      "previews": [
+        {
+          "src": "assets/previews/CMK Flow · PostProcess Boundary ZIT.png",
+          "label": "Vorschau"
+        }
+      ],
+      "previewAlt": "CMK Flow PostProcess Boundary ZIT",
+      "catalogGroup": "postprocess",
+      "variantOf": "CMKPostProcessBoundarySDXLPipe",
+      "variantLabel": "Z-Image Turbo",
+      "variantOrder": 20
     },
     "CMKVisualizer": {
-      "displayName": "100 Visualizer",
+      "displayName": "Visualizer",
+      "browserOrder": 10,
       "category": "Flow",
       "domain": "Output & Inspection",
       "compatibility": [
@@ -499,20 +759,18 @@
       "status": "STABLE",
       "description": "Zeigt die im VISUAL-Pipe registrierten Bearbeitungsstufen an und kann das finale Bild optional hochskalieren und speichern.",
       "features": [
-        "Zentrale Anzeige aller registrierten Visual-Provider",
-        "Manuell festgelegte Node-Dimension bleibt erhalten",
-        "Optionales Upscaling und Speichern des finalen Bildes"
+        "Zeigt die registrierten Bearbeitungsstufen zentral an und kann das finale Bild optional hochskalieren und speichern."
       ],
-      "placementNote": "CMK Flow · 100 Visualizer ist der verbindliche Abschluss jeder CMK-Flow-Kette. VISUAL sowie die finalen Ergebnisleitungen des letzten Moduls anschließen.",
-    "hideRecommendations": true,
+      "placementNote": "CMK Flow · Visualizer ist der verbindliche Abschluss jeder CMK-Flow-Kette. VISUAL sowie die finalen Ergebnisleitungen des letzten Moduls anschließen.",
+      "hideRecommendations": true,
       "previews": [
         {
-          "src": "assets/previews/visualizer.png",
-          "label": "Visualizer"
+          "src": "assets/previews/CMK Flow · Visualizer.png",
+          "label": "Vorschau"
         }
       ],
-      "previewAlt": "CMK Flow · 100 Visualizer als zentrale visuelle Oberfläche von CMK Flow 2.0",
-    "order": 100
+      "previewAlt": "CMK Flow · Visualizer als zentrale visuelle Oberfläche von CMK Flow 2.0",
+      "catalogGroup": "terminal"
     },
     "CMK_SaveProjectImage": {
       "category": "Finish",
@@ -529,16 +787,39 @@
       ],
       "placementNote": "Als letzten Baustein hinter der gewünschten Bildbearbeitung platzieren.",
       "recommendedBefore": [
-        "90 Upscale & Save",
+        {
+          "label": "Upscale & Save",
+          "targetId": "6f8d63a4-7ea5-4c18-9900-2ec3ed33c9b6"
+        },
         "fertige Bildbearbeitung"
+      ],
+      "previewAlt": "CMK Flow Save Project Image Node"
+    },
+    "CMKImageFileLoader": {
+      "displayName": "CMK Image File Loader",
+      "category": "Input",
+      "domain": "Image Input",
+      "compatibility": [
+        "SDXL",
+        "Z-Image Turbo"
+      ],
+      "version": "1.0.0",
+      "author": "CMK Nodes",
+      "status": "STABLE",
+      "description": "Stellt eine ausgewählte Bilddatei als technische Dateireferenz für CMK-Workflows bereit.",
+      "features": [
+        "Bilddatei auswählen",
+        "Technische Dateireferenz ausgeben"
       ],
       "previews": [
         {
-          "src": "assets/previews/save-project-image.png",
-          "label": "Node"
+          "src": "assets/previews/CMK Image File Loader.png",
+          "label": "Vorschau"
         }
       ],
-      "previewAlt": "CMK Flow Save Project Image Node"
+      "variantOf": "CMKImageLoadAndResizePipe",
+      "variantLabel": "Image File Loader",
+      "variantOrder": 50
     }
   }
 }

@@ -5,7 +5,7 @@ const EXTENSION_NAME = "CMK.FlowBrowser";
 const COMMAND_ID = "cmk.openFlowBrowser";
 const NODE_PACK = "custom_nodes.cmk_nodes";
 const ALLOWED_STATUS = new Set(["STABLE", "BETA", "EXPERIMENTAL"]);
-const PREVIEW_CACHE_VERSION = "20260908-final-flow-browser-refresh-3";
+const PREVIEW_CACHE_VERSION = "20261002-cmk25-flow-showcase";
 const MEMORY_DISPLAY_KEY = "cmk-flow-memory-display";
 const MEMORY_POLL_MS = 2000;
 
@@ -22,6 +22,8 @@ let toolboxCategory = "Alle";
 let toolboxSearchText = "";
 let referenceSelectedId = null;
 let referenceSearchText = "";
+let referenceExpandedCategory = null;
+let referenceGroupsInitialized = false;
 let language = localStorage.getItem("cmk-flow-language") || (navigator.language?.toLowerCase().startsWith("de") ? "de" : "en");
 
 const UI_TEXT = {
@@ -137,6 +139,17 @@ function addStyles() {
     .cmk-flow-item-index svg { width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
     .cmk-flow-item-name { display: block; font-size: 14px; font-weight: 650; }
     .cmk-flow-item-category { display: block; margin-top: 2px; color: #8e9ba2; font-size: 12px; }
+    .cmk-reference-group { width: 100%; margin: 7px 0 11px; overflow: hidden; border: 1px solid #334149; border-radius: 12px; background: #11181d; }
+    .cmk-reference-group.is-expanded { border-color: #3c6f73; box-shadow: 0 5px 18px rgba(0,0,0,.2); }
+    .cmk-reference-group-header { width: 100%; min-height: 58px; display: grid; grid-template-columns: minmax(0,1fr) auto auto; gap: 10px; align-items: center; padding: 12px 14px; border: 0; background: linear-gradient(100deg, #1c2930, #182127); color: #e8f3f4; text-align: left; cursor: pointer; }
+    .cmk-reference-group-header:hover { background: linear-gradient(100deg, #22333a, #1c292f); }
+    .cmk-reference-group.is-expanded .cmk-reference-group-header { background: linear-gradient(100deg, #18383a, #1b2d32); color: #f3ffff; }
+    .cmk-reference-group-title { min-width: 0; font-size: 14px; font-weight: 800; line-height: 1.2; letter-spacing: .045em; text-transform: uppercase; }
+    .cmk-reference-group-count { min-width: 27px; padding: 3px 8px; border: 1px solid #46565e; border-radius: 99px; background: #121a1f; color: #b7c5ca; font-size: 11px; font-weight: 750; text-align: center; }
+    .cmk-reference-group-chevron { color: #63d8d5; font-size: 17px; line-height: 1; transform: rotate(-90deg); transition: transform .15s ease; }
+    .cmk-reference-group.is-expanded .cmk-reference-group-chevron { transform: rotate(0); }
+    .cmk-reference-group-items { padding: 11px 10px 5px 22px; border-top: 1px solid #304047; background: #10161b; }
+    .cmk-reference-group-items .cmk-flow-item { margin-bottom: 7px; background: #171f24; }
     .cmk-toolbox-item { grid-template-columns: 1fr; padding: 12px 14px; }
     .cmk-toolbox-item.is-featured { border-color: #36575c; box-shadow: inset 3px 0 #43c8c5; }
     .cmk-toolbox-item.is-featured:not(.is-selected):hover { border-color: #4a777c; background: #18272c; }
@@ -187,11 +200,36 @@ function addStyles() {
     .cmk-flow-preview-gallery { width: 100%; display: grid; gap: 12px; justify-items: center; }
     .cmk-flow-preview-image { display: block; max-width: 100%; max-height: 390px; border: 1px solid #465159; border-radius: 9px; object-fit: contain; box-shadow: 0 12px 34px rgba(0,0,0,.42); }
     .cmk-flow-preview-tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; }
+    .cmk-flow-preview-tabs.is-grouped { width: 100%; display: grid; gap: 8px; }
+    .cmk-flow-preview-tab-group { width: 100%; display: grid; grid-template-columns: minmax(100px, auto) minmax(0, 1fr); gap: 10px; align-items: center; }
+    .cmk-flow-preview-tab-group-label { color: #52d3cf; font-size: 12px; font-weight: 750; }
+    .cmk-flow-preview-tab-group-buttons { display: flex; flex-wrap: wrap; gap: 7px; }
+    .cmk-flow-preview-tab-standalone { display: flex; flex-wrap: wrap; gap: 7px; padding-left: 110px; }
     .cmk-flow-preview-tab { min-height: 30px; padding: 0 12px; border: 1px solid #3b484f; border-radius: 7px; background: #1a2328; color: #aebbc0; font: inherit; font-size: 12px; cursor: pointer; }
     .cmk-flow-preview-tab:hover { border-color: #52636b; color: #e2e9eb; }
     .cmk-flow-preview-tab.is-active { border-color: #42cbc8; background: #153638; color: #62e0dc; }
     .cmk-flow-preview-missing { color: #75838a; font-size: 12px; }
     .cmk-flow-actions { display: flex; justify-content: flex-end; padding-top: 2px; }
+    .cmk-flow-detail.cmk-flow-detail--compact { padding: 24px 28px 22px; }
+    .cmk-flow-compact-top { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; align-items: start; margin-bottom: 18px; }
+    .cmk-flow-compact-top.has-variants { grid-template-columns: minmax(260px, 1fr) minmax(300px, 1.2fr); }
+    .cmk-flow-detail--compact .cmk-flow-detail-header h3 { margin-top: 9px; font-size: 30px; }
+    .cmk-flow-detail--compact .cmk-flow-description { max-width: 74ch; margin: 9px 0 0; line-height: 1.45; }
+    .cmk-flow-variant-panel { min-width: 0; padding-top: 3px; }
+    .cmk-flow-variant-label { display: block; color: #52d3cf; font-size: 13px; font-weight: 700; }
+    .cmk-flow-detail--compact .cmk-flow-variants { margin: 8px 0 0; }
+    .cmk-flow-detail--compact .cmk-flow-variant { min-width: 112px; min-height: 40px; padding: 8px 14px; font-size: 13px; }
+    .cmk-flow-compact-features { margin-bottom: 18px; }
+    .cmk-flow-compact-features ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; color: #c4ccd0; }
+    .cmk-flow-compact-features li { display: grid; grid-template-columns: 24px 1fr; gap: 9px; align-items: start; line-height: 1.45; }
+    .cmk-flow-compact-features li::before { content: "✓"; display: grid; width: 19px; height: 19px; place-items: center; margin-top: 1px; border-radius: 50%; background: #39d4d0; color: #071112; font-size: 13px; font-weight: 900; }
+    .cmk-flow-compact-info { display: flex; gap: 8px; margin: 12px 0 0; color: #aebbc0; font-size: 12px; line-height: 1.4; }
+    .cmk-flow-compact-info[hidden] { display: none; }
+    .cmk-flow-compact-info strong { color: #52d3cf; }
+    .cmk-flow-detail--compact .cmk-flow-preview { margin-bottom: 14px; }
+    .cmk-flow-detail--compact .cmk-flow-preview-stage { min-height: 280px; padding: 18px; }
+    .cmk-flow-detail--compact .cmk-flow-preview-image { max-height: min(52vh, 560px); }
+    .cmk-flow-detail--compact .cmk-flow-actions { padding-top: 0; }
     .cmk-toolbox-detail { max-width: 760px; }
     .cmk-toolbox-detail.is-featured { max-width: none; }
     .cmk-toolbox-detail h3 { margin: 5px 0 2px; font-size: 25px; line-height: 1.2; }
@@ -203,7 +241,7 @@ function addStyles() {
     .cmk-flow-insert:hover { background: #38d4d6; }
     .cmk-flow-empty, .cmk-flow-error { padding: 22px 14px; color: #9da5ab; }
     .cmk-flow-error { color: #ffb4b4; }
-    @media (max-width: 850px) { .cmk-flow-browser { height: 94vh; } .cmk-flow-content { grid-template-columns: 1fr; grid-template-rows: minmax(250px, 42%) 1fr; } .cmk-flow-sidebar { border-right: 0; border-bottom: 1px solid #30353a; } .cmk-flow-detail-grid, .cmk-flow-sockets { grid-template-columns: 1fr; } .cmk-flow-meta { grid-template-columns: 1fr 1fr; } .cmk-storage-project { grid-template-columns: 1fr; } .cmk-storage-project-actions { min-width: 0; } }
+    @media (max-width: 850px) { .cmk-flow-browser { height: 94vh; } .cmk-flow-content { grid-template-columns: 1fr; grid-template-rows: minmax(250px, 42%) 1fr; } .cmk-flow-sidebar { border-right: 0; border-bottom: 1px solid #30353a; } .cmk-flow-detail-grid, .cmk-flow-sockets, .cmk-flow-compact-top, .cmk-flow-compact-top.has-variants { grid-template-columns: 1fr; } .cmk-flow-variant-panel { min-width: 0; } .cmk-flow-meta { grid-template-columns: 1fr 1fr; } .cmk-storage-project { grid-template-columns: 1fr; } .cmk-storage-project-actions { min-width: 0; } }
   `;
   document.head.append(style);
 }
@@ -263,6 +301,7 @@ function normalizePreviews(metadata = {}) {
     .filter((preview) => preview?.src)
     .map((preview, index) => ({
       src: `/extensions/cmk_nodes/${preview.src.split("/").map(encodeURIComponent).join("/")}?v=${PREVIEW_CACHE_VERSION}`,
+      group: preview.group || "",
       label: language === "en"
         ? ({
             Modul: "Module",
@@ -287,6 +326,11 @@ function isCableInput(spec) {
   return !new Set(["BOOLEAN", "COMBO", "FLOAT", "IMAGEUPLOAD", "INT", "STRING"]).has(String(type || ""));
 }
 
+function catalogOrder(metadata, fallback) {
+  const order = Number(metadata?.order);
+  return Number.isFinite(order) ? order : fallback;
+}
+
 function discoverCuratedNodes(nodeRegistry, nodeMetadata, englishContent) {
   const packagedControlNetImplementations = new Set([
     "CMKControlNetPreparePipe",
@@ -298,6 +342,7 @@ function discoverCuratedNodes(nodeRegistry, nodeMetadata, englishContent) {
       (
         String(nodeDef?.category || "").startsWith("CMK/Flow/")
         || nodeType === "CMKVisualizer"
+        || nodeMetadata[nodeType]?.flowPublished === true
       )
       && !packagedControlNetImplementations.has(nodeType)
     ))
@@ -305,16 +350,16 @@ function discoverCuratedNodes(nodeRegistry, nodeMetadata, englishContent) {
       const metadata = { ...(nodeMetadata[nodeType] || {}), ...(language === "en" ? englishContent.flows?.[nodeType] : {}) };
       const displayName = nodeDef.display_name || nodeDef.name || nodeType;
       const category = metadata.category || nodeDef.category.split("/").at(-1);
-      const numericPrefix = Number(displayName.match(/(?:·\s*)?(\d{1,2})\b/)?.[1]);
-      // Numbered modules define the canonical Flow sequence. Standalone
-      // loaders deliberately follow module 90 in the order requested by the
-      // catalog; their relative order is explicit and language-independent.
+      // Catalog order is explicit metadata. Visible labels are presentation
+      // only and may change without changing a node's identity or position.
       const loaderOrder = {
         CMKImageLoadAndResizePipe: 101,
         CMKLoadImage: 102,
         CMKCheckpointVAELoaderPipe: 103,
       }[nodeType];
       const categoryOrder = loaderOrder ?? ({ Input: 100, Process: 70, Finish: 95 }[category] ?? 80);
+      const catalogGroup = metadata.catalogGroup
+        || (Number.isFinite(Number(metadata.order)) && Number(metadata.order) <= 20 ? "generation" : "utility");
       const required = Object.entries(nodeDef.input?.required || {}).filter(([, spec]) => isCableInput(spec)).map(([name]) => name);
       const optional = Object.entries(nodeDef.input?.optional || {}).filter(([, spec]) => isCableInput(spec)).map(([name]) => name);
       const inputDetails = [
@@ -324,6 +369,8 @@ function discoverCuratedNodes(nodeRegistry, nodeMetadata, englishContent) {
 
       return {
         entryId: `node:${nodeType}`,
+        identity: nodeType,
+        variantGroup: nodeType,
         kind: "node",
         nodeType,
         marker: "NODE",
@@ -337,10 +384,13 @@ function discoverCuratedNodes(nodeRegistry, nodeMetadata, englishContent) {
         author: metadata.author || "CMK Nodes",
         compatibility: Array.isArray(metadata.compatibility) ? metadata.compatibility : [],
         features: Array.isArray(metadata.features) ? metadata.features : ["Direkt als einzelne Node einsetzbar"],
+        info: language === "en" ? (metadata.info_en || "") : (metadata.info || ""),
         inputs: [...required, ...optional.map((name) => `${name} (optional)`) ],
         inputDetails,
         outputs: (nodeDef.output_name || nodeDef.output || []).map(String),
-        order: Number.isFinite(numericPrefix) ? numericPrefix : categoryOrder,
+        catalogGroup,
+        order: catalogOrder(metadata, categoryOrder),
+        browserOrder: Number.isFinite(Number(metadata.browserOrder)) ? Number(metadata.browserOrder) : 999,
         searchAliases: [nodeType, category, "node"],
         icon: metadata.icon || "",
         recommendedBefore: Array.isArray(metadata.recommendedPredecessors)
@@ -356,6 +406,7 @@ function discoverCuratedNodes(nodeRegistry, nodeMetadata, englishContent) {
         previewAlt: metadata.previewAlt || `${displayName} Vorschau`,
         variantOf: metadata.variantOf || "",
         variantLabel: metadata.variantLabel || "",
+        variantOrder: Number.isFinite(Number(metadata.variantOrder)) ? Number(metadata.variantOrder) : 999,
       };
     });
 }
@@ -502,11 +553,21 @@ async function discoverFlows() {
   const candidates = await Promise.all(cmkEntries.map(async ([entryId, entry]) => {
     const fullEntry = await fetchJson(`/global_subgraphs/${encodeURIComponent(entryId)}`);
     const data = typeof fullEntry.data === "string" ? JSON.parse(fullEntry.data) : fullEntry.data;
+    const definitions = data?.definitions?.subgraphs || [];
+    const rootType = data?.nodes?.[0]?.type;
+    const definition = definitions.find((item) => item.id === rootType) || definitions[0];
+    const blueprintId = definition?.id || rootType || entryId;
     const baseMetadata = data?.extra?.CMKFlow;
-    const metadata = { ...baseMetadata, ...(language === "en" ? englishContent.flows?.[entry.name] : {}) };
+    const localizedMetadata = language === "en"
+      ? (englishContent.flows?.[blueprintId] || englishContent.flows?.[entry.name])
+      : null;
+    const metadata = { ...baseMetadata, ...localizedMetadata };
     if (!metadata?.published) return null;
 
     const status = String(metadata.status || "").toUpperCase();
+    const numericOrder = Number(metadata.order);
+    const catalogGroup = metadata.catalogGroup
+      || (Number.isFinite(numericOrder) && numericOrder <= 20 ? "generation" : "utility");
     if (!metadata.description || !metadata.category || !ALLOWED_STATUS.has(status)) {
       console.warn(`[${EXTENSION_NAME}] Ignoriere unvollständige Flow-Metadaten:`, entry.name);
       return null;
@@ -514,10 +575,11 @@ async function discoverFlows() {
 
     return {
       entryId,
+      identity: blueprintId,
+      variantGroup: metadata.variantOf || blueprintId,
       kind: "subgraph",
-      marker: String(metadata.order).padStart(2, "0"),
-      blueprintId: data?.definitions?.subgraphs?.find((definition) => definition.name === entry.name)?.id
-        || data?.definitions?.subgraphs?.[0]?.id,
+      marker: catalogGroup === "generation" ? String(metadata.order).padStart(2, "0") : "FLOW",
+      blueprintId,
       blueprintItems: {
         nodes: data?.nodes || [],
         subgraphs: data?.definitions?.subgraphs || [],
@@ -532,11 +594,14 @@ async function discoverFlows() {
       author: metadata.author || "CMK Nodes",
       compatibility: Array.isArray(metadata.compatibility) ? metadata.compatibility : [],
       features: Array.isArray(metadata.features) ? metadata.features : [],
+      info: language === "en" ? (localizedMetadata?.info || "") : (baseMetadata.info || ""),
       featureCallout: metadata.featureCallout || null,
       inputs: (data?.nodes?.[0]?.inputs || []).map((input) => input.name),
       inputDetails: (data?.nodes?.[0]?.inputs || []).map((input) => ({ name: input.name, type: String(input.type || "") })),
       outputs: (data?.nodes?.[0]?.outputs || []).map((output) => output.name),
-      order: Number.isFinite(metadata.order) ? metadata.order : 999,
+      catalogGroup,
+      order: Number.isFinite(numericOrder) ? numericOrder : 999,
+      browserOrder: Number.isFinite(Number(metadata.browserOrder)) ? Number(metadata.browserOrder) : 999,
       searchAliases: Array.isArray(metadata.searchAliases) ? metadata.searchAliases : [],
       icon: metadata.icon || "",
       recommendedBefore: Array.isArray(metadata.recommendedPredecessors)
@@ -551,6 +616,7 @@ async function discoverFlows() {
       previewAlt: metadata.previewAlt || `${entry.name} Vorschau`,
       variantOf: metadata.variantOf || "",
       variantLabel: metadata.variantLabel || "",
+      variantOrder: Number.isFinite(Number(metadata.variantOrder)) ? Number(metadata.variantOrder) : 999,
     };
   }));
 
@@ -559,11 +625,21 @@ async function discoverFlows() {
   const variants = allFlows.filter((flow) => flow.variantOf);
   const primary = allFlows.filter((flow) => !flow.variantOf);
   for (const flow of primary) {
-    flow.variants = [flow, ...variants.filter((variant) => variant.variantOf === flow.name)];
+    flow.variants = [flow, ...variants.filter((variant) => (
+      variant.kind === "subgraph"
+        ? variant.variantGroup === flow.identity
+        : variant.variantOf === flow.identity
+    ))].sort((a, b) => a.variantOrder - b.variantOrder || String(a.identity).localeCompare(String(b.identity)));
   }
 
+  const catalogGroupOrder = { generation: 0, postprocess: 1, terminal: 2, utility: 3 };
   return {
-    flows: primary.sort((a, b) => a.order - b.order || a.name.localeCompare(b.name, "de")),
+    flows: primary.sort((a, b) => (
+      a.browserOrder - b.browserOrder
+      || (catalogGroupOrder[a.catalogGroup] ?? 9) - (catalogGroupOrder[b.catalogGroup] ?? 9)
+      || a.order - b.order
+      || String(a.identity).localeCompare(String(b.identity))
+    )),
     toolbox: discoverToolboxNodes(nodeRegistry, toolboxMetadata, englishContent),
     references: Array.isArray(referenceRegistry.workflows) ? referenceRegistry.workflows : [],
   };
@@ -778,6 +854,10 @@ function renderNodePreview(container, flow) {
   tabs.className = "cmk-flow-preview-tabs";
   tabs.setAttribute("role", "group");
   tabs.setAttribute("aria-label", "Vorschauansicht auswählen");
+  const grouped = flow.previews.some((preview) => preview.group);
+  if (grouped) tabs.classList.add("is-grouped");
+  let currentGroup = null;
+  let currentGroupButtons = null;
 
   const buttons = flow.previews.map((preview, index) => {
     const button = document.createElement("button");
@@ -785,14 +865,37 @@ function renderNodePreview(container, flow) {
     button.className = "cmk-flow-preview-tab";
     button.textContent = preview.label;
     button.addEventListener("click", () => selectPreview(index));
-    tabs.append(button);
+    if (grouped && preview.group) {
+      if (!currentGroupButtons || currentGroup !== preview.group) {
+        currentGroup = preview.group;
+        const group = document.createElement("div");
+        group.className = "cmk-flow-preview-tab-group";
+        const label = document.createElement("span");
+        label.className = "cmk-flow-preview-tab-group-label";
+        label.textContent = currentGroup;
+        currentGroupButtons = document.createElement("div");
+        currentGroupButtons.className = "cmk-flow-preview-tab-group-buttons";
+        group.append(label, currentGroupButtons);
+        tabs.append(group);
+      }
+      currentGroupButtons.append(button);
+    } else if (grouped) {
+      currentGroup = null;
+      currentGroupButtons = null;
+      const standalone = document.createElement("div");
+      standalone.className = "cmk-flow-preview-tab-standalone";
+      standalone.append(button);
+      tabs.append(standalone);
+    } else {
+      tabs.append(button);
+    }
     return button;
   });
 
   const selectPreview = (index) => {
     const preview = flow.previews[index];
     image.src = preview.src;
-    image.alt = `${flow.previewAlt} – ${preview.label}`;
+    image.alt = `${flow.previewAlt} – ${preview.group ? `${preview.group} – ` : ""}${preview.label}`;
     buttons.forEach((button, buttonIndex) => {
       const active = buttonIndex === index;
       button.classList.toggle("is-active", active);
@@ -830,9 +933,20 @@ function recommendationKey(value) {
     .trim();
 }
 
+function recommendationSpec(value) {
+  if (value && typeof value === "object") {
+    return {
+      label: String(value.label || value.name || value.targetId || value.target || ""),
+      targetId: String(value.targetId || value.target || ""),
+    };
+  }
+  return { label: String(value), targetId: "" };
+}
+
 function renderFlowBrowser(root, flows) {
   const list = root.querySelector(".cmk-flow-list");
   const detail = root.querySelector(".cmk-flow-detail");
+  detail.classList.add("cmk-flow-detail--compact");
   const categorySelect = root.querySelector("select");
   const categories = [t("all"), ...new Set(flows.map((flow) => flow.category))];
   if (!categories.includes(currentCategory)) currentCategory = t("all");
@@ -876,40 +990,25 @@ function renderFlowBrowser(root, flows) {
     const variantOptions = selectedPrimary.variants || [selectedPrimary];
     const selected = variantOptions.find((flow) => flow.entryId === selectedVariants.get(selectedPrimary.entryId)) || selectedPrimary;
     detail.innerHTML = `
-      <div class="cmk-flow-detail-header">
-        <span class="cmk-flow-badge"></span>
-        <h3></h3>
-        <div class="cmk-flow-domain"></div>
-        <p class="cmk-flow-description"></p>
-      </div>
-      <div class="cmk-flow-variants" hidden></div>
-      <div class="cmk-flow-detail-grid">
-        <section><h4 class="cmk-flow-section-title">${t("features")}</h4><div class="cmk-flow-card"><ul data-list="features"></ul><div class="cmk-flow-feature-callout" hidden><div><div class="cmk-flow-feature-callout-title"></div><div class="cmk-flow-feature-callout-text"></div></div></div></div></section>
-        <section><h4 class="cmk-flow-section-title">${t("placement")}</h4><div class="cmk-flow-card cmk-flow-placement"></div></section>
-      </div>
-      <div class="cmk-flow-meta">
-        <div class="cmk-flow-meta-item"><span class="cmk-flow-meta-label">${t("category")}</span><span class="cmk-flow-meta-value" data-meta="category"></span></div>
-        <div class="cmk-flow-meta-item"><span class="cmk-flow-meta-label">${t("compatibility")}</span><span class="cmk-flow-meta-value" data-meta="compatibility"></span></div>
-        <div class="cmk-flow-meta-item"><span class="cmk-flow-meta-label">${t("version")}</span><span class="cmk-flow-meta-value" data-meta="version"></span></div>
-        <div class="cmk-flow-meta-item"><span class="cmk-flow-meta-label">${t("author")}</span><span class="cmk-flow-meta-value" data-meta="author"></span></div>
-      </div>
-      <section class="cmk-flow-interface">
-        <h4 class="cmk-flow-section-title">${t("interfaces")}</h4>
-        <div class="cmk-flow-sockets">
-          <div class="cmk-flow-socket-group"><span class="cmk-flow-socket-label">${t("inputs")}</span><div class="cmk-flow-socket-values" data-sockets="inputs"></div></div>
-          <div class="cmk-flow-socket-group"><span class="cmk-flow-socket-label">${t("outputs")}</span><div class="cmk-flow-socket-values" data-sockets="outputs"></div></div>
+      <div class="cmk-flow-compact-top">
+        <div class="cmk-flow-detail-header">
+          <span class="cmk-flow-badge"></span>
+          <h3></h3>
+          <div class="cmk-flow-domain"></div>
+          <p class="cmk-flow-description"></p>
         </div>
-      </section>
-      <section class="cmk-flow-sequence">
-        <h4 class="cmk-flow-section-title">${t("related")}</h4>
-        <div class="cmk-flow-sequence-grid">
-          <div><span class="cmk-flow-sequence-label">${t("before")}</span><div class="cmk-flow-sequence-value" data-sequence="before"></div></div>
-          <div><span class="cmk-flow-sequence-label">${t("after")}</span><div class="cmk-flow-sequence-value" data-sequence="after"></div></div>
+        <div class="cmk-flow-variant-panel" hidden>
+          <span class="cmk-flow-variant-label">${language === "de" ? "Varianten" : "Variants"}</span>
+          <div class="cmk-flow-variants"></div>
         </div>
-        <p class="cmk-flow-dependency-note"></p>
+      </div>
+      <section class="cmk-flow-compact-features">
+        <h4 class="cmk-flow-section-title">${t("features")}</h4>
+        <ul data-list="features"></ul>
+        <div class="cmk-flow-compact-info" hidden><strong>Info</strong><span></span></div>
       </section>
       <section class="cmk-flow-preview">
-        <h4 class="cmk-flow-section-title">${t("preview")}</h4>
+        <h4 class="cmk-flow-section-title">${language === "de" ? "Vorschau" : "Preview"}</h4>
         <div class="cmk-flow-preview-stage"></div>
       </section>
       <div class="cmk-flow-actions"><button class="cmk-flow-insert">${t("insert")}</button></div>`;
@@ -919,9 +1018,11 @@ function renderFlowBrowser(root, flows) {
     detail.querySelector("h3").textContent = selected.displayName;
     detail.querySelector(".cmk-flow-domain").textContent = selected.domain;
     detail.querySelector(".cmk-flow-description").textContent = selected.description;
+    const variantPanel = detail.querySelector(".cmk-flow-variant-panel");
     const variantBar = detail.querySelector(".cmk-flow-variants");
     if (variantOptions.length > 1) {
-      variantBar.hidden = false;
+      detail.querySelector(".cmk-flow-compact-top").classList.add("has-variants");
+      variantPanel.hidden = false;
       for (const variant of variantOptions) {
         const button = document.createElement("button");
         button.type = "button";
@@ -936,66 +1037,12 @@ function renderFlowBrowser(root, flows) {
         variantBar.append(button);
       }
     }
-    fillTextList(detail.querySelector('[data-list="features"]'), selected.features, "Noch keine Funktionsübersicht hinterlegt");
-    const featureCallout = detail.querySelector(".cmk-flow-feature-callout");
-    if (selected.featureCallout?.title && selected.featureCallout?.text) {
-      featureCallout.hidden = false;
-      featureCallout.querySelector(".cmk-flow-feature-callout-title").textContent = selected.featureCallout.title;
-      featureCallout.querySelector(".cmk-flow-feature-callout-text").textContent = selected.featureCallout.text;
+    fillTextList(detail.querySelector('[data-list="features"]'), selected.features.slice(0, 3), "Noch keine Funktionsübersicht hinterlegt");
+    const info = detail.querySelector(".cmk-flow-compact-info");
+    if (selected.info) {
+      info.hidden = false;
+      info.querySelector("span").textContent = selected.info;
     }
-    detail.querySelector(".cmk-flow-placement").textContent = selected.placementNote;
-    setMetaValue(detail, "category", selected.category);
-    setMetaValue(detail, "compatibility", selected.compatibility.join(", "));
-    setMetaValue(detail, "version", selected.version);
-    setMetaValue(detail, "author", selected.author);
-    detail.querySelector('[data-sockets="inputs"]').textContent = compactSocketNames(selected.inputs).join(" · ") || t("none");
-    detail.querySelector('[data-sockets="outputs"]').textContent = selected.outputs.join(" · ") || t("none");
-    const sequence = detail.querySelector(".cmk-flow-sequence");
-    sequence.hidden = Boolean(selected.hideRecommendations);
-    const renderRecommendations = (container, recommendations, fallback) => {
-      container.replaceChildren();
-      const values = recommendations.length ? recommendations : [fallback];
-      const links = document.createElement("div");
-      links.className = "cmk-flow-sequence-links";
-      for (const value of values) {
-        const key = recommendationKey(value);
-        const exactTarget = flows.find((flow) => recommendationKey(flow.displayName) === key);
-        const target = exactTarget || flows.find((flow) => {
-          if (flow.entryId === selected.entryId) return false;
-          const candidate = recommendationKey(flow.displayName);
-          return candidate.includes(key) || key.includes(candidate);
-        });
-        const element = document.createElement(target ? "button" : "span");
-        element.textContent = value;
-        if (target) {
-          element.type = "button";
-          element.className = "cmk-flow-sequence-link";
-          element.addEventListener("click", () => {
-            selectedId = target.entryId;
-            currentCategory = t("all");
-            searchText = "";
-            categorySelect.value = t("all");
-            root.querySelector("input").value = "";
-            update();
-            requestAnimationFrame(() => {
-              list.querySelector(".cmk-flow-item.is-selected")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-              detail.scrollTo({ top: 0, behavior: "smooth" });
-            });
-          });
-        } else {
-          element.className = "cmk-flow-sequence-text";
-        }
-        links.append(element);
-      }
-      container.append(links);
-    };
-    if (!selected.hideRecommendations) {
-      renderRecommendations(sequence.querySelector('[data-sequence="before"]'), selected.recommendedBefore, t("canStart"));
-      renderRecommendations(sequence.querySelector('[data-sequence="after"]'), selected.recommendedAfter, t("canFinish"));
-    }
-    const note = sequence.querySelector(".cmk-flow-dependency-note");
-    note.textContent = selected.dependencyNote;
-    note.hidden = !selected.dependencyNote;
     renderNodePreview(detail.querySelector(".cmk-flow-preview-stage"), selected);
     detail.querySelector(".cmk-flow-insert").addEventListener("click", () => {
       try {
@@ -1017,6 +1064,7 @@ function renderFlowBrowser(root, flows) {
 function renderToolboxBrowser(root, nodes) {
   const list = root.querySelector(".cmk-flow-list");
   const detail = root.querySelector(".cmk-flow-detail");
+  detail.classList.remove("cmk-flow-detail--compact");
   const input = root.querySelector(".cmk-flow-controls input");
   const categorySelect = root.querySelector(".cmk-flow-controls select");
   const categories = [t("all"), ...new Set(nodes.map((node) => node.category))];
@@ -1107,21 +1155,24 @@ function renderToolboxBrowser(root, nodes) {
 function renderReferenceBrowser(root, references) {
   const list = root.querySelector(".cmk-flow-list");
   const detail = root.querySelector(".cmk-flow-detail");
+  detail.classList.remove("cmk-flow-detail--compact");
   const input = root.querySelector(".cmk-flow-controls input");
   const categorySelect = root.querySelector(".cmk-flow-controls select");
   categorySelect.hidden = true;
   const labels = language === "de"
-    ? { empty:"Keine passenden Beispiel-Workflows gefunden.", catalogEmpty:"Die ersten beispielhaften CMK-Workflows entstehen derzeit und werden hier später veröffentlicht.", choose:"Beispiel-Workflow auswählen.", what:"Was dieser Workflow macht", cmk:"Das ist besonders CMK", preview:"Vorschau", open:"Als Kopie öffnen", confirm:"Der Beispiel-Workflow wird in einem neuen, ungespeicherten Workflow geöffnet. Fortfahren?" }
-    : { empty:"No matching example workflows found.", catalogEmpty:"The first CMK example workflows are currently being created and will be published here later.", choose:"Select an example workflow.", what:"What this workflow does", cmk:"What makes it distinctly CMK", preview:"Preview", open:"Open as copy", confirm:"The example workflow will open in a new, unsaved workflow. Continue?" };
+    ? { empty:"Keine passenden Beispiel-Workflows gefunden.", catalogEmpty:"Die ersten beispielhaften CMK-Workflows entstehen derzeit und werden hier später veröffentlicht.", choose:"Beispiel-Workflow auswählen.", what:"Was dieser Workflow macht", cmk:"Das ist besonders CMK", info:"Info", preview:"Vorschau", open:"Als Kopie öffnen", confirm:"Der Beispiel-Workflow wird in einem neuen, ungespeicherten Workflow geöffnet. Fortfahren?" }
+    : { empty:"No matching example workflows found.", catalogEmpty:"The first CMK example workflows are currently being created and will be published here later.", choose:"Select an example workflow.", what:"What this workflow does", cmk:"What makes it distinctly CMK", info:"Info", preview:"Preview", open:"Open as copy", confirm:"The example workflow will open in a new, unsaved workflow. Continue?" };
 
   const localizeReference = (reference) => ({
     ...reference,
     categoryLabel: language === "en" ? (reference.category_en || reference.category) : reference.category,
     descriptionLabel: language === "en" ? (reference.description_en || reference.description) : reference.description,
     highlightLabel: language === "en" ? (reference.cmkHighlight_en || reference.cmkHighlight) : reference.cmkHighlight,
+    infoLabel: language === "en" ? (reference.info_en || reference.info) : reference.info,
     previews: normalizePreviews({
       previews: (reference.previews || []).map((preview) => ({
         ...preview,
+        group: language === "en" ? (preview.group_en || preview.group) : preview.group,
         label: language === "en" ? (preview.label_en || preview.label) : preview.label,
       })),
     }),
@@ -1131,18 +1182,68 @@ function renderReferenceBrowser(root, references) {
   const update = () => {
     const scrollTop = list.scrollTop;
     const term = referenceSearchText.trim().toLocaleLowerCase(language);
-    const visible = references.map(localizeReference).filter((reference) => !term || `${reference.name} ${reference.categoryLabel} ${reference.descriptionLabel} ${reference.highlightLabel}`.toLocaleLowerCase(language).includes(term));
+    const visible = references.map(localizeReference).filter((reference) => !term || `${reference.name} ${reference.categoryLabel} ${reference.descriptionLabel} ${reference.highlightLabel} ${reference.infoLabel}`.toLocaleLowerCase(language).includes(term));
     if (!visible.some((reference) => reference.filename === referenceSelectedId)) referenceSelectedId = visible[0]?.filename || null;
     list.replaceChildren();
     if (!visible.length) list.innerHTML = `<div class="cmk-flow-empty">${references.length ? labels.empty : labels.catalogEmpty}</div>`;
+    const groups = [];
     for (const reference of visible) {
-      const button = document.createElement("button");
-      button.className = `cmk-flow-item cmk-toolbox-item${reference.filename === referenceSelectedId ? " is-selected" : ""}`;
-      button.innerHTML = '<span><span class="cmk-flow-item-name"></span><span class="cmk-flow-item-category"></span></span>';
-      button.querySelector(".cmk-flow-item-name").textContent = reference.name;
-      button.querySelector(".cmk-flow-item-category").textContent = reference.categoryLabel;
-      button.addEventListener("click", () => { referenceSelectedId = reference.filename; update(); requestAnimationFrame(() => detail.scrollTo({ top: 0 })); });
-      list.append(button);
+      const group = groups.at(-1);
+      if (!group || group.category !== reference.category) {
+        groups.push({ category: reference.category, label: reference.categoryLabel, references: [reference] });
+      } else {
+        group.references.push(reference);
+      }
+    }
+    const visibleCategories = groups.map((group) => group.category);
+    if (!referenceGroupsInitialized && visibleCategories.length) {
+      referenceExpandedCategory = visible.find((reference) => reference.filename === referenceSelectedId)?.category || visibleCategories[0];
+      referenceGroupsInitialized = true;
+    } else if (referenceExpandedCategory && !visibleCategories.includes(referenceExpandedCategory)) {
+      referenceExpandedCategory = visibleCategories[0] || null;
+    }
+    for (const [groupIndex, group] of groups.entries()) {
+      const expanded = group.category === referenceExpandedCategory;
+      const groupElement = document.createElement("section");
+      groupElement.className = `cmk-reference-group${expanded ? " is-expanded" : ""}`;
+      const headerId = `cmk-reference-group-header-${groupIndex}`;
+      const itemsId = `cmk-reference-group-items-${groupIndex}`;
+      groupElement.setAttribute("aria-labelledby", headerId);
+
+      const header = document.createElement("button");
+      header.id = headerId;
+      header.className = "cmk-reference-group-header";
+      header.type = "button";
+      header.setAttribute("aria-expanded", String(expanded));
+      header.setAttribute("aria-controls", itemsId);
+      header.innerHTML = '<span class="cmk-reference-group-title"></span><span class="cmk-reference-group-count"></span><span class="cmk-reference-group-chevron" aria-hidden="true">⌄</span>';
+      header.querySelector(".cmk-reference-group-title").textContent = group.label;
+      header.querySelector(".cmk-reference-group-count").textContent = String(group.references.length);
+      header.dataset.referenceCategory = group.category;
+      header.addEventListener("click", () => {
+        referenceExpandedCategory = expanded ? null : group.category;
+        if (!expanded && !group.references.some((reference) => reference.filename === referenceSelectedId)) {
+          referenceSelectedId = group.references[0]?.filename || referenceSelectedId;
+        }
+        update();
+        requestAnimationFrame(() => list.querySelector(`[data-reference-category="${CSS.escape(group.category)}"]`)?.focus());
+      });
+      groupElement.append(header);
+
+      const items = document.createElement("div");
+      items.id = itemsId;
+      items.className = "cmk-reference-group-items";
+      items.hidden = !expanded;
+      for (const reference of group.references) {
+        const button = document.createElement("button");
+        button.className = `cmk-flow-item cmk-toolbox-item${reference.filename === referenceSelectedId ? " is-selected" : ""}`;
+        button.innerHTML = '<span class="cmk-flow-item-name"></span>';
+        button.querySelector(".cmk-flow-item-name").textContent = reference.name;
+        button.addEventListener("click", () => { referenceSelectedId = reference.filename; update(); requestAnimationFrame(() => detail.scrollTo({ top: 0 })); });
+        items.append(button);
+      }
+      groupElement.append(items);
+      list.append(groupElement);
     }
     list.scrollTop = scrollTop;
 
@@ -1153,13 +1254,19 @@ function renderReferenceBrowser(root, references) {
       <span class="cmk-toolbox-category"></span><h3></h3>
       <section><h4 class="cmk-flow-section-title">${labels.what}</h4><div class="cmk-flow-card cmk-showcase-description"></div></section>
       <section><h4 class="cmk-flow-section-title">${labels.cmk}</h4><div class="cmk-flow-card cmk-showcase-highlight"></div></section>
+      <div class="cmk-flow-compact-info cmk-showcase-info" hidden><strong>${labels.info}</strong><span></span></div>
       <section class="cmk-flow-preview"><h4 class="cmk-flow-section-title">${labels.preview}</h4><div class="cmk-flow-preview-stage"></div></section>
       <div class="cmk-flow-actions"><button class="cmk-flow-insert">${labels.open}</button></div>
     </div>`;
     detail.querySelector(".cmk-toolbox-category").textContent = selected.categoryLabel;
     detail.querySelector("h3").textContent = selected.name;
     detail.querySelector(".cmk-showcase-description").textContent = selected.descriptionLabel;
-    detail.querySelector(".cmk-showcase-highlight").textContent = selected.highlightLabel;
+    const highlight = detail.querySelector(".cmk-showcase-highlight");
+    highlight.textContent = selected.highlightLabel;
+    highlight.closest("section").hidden = !selected.highlightLabel;
+    const info = detail.querySelector(".cmk-showcase-info");
+    info.hidden = !selected.infoLabel;
+    info.querySelector("span").textContent = selected.infoLabel || "";
     renderNodePreview(detail.querySelector(".cmk-flow-preview-stage"), selected);
     detail.querySelector(".cmk-flow-insert").addEventListener("click", async () => {
       if (!window.confirm(labels.confirm)) return;

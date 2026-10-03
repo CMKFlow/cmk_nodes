@@ -1,9 +1,16 @@
 import { app } from "../../../scripts/app.js";
 
 const STORAGE_KEY = "cmk-node-size-defaults-v1";
-const MENU_LABEL = "CMK · Node-Dimensionen …";
+const MENU_LABEL = "CMK · Node Dimensions …";
 const MIN_WIDTH = 140;
 const MIN_HEIGHT = 60;
+const BUILTIN_MINIMUMS = {
+    CMKSamplerPrepareSDXLPipe: [450, 360],
+    CMKRefinerPrepareSDXLPipe: [450, 360],
+    CMKInstantIDSamplerSDXLPipe: [450, 800],
+    CMKInstantIDFaceRebuildSDXL: [450, 590],
+    CMKFaceSwapImagePipe: [380, 400],
+};
 const BUILTIN_DEFAULTS = {
     CMKCheckpointVAELoader: [600, 240],
     CMKControlNetPrepare: [540, 420],
@@ -15,7 +22,9 @@ const BUILTIN_DEFAULTS = {
     CMKImageLoadAndResizePipe: [600, 860],
     CMKLoadImage: [600, 1225],
     CMKSwapImageLoaderPipe: [1200, 800],
-    CMKFamilyResultMergePipe: [300, 250],
+    CMKFamilyResultMergePipe: [600, 500],
+    CMKPostProcessBoundarySDXLPipe: [600, 300],
+    CMKPostProcessBoundaryZITPipe: [600, 300],
     CMKDiagnosticConcat: [320, 135],
     CMK_FaceProcess: [540, 1015],
     CMKFaceSwapImage: [400, 395],
@@ -42,7 +51,8 @@ function isCmkNode(node) {
         node?.constructor?.nodeData?.name,
         node?.constructor?.nodeData?.display_name,
     ];
-    return candidates.some((value) => /^CMK(?:\s|_|·|-)/i.test(text(value)));
+    return candidates.some((value) => /^CMK(?:\s|_|·|-)/i.test(text(value)))
+        || validSize(node?.properties?.cmkOuterSize);
 }
 
 function sizeKey(node) {
@@ -78,11 +88,40 @@ function saveDefaults(value) {
 }
 
 function minimumSize(node) {
-    const declared = node?.constructor?.min_size || node?.min_size || node?.minSize;
+    const builtIn = (
+        BUILTIN_MINIMUMS[sizeKey(node)]
+        || BUILTIN_MINIMUMS[text(node?.title).trim()]
+    );
+    const declared = node?.constructor?.min_size || node?.min_size || node?.minSize || builtIn;
     return [
-        Math.max(MIN_WIDTH, Number(declared?.[0]) || 0),
-        Math.max(MIN_HEIGHT, Number(declared?.[1]) || 0),
+        Math.max(MIN_WIDTH, Number(declared?.[0]) || 0, Number(builtIn?.[0]) || 0),
+        Math.max(MIN_HEIGHT, Number(declared?.[1]) || 0, Number(builtIn?.[1]) || 0),
     ];
+}
+
+function enforceBuiltInMinimum(node) {
+    const requested = (
+        BUILTIN_MINIMUMS[sizeKey(node)]
+        || BUILTIN_MINIMUMS[text(node?.title).trim()]
+    );
+    if (!validSize(requested)) return;
+    const width = Math.max(Number(node?.size?.[0]) || 0, Number(requested[0]));
+    const height = Math.max(Number(node?.size?.[1]) || 0, Number(requested[1]));
+    if (width === Number(node?.size?.[0]) && height === Number(node?.size?.[1])) return;
+    node.setSize?.([width, height]);
+    node.setDirtyCanvas?.(true, true);
+}
+
+function installTypeMinimum(nodeType, nodeData) {
+    const requested = BUILTIN_MINIMUMS[text(nodeData?.name).trim()];
+    if (!validSize(requested)) return;
+    const declared = nodeType?.min_size || nodeType?.prototype?.min_size;
+    const minimum = [
+        Math.max(Number(requested[0]), Number(declared?.[0]) || 0),
+        Math.max(Number(requested[1]), Number(declared?.[1]) || 0),
+    ];
+    nodeType.min_size = [...minimum];
+    nodeType.prototype.min_size = [...minimum];
 }
 
 function normalizeSize(node, width, height) {
@@ -99,9 +138,66 @@ function applySize(node, width, height) {
     node.properties ||= {};
     node.properties.cmkOuterSize = [...size];
     node.properties.cmkManualSize = [...size];
+    if (node.properties.cmkCleanView === true) {
+        node.properties.cmkCleanViewSize = [...size];
+    } else {
+        node.properties.cmkCleanViewExpandedSize = [...size];
+        node.properties.cmkCleanViewExpandedHeight = size[1];
+    }
     node.setDirtyCanvas?.(true, true);
     app.graph?.setDirtyCanvas?.(true, true);
     return size;
+}
+
+function renderedSize(root) {
+    // Vue applies a drag to the DOM first. ResizeObserver updates node.size
+    // later, so node.size can still contain the previous dimensions here.
+    const titleHeight = Number(globalThis.LiteGraph?.NODE_TITLE_HEIGHT) || 30;
+    const width = Number(root?.offsetWidth)
+        || Number.parseFloat(root?.style?.getPropertyValue("--node-width"));
+    const fullHeight = Number(root?.offsetHeight)
+        || Number.parseFloat(root?.style?.getPropertyValue("--node-height"));
+    const size = [width, fullHeight - titleHeight];
+    return validSize(size) ? size : null;
+}
+
+function rememberDraggedSize(node, size) {
+    const current = validSize(size) ? size : node?.size;
+    if (!validSize(current)) return;
+    applySize(node, current[0], current[1]);
+}
+
+function installManualResizeTracking() {
+    if (window.__cmkDimensionsResizeTrackingInstalled) return;
+    window.__cmkDimensionsResizeTrackingInstalled = true;
+    document.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0) return;
+        const handle = event.target?.closest?.('[role="button"]');
+        if (!handle || !/cursor-.*-resize/.test(String(handle.className))) return;
+        const root = handle.closest?.('.lg-node[data-node-id]');
+        const id = root?.getAttribute?.("data-node-id");
+        if (id == null) return;
+        const node = [app.canvas?.graph, app.graph, app.rootGraph]
+            .flatMap((graph) => [graph?.getNodeById?.(id), graph?.getNodeById?.(Number(id))])
+            .find(Boolean);
+        if (!isCmkNode(node)) return;
+
+        // Saved-size restores must not overwrite the in-progress DOM resize.
+        node.__cmkManualResizeActive = true;
+        const finish = () => {
+            window.removeEventListener("pointerup", finish);
+            window.removeEventListener("pointercancel", finish);
+            window.removeEventListener("blur", finish);
+            const size = renderedSize(root);
+            window.setTimeout(() => {
+                rememberDraggedSize(node, size);
+                node.__cmkManualResizeActive = false;
+            }, 0);
+        };
+        window.addEventListener("pointerup", finish, { once: true });
+        window.addEventListener("pointercancel", finish, { once: true });
+        window.addEventListener("blur", finish, { once: true });
+    }, true);
 }
 
 function contentSize(node) {
@@ -144,12 +240,12 @@ function openSizeDialog(node) {
     const dialog = make("div", "cmk-size-dialog");
     dialog.setAttribute("role", "dialog");
     dialog.setAttribute("aria-modal", "true");
-    dialog.append(make("h2", "", "Node-Dimensionen"));
+    dialog.append(make("h2", "", "Node Dimensions"));
     dialog.append(make("div", "cmk-size-subtitle", text(node.title || node.type)));
 
     const grid = make("div", "cmk-size-grid");
-    const widthField = make("label", "cmk-size-field", "BREITE (px)");
-    const heightField = make("label", "cmk-size-field", "HÖHE (px)");
+    const widthField = make("label", "cmk-size-field", "WIDTH (px)");
+    const heightField = make("label", "cmk-size-field", "HEIGHT (px)");
     const widthInput = make("input");
     const heightInput = make("input");
     for (const input of [widthInput, heightInput]) {
@@ -168,7 +264,7 @@ function openSizeDialog(node) {
     const lockInput = make("input");
     lockInput.type = "checkbox";
     lockInput.checked = false;
-    lockLabel.append(lockInput, document.createTextNode("Seitenverhältnis beibehalten"));
+    lockLabel.append(lockInput, document.createTextNode("Keep aspect ratio"));
     dialog.append(lockLabel);
 
     let syncing = false;
@@ -187,11 +283,11 @@ function openSizeDialog(node) {
 
     const note = make("div", "cmk-size-note");
     const actions = make("div", "cmk-size-actions");
-    const fitButton = make("button", "", "Auf Inhalt anpassen");
-    const defaultButton = make("button", "", "Als Typ-Standard speichern");
-    const clearButton = make("button", "", "Typ-Standard löschen");
-    const cancelButton = make("button", "", "Abbrechen");
-    const applyButton = make("button", "primary", "Übernehmen");
+    const fitButton = make("button", "", "Fit to Content");
+    const defaultButton = make("button", "", "Save as Type Default");
+    const clearButton = make("button", "", "Clear Type Default");
+    const cancelButton = make("button", "", "Cancel");
+    const applyButton = make("button", "primary", "Apply");
     for (const button of [fitButton, defaultButton, clearButton, cancelButton, applyButton]) {
         button.type = "button";
     }
@@ -215,7 +311,7 @@ function openSizeDialog(node) {
         heightInput.value = String(size[1]);
         ratio = size[0] / size[1];
         applySize(node, size[0], size[1]);
-        note.textContent = `Inhalt: ${size[0]} × ${size[1]} px`;
+        note.textContent = `Content: ${size[0]} × ${size[1]} px`;
     });
     defaultButton.addEventListener("click", () => {
         const size = applyFields();
@@ -223,14 +319,14 @@ function openSizeDialog(node) {
         const defaults = loadDefaults();
         defaults[key] = size;
         saveDefaults(defaults);
-        note.textContent = `Standard für ${key} gespeichert.`;
+        note.textContent = `Default saved for ${key}.`;
     });
     clearButton.addEventListener("click", () => {
         const key = sizeKey(node);
         const defaults = loadDefaults();
         delete defaults[key];
         saveDefaults(defaults);
-        note.textContent = `Standard für ${key} gelöscht.`;
+        note.textContent = `Default cleared for ${key}.`;
     });
     cancelButton.addEventListener("click", close);
     applyButton.addEventListener("click", () => {
@@ -288,11 +384,18 @@ function applyTypeDefault(node) {
 app.registerExtension({
     name: "cmk.node.dimensions.v1",
 
-    beforeRegisterNodeDef(nodeType) {
+    setup() {
+        installManualResizeTracking();
+    },
+
+    beforeRegisterNodeDef(nodeType, nodeData) {
+        installTypeMinimum(nodeType, nodeData);
         const originalConfigure = nodeType.prototype.onConfigure;
         nodeType.prototype.onConfigure = function() {
             this.__cmkLoadedFromWorkflow = true;
-            return originalConfigure?.apply(this, arguments);
+            const result = originalConfigure?.apply(this, arguments);
+            setTimeout(() => enforceBuiltInMinimum(this), 0);
+            return result;
         };
 
         const original = nodeType.prototype.getExtraMenuOptions;
@@ -306,5 +409,17 @@ app.registerExtension({
     nodeCreated(node) {
         installMenu(node);
         applyTypeDefault(node);
+        setTimeout(() => {
+            installMenu(node);
+            enforceBuiltInMinimum(node);
+        }, 0);
+    },
+
+    loadedGraphNode(node) {
+        installMenu(node);
+        setTimeout(() => {
+            installMenu(node);
+            enforceBuiltInMinimum(node);
+        }, 0);
     },
 });

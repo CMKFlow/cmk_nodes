@@ -1,0 +1,29 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · Text2Image Identity 1",
+  "kind": "real-world",
+  "order": 402,
+  "category": "REAL-WORLD WORKFLOWS",
+  "category_en": "REAL-WORLD WORKFLOWS",
+  "description": "Zeigt einen vollständigen Text2Image-Identity-Workflow für eine einzelne Referenzperson – von InstantID über FaceRebuild bis FaceSwap.",
+  "description_en": "Shows a complete Text2Image identity workflow for a single reference person—from InstantID through FaceRebuild to FaceSwap.",
+  "cmkHighlight": "Eine zentrale externe Identitätsquelle wird gemeinsam an InstantID, FaceRebuild und FaceSwap übergeben. Dadurch arbeiten alle drei Verfahren mit derselben Referenzperson, ohne die Identität an jedem Modul separat laden zu müssen.",
+  "cmkHighlight_en": "A single external identity source is shared across InstantID, FaceRebuild, and FaceSwap. This allows all three methods to use the same reference person without loading the identity separately in each module.",
+  "previews": [
+    {
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.5 · Text2Image Identity 1/CMK 2.5 · Text2Image Identity 1 - 1 Identity.png",
+      "label": "Identity",
+      "label_en": "Identity"
+    },
+    {
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.5 · Text2Image Identity 1/CMK 2.5 · Text2Image Identity 1 - 2 FaceRebuild.png",
+      "label": "FaceRebuild",
+      "label_en": "FaceRebuild"
+    },
+    {
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.5 · Text2Image Identity 1/CMK 2.5 · Text2Image Identity 1 - 2 FaceSwap.png",
+      "label": "FaceSwap",
+      "label_en": "FaceSwap"
+    }
+  ]
+}

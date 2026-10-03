@@ -1,0 +1,24 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · FaceRebuild · Modul",
+  "kind": "module",
+  "order": 204,
+  "category": "MODULE WORKFLOWS",
+  "category_en": "MODULE WORKFLOWS",
+  "description": "Zeigt FaceRebuild als fertiges CMK-Modul in einem Stand-alone-Workflow und macht dessen äußere Verwendung sowie den internen Aufbau nachvollziehbar.",
+  "description_en": "Shows FaceRebuild as a complete CMK module in a standalone workflow, making both its external use and internal structure easy to understand.",
+  "cmkHighlight": "Der diskrete Rekonstruktionsprozess ist zu einem wiederverwendbaren Modul mit einheitlicher Schnittstelle gekapselt.",
+  "cmkHighlight_en": "The discrete reconstruction process is encapsulated in a reusable module with a consistent interface.",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceRebuild · Modul/CMK 2.5 · FaceRebuild · Modul.png",
+      "label": "Modul",
+      "label_en": "Modul"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceRebuild · Modul/CMK 2.5 · FaceRebuild · Modul - Aufbau.png",
+      "label": "Aufbau",
+      "label_en": "Aufbau"
+    }
+  ]
+}

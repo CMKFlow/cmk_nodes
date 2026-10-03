@@ -33,23 +33,36 @@ WEB_DIRECTORY = "./web"
 _SHOWCASE_WORKFLOWS = Path(__file__).resolve().parent / "workflows" / "showcase"
 _SHOWCASE_METADATA = _SHOWCASE_WORKFLOWS / "metadata"
 _REFERENCE_ASSETS = Path(__file__).resolve().parent / "assets" / "references"
+_REFERENCE_FILENAMES = (
+    "black.png",
+    "controlnet_reference.png",
+    "controlnet_reference4.png",
+    "detailer_reference.png",
+    "face_identity_reference.png",
+    "face_reference.png",
+    "face_reference2.png",
+    "faceswap_reference.png",
+    "inpaint_reference.png",
+    "inpaint_reference2.png",
+    "inpaint_reference3.png",
+    "mask_detailer_reference.png",
+    "portrait_reference_00002.png",
+    "remove_refrence.png",
+)
 _PACKAGED_REFERENCES = {
     f"CMK Package · {filename}": filename
-    for filename in (
-        "controlnet_reference.png",
-        "detailer_reference.png",
-        "face_identity_reference.png",
-        "face_reference.png",
-        "face_reference2.png",
-        "faceswap_reference.png",
-        "inpaint_reference.png",
-        "inpaint_reference2.png",
-        "inpaint_reference3.png",
-        "portrait_reference_00002.png",
-        "remove_refrence.png",
-    )
+    for filename in _REFERENCE_FILENAMES
 }
-_VIDEO_WORKFLOW_TEMPLATE = _SHOWCASE_WORKFLOWS / "CMK FaceSwap Video.json"
+_PACKAGED_REFERENCES.update({
+    filename: filename
+    for filename in ("black.png", "controlnet_reference4.png", "faceswap_reference.png")
+})
+_VIDEO_WORKFLOW_TEMPLATE = (
+    Path(__file__).resolve().parent
+    / "workflows"
+    / "reference"
+    / "CMK_FaceSwap_Video_Project_Template.json"
+)
 _PROJECT_WORKFLOW_NAME = "cmk_project_workflow.json"
 _PROJECT_METADATA_NAME = "cmk_video_project.json"
 
@@ -513,6 +526,8 @@ async def cmk_showcase_workflows(request):
             "description_en": metadata.get("description_en", ""),
             "cmkHighlight": metadata.get("cmkHighlight", ""),
             "cmkHighlight_en": metadata.get("cmkHighlight_en", ""),
+            "info": metadata.get("info", ""),
+            "info_en": metadata.get("info_en", ""),
             "previews": metadata.get("previews", []),
         })
     entries.sort(key=lambda item: (item["order"], item["name"].casefold()))

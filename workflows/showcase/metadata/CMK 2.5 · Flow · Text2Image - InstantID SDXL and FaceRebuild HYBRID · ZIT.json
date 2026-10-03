@@ -1,0 +1,103 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT",
+  "kind": "task",
+  "order": 120,
+  "category": "TASK WORKFLOWS",
+  "category_en": "TASK WORKFLOWS",
+  "description": "Vergleicht vier Text2Image-Pfade bis zur abschließenden Gesichtsrekonstruktion: SDXL mit InstantID im HYBRID- oder ZERO-PASS-Modus, HYBRID sowie Z-Image Turbo.",
+  "description_en": "Compares four Text2Image paths through final facial reconstruction: SDXL with InstantID in HYBRID or ZERO-PASS mode, HYBRID, and Z-Image Turbo.",
+  "cmkHighlight": "InstantID kann im SDXL-Pfad wahlweise nach dem 1st-Pass oder als ZERO-PASS eingesetzt werden; FaceRebuild rekonstruiert anschließend in allen vier Pfaden das Gesicht unabhängig vom jeweiligen Generationspfad.",
+  "cmkHighlight_en": "InstantID can be used in the SDXL path either after the 1st pass or as a ZERO-PASS; FaceRebuild then reconstructs the face across all four paths, independently of the generation path used.",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 1 SDXL-HYBRID 1 1st-Pass SDXL.png",
+      "group": "SDXL-HYBRID",
+      "group_en": "SDXL-HYBRID",
+      "label": "1st-Pass SDXL",
+      "label_en": "1st-Pass SDXL"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 1 SDXL-HYBRID 2 Identity.png",
+      "group": "SDXL-HYBRID",
+      "group_en": "SDXL-HYBRID",
+      "label": "Identity",
+      "label_en": "Identity"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 1 SDXL-HYBRID 3 2nd-Pass SDXL.png",
+      "group": "SDXL-HYBRID",
+      "group_en": "SDXL-HYBRID",
+      "label": "2nd-Pass SDXL",
+      "label_en": "2nd-Pass SDXL"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 1 SDXL-HYBRID 4 FaceRebuild.png",
+      "group": "SDXL-HYBRID",
+      "group_en": "SDXL-HYBRID",
+      "label": "FaceRebuild",
+      "label_en": "FaceRebuild"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 2 SDXL-Zero-Pass 1 Identity.png",
+      "group": "SDXL ZERO-PASS",
+      "group_en": "SDXL ZERO-PASS",
+      "label": "Identity",
+      "label_en": "Identity"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 2 SDXL-Zero-Pass 2 2nd-Pass SDXL.png",
+      "group": "SDXL ZERO-PASS",
+      "group_en": "SDXL ZERO-PASS",
+      "label": "2nd-Pass SDXL",
+      "label_en": "2nd-Pass SDXL"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 2 SDXL-Zero-Pass 3 FaceRebuild.png",
+      "group": "SDXL ZERO-PASS",
+      "group_en": "SDXL ZERO-PASS",
+      "label": "FaceRebuild",
+      "label_en": "FaceRebuild"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 3 HYBRID 1 1st-Pass SDXL.png",
+      "group": "HYBRID",
+      "group_en": "HYBRID",
+      "label": "1st-Pass SDXL",
+      "label_en": "1st-Pass SDXL"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 3 HYBRID 2 2nd-Pass ZIT.png",
+      "group": "HYBRID",
+      "group_en": "HYBRID",
+      "label": "2nd-Pass ZIT",
+      "label_en": "2nd-Pass ZIT"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 3 HYBRID 3 FaceRebuild.png",
+      "group": "HYBRID",
+      "group_en": "HYBRID",
+      "label": "FaceRebuild",
+      "label_en": "FaceRebuild"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 4 ZIT 1 Sampling ZIT.png",
+      "group": "ZIT",
+      "group_en": "ZIT",
+      "label": "Sampling ZIT",
+      "label_en": "Sampling ZIT"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 4 ZIT 2 FaceRebuild.png",
+      "group": "ZIT",
+      "group_en": "ZIT",
+      "label": "FaceRebuild",
+      "label_en": "FaceRebuild"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/portrait_reference_00003.png",
+      "label": "Source",
+      "label_en": "Source"
+    }
+  ]
+}

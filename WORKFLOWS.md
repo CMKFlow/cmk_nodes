@@ -79,15 +79,15 @@ CMK Flow · 10 KSampler SDXL 1st Pass
     ↓
 CMK Flow · 20 Refiner SDXL
     ↓
-CMK Flow · 23 Detailer SDXL
+CMK Flow · Detailer SDXL
     ↓
-CMK Flow · 30 FaceProcess SDXL
+CMK Flow · FaceProcess SDXL
     ↓
-CMK Flow · 35 Active Family Result (optional; nur bei parallelen Familien)
+CMK Flow · PostProcess Boundary Combined (optional; nur bei parallelen Familien)
     ↓
-CMK Flow · 40 FaceSwap (optional)
+CMK Flow · FaceSwap (optional)
     ↓
-CMK Flow · 90 Upscale & Save
+CMK Flow · Upscale & Save
 ```
 
 Der parallele Z-Image-Turbo-Weg bleibt bewusst kompakt und führt nach dem
@@ -98,11 +98,11 @@ CMK Flow · 01 START HERE · Create Image (Z-IMAGE TURBO)
     ↓
 CMK Flow · 10 KSampler Z-Image Turbo
     ↓
-CMK Flow · 35 Active Family Result (optional; nur bei parallelen Familien)
+CMK Flow · PostProcess Boundary Combined (optional; nur bei parallelen Familien)
     ↓
-CMK Flow · 40 FaceSwap (optional)
+CMK Flow · FaceSwap (optional)
     ↓
-CMK Flow · 90 Upscale & Save
+CMK Flow · Upscale & Save
 ```
 
 `10 KSampler Z-Image Turbo` enthält den nativen Diffusionsmodell-, Lumina2-
@@ -111,10 +111,10 @@ generischen CMK-KSampler und das VAE-Decoding. Der Subgraph gibt deshalb direkt
 `MODEL`, `PROCESS`, `IMAGE`, `LOG` und `diagnostic` aus; SDXL-Refiner und
 SDXL-LoRA-Stack, Refiner, Detailer und FaceProcess gehören nicht zu diesem Pfad.
 
-`CMK Flow · 90 Upscale & Save` ist der empfohlene Abschluss des
-Flow-Hauptwegs und wird unter `CMK/Flow/Finish` geführt. Sowohl `30 FaceProcess SDXL`
-als auch `90 Upscale & Save` führen den vollständigen öffentlichen Vertrag
-`MODEL`, `PROCESS`, `IMAGE` und `LOG` weiter. `40 FaceSwap` und `90 Upscale &
+`CMK Flow · Upscale & Save` ist der empfohlene Abschluss des
+Flow-Hauptwegs und wird unter `CMK/Flow/Finish` geführt. Sowohl `FaceProcess SDXL`
+als auch `Upscale & Save` führen den vollständigen öffentlichen Vertrag
+`MODEL`, `PROCESS`, `IMAGE` und `LOG` weiter. `FaceSwap` und `Upscale &
 Save` sind die einzigen gemeinsam genutzten Verarbeitungsmodule; `35` dient
 ausschließlich als Zusammenführung paralleler Familienzweige.
 
@@ -127,7 +127,7 @@ Weitere Subgraphs kapseln Inpaint-, Conditioning-, Masken-, Video-, Dateinamen- 
 
 Subgraphs werden in Workflows über UUIDs referenziert. Um bestehende Workflows kompatibel zu halten, müssen beim Aktualisieren die versionierten JSON-Dateien verwendet werden; ein manuelles Neuerstellen gleichnamiger Subgraphs ist nicht gleichwertig.
 
-`CMK Toolbox · FaceSwap Image` ist eine eigenständig verwendbare Variante und gehört nicht zur geführten Flow-Reihenfolge. Ihm fehlen die vollständigen Boundaries und Weitergaben, die ein frei kombinierbares Flow-Modul benötigt. Es darf deshalb nicht als Alternative zu `CMK Flow · 40 FaceSwap` in den Flow-Hauptweg eingesetzt werden. Die in `CMK Flow · 40 FaceSwap` verwendete Execute-Node bleibt davon unberührt. Auch die offene Node `CMK FaceSwap Image` ohne `-Pipe-` gehört zum Baukasten. Der frühere Subgraphname `SwapFace` wurde entfernt.
+`CMK Toolbox · FaceSwap Image` ist eine eigenständig verwendbare Variante und gehört nicht zur geführten Flow-Reihenfolge. Ihm fehlen die vollständigen Boundaries und Weitergaben, die ein frei kombinierbares Flow-Modul benötigt. Es darf deshalb nicht als Alternative zu `CMK Flow · FaceSwap` in den Flow-Hauptweg eingesetzt werden. Die in `CMK Flow · FaceSwap` verwendete Execute-Node bleibt davon unberührt. Auch die offene Node `CMK FaceSwap Image` ohne `-Pipe-` gehört zum Baukasten. Der frühere Subgraphname `SwapFace` wurde entfernt.
 
 Für alle Flow-Module gilt: Daten laufen ausschließlich von den Eingängen zu den Ausgängen und anschließend weiter zum nächsten Modul. Ein Modul darf keine Rückkopplung zu einem vorgeschalteten Modul und keine versteckte Abhängigkeit von dessen internem Aufbau besitzen. Die Reihenfolge ist eine Empfehlung; die korrekten Ein- und Ausgänge sind der Vertrag.
 

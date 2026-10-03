@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PATH = ROOT / "subgraphs" / "CMK Flow · 30 FaceProcess SDXL.json"
+PATH = ROOT / "subgraphs" / "CMK Flow · FaceProcess SDXL.json"
 
 
 class FaceProcess30SubgraphTests(unittest.TestCase):
@@ -17,32 +17,32 @@ class FaceProcess30SubgraphTests(unittest.TestCase):
         cls.links = {link["id"]: link for link in cls.definition["links"]}
 
     def test_outer_contract_is_compact_and_display_free(self):
-        self.assertEqual([450, 230], self.outer["size"])
-        self.assertEqual([450, 230], self.outer["properties"]["cmkOuterSize"])
-        self.assertEqual([450, 230], self.outer["properties"]["cmkManualSize"])
+        self.assertEqual([300, 190], self.outer["size"])
+        self.assertEqual([300, 100], self.outer["properties"]["cmkOuterSize"])
+        self.assertEqual([300, 100], self.outer["properties"]["cmkManualSize"])
         self.assertEqual([], self.outer["properties"]["previewExposures"])
         self.assertNotIn("proxyWidgets", self.outer["properties"])
         self.assertEqual(
-            ["MODEL", "PROCESS", "IMAGE", "LOG", "VISUAL", "face_global_enable", "process_mode"],
+            ["MODEL", "PROCESS", "IMAGE", "LOG", "VISUAL", "face_global_enable"],
             [item["name"] for item in self.outer["inputs"]],
         )
         self.assertEqual("FACEPROCESS ENABLE", self.outer["inputs"][5]["label"])
-        self.assertEqual("process mode", self.outer["inputs"][6]["label"])
-        self.assertEqual([True, "restore"], self.outer["widgets_values"])
+        self.assertEqual([True], self.outer["widgets_values"])
         self.assertEqual(
             ["MODEL", "PROCESS", "IMAGE", "LOG", "VISUAL", "diagnostic"],
             [item["name"] for item in self.outer["outputs"]],
         )
 
     def test_execute_node_owns_log_and_diagnostic_concatenation(self):
-        execute = self.nodes[6218]
+        execute = next(node for node in self.nodes.values() if node["type"] == "CMKFaceProcessPipe")
         self.assertEqual("CMKFaceProcessPipe", execute["type"])
         execute_input_names = [item["name"] for item in execute["inputs"]]
         self.assertIn("opt_log", execute_input_names)
+        self.assertIn("VISUAL", execute_input_names)
         self.assertIn("opt_diagnostic", execute_input_names)
         self.assertEqual(
-            ["LOG", "diagnostic"],
-            [item["name"] for item in execute["outputs"][-2:]],
+            ["LOG", "VISUAL", "diagnostic"],
+            [item["name"] for item in execute["outputs"][-3:]],
         )
         self.assertNotIn(
             "CMKLogConcat",
@@ -52,60 +52,50 @@ class FaceProcess30SubgraphTests(unittest.TestCase):
             "CMKDiagnosticConcat",
             {node["type"] for node in self.definition["nodes"]},
         )
-        self.assertEqual(5229, self.links[16001]["origin_id"])
         self.assertEqual(
-            (6218, execute_input_names.index("opt_log")),
+            (execute["id"], execute_input_names.index("opt_log")),
             (self.links[16001]["target_id"], self.links[16001]["target_slot"]),
         )
         self.assertEqual(
-            (6218, execute_input_names.index("opt_diagnostic")),
+            (execute["id"], execute_input_names.index("opt_diagnostic")),
             (self.links[16002]["target_id"], self.links[16002]["target_slot"]),
         )
 
-    def test_process_mode_is_exposed_without_changing_live_identity(self):
-        mode_input = self.definition["inputs"][6]
-        mode_link = self.links[mode_input["linkIds"][0]]
-        self.assertEqual((-10, 6), (mode_link["origin_id"], mode_link["origin_slot"]))
-        execute = self.nodes[6218]
-        process_mode_slot = next(
-            index for index, item in enumerate(execute["inputs"])
-            if item["name"] == "process_mode"
-        )
-        self.assertEqual(
-            (6218, process_mode_slot),
-            (mode_link["target_id"], mode_link["target_slot"]),
-        )
+    def test_visual_transport_is_not_forwarded_to_legacy_parent(self):
+        source = (ROOT / "pipe" / "cmk_faceprocess.py").read_text(encoding="utf-8")
+        start = source.index("    def run_pipe(")
+        signature = source[start:start + 400]
+        self.assertIn("VISUAL=None", signature)
 
-        provider = next(
-            node for node in self.definition["nodes"] if node["type"] == "CMKVisualProvider"
-        )
-        self.assertEqual(
-            ["FaceProcess", 30, "FaceProcess", "sdxl", "sdxl.faceprocess.standard"],
-            provider["widgets_values"],
-        )
+        start = source.index("        result = super().run(")
+        parent_call = source[start:start + 500]
+        self.assertNotIn("VISUAL", parent_call)
+
+    def test_prepare_lora_menu_always_offers_none(self):
+        source = (ROOT / "pipe" / "cmk_faceprocess_prepare.py").read_text(encoding="utf-8")
+        self.assertIn('loras = ["None"] + [', source)
+        self.assertIn('str(name).strip().lower() != "none"', source)
+
+    def test_process_mode_exists_only_on_execute_node(self):
+        prepare = next(node for node in self.nodes.values() if node["type"] == "CMKFaceProcessPreparePipe")
+        execute = next(node for node in self.nodes.values() if node["type"] == "CMKFaceProcessPipe")
+        self.assertNotIn("process_mode", [item["name"] for item in prepare["inputs"]])
+        self.assertIn("process_mode", [item["name"] for item in execute["inputs"]])
+
         declaration = self.outer["properties"]["cmkVisualProviders"][0]
         self.assertEqual("FaceProcess", declaration["label"])
-        self.assertEqual("6218", declaration["live_node_id"])
-        self.assertEqual(f"cmk-CMKVisualProvider-{provider['id']}", declaration["provider_id"])
+        self.assertEqual("sdxl.faceprocess.standard", declaration["stage_key"])
 
-    def test_visual_provider_receives_chain_before_after_and_enable(self):
-        provider = next(
-            node for node in self.definition["nodes"] if node["type"] == "CMKVisualProvider"
-        )
-        provider_inputs = {item["name"]: item for item in provider["inputs"]}
-        self.assertEqual(16006, provider_inputs["VISUAL"]["link"])
-        self.assertEqual(16007, provider_inputs["BEFORE"]["link"])
-        self.assertEqual(16008, provider_inputs["IMAGE"]["link"])
-        self.assertEqual(16009, provider_inputs["AFTER"]["link"])
-        self.assertEqual(16010, provider_inputs["enable"]["link"])
-        self.assertEqual([16011], provider["outputs"][0]["links"])
-        compare = next(node for node in self.definition["nodes"] if node["type"] == "ImageCompare")
-        compare_gate = next(
-            node for node in self.definition["nodes"] if node["type"] == "CMKImageCompareEnableGate"
-        )
+    def test_process_visual_feeds_output_and_internal_compare(self):
+        process = next(node for node in self.definition["nodes"] if node["type"] == "CMKFaceProcessPipe")
+        compare = next(node for node in self.definition["nodes"] if node["type"] == "CMKVisualCompare")
+        visual_slot = next(index for index, item in enumerate(process["outputs"]) if item["name"] == "VISUAL")
+        compare_link = self.links[compare["inputs"][0]["link"]]
+        self.assertEqual((process["id"], visual_slot), (compare_link["origin_id"], compare_link["origin_slot"]))
         self.assertEqual([], compare["outputs"])
-        self.assertEqual(16010, provider_inputs["enable"]["link"])
-        self.assertEqual(12689, next(item for item in compare_gate["inputs"] if item["name"] == "ENABLE")["link"])
+        self.assertNotIn("CMKVisualProvider", {node["type"] for node in self.definition["nodes"]})
+        self.assertNotIn("CMKImageCompareEnableGate", {node["type"] for node in self.definition["nodes"]})
+        self.assertNotIn("ImageCompare", {node["type"] for node in self.definition["nodes"]})
         self.assertNotIn("proxyWidgets", self.outer["properties"])
 
     def test_every_link_is_declared_at_both_endpoints(self):
@@ -122,17 +112,18 @@ class FaceProcess30SubgraphTests(unittest.TestCase):
 class FaceProcess30AdvancedCompatibilityTests(unittest.TestCase):
     def test_existing_advanced_branches_follow_the_new_transport_contract(self):
         document = json.loads(
-            (ROOT / "subgraphs" / "CMK Flow · 30 FaceProcess SDXL · Advanced.json").read_text(
+            (ROOT / "subgraphs" / "CMK Flow · FaceProcess SDXL · Advanced.json").read_text(
                 encoding="utf-8"
             )
         )
         definition = document["definitions"]["subgraphs"][0]
         nodes = {node["id"]: node for node in definition["nodes"]}
         links = {link["id"]: link for link in definition["links"]}
-        execute_nodes = [nodes[node_id] for node_id in (5029, 5030, 5032)]
+        execute_nodes = [node for node in definition["nodes"] if node["type"] == "CMKFaceProcessPipe"]
+        prepare = next(node for node in definition["nodes"] if node["type"] == "CMKFaceProcessPreparePipe")
 
         outer = document["nodes"][0]
-        self.assertEqual([450, 230], outer["size"])
+        self.assertEqual([300, 190], outer["size"])
         self.assertEqual([True], outer["widgets_values"])
         self.assertNotIn("proxyWidgets", outer["properties"])
         self.assertEqual(
@@ -147,28 +138,41 @@ class FaceProcess30AdvancedCompatibilityTests(unittest.TestCase):
 
         self.assertNotIn("CMKLogConcat", {node["type"] for node in nodes.values()})
         self.assertNotIn("CMKDiagnosticConcat", {node["type"] for node in nodes.values()})
+        self.assertNotIn("process_mode", [item["name"] for item in prepare["inputs"]])
         for execute in execute_nodes:
             input_names = [item["name"] for item in execute["inputs"]]
+            self.assertIn("process_mode", input_names)
             self.assertIn("opt_log", input_names)
+            self.assertIn("VISUAL", input_names)
             self.assertIn("opt_diagnostic", input_names)
             self.assertEqual(
-                ["LOG", "diagnostic"],
-                [item["name"] for item in execute["outputs"][-2:]],
+                ["LOG", "VISUAL", "diagnostic"],
+                [item["name"] for item in execute["outputs"][-3:]],
             )
 
-        self.assertEqual((5027, 1, 5029, 21), tuple(links[12164][key] for key in ("origin_id", "origin_slot", "target_id", "target_slot")))
-        self.assertEqual((5029, 4, 5030, 21), tuple(links[12166][key] for key in ("origin_id", "origin_slot", "target_id", "target_slot")))
-        self.assertEqual((5030, 4, 5032, 21), tuple(links[12168][key] for key in ("origin_id", "origin_slot", "target_id", "target_slot")))
-        self.assertEqual((5032, 4, 5011, 3), tuple(links[12170][key] for key in ("origin_id", "origin_slot", "target_id", "target_slot")))
-
-        provider = next(node for node in nodes.values() if node["type"] == "CMKVisualProvider")
-        self.assertEqual(
-            ["FaceProcess", 30, "FaceProcess", "sdxl", "sdxl.faceprocess.advanced"],
-            provider["widgets_values"],
+        first = next(
+            node for node in execute_nodes
+            if links[next(item for item in node["inputs"] if item["name"] == "opt_log")["link"]]["origin_id"]
+            not in {item["id"] for item in execute_nodes}
         )
+        ordered = [first]
+        while len(ordered) < len(execute_nodes):
+            log_link = next(item for item in ordered[-1]["outputs"] if item["name"] == "LOG")["links"][0]
+            ordered.append(next(node for node in execute_nodes if next(item for item in node["inputs"] if item["name"] == "opt_log")["link"] == log_link))
+        for previous, current in zip(ordered, ordered[1:]):
+            log_link = links[next(item for item in current["inputs"] if item["name"] == "opt_log")["link"]]
+            diagnostic_link = links[next(item for item in current["inputs"] if item["name"] == "opt_diagnostic")["link"]]
+            self.assertEqual(previous["id"], log_link["origin_id"])
+            self.assertEqual(previous["id"], diagnostic_link["origin_id"])
+
+        concat = next(node for node in nodes.values() if node["type"] == "CMK_SEGSConcate")
+        self.assertIn("VISUAL", [item["name"] for item in concat["inputs"]])
+        self.assertIn("VISUAL", [item["name"] for item in concat["outputs"]])
+        self.assertNotIn("CMKVisualProvider", {node["type"] for node in nodes.values()})
+        self.assertNotIn("CMKImageCompareEnableGate", {node["type"] for node in nodes.values()})
+        self.assertNotIn("ImageCompare", {node["type"] for node in nodes.values()})
         declaration = outer["properties"]["cmkVisualProviders"][0]
-        self.assertEqual(["5029", "5030", "5032"], declaration["live_node_ids"])
-        self.assertEqual(f"cmk-CMKVisualProvider-{provider['id']}", declaration["provider_id"])
+        self.assertEqual(3, len(declaration["live_node_ids"]))
 
         for link in definition["links"]:
             with self.subTest(link=link["id"]):

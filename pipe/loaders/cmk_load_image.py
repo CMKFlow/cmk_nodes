@@ -13,22 +13,30 @@ import folder_paths
 from ..cmk_log_pipe import cmk_add_block
 
 
+_CMK_REFERENCE_FILENAMES = (
+    "black.png",
+    "face_reference.png",
+    "controlnet_reference.png",
+    "controlnet_reference4.png",
+    "detailer_reference.png",
+    "face_identity_reference.png",
+    "face_reference2.png",
+    "faceswap_reference.png",
+    "inpaint_reference.png",
+    "inpaint_reference2.png",
+    "inpaint_reference3.png",
+    "mask_detailer_reference.png",
+    "portrait_reference_00002.png",
+    "remove_refrence.png",
+)
 CMK_PACKAGED_REFERENCES = {
     f"CMK Package · {filename}": filename
-    for filename in (
-        "face_reference.png",
-        "controlnet_reference.png",
-        "detailer_reference.png",
-        "face_identity_reference.png",
-        "face_reference2.png",
-        "faceswap_reference.png",
-        "inpaint_reference.png",
-        "inpaint_reference2.png",
-        "inpaint_reference3.png",
-        "portrait_reference_00002.png",
-        "remove_refrence.png",
-    )
+    for filename in _CMK_REFERENCE_FILENAMES
 }
+CMK_PACKAGED_REFERENCES.update({
+    filename: filename
+    for filename in ("black.png", "controlnet_reference4.png", "faceswap_reference.png")
+})
 _CMK_REFERENCE_ASSETS = Path(__file__).resolve().parents[2] / "assets" / "references"
 
 
@@ -42,6 +50,19 @@ def _packaged_reference_path(image: str):
     except ValueError:
         return None
     return path if path.is_file() else None
+
+
+def _available_image_files():
+    input_dir = folder_paths.get_input_directory()
+    try:
+        local_files = [
+            name
+            for name in os.listdir(input_dir)
+            if os.path.isfile(os.path.join(input_dir, name))
+        ]
+    except Exception:
+        local_files = []
+    return list(CMK_PACKAGED_REFERENCES) + sorted(local_files)
 
 
 class CMKLoadImage:
@@ -58,6 +79,8 @@ class CMKLoadImage:
 
     An optional opt_LOG input lets the loader append its source-image block to
     an existing workflow log instead of starting a separate log chain.
+    opt_image_file can override the local picker with a centrally distributed
+    ComfyUI file reference; the picker remains the fallback when unconnected.
 
     IMAGE and MASK remain available inside PROCESS as well. Their explicit
     outputs allow direct use by Create Image and native ComfyUI nodes.
@@ -65,19 +88,13 @@ class CMKLoadImage:
 
     @classmethod
     def INPUT_TYPES(cls):
-        input_dir = folder_paths.get_input_directory()
-        files = []
-        try:
-            files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f))]
-        except Exception:
-            files = []
-        files = list(CMK_PACKAGED_REFERENCES) + sorted(files)
         return {
             "required": {
-                "image": (files, {"image_upload": True}),
+                "image": (_available_image_files(), {"image_upload": True}),
             },
             "optional": {
                 "opt_LOG": ("CMK_LOG_PIPE",),
+                "opt_image_file": ("STRING", {"forceInput": True}),
             },
         }
 
@@ -119,7 +136,9 @@ class CMKLoadImage:
             "type": image_type,
         }
 
-    def load_image(self, image, opt_LOG=None):
+    def load_image(self, image, opt_LOG=None, opt_image_file=None):
+        if opt_image_file is not None and str(opt_image_file).strip():
+            image = str(opt_image_file)
         image_path = self._resolve_image_path(image)
 
         output_images = []
@@ -201,7 +220,9 @@ class CMKLoadImage:
         }
 
     @classmethod
-    def IS_CHANGED(cls, image):
+    def IS_CHANGED(cls, image, opt_image_file=None, **_kwargs):
+        if opt_image_file is not None and str(opt_image_file).strip():
+            image = str(opt_image_file)
         try:
             packaged_path = _packaged_reference_path(image)
             image_path = str(packaged_path) if packaged_path is not None else folder_paths.get_annotated_filepath(image)
@@ -211,7 +232,9 @@ class CMKLoadImage:
             return float("nan")
 
     @classmethod
-    def VALIDATE_INPUTS(cls, image):
+    def VALIDATE_INPUTS(cls, image, opt_image_file=None, **_kwargs):
+        if opt_image_file is not None and str(opt_image_file).strip():
+            image = str(opt_image_file)
         if _packaged_reference_path(image) is not None:
             return True
         try:
@@ -219,6 +242,62 @@ class CMKLoadImage:
                 return f"Invalid image file: {image}"
         except Exception:
             image_path = os.path.join(folder_paths.get_input_directory(), image)
+            if not os.path.isfile(image_path):
+                return f"Invalid image file: {image}"
+        return True
+
+
+class CMKImageFileLoader:
+    """Select or upload an image and expose only its ComfyUI file reference."""
+
+    DESCRIPTION = (
+        "Selects or uploads an image, shows the selected image and returns only "
+        "its image_file reference. No pixels are decoded by this node."
+    )
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": (_available_image_files(), {"image_upload": True}),
+            },
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("image_file",)
+    FUNCTION = "select_image_file"
+    CATEGORY = "CMK/Flow/Input"
+
+    def select_image_file(self, image):
+        image_file = str(image or "")
+        return {
+            "ui": {"images": [CMKLoadImage._preview_descriptor(image_file)]},
+            "result": (image_file,),
+        }
+
+    @classmethod
+    def IS_CHANGED(cls, image, **_kwargs):
+        try:
+            packaged_path = _packaged_reference_path(image)
+            image_path = (
+                str(packaged_path)
+                if packaged_path is not None
+                else folder_paths.get_annotated_filepath(image)
+            )
+            with open(image_path, "rb") as handle:
+                return hashlib.sha256(handle.read()).hexdigest()
+        except Exception:
+            return float("nan")
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, image, **_kwargs):
+        if _packaged_reference_path(image) is not None:
+            return True
+        try:
+            if not folder_paths.exists_annotated_filepath(image):
+                return f"Invalid image file: {image}"
+        except Exception:
+            image_path = os.path.join(folder_paths.get_input_directory(), str(image or ""))
             if not os.path.isfile(image_path):
                 return f"Invalid image file: {image}"
         return True

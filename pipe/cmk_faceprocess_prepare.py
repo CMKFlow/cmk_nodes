@@ -17,6 +17,7 @@ from .cmk_log_pipe import cmk_add_block, cmk_format_loras
 from ..utils.cmk_translation import translate_prompt
 from ..utils.cmk_diagnostic import make_diagnostic_payload
 from ..engine.native_detailer import CMKSAMLoader
+from .loaders.checkpoint_vae_loader import resolve_postprocess_model
 
 
 
@@ -42,14 +43,18 @@ class CMKFaceProcessPreparePipe:
 
     @classmethod
     def INPUT_TYPES(cls):
-        loras = _safe_lora_list()
+        available_loras = _safe_lora_list()
+        loras = ["None"] + [
+            name for name in available_loras
+            if str(name).strip().lower() != "none"
+        ]
         default_lora = _safe_default(loras, "refiner/Hyper-SDXL-1step-lora.safetensors")
         sam_model_spec, sam_device_spec = _sam_loader_input_specs()
 
         return {
             "required": {
                 "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
-                "PROCESS": ("CMK_PROCESS_SDXL", {"lazy": True}),
+                "PROCESS": ("CMK_RESULT_PROCESS", {"lazy": True}),
                 "IMAGE": ("IMAGE", {"lazy": True}),
 
                 "sam_model_name": sam_model_spec,
@@ -141,6 +146,9 @@ class CMKFaceProcessPreparePipe:
         if LOG is None:
             needed.append("LOG")
 
+        # Prepare is deliberately always detailer-capable. The actual operation
+        # mode belongs exclusively to CMKFaceProcessPipe; exposing the same
+        # selector here created two controls that could contradict each other.
         if bool(face_global_enable):
             if MODEL is None:
                 needed.append("MODEL")
@@ -250,9 +258,10 @@ class CMKFaceProcessPreparePipe:
             raise TypeError("CMK FaceProcess Prepare -Pipe-: MODEL must be a CMK model pipe")
         if not isinstance(PROCESS, dict):
             raise TypeError("CMK FaceProcess Prepare -Pipe-: PROCESS must be a CMK process pipe")
-        if str(PROCESS.get("model_family", "sdxl")).strip().lower() != "sdxl":
-            raise ValueError("CMK FaceProcess Prepare -Pipe- accepts only PROCESS SDXL")
+        if PROCESS.get("result_contract") != "family_neutral":
+            raise ValueError("CMK FaceProcess Prepare -Pipe- requires the PostProcess Boundary")
 
+        MODEL = resolve_postprocess_model(MODEL)
         source_pipe = dict(PROCESS)
         model_base = MODEL.get("model")
         clip_base = MODEL.get("clip")
@@ -286,9 +295,13 @@ class CMKFaceProcessPreparePipe:
         clip = helper._clip_set_last_layer(clip_base, _int(stop_at_clip_layer, -2))
         clip = _unwrap_node_output(clip)
 
-        inherit_prompt = bool(use_prompt_lora_from_sampler)
-        inherit_lora = bool(use_lora_from_1st_pass)
-        inherit_sampling = bool(use_1st_pass_sampling)
+        inherit_prompt = bool(use_prompt_lora_from_sampler) and any(
+            key in source_pipe for key in ("prompt_pos", "prompt_neg")
+        )
+        source_family = str(source_pipe.get("source_model_family", "sdxl")).strip().lower()
+        cross_family = source_family != "sdxl"
+        inherit_lora = bool(use_lora_from_1st_pass) and not cross_family
+        inherit_sampling = bool(use_1st_pass_sampling) and not cross_family
 
         if inherit_prompt:
             selected_prompt_pos = _clean_text(source_pipe.get("prompt_pos"), "")
@@ -402,8 +415,8 @@ class CMKFaceProcessPreparePipe:
         face_pipe["face_prepare_log"] = details
 
         prompt_source_label = "1ST PASS" if inherit_prompt else "LOCAL"
-        lora_source_label = "1ST PASS" if inherit_lora else "LOCAL"
-        sampling_source_label = "1ST PASS" if inherit_sampling else "LOCAL"
+        lora_source_label = "1ST PASS" if inherit_lora else ("LOCAL · FAMILY SAFE" if cross_family else "LOCAL")
+        sampling_source_label = "1ST PASS" if inherit_sampling else ("LOCAL · FAMILY SAFE" if cross_family else "LOCAL")
         log_lines = [
             "STATUS          : PREPARED",
             "MODEL SOURCE    : MODEL",

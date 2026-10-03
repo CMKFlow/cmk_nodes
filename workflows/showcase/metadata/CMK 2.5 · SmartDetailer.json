@@ -1,0 +1,19 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · SmartDetailer",
+  "kind": "module",
+  "order": 209,
+  "category": "MODULE WORKFLOWS",
+  "category_en": "MODULE WORKFLOWS",
+  "description": "Zeigt SmartDetailer als diskreten Stand-alone-Prozess, erkennt den relevanten Bildbereich automatisch und bearbeitet ihn gezielt mit dem gewählten Detailer-Modell.\n\nDer Preview Render zeigt die einzelnen Verarbeitungsschritte und Veränderungen bis zum finalen Ergebnis.",
+  "description_en": "Shows SmartDetailer as a discrete standalone process that automatically detects the relevant image area and processes it selectively with the chosen detailer model.\n\nThe preview render shows each processing step and the changes leading to the final result.",
+  "cmkHighlight": "",
+  "cmkHighlight_en": "",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · SmartDetailer/CMK 2.5 · SmartDetailer.png",
+      "label": "Vorschau",
+      "label_en": "Vorschau"
+    }
+  ]
+}

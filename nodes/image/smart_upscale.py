@@ -7,8 +7,17 @@ import comfy.model_management as model_management
 import comfy_extras.chainner_models.model_loading as model_loading
 
 from ...pipe.cmk_log_pipe import cmk_add_block
+from ...pipe.cmk_visual import empty_visual, register_provider
 from ...utils.cmk_diagnostic import make_diagnostic_payload
 from ...utils.cmk_timing import cmk_timed
+
+
+class _CMKAnyType(str):
+    def __ne__(self, other):
+        return False
+
+
+CMK_RESULT_MEDIA_INPUT = _CMKAnyType("*")
 
 
 class CMK_SmartUpscaler:
@@ -300,18 +309,25 @@ class CMK_SmartUpscalerPipe(CMK_SmartUpscaler):
         models = folder_paths.get_filename_list("upscale_models")
         return {
             "required": {
-                "IMAGE": ("IMAGE",),
-                "LOG": ("CMK_LOG_PIPE",),
+                # Family-neutral result sockets still carry an IMAGE tensor
+                # and CMK LOG dictionary; only their editor types differ.
+                "IMAGE": (CMK_RESULT_MEDIA_INPUT,),
+                "LOG": (CMK_RESULT_MEDIA_INPUT,),
                 "enable": ("BOOLEAN", {"default": True}),
                 "limit_4x_mp": ("FLOAT", {"default": 1.5, "min": 0.5, "max": 100.0, "step": 0.5}),
                 "limit_2x_mp": ("FLOAT", {"default": 8.0, "min": 0.5, "max": 100.0, "step": 0.5}),
                 "model_4x": (models,),
                 "model_2x": (models,),
-            }
+            },
+            "optional": {
+                "VISUAL": ("CMK_VISUAL_PIPE",),
+                "save_enabled": ("BOOLEAN", {"forceInput": True}),
+            },
+            "hidden": {"unique_id": "UNIQUE_ID"},
         }
 
-    RETURN_TYPES = ("IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
-    RETURN_NAMES = ("IMAGE", "LOG", "diagnostic")
+    RETURN_TYPES = ("IMAGE", "CMK_LOG_PIPE", "CMK_VISUAL_PIPE", "CMK_DIAGNOSTIC")
+    RETURN_NAMES = ("IMAGE", "LOG", "VISUAL", "diagnostic")
     FUNCTION = "run_pipe"
     CATEGORY = "CMK/Developer/Pipe/Execute"
 
@@ -334,7 +350,37 @@ class CMK_SmartUpscalerPipe(CMK_SmartUpscaler):
             "MPS cache cleared before upscale model load"
         )
 
-    def run_pipe(self, IMAGE, LOG, enable, limit_4x_mp, limit_2x_mp, model_4x, model_2x):
+    @staticmethod
+    def _visual(VISUAL, *, enabled, before, after, unique_id):
+        visual = empty_visual() if VISUAL is None else VISUAL
+        if bool(enabled):
+            visual = register_provider(
+                visual,
+                module_instance_id=unique_id or "upscale-save",
+                module_type="CMK_SmartUpscalerPipe",
+                module_label="Upscale & Save",
+                sequence=90,
+                channels={"before": before, "after": after},
+                status="completed",
+                live_node_id=unique_id,
+                branch="result",
+                stage_key="result.upscale_save",
+            )
+        return visual
+
+    def run_pipe(
+        self,
+        IMAGE,
+        LOG,
+        enable,
+        limit_4x_mp,
+        limit_2x_mp,
+        model_4x,
+        model_2x,
+        VISUAL=None,
+        save_enabled=True,
+        unique_id=None,
+    ):
         if not isinstance(LOG, dict):
             raise ValueError("CMK Smart Upscaler -Pipe-: LOG is missing or invalid")
 
@@ -343,8 +389,9 @@ class CMK_SmartUpscalerPipe(CMK_SmartUpscaler):
         input_width = int(image.shape[2])
         input_mp = self._megapixels(input_width, input_height)
 
-        if not bool(enable):
-            reason = "Local ENABLE is OFF"
+        effective_enable = bool(enable) and bool(save_enabled)
+        if not effective_enable:
+            reason = "Local ENABLE is OFF" if not bool(enable) else "Save is disabled"
             selected_model = "Passthrough"
             diagnostic = self._make_diagnostic(
                 image=image,
@@ -372,7 +419,9 @@ class CMK_SmartUpscalerPipe(CMK_SmartUpscaler):
                 ],
                 True,
             )
-            return (image, result_log, diagnostic)
+            return (image, result_log, self._visual(
+                VISUAL, enabled=False, before=image, after=image, unique_id=unique_id,
+            ), diagnostic)
 
         if input_mp <= float(limit_4x_mp):
             scale_factor = 4
@@ -415,7 +464,9 @@ class CMK_SmartUpscalerPipe(CMK_SmartUpscaler):
                 ],
                 True,
             )
-            return (image, result_log, diagnostic)
+            return (image, result_log, self._visual(
+                VISUAL, enabled=True, before=image, after=image, unique_id=unique_id,
+            ), diagnostic)
 
         print(
             "[CMK Smart Upscaler] "
@@ -462,7 +513,9 @@ class CMK_SmartUpscalerPipe(CMK_SmartUpscaler):
             ],
             True,
         )
-        return (upscaled, result_log, diagnostic)
+        return (upscaled, result_log, self._visual(
+            VISUAL, enabled=True, before=image, after=upscaled, unique_id=unique_id,
+        ), diagnostic)
 
 
 NODE_CLASS_MAPPINGS = {

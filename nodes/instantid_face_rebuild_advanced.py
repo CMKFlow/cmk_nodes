@@ -11,6 +11,7 @@ from .instantid_face_rebuild import (
 from ..engine.detector_engine import CMKDetectorEngine, DetectorSettings
 from .utils.diagnostic_concat import CMKDiagnosticConcat
 from ..pipe.cmk_log_pipe import cmk_add_block, cmk_parse_block_string
+from ..pipe.cmk_visual import empty_visual, register_provider
 from ..utils.cmk_diagnostic import make_diagnostic_payload
 from ..utils.tensor_utils import tensor_to_uint8_rgb
 
@@ -42,8 +43,8 @@ class CMKInstantIDFaceRebuildAdvancedSDXL:
     DIAGNOSTIC_NAME = "CMK Flow · 42 FaceRebuild Advanced"
     LOG_LABEL = "FaceRebuild Advanced"
     FUNCTION = "rebuild"
-    RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_PROCESS_SDXL", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
-    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "diagnostic")
+    RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_RESULT_PROCESS", "IMAGE", "CMK_LOG_PIPE", "CMK_VISUAL_PIPE", "CMK_DIAGNOSTIC")
+    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "VISUAL", "diagnostic")
 
     def __init__(self):
         self._advanced_cache_key = None
@@ -71,7 +72,7 @@ class CMKInstantIDFaceRebuildAdvancedSDXL:
     @classmethod
     def INPUT_TYPES(cls):
         required = {
-            "MODEL": ("CMK_MODEL_PIPE",), "PROCESS": ("CMK_PROCESS_SDXL",),
+            "MODEL": ("CMK_MODEL_PIPE",), "PROCESS": ("CMK_RESULT_PROCESS",),
             "IMAGE": ("IMAGE",), "LOG": ("CMK_LOG_PIPE",),
             "FACEREBUILD ENABLE": ("BOOLEAN", {"default": True}),
         }
@@ -105,14 +106,19 @@ class CMKInstantIDFaceRebuildAdvancedSDXL:
             "sampler": CMKInstantIDFaceDetailerSDXL.INPUT_TYPES()["required"]["sampler"],
             "scheduler": CMKInstantIDFaceDetailerSDXL.INPUT_TYPES()["required"]["scheduler"],
         })
-        return {"required": required}
+        return {
+            "required": required,
+            "optional": {"VISUAL": ("CMK_VISUAL_PIPE",)},
+            "hidden": {"unique_id": "UNIQUE_ID"},
+        }
 
     @classmethod
     def IS_CHANGED(cls, **_kwargs):
         return FACEREBUILD_GUARD_VERSION
 
-    def rebuild(self, **values):
+    def rebuild(self, VISUAL=None, unique_id=None, **values):
         model, process, image, log = values["MODEL"], values["PROCESS"], values["IMAGE"], values["LOG"]
+        visual = empty_visual() if VISUAL is None else VISUAL
         active = [i for i in range(1, 4) if values[f"FACE {i} ENABLE"]]
         if not values["FACEREBUILD ENABLE"] or not active:
             diagnostic = make_diagnostic_payload(
@@ -121,7 +127,7 @@ class CMKInstantIDFaceRebuildAdvancedSDXL:
                 previews=[image], summary="No active FaceRebuild slot", details="No active FaceRebuild slot",
                 mode="Bypass", metadata={"bypassed": True},
             )
-            return model, process, image, log, diagnostic
+            return model, process, image, log, visual, diagnostic
 
         cache_key = self._advanced_sampling_key(values)
         cached = self._advanced_cache_value if cache_key == self._advanced_cache_key else None
@@ -230,18 +236,30 @@ class CMKInstantIDFaceRebuildAdvancedSDXL:
         diagnostic = CMKDiagnosticConcat().concat(self.DIAGNOSTIC_NAME, diagnostics[0], **{
             f"diagnostic_{i}": item for i, item in enumerate(diagnostics[1:], start=2)
         })[0]
-        return model, process, image, log, diagnostic
+        visual = register_provider(
+            visual,
+            module_instance_id=unique_id or "facerebuild-advanced",
+            module_type="CMKInstantIDFaceRebuildAdvancedSDXL",
+            module_label="FaceRebuild",
+            sequence=25,
+            channels={"before": values["IMAGE"], "after": image},
+            status="completed",
+            live_node_id=unique_id,
+            branch="sdxl",
+            stage_key="sdxl.facerebuild.advanced",
+        )
+        return model, process, image, log, visual, diagnostic
 
 
 class CMKInstantIDFaceRebuildSDXL:
     """Advanced FaceRebuild copied with face branches two and three removed."""
 
     CATEGORY = "CMK/Toolbox/Face"
-    DIAGNOSTIC_NAME = "CMK Flow · 25 FaceRebuild SDXL"
+    DIAGNOSTIC_NAME = "CMK Flow · FaceRebuild SDXL"
     LOG_LABEL = "FaceRebuild"
     FUNCTION = "rebuild"
-    RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_PROCESS_SDXL", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
-    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "diagnostic")
+    RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_RESULT_PROCESS", "IMAGE", "CMK_LOG_PIPE", "CMK_VISUAL_PIPE", "CMK_DIAGNOSTIC")
+    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "VISUAL", "diagnostic")
 
     def __init__(self):
         self._cache_key = None
@@ -289,14 +307,19 @@ class CMKInstantIDFaceRebuildSDXL:
             "identity_noise", "sampler", "scheduler",
         ):
             required[name] = advanced[name]
-        return {"required": required}
+        return {
+            "required": required,
+            "optional": {"VISUAL": ("CMK_VISUAL_PIPE",)},
+            "hidden": {"unique_id": "UNIQUE_ID"},
+        }
 
     @classmethod
     def IS_CHANGED(cls, **_kwargs):
         return FACEREBUILD_GUARD_VERSION
 
-    def rebuild(self, **values):
+    def rebuild(self, VISUAL=None, unique_id=None, **values):
         model, process, image, log = values["MODEL"], values["PROCESS"], values["IMAGE"], values["LOG"]
+        visual = empty_visual() if VISUAL is None else VISUAL
         if not values["FACEREBUILD ENABLE"]:
             diagnostic = make_diagnostic_payload(
                 title=f"{self.DIAGNOSTIC_NAME} · Bypass", node=self.__class__.__name__,
@@ -304,7 +327,7 @@ class CMKInstantIDFaceRebuildSDXL:
                 previews=[image], summary="FaceRebuild disabled", details="FaceRebuild disabled",
                 mode="Bypass", metadata={"bypassed": True},
             )
-            return model, process, image, log, diagnostic
+            return model, process, image, log, visual, diagnostic
 
         cache_key = self._sampling_key(values)
         cached = self._cache_value if cache_key == self._cache_key else None
@@ -359,4 +382,16 @@ class CMKInstantIDFaceRebuildSDXL:
         diagnostic = CMKDiagnosticConcat().concat(self.DIAGNOSTIC_NAME, diagnostics[0], **{
             f"diagnostic_{i}": item for i, item in enumerate(diagnostics[1:], start=2)
         })[0]
-        return model, process, image, log, diagnostic
+        visual = register_provider(
+            visual,
+            module_instance_id=unique_id or "facerebuild-standard",
+            module_type="CMKInstantIDFaceRebuildSDXL",
+            module_label="FaceRebuild",
+            sequence=25,
+            channels={"before": values["IMAGE"], "after": image},
+            status="completed",
+            live_node_id=unique_id,
+            branch="sdxl",
+            stage_key="sdxl.facerebuild.standard",
+        )
+        return model, process, image, log, visual, diagnostic

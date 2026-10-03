@@ -1,13 +1,38 @@
 import { app } from "../../../scripts/app.js";
+import { installSourceTargetSlider } from "./cmk_source_target_slider.js";
 
 const NODE_CLASS = "CMKPipeCreateImage";
-const BASE_NODE_HEIGHT = 960;
+const BASE_NODE_HEIGHT = 800;
 const RUNAWAY_NODE_HEIGHT = 1600;
-const PROMPT_POS_HEIGHT = 383;
-const PROMPT_NEG_HEIGHT = 121;
-const INPAINT_PROMPT_POS_HEIGHT = 83;
-const INPAINT_PROMPT_NEG_HEIGHT = 72;
-const SINGLE_PROMPT_AREA_HEIGHT = 535;
+// Calibrated against the non-prompt chrome of every Standard UI state.  The
+// totals make each state's content minimum exactly 800 px; ComfyUI therefore
+// has no odd intermediate value to round up to the next ten.  The fields only
+// define minima (no maximum), so additional manual height continues to flow
+// into the prompt area instead of becoming an empty gap above it.
+const MODE_PROMPT_HEIGHTS = Object.freeze({
+    "text2image": Object.freeze({
+        "GLOBAL PROMPT POS": 264,
+        "PROMPT NEG": 91,
+    }),
+    "inpaint": Object.freeze({
+        "GLOBAL PROMPT POS": 108,
+        "PROMPT NEG": 72,
+    }),
+    "z-image": Object.freeze({
+        "GLOBAL PROMPT POS": 362,
+    }),
+    "z-image-inpaint": Object.freeze({
+        "GLOBAL PROMPT POS": 316,
+    }),
+    "hybrid": Object.freeze({
+        "GLOBAL PROMPT POS": 286,
+        "PROMPT NEG": 91,
+    }),
+    "hybrid-inpaint": Object.freeze({
+        "GLOBAL PROMPT POS": 134,
+        "PROMPT NEG": 72,
+    }),
+});
 const NODE_SELECTOR = '[data-node-id], [data-testid^="node-body-"]';
 const LABEL_SELECTOR = '[data-testid="widget-layout-field-label"]';
 const MODE_INFO_NAME = "MODE INFO";
@@ -15,13 +40,13 @@ const FAMILY_TABS_NAME = "MODEL FAMILY TABS";
 const MODE_INFO = {
     "custom": "Manual prompts and Advanced settings.",
     "replace object": "Prompt and LoRAs describe the replacement.",
-    "remove object": "Prompt-free reconstruction from the surrounding image.",
+    "remove object": "Prompt-guided background reconstruction with internal subject suppression.",
     "extend image": "Prompt describes the extension; Fit creates canvas and mask.",
 };
 const MODE_INFO_TOOLTIP = {
     "custom": "Uses the user prompts and the technical Sampler Advanced values without guided overrides.",
     "replace object": "The masked subject is discarded before sampling; spatial inpaint guidance fits the prompt-driven replacement into the scene; denoise 1.00, noise mask ON; outpaint OFF.",
-    "remove object": "Noise discards the masked content; full-strength Fooocus reconstructs the background with internal person suppression. User prompts and LoRAs are ignored; the Refiner is bypassed.",
+    "remove object": "Noise discards the masked content; full-strength Fooocus reconstructs the background with internal subject suppression. The user prompt guides the scene when present, otherwise neutral internal guidance is used. LoRAs are bypassed and the Refiner performs the second pass.",
     "extend image": "Fit creates the outpaint canvas and mask. Navier-Stokes continues the surroundings as preparation; user prompt describes the extended scene; denoise 1.00, noise mask ON, context reference ON.",
 };
 const GUIDED_FILL = {
@@ -70,6 +95,9 @@ const USER_WIDGET_LABELS = {
     "instantid_enabled": "INSTANTID",
     "instantid_mode": "INSTANTID MODE",
     "inpaint_mask_expand": "INPAINT MASK EXPAND",
+    "hybrid_sdxl_handoff": "SDXL HANDOFF",
+    "hybrid_zit_denoise": "ZIT DENOISE",
+    "unload_models_after_use": "UNLOAD MODELS AFTER USE",
 };
 const NEUTRAL_IMAGE_SIZES = [
     "1024x1024",
@@ -87,6 +115,7 @@ const ZIT_IMAGE_SIZES = NEUTRAL_IMAGE_SIZES.slice(0, 7);
 const FAMILY_DEFAULT_IMAGE_SIZE = {
     "SDXL": "1152x832",
     "Z-Image Turbo": "1024x1024",
+    "Hybrid": "1152x832",
 };
 const ZIT_INPAINT_DEFAULT_SIZE = "768x512";
 const Z_IMAGE_HIDDEN_WIDGETS = new Set([
@@ -116,6 +145,8 @@ const USER_INPUT_LABELS = {
     "lora_syntax": "SDXL ACTIVE LORAS",
     "ADDITIONAL PROMPT": "ADDITIONAL PROMPT",
     "opt_prompt_pos": "ADDITIONAL PROMPT",
+    "LoRA SDXL": "LoRA SDXL",
+    "LoRA ZIT": "LoRA ZIT",
 };
 const USER_OUTPUT_LABELS = {
     "PROCESS": "PROCESS",
@@ -236,6 +267,23 @@ function captureWidgets(node) {
     return state;
 }
 
+function enforceDirectZitInpaintContract(state) {
+    if (!state) return;
+    const family = String(
+        state.widgetsByName.get("model_family")?.value ?? "SDXL"
+    ).trim().toLowerCase();
+    const rawMode = state.widgetsByName.get("INPAINT_MODE")?.value;
+    const inpaint = typeof rawMode === "boolean"
+        ? rawMode
+        : String(rawMode ?? "Text2Image").trim().toLowerCase() === "inpaint";
+    if (family !== "z-image turbo" || !inpaint) return;
+
+    const outpaint = state.widgetsByName.get("outpaint_on");
+    if (outpaint) outpaint.value = false;
+    const processMode = state.widgetsByName.get("process_mode");
+    if (processMode) processMode.value = "Custom";
+}
+
 function getWidget(node, name) {
     return captureWidgets(node).widgetsByName.get(name) ?? null;
 }
@@ -269,7 +317,13 @@ function setWidgetVisible(widget, visible) {
 function setPromptHeight(widget, height) {
     if (!widget) return;
     widget._cmkStartPromptComputeSize ??= widget.computeSize;
-    widget.computeSize = (width) => [Math.max(Number(width) || 560, 560), height];
+    // Modern DOM widgets must participate in ComfyUI's constrained layout.
+    // A computeSize override makes them fixed-height and leaves all additional
+    // manually assigned node height as blank space before the prompt. With a
+    // minimum and no maximum, distributeSpace grows the prompt field(s).
+    widget.computeSize = typeof widget.computeLayoutSize === "function"
+        ? undefined
+        : (width) => [Math.max(Number(width) || 560, 560), height];
     widget.options ??= {};
     widget.options.getMinHeight = () => height;
     delete widget.options.getMaxHeight;
@@ -291,8 +345,9 @@ function installStableWidgetSerialization(node) {
     if (node._cmkStableWidgetSerializationInstalled) return;
     const originalOnSerialize = node.onSerialize;
     node.onSerialize = function (data) {
-        const result = originalOnSerialize?.apply(this, arguments);
         const state = this._cmkStartUi;
+        enforceDirectZitInpaintContract(state);
+        const result = originalOnSerialize?.apply(this, arguments);
         const widgets = state
             ? state.canonicalOrder
                 .map((name) => state.widgetsByName.get(name))
@@ -319,16 +374,16 @@ function installModelFamilyTabs(node) {
 
     const root = document.createElement("div");
     root.style.display = "grid";
-    root.style.gridTemplateColumns = "1fr 1fr";
+    root.style.gridTemplateColumns = "1fr 1fr 1fr";
     root.style.gap = "6px";
     root.style.width = "100%";
     root.style.boxSizing = "border-box";
 
-    const choices = ["SDXL", "Z-Image Turbo"];
+    const choices = ["SDXL", "Hybrid", "Z-Image Turbo"];
     const buttons = choices.map((value) => {
         const button = document.createElement("button");
         button.type = "button";
-        button.textContent = value === "SDXL" ? "SDXL" : "Z-IMAGE TURBO";
+        button.textContent = value === "Z-Image Turbo" ? "Z-IMAGE TURBO" : value.toUpperCase();
         button.style.height = "28px";
         button.style.padding = "0 10px";
         button.style.borderRadius = "5px";
@@ -372,6 +427,11 @@ function installModelFamilyTabs(node) {
     });
     panel.serialize = false;
     panel.computeSize = (width) => [Math.max(Number(width) || 420, 420), 34];
+    // Every DOM widget normally receives an expandable `auto` row in the Vue
+    // node grid. The family tabs are deliberately fixed-height; leaving their
+    // inherited layout method present makes them absorb spare node height as
+    // an empty row directly above the first prompt.
+    panel.computeLayoutSize = undefined;
 
     const panelIndex = node.widgets.indexOf(panel);
     if (panelIndex >= 0) node.widgets.splice(panelIndex, 1);
@@ -406,6 +466,12 @@ function isZImage(node) {
         .trim()
         .toLowerCase()
         .includes("z-image");
+}
+
+function isHybrid(node) {
+    return String(getWidget(node, "model_family")?.value ?? "SDXL")
+        .trim()
+        .toLowerCase() === "hybrid";
 }
 
 function resolutionToken(value, fallback = "") {
@@ -443,9 +509,12 @@ function restoreFamilyResolution(node, family) {
 function rebuildModeWidgets(node, force = false) {
     const state = captureWidgets(node);
     if (state.rebuilding) return;
-    const mode = isZImage(node)
+    const mode = isHybrid(node)
+        ? (isInpaintMode(node) ? "hybrid-inpaint" : "hybrid")
+        : isZImage(node)
         ? (isInpaintMode(node) ? "z-image-inpaint" : "z-image")
         : (isInpaintMode(node) ? "inpaint" : "text2image");
+    if (mode === "z-image-inpaint") enforceDirectZitInpaintContract(state);
     if (!force && state.visibleMode === mode) return;
 
     const leavingInpaint = state.visibleMode?.endsWith("inpaint")
@@ -456,7 +525,7 @@ function rebuildModeWidgets(node, force = false) {
     try {
         const resolution = state.widgetsByName.get("resolution");
         const resolutionValues = familyResolutionValues(
-            isZImage(node) ? "Z-Image Turbo" : "SDXL",
+            isZImage(node) ? "Z-Image Turbo" : (isHybrid(node) ? "Hybrid" : "SDXL"),
             mode === "z-image-inpaint",
         );
         if (resolution) {
@@ -474,6 +543,8 @@ function rebuildModeWidgets(node, force = false) {
         if (flowModeWidget) {
             flowModeWidget.label = mode === "z-image-inpaint"
                 ? "MODE · INPAINT EXPERIMENTAL"
+                : mode === "hybrid-inpaint"
+                ? "MODE · SDXL INPAINT → ZIT FINISH"
                 : "MODE";
         }
         const resizeMode = String(
@@ -491,9 +562,12 @@ function rebuildModeWidgets(node, force = false) {
         const visibleNames = state.canonicalOrder
             .filter((name) => !zImageMode || !Z_IMAGE_HIDDEN_WIDGETS.has(name))
             .filter((name) => inpaintMode || !INPAINT_ONLY_WIDGETS.has(name))
-            .filter((name) => mode !== "text2image" || !TEXT2IMAGE_HIDDEN_WIDGETS.has(name))
+            .filter((name) => !["text2image", "hybrid"].includes(mode) || !TEXT2IMAGE_HIDDEN_WIDGETS.has(name))
             .filter((name) => ["text2image", "inpaint"].includes(mode) || name !== "instantid_enabled")
             .filter((name) => name !== "instantid_mode" || (mode === "text2image" && instantIDEnabled))
+            .filter((name) => !["hybrid_sdxl_handoff", "hybrid_zit_denoise"].includes(name))
+            .filter((name) => mode.startsWith("hybrid") || name !== "HYBRID BALANCE")
+            .filter((name) => name !== "unload_zit_after")
             .filter((name) => name !== CROP_POSITION_WIDGET || resizeMode !== "stretch");
         const visibleNameSet = new Set(visibleNames);
         for (const name of state.canonicalOrder) {
@@ -513,13 +587,10 @@ function rebuildModeWidgets(node, force = false) {
         const promptWidgets = ["GLOBAL PROMPT POS", "PROMPT NEG"]
             .map((name) => state.widgetsByName.get(name))
             .filter((widget) => widget && visibleWidgetSet.has(widget));
+        const modePromptHeights = MODE_PROMPT_HEIGHTS[mode];
         for (const widget of promptWidgets) {
-            const promptHeight = promptWidgets.length === 1
-                ? SINGLE_PROMPT_AREA_HEIGHT
-                : mode === "inpaint"
-                    ? (widget.name === "PROMPT NEG" ? INPAINT_PROMPT_NEG_HEIGHT : INPAINT_PROMPT_POS_HEIGHT)
-                    : (widget.name === "PROMPT NEG" ? PROMPT_NEG_HEIGHT : PROMPT_POS_HEIGHT);
-            setPromptHeight(widget, promptHeight);
+            const promptHeight = modePromptHeights?.[widget.name];
+            if (Number.isFinite(promptHeight)) setPromptHeight(widget, promptHeight);
         }
         const inactiveWidgets = state.canonicalOrder
             .map((name) => state.widgetsByName.get(name))
@@ -616,6 +687,12 @@ function configure(node) {
         modelFamily._cmkFamilyVisibilityCallbackInstalled = true;
     }
 
+    const hybridBalance = getWidget(node, "HYBRID BALANCE");
+    installSourceTargetSlider(
+        node, hybridBalance, "CMK HYBRID BALANCE", "SDXL", "ZIT", 0, 4, 2,
+    )
+        ?._cmkSyncFromCanonical?.();
+
     const instantIDToggle = getWidget(node, "instantid_enabled");
     if (instantIDToggle && !instantIDToggle._cmkModeVisibilityCallbackInstalled) {
         const originalInstantIDCallback = instantIDToggle.callback;
@@ -629,7 +706,7 @@ function configure(node) {
 
     const resolution = getWidget(node, "resolution");
     if (resolution) {
-        const family = isZImage(node) ? "Z-Image Turbo" : "SDXL";
+        const family = isZImage(node) ? "Z-Image Turbo" : (isHybrid(node) ? "Hybrid" : "SDXL");
         const values = familyResolutionValues(family, family === "Z-Image Turbo" && isInpaintMode(node));
         const sizeToken = resolutionToken(
             resolution.value,
@@ -673,7 +750,7 @@ function configure(node) {
             "Guided inpaint preset; no semantic object recognition.",
             "Custom: Sampler Advanced values unchanged.",
             "Replace Object: masked content is discarded before sampling; spatial inpaint guidance uses the normal SDXL prompt; noise fill, denoise 1.00, noise mask ON, context reference OFF and outpaint OFF; user prompt and LoRAs remain active.",
-            "Remove Object: noise fill plus full-strength Fooocus background reconstruction with internal person suppression. Source prompts and all LoRAs are bypassed; the Refiner is bypassed; no user prompt required.",
+            "Remove Object: noise fill plus full-strength Fooocus background reconstruction with internal subject suppression. The user prompt guides the scene when present; otherwise neutral internal guidance is used. All LoRAs are bypassed and the Refiner performs the second pass.",
             "Extend Image: Fit creates canvas and mask; Navier-Stokes fill, denoise 1.00, noise mask ON, context reference ON.",
             "Guided modes override fill_masked_area. Custom leaves all technical values selectable.",
         ].join("\n");

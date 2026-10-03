@@ -1,18 +1,17 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
-const CMK_FLOW_TITLE = /^CMK Flow\s*[·-]/i;
 const NODE_SELECTOR = "[data-node-id]";
 const VIEWPORT_SELECTOR = '[data-testid="image-compare-viewport"]';
-const RESETTABLE_PREVIEW_FLOW = /^CMK Flow\s*[·-]\s*(10|15|20|23|25|30|40|42|90)\b/i;
 let executionActive = false;
 
 function isCmkFlow(node) {
-    return CMK_FLOW_TITLE.test(String(node?.title || node?.type || ""));
+    return validSize(node?.properties?.cmkOuterSize);
 }
 
 function isNativeCompare(node) {
-    return node?.constructor?.comfyClass === "ImageCompare" || node?.type === "ImageCompare";
+    return node?.constructor?.comfyClass === "ImageCompare"
+        || node?.type === "ImageCompare";
 }
 
 function ownsCompareProxy(node) {
@@ -33,10 +32,7 @@ function enforceClickCompare(node) {
 }
 
 function isResettablePreviewFlow(node, nodeElement = null) {
-    const identity = [node?.title, node?.type, nodeElement?.textContent]
-        .filter(Boolean)
-        .join(" ");
-    return RESETTABLE_PREVIEW_FLOW.test(identity);
+    return isCmkFlow(node);
 }
 
 function resetViewport(viewport) {
@@ -109,6 +105,10 @@ function nodeForElement(element) {
 function restoreCmkSize(node, nodeElement) {
     if (!isCmkFlow(node)) return;
     nodeElement.classList.add("cmk-flow-node");
+    if (node.__cmkManualResizeActive) return;
+    // Clean View owns the compact size while active; applying cmkOuterSize here
+    // would immediately undo the contract-port compaction after a DOM rebuild.
+    if (node?.properties?.cmkCleanView === true) return;
     // 01 START HERE deliberately changes its visible widget set between
     // Text2Image and Inpaint. Restoring cmkOuterSize on every resulting DOM
     // mutation would overwrite the width selected manually by the user.

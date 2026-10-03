@@ -467,6 +467,7 @@ class CMKControlNetPrepare:
         resolution,
         base_image=None,
         mask=None,
+        load_model=True,
     ):
         if not bool(use_controlnet):
             return None, None, False, "ControlNet disabled | USE CONTROLNET=False"
@@ -493,6 +494,21 @@ class CMKControlNetPrepare:
             resolution,
             extra_kwargs={},
         )
+
+        if not str(controlnet_model or "").strip():
+            return (
+                None,
+                controlnet_image,
+                False,
+                f"ControlNet bypass | model missing | {source_log} | {mask_log} | {aio_log}",
+            )
+
+        if not bool(load_model):
+            log = (
+                f"ControlNet prepared | model={controlnet_model} | load deferred to sampler | "
+                f"source={source_log} | {mask_log} | {aio_log}"
+            )
+            return None, controlnet_image, True, log
 
         control_net, model_log = _load_controlnet_model(controlnet_model)
         if control_net is None:
@@ -532,6 +548,7 @@ class CMKControlNetPrepare:
             resolution,
             base_image=opt_base_image,
             mask=opt_mask,
+            load_model=not bool(kwargs.get("DEFER MODEL LOAD", False)),
         )
 
         if image_source == "Base Image":

@@ -1,0 +1,26 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · Flow · Inpaint Z-Image Turbo",
+  "kind": "task",
+  "order": 113,
+  "category": "TASK WORKFLOWS",
+  "category_en": "TASK WORKFLOWS",
+  "description": "Zeigt experimentelles maskiertes Inpainting mit Z-Image Turbo – von der Vorbereitung bis zum ZIT-Sampling.",
+  "description_en": "Shows experimental masked inpainting with Z-Image Turbo—from preparation through ZIT sampling.",
+  "cmkHighlight": "",
+  "cmkHighlight_en": "",
+  "info": "Z-Image-Turbo-Inpainting befindet sich weiterhin in Entwicklung.",
+  "info_en": "Z-Image Turbo inpainting is still under development.",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Inpaint Z-Image Turbo/CMK 2.5 · Flow · Inpaint Z-Image Turbo - 1 Preparation.png",
+      "label": "Preparation",
+      "label_en": "Preparation"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Inpaint Z-Image Turbo/CMK 2.5 · Flow · Inpaint Z-Image Turbo - 2 ZIT-Sampling.png",
+      "label": "ZIT-Sampling",
+      "label_en": "ZIT-Sampling"
+    }
+  ]
+}

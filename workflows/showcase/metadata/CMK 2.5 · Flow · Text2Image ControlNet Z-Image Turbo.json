@@ -1,0 +1,26 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · Flow · Text2Image ControlNet Z-Image Turbo",
+  "kind": "task",
+  "order": 106,
+  "category": "TASK WORKFLOWS",
+  "category_en": "TASK WORKFLOWS",
+  "description": "Führt eine Text2Image-Generierung mit ControlNet vollständig im Z-Image-Turbo-Pfad aus – von der strukturellen Bildführung bis zum abschließenden ZIT-Sampling.",
+  "description_en": "Runs a Text2Image generation with ControlNet entirely within the Z-Image Turbo path—from structural image guidance through final ZIT sampling.",
+  "cmkHighlight": "",
+  "cmkHighlight_en": "",
+  "info": "Die Dimension des ControlNet-Referenzbildes bestimmt die Ausgabeauflösung und kann damit die in `01 START HERE` gewählte Bildgröße überschreiben.",
+  "info_en": "The dimensions of the ControlNet reference image determine the output resolution and can therefore override the image size selected in `01 START HERE`.",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image ControlNet Z-Image Turbo/CMK 2.5 · Flow · Text2Image ControlNet Z-Image Turbo - 1 ControlNet.png",
+      "label": "ControlNet",
+      "label_en": "ControlNet"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image ControlNet Z-Image Turbo/CMK 2.5 · Flow · Text2Image ControlNet Z-Image Turbo - 2 ZIT.png",
+      "label": "ZIT",
+      "label_en": "ZIT"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · FaceSwap",
+  "kind": "module",
+  "order": 205,
+  "category": "MODULE WORKFLOWS",
+  "category_en": "MODULE WORKFLOWS",
+  "description": "Zeigt FaceSwap als diskreten Stand-alone-Prozess und macht die Übertragung eines Referenzgesichts auf ein ausgewähltes Zielgesicht bis zum finalen Ergebnis nachvollziehbar.\n\nDer Preview Render zeigt die einzelnen Verarbeitungsschritte und Veränderungen bis zum finalen Ergebnis.",
+  "description_en": "Shows FaceSwap as a discrete standalone process, making it easy to follow the transfer of a reference face onto a selected target face through to the final result.\n\nThe preview render shows each processing step and the changes leading to the final result.",
+  "cmkHighlight": "",
+  "cmkHighlight_en": "",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceSwap/CMK 2.5 · FaceSwap.png",
+      "label": "Vorschau",
+      "label_en": "Vorschau"
+    }
+  ]
+}

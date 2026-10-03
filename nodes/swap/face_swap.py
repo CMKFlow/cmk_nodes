@@ -22,6 +22,7 @@ from ...utils.face_set_utils import (
 from ...utils.preview_utils import draw_face_boxes
 from ...utils.cmk_diagnostic import make_diagnostic_payload
 from ...pipe.cmk_log_pipe import CMKLogConcat, cmk_add_block, cmk_block_to_string
+from ...pipe.cmk_visual import empty_visual, register_provider
 from ..utils.diagnostic_concat import CMKDiagnosticConcat
 from ...utils.tensor_utils import tensor_to_uint8_rgb, uint8_rgb_to_tensor
 from ...utils.stable_segs import CMKStableSEGS, image_signature
@@ -450,8 +451,8 @@ class CMKFaceSwapImagePipe:
     """Flow-safe FaceSwap execution without pass-through inputs or outputs."""
 
     CATEGORY = "CMK/Developer/Pipe/Execute"
-    RETURN_TYPES = ("IMAGE", "SEGS", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
-    RETURN_NAMES = ("IMAGE PROCEED", "SEGS PROCESSED", "LOG", "diagnostic")
+    RETURN_TYPES = ("IMAGE", "SEGS", "CMK_LOG_PIPE", "CMK_VISUAL_PIPE", "CMK_DIAGNOSTIC")
+    RETURN_NAMES = ("IMAGE PROCEED", "SEGS PROCESSED", "LOG", "VISUAL", "diagnostic")
     FUNCTION = "run_pipe"
 
     @classmethod
@@ -484,19 +485,47 @@ class CMKFaceSwapImagePipe:
                 "RESTORE VISIBILITY": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.05, "advanced": True}),
                 "PROCESS": ("CMK_PIPE",),
                 "opt_log": ("CMK_LOG_PIPE",),
+                "VISUAL": ("CMK_VISUAL_PIPE",),
                 "opt_diagnostic": ("CMK_DIAGNOSTIC",),
             },
+            "hidden": {"unique_id": "UNIQUE_ID"},
         }
 
     @staticmethod
-    def _merge_transport(image, segs, log_block, diagnostic, opt_log=None, opt_diagnostic=None):
+    def _merge_transport(
+        image,
+        segs,
+        log_block,
+        diagnostic,
+        *,
+        before,
+        enabled,
+        visual=None,
+        unique_id=None,
+        opt_log=None,
+        opt_diagnostic=None,
+    ):
         log = CMKLogConcat().concat(opt_log, log_block)[0]
         merged_diagnostic = CMKDiagnosticConcat().concat(
             "CMK Flow · FaceSwap",
             opt_diagnostic,
             diagnostic_2=diagnostic,
         )[0]
-        return image, segs, log, merged_diagnostic
+        result_visual = empty_visual() if visual is None else visual
+        if enabled:
+            result_visual = register_provider(
+                result_visual,
+                module_instance_id=unique_id or "faceswap",
+                module_type="CMKFaceSwapImagePipe",
+                module_label="FaceSwap",
+                sequence=40,
+                channels={"before": before, "after": image},
+                status="completed",
+                live_node_id=unique_id,
+                branch="result",
+                stage_key="result.faceswap.standard",
+            )
+        return image, segs, log, result_visual, merged_diagnostic
 
     def check_lazy_status(self, IMAGE_SOURCE=None, ENABLE=True, **kwargs):
         global_enable = bool(kwargs.get("GLOBAL ENABLE", True))
@@ -506,7 +535,9 @@ class CMKFaceSwapImagePipe:
 
     def run_pipe(self, **inputs):
         opt_log = inputs.get("opt_log")
+        visual = inputs.get("VISUAL")
         opt_diagnostic = inputs.get("opt_diagnostic")
+        unique_id = inputs.get("unique_id")
         target_image = inputs.get("IMAGE_TARGET")
         if target_image is None:
             raise ValueError("CMK FaceSwap Image -Pipe-: IMAGE_TARGET is required")
@@ -595,8 +626,12 @@ class CMKFaceSwapImagePipe:
                 empty_segs,
                 log_block,
                 diagnostic,
-                opt_log,
-                opt_diagnostic,
+                before=target_image,
+                enabled=False,
+                visual=visual,
+                unique_id=unique_id,
+                opt_log=opt_log,
+                opt_diagnostic=opt_diagnostic,
             )
 
         source_image = inputs.get("IMAGE_SOURCE")
@@ -835,6 +870,10 @@ class CMKFaceSwapImagePipe:
             processed_segs,
             log_block,
             diagnostic,
-            opt_log,
-            opt_diagnostic,
+            before=target_image,
+            enabled=True,
+            visual=visual,
+            unique_id=unique_id,
+            opt_log=opt_log,
+            opt_diagnostic=opt_diagnostic,
         )

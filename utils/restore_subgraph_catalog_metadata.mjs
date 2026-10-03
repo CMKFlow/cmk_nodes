@@ -8,13 +8,13 @@ const files = [
   "subgraphs/CMK Flow · 10 KSampler SDXL 1st Pass.json",
   "subgraphs/CMK Flow · 10 KSampler Z-Image Turbo.json",
   "subgraphs/CMK Flow · 20 Refiner SDXL.json",
-  "subgraphs/CMK Flow · 25 Detailer SDXL.json",
-  "subgraphs/CMK Flow · 25 Detailer SDXL · Advanced.json",
-  "subgraphs/CMK Flow · 30 FaceProcess SDXL.json",
-  "subgraphs/CMK Flow · 30 FaceProcess SDXL · Advanced.json",
-  "subgraphs/CMK Flow · 40 FaceSwap.json",
-  "subgraphs/CMK Flow · 40 FaceSwap · Advanced.json",
-  "subgraphs/CMK Flow · 90 Upscale & Save.json",
+  "subgraphs/CMK Flow · Detailer SDXL.json",
+  "subgraphs/CMK Flow · Detailer SDXL · Advanced.json",
+  "subgraphs/CMK Flow · FaceProcess SDXL.json",
+  "subgraphs/CMK Flow · FaceProcess SDXL · Advanced.json",
+  "subgraphs/CMK Flow · FaceSwap.json",
+  "subgraphs/CMK Flow · FaceSwap · Advanced.json",
+  "subgraphs/CMK Flow · Upscale & Save.json",
 ];
 
 for (const file of files) {

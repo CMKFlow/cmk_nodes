@@ -1602,7 +1602,7 @@ class CMKFaceSwapBoundaryCache:
 
 
 class CMKUpscaleSaveBoundaryCache(CMKFaceSwapBoundaryCache):
-    """Persistent side-branch boundary for module 90 upscale and save output."""
+    """Persistent side-branch boundary for Upscale & Save output."""
 
     _SCOPE = "upscale_save_boundary"
     _SCHEMA = "cmk_upscale_save_boundary_v1"

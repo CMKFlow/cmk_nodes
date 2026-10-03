@@ -1,0 +1,21 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · Full Flow ",
+  "kind": "system",
+  "order": 501,
+  "category": "SYSTEM WORKFLOW",
+  "category_en": "SYSTEM WORKFLOW",
+  "description": "Zeigt den vollständigen CMK-Flow mit allen zentralen Generations-, PostProcess- und Ausgabe-Bausteinen in einem gemeinsamen System-Workflow.",
+  "description_en": "Shows the complete CMK flow with all core generation, PostProcess, and output building blocks in a single system workflow.",
+  "cmkHighlight": "Der Full Flow dient als Integrations- und Kompatibilitätsreferenz: SDXL, Z-Image Turbo, HYBRID sowie die nachgelagerten Module sind in einer gemeinsamen Architektur verbunden und können über ihre jeweiligen Schalter gezielt aktiviert oder umgangen werden.",
+  "cmkHighlight_en": "The Full Flow serves as an integration and compatibility reference: SDXL, Z-Image Turbo, HYBRID, and the downstream modules are connected within a shared architecture and can be selectively enabled or bypassed using their respective switches.",
+  "info": "Der Full Flow ist keine Empfehlung für den täglichen Einsatz, sondern eine vollständige Systemreferenz zum Testen und Nachvollziehen der CMK-Architektur.",
+  "info_en": "The Full Flow is not intended as a recommendation for everyday use, but as a complete system reference for testing and understanding the CMK architecture.",
+  "previews": [
+    {
+      "src": "assets/showcase/SYSTEM WORKFLOW/CMK 2.5 · Full Flow /CMK 2.5 · Full Flow .png",
+      "label": "Vorschau",
+      "label_en": "Vorschau"
+    }
+  ]
+}

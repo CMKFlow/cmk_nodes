@@ -69,7 +69,17 @@ Für `-Pipe-`-Nodes und die daraus gebildeten Module gelten verbindlich:
 
 Eine Node ist erst dann als `-Pipe-`-Node fertig, wenn dieser Vertrag erfüllt ist.
 
-### 2.2 Offener Experimentierkasten
+### 2.2 Nummerierte Generation, unnummerierter PostProcess
+
+Die gerichtete Generationspipeline besitzt die sichtbaren Schritte 01, 02, 05,
+10, 15 und 20. Nach der letzten aktiven Generationsstufe beginnt die
+unnummerierte PostProcess-Zone. Detailer, FaceRebuild, FaceProcess, FaceSwap und
+Upscale & Save erhalten keine Prozessreihenfolge aus ihrem Namen; maßgeblich ist
+allein die Verkabelung des Workflows. MaskDetailer ist der terminale interaktive
+Bearbeitungsschritt. Visualizer ist die terminale Visualisierungs- und
+Output-Stufe, aber kein Bild-Finalizer.
+
+### 2.3 Offener Experimentierkasten
 
 Alle übrigen CMK-Nodes bilden den offenen Experimentierkasten.
 
@@ -140,7 +150,7 @@ Endergebnis. `SAVE ENABLED = false` führt keinerlei Dateischreibvorgang aus.
 Die Grenzwerte beziehen sich auf die Megapixelzahl des Eingangsbildes: bis
 einschließlich `limit 4x MP` gilt der 4x-Zweig, anschließend bis einschließlich
 `limit 2x MP` der 2x-Zweig. `limit 4x MP = 0.0` deaktiviert den 4x-Zweig.
-Der bisherige Subgraph `90 Upscale & Save` bleibt bis zur bestätigten Migration
+Der Subgraph `Upscale & Save` bleibt bis zur bestätigten Migration
 lediglich als unveränderte Rückfalloption bestehen und ist danach kein regulärer
 Bestandteil neuer Flow-Ketten mehr.
 
@@ -290,7 +300,7 @@ gespeicherten Defaultwert seines lokalen Widgets festhalten. Dieser Vertrag
 gilt gemeinsam für ControlNet-, InstantID-, FaceRebuild- und FaceSwap-Module;
 modulspezifische Synchronisationsregeln sind verboten.
 
-Kompakte Flow-Module im Format `450 × 230` verwenden ein gemeinsames äußeres
+Kompakte Flow-Module im Format `300 × 190` verwenden ein gemeinsames äußeres
 UI-Raster. Der sichtbare Widgetblock ist unmittelbar oberhalb der
 `Enter subgraph`-Leiste bottom-aligned. Advanced-Varianten mit ausschließlich
 einem globalen Schalter erhalten darunter einen rein visuellen, leeren Spacer
@@ -314,7 +324,7 @@ Prozess. Eine spätere Zusammenführung darf erst nach Abschluss der
 familienabhängigen Verarbeitung über einen eigenen neutralen Ergebnisvertrag
 erfolgen und genau einen aktiven Zweig anfordern.
 
-`CMK Flow · 35 Active Family Result` erhält jeweils
+`CMK Flow · PostProcess Boundary Combined` erhält jeweils
 `MODEL / PROCESS / IMAGE / LOG` beider Familien. Die Wahl aus 01 ist bereits
 im einzig aktiven PROCESS enthalten; ein separates Routing-Kabel existiert
 nicht. 35 fordert zunächst nur beide leichtgewichtigen PROCESS-Durchgänge und
@@ -628,13 +638,18 @@ Die geführten Modi setzen dagegen vollständige, aufgabenbezogene Lösungen:
 entfernten Objekts keine semantische Vorgabe für den neuen Inhalt bildet.
 Das Preset setzt `denoise` auf `1.00`, aktiviert Noise Mask und Context
 Reference, deaktiviert Outpaint und lässt Anwender-Prompt sowie LoRAs aktiv.
-`remove` füllt den maskierten Bereich mit deterministischem Rauschen und führt
-ihn promptfrei durch den SDXL-Sampler; Anwender-Prompts und LoRAs bleiben dabei
-deaktiviert. `extend` setzt die Umgebung mittels Navier-Stokes fort. Für die
+`remove` füllt den maskierten Bereich mit deterministischem Rauschen. `01 START
+HERE` legt vor der Familienaufteilung die wirksame Promptführung einschließlich
+interner Subject-Unterdrückung fest. Ein vorhandener Anwender-Prompt beschreibt
+die gewünschte Umgebung; ohne ihn greift eine neutrale interne
+Hintergrundführung. Dadurch gilt derselbe Vertrag für SDXL und den ZIT-Finish
+von HYBRID. LoRAs bleiben deaktiviert. `extend` setzt die Umgebung mittels
+Navier-Stokes fort. Ist der Anwender-Prompt leer, erzeugt `01 START HERE` auch
+hier eine neutrale interne Fortsetzungsbeschreibung für beide Familien. Für die
 diffusionsbasierten Modi werden passende Kombinationen aus `denoise`,
 Noise-Mask und Context Reference gesetzt. `fill_masked_area` ist damit kein
-reiner Metadatenwert: `original`, `neutral`, `lama`, `telea`,
-`navier-stokes`, `black`, `white` und `noise` werden vor
+reiner Metadatenwert: `original`, `neutral`, `telea`, `navier-stokes`,
+`black`, `white` und `noise` werden vor
 der Inpaint-Latent-Erzeugung tatsächlich auf das authoritative Eingangsbild
 angewandt. Diese Füllung entsteht bereits in `01 START HERE`; dessen
 Diagnostic-Vorschau und dessen öffentlicher `IMAGE`-Ausgang zeigen daher
@@ -643,11 +658,12 @@ Füllung nicht nochmals an.
 
 Die vier Modi sind geführte Aufgabenlösungen und keine semantische
 Objekterkennung. Für `remove` genügt die vom Anwender gesetzte Maske. Der
-KSampler rekonstruiert den maskierten Bereich mit leerem Conditioning; der
-Refiner führt keine zweite Diffusionspassage aus, sondern decodiert und
-komponiert das First-Pass-Ergebnis maskenbezogen über den unveränderten
-Bildkontext. Anwender-Prompts sowie Source- und lokale LoRAs werden nicht
-geladen. Log und Diagnostic weisen den isolierten Remove-Pfad vollständig aus.
+KSampler rekonstruiert den maskierten Bereich mit dem Anwender-Prompt oder der
+neutralen internen Hintergrundführung und einer zusätzlichen negativen
+Subject-Sperre. Der Refiner führt anschließend den regulären zweiten
+Diffusionspass mit derselben wirksamen Promptführung aus. Source- und lokale
+LoRAs werden nicht geladen. Log und Diagnostic weisen den geführten
+Remove-Pfad vollständig aus.
 Die tatsächliche Wirkung und die gesetzten Werte sind über `MODE INFO` und den
 Tooltip von `PROCESS MODE` direkt in `01 START HERE` dokumentiert.
 
@@ -1063,7 +1079,7 @@ Bei deaktiviertem Modul gilt dagegen ein harter Lazy-Bypass am öffentlichen
 Ergebnis: Nur die unveränderten Eingänge werden angefordert. Der komplette aktive
 Pfad einschließlich Prepare, Execute, Merge, Preview und Boundary bleibt ruhig.
 Diese Eigenschaft muss jedes Modul mit Bypass selbst garantieren und darf nicht
-von Modul 35 oder einem anderen nachgelagerten Auswahlknoten abhängen.
+von der PostProcess Boundary oder einem anderen nachgelagerten Auswahlknoten abhängen.
 
 Damit kann eine Änderung in FaceProcess nicht den gesamten Detailer erneut anfordern, und ein Save-/Comparer-Zweig kann keinen internen Compute-Knoten umgehen.
 

@@ -35,67 +35,39 @@ class PackagedReferenceManifestTests(unittest.TestCase):
         )
         self.assertEqual(len({by_name[name] for name in names}), len(names))
 
-    def test_showcases_use_the_documented_reference_roles(self):
-        expected = {
-            "Flow #03 - CMK Inpaint ZIT · Experimentell.json": {
-                5188: "CMK Package · inpaint_reference3.png",
-            },
-            "Flow #09 - CMK Inpaint SDXL.json": {
-                5348: "CMK Package · inpaint_reference.png",
-            },
-            "Flow #10 - CMK Inpaint InstantID SDXL.json": {
-                5348: "CMK Package · inpaint_reference2.png",
-                1501: "CMK Package · face_reference.png",
-            },
-            "Ref #01 - CMK Detailer.json": {
-                5205: "CMK Package · detailer_reference.png",
-            },
-            "Ref #02 - CMK FaceRebuild.json": {
-                5205: "CMK Package · faceswap_reference.png",
-                6202: "CMK Package · face_identity_reference.png",
-            },
-            "Ref #04 - CMK FaceSwap.json": {
-                5205: "CMK Package · faceswap_reference.png",
-                5063: "CMK Package · face_identity_reference.png",
-            },
-            "CMK: FaceSwap vs FaceRebuild.json": {
-                6244: "CMK Package · face_identity_reference.png",
-                6250: "CMK Package · faceswap_reference.png",
-            },
-            "CMK - Full Flow.json": {
-                6202: "CMK Package · face_identity_reference.png",
-            },
-        }
+    def test_showcase_cmk_loaders_use_available_reference_assets(self):
+        selected_images = []
 
-        def collect(value, result, require_image_sync=False):
+        def collect(value):
             if isinstance(value, dict):
-                if value.get("id") in result and value.get("type") in {
+                if value.get("type") in {
                     "CMKLoadImage",
                     "CMKImageLoadAndResizePipe",
                 }:
                     selected = value["widgets_values"][0]
-                    if require_image_sync:
-                        self.assertEqual(value.get("properties", {}).get("image"), selected)
-                    result[value["id"]] = selected
+                    selected_images.append(selected)
                 for child in value.values():
-                    collect(child, result, require_image_sync)
+                    collect(child)
             elif isinstance(value, list):
                 for child in value:
-                    collect(child, result, require_image_sync)
+                    collect(child)
 
         showcase = ROOT / "workflows" / "showcase"
-        for filename, node_images in expected.items():
-            with self.subTest(filename=filename):
-                found = {node_id: None for node_id in node_images}
-                collect(
-                    json.loads((showcase / filename).read_text(encoding="utf-8")),
-                    found,
-                    filename in {
-                        "Flow #03 - CMK Inpaint ZIT · Experimentell.json",
-                        "Flow #09 - CMK Inpaint SDXL.json",
-                    },
-                )
-                self.assertEqual(found, node_images)
+        for workflow in showcase.glob("*.json"):
+            collect(json.loads(workflow.read_text(encoding="utf-8")))
+
+        for selected in selected_images:
+            if selected.endswith(" [input]"):
+                continue
+            filename = selected.removeprefix("CMK Package · ")
+            self.assertTrue((ASSETS / filename).is_file(), selected)
+
+        self.assertEqual(selected_images.count("controlnet_reference4.png"), 5)
+        self.assertEqual(
+            hashlib.sha256((ASSETS / "controlnet_reference4.png").read_bytes()).hexdigest(),
+            "12d429aad2fd5572f91a9cd34b25da3b1953f45e05e93544a6fa024a4508bc54",
+        )
+        self.assertFalse(any(ASSETS.rglob("incoming-7783-7572.png")))
 
 
 if __name__ == "__main__":

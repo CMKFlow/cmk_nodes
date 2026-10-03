@@ -1,0 +1,19 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · MaskDetailer ",
+  "kind": "module",
+  "order": 207,
+  "category": "MODULE WORKFLOWS",
+  "category_en": "MODULE WORKFLOWS",
+  "description": "Zeigt einen diskreten Stand-alone-Detailer, bei dem der zu bearbeitende Bildbereich manuell per Maske festgelegt wird.",
+  "description_en": "Shows a discrete standalone detailer in which the image area to be processed is defined manually with a mask.",
+  "cmkHighlight": "",
+  "cmkHighlight_en": "",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · MaskDetailer /CMK 2.5 · MaskDetailer.png",
+      "label": "Vorschau",
+      "label_en": "Vorschau"
+    }
+  ]
+}

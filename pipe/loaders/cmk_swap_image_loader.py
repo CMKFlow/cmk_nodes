@@ -182,7 +182,7 @@ class CMKSwapImageLoaderPipe:
         }
 
     RETURN_TYPES = (
-        "CMK_PIPE",
+        "CMK_RESULT_PROCESS",
         "IMAGE",
         "IMAGE",
         "CMK_LOG_PIPE",
@@ -196,9 +196,9 @@ class CMKSwapImageLoaderPipe:
         "diagnostic",
     )
     FUNCTION = "load_swap_images"
-    # This loader is intentionally a standalone building block. It cannot be
-    # wired into the canonical CMK Flow result chain and is used by the
-    # CMK FaceSwap Video workflow.
+    # This remains a standalone image-source building block, but its PROCESS
+    # metadata satisfies the family-neutral result contract and may therefore
+    # feed model-backed standalone post-processing such as FaceRebuild.
     CATEGORY = "CMK/Toolbox/I-O"
 
     def load_swap_images(self, **inputs):
@@ -280,6 +280,11 @@ class CMKSwapImageLoaderPipe:
             "reference_height": int(source_file_h or source_probe_h),
             "reference_frames": source_frames,
             "pipe_origin": "CMK Swap Image Loader -Pipe-",
+            # The loader is a complete, model-free image source. Its result is
+            # therefore valid at terminal consumers such as the Visualizer,
+            # while remaining outside the generation-family chain.
+            "result_contract": "family_neutral",
+            "source_model_family": "image",
         }
 
         log_lines = [

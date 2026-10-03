@@ -16,7 +16,6 @@ try:
 except ImportError:  # Direct source loading in contract tests.
     from pipe.cmk_module_cache_contract import stamp_artifact
 
-
 class _CMKAnyType(str):
     def __ne__(self, other):
         return False
@@ -226,25 +225,69 @@ class CMKCombinedControlNetBypassGate:
     CATEGORY = "CMK/Developer/Boundary & Cache"
     DEV_ONLY = True
 
+    @staticmethod
+    def _hybrid_mode(inputs):
+        return any(
+            isinstance(inputs.get(name), dict)
+            and bool(inputs[name].get("hybrid_mode", False))
+            for name in (
+                "PROCESS SDXL ACTIVE", "PROCESS ZIT ACTIVE",
+                "PROCESS SDXL BYPASS", "PROCESS ZIT BYPASS",
+            )
+        )
+
     def check_lazy_status(self, ENABLE=False, **inputs):
-        suffix = "ACTIVE" if bool(ENABLE) else "BYPASS"
-        for base in ("PROCESS SDXL", "PROCESS ZIT", "LOG"):
-            name = f"{base} {suffix}"
+        if not bool(ENABLE):
+            for base in ("PROCESS SDXL", "PROCESS ZIT", "LOG"):
+                name = f"{base} BYPASS"
+                if inputs.get(name) is None:
+                    return [name]
+            return []
+
+        # Resolve the SDXL ControlNet result first. Its PROCESS carries the
+        # Hybrid marker while the prepare node itself already suppresses ZIT.
+        # The gate can then request the untouched ZIT bypass instead of the
+        # nominal active leg.
+        if inputs.get("PROCESS SDXL ACTIVE") is None:
+            return ["PROCESS SDXL ACTIVE"]
+        required = ["LOG ACTIVE"]
+        required.append(
+            "PROCESS ZIT BYPASS"
+            if self._hybrid_mode(inputs)
+            else "PROCESS ZIT ACTIVE"
+        )
+        for name in required:
             if inputs.get(name) is None:
                 return [name]
-        if bool(ENABLE) and inputs.get("DIAGNOSTIC ACTIVE") is None:
+        if inputs.get("DIAGNOSTIC ACTIVE") is None:
             return ["DIAGNOSTIC ACTIVE"]
         return []
 
-    @staticmethod
-    def gate(ENABLE=False, **inputs):
-        suffix = "ACTIVE" if bool(ENABLE) else "BYPASS"
-        values = tuple(inputs.get(f"{base} {suffix}") for base in (
-            "PROCESS SDXL", "PROCESS ZIT", "IMAGE", "LOG",
-        ))
+    @classmethod
+    def gate(cls, ENABLE=False, **inputs):
+        if not bool(ENABLE):
+            values = tuple(inputs.get(f"{base} BYPASS") for base in (
+                "PROCESS SDXL", "PROCESS ZIT", "IMAGE", "LOG",
+            ))
+            result_label = "BYPASS"
+        elif cls._hybrid_mode(inputs):
+            # Hybrid ControlNet belongs exclusively to the SDXL composition
+            # phase. Keep the ZIT finisher on its untouched bypass contract.
+            values = (
+                inputs.get("PROCESS SDXL ACTIVE"),
+                inputs.get("PROCESS ZIT BYPASS"),
+                inputs.get("IMAGE ACTIVE"),
+                inputs.get("LOG ACTIVE"),
+            )
+            result_label = "HYBRID SDXL ACTIVE / ZIT BYPASS"
+        else:
+            values = tuple(inputs.get(f"{base} ACTIVE") for base in (
+                "PROCESS SDXL", "PROCESS ZIT", "IMAGE", "LOG",
+            ))
+            result_label = "ACTIVE"
         if values[0] is None or values[1] is None or values[3] is None:
             raise ValueError(
-                f"CMK Combined ControlNet Bypass Gate is missing the {suffix} result"
+                f"CMK Combined ControlNet Bypass Gate is missing the {result_label} result"
             )
         diagnostic = inputs.get("DIAGNOSTIC ACTIVE") if bool(ENABLE) else ExecutionBlocker(None)
         return (*values, diagnostic)
@@ -411,6 +454,12 @@ _SDXL_SAMPLED_BOUNDARY_MAX = 8
 _FIRST_PASS_STAGE_KEY = "sdxl.first_pass"
 
 
+def clear_sdxl_sampled_boundary_cache():
+    count = len(_SDXL_SAMPLED_BOUNDARY_CACHE)
+    _SDXL_SAMPLED_BOUNDARY_CACHE.clear()
+    return count
+
+
 def _materialize_first_pass_image(sampled):
     if not isinstance(sampled, dict):
         raise TypeError("CMK SDXL Sampler Boundary requires a CMK sampled pipe")
@@ -527,6 +576,13 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
             if cache_key
             else PROCESS
         )
+        if bool(PROCESS.get("hybrid_mode", False)):
+            # Module 10 must run for the hybrid pre-pass, but its public
+            # PROCESS becomes inactive afterwards so Refiner 20 and the final
+            # family merge cannot mistake the pre-pass for the final result.
+            result_process = dict(result_process)
+            result_process["family_active"] = False
+            result_process["hybrid_prepass_complete"] = True
         if cache_key in _SDXL_SAMPLED_BOUNDARY_CACHE and any(
             inputs.get(name) is None for name in ("MODEL", "SAMPLED", "LOG")
         ):
@@ -581,38 +637,151 @@ class CMKSDXLResultBridgePipe:
         return (result,)
 
 
-class CMKFamilyResultMergePipe:
-    """Lazily select one complete family result and expose a neutral contract."""
+class _CMKPostProcessBoundaryBase:
+    """Shared generation-to-postprocess transition contract."""
+
+    @staticmethod
+    def _model_widgets():
+        from .loaders.checkpoint_vae_loader import (
+            CMKCheckpointVAELoaderPipe,
+            POSTPROCESS_MODEL_NONE,
+        )
+
+        required = CMKCheckpointVAELoaderPipe.INPUT_TYPES()["required"]
+        checkpoint_widget = required["ckpt_name"]
+        checkpoint_choices = list(checkpoint_widget[0])
+        checkpoint_choices = [
+            choice for choice in checkpoint_choices
+            if str(choice).strip().lower() != "none"
+        ]
+        checkpoint_widget = (
+            [*checkpoint_choices, POSTPROCESS_MODEL_NONE],
+            *checkpoint_widget[1:],
+        )
+
+        def advanced(widget):
+            options = dict(widget[1]) if len(widget) > 1 else {}
+            options["advanced"] = True
+            return (widget[0], options)
+
+        return {
+            "postprocess_checkpoint": advanced(checkpoint_widget),
+            "postprocess_vae": advanced(required["vae_name"]),
+            "use_checkpoint_vae": advanced(required["checkpoint_vae"]),
+        }
+
+    @staticmethod
+    def _finish(family, model, process, image, log, visual, checkpoint, vae, checkpoint_vae):
+        from .cmk_log_pipe import cmk_add_block
+        from .loaders.checkpoint_vae_loader import (
+            is_postprocess_model_disabled,
+            make_postprocess_model_spec,
+            unload_model_pipe,
+        )
+
+        if not isinstance(model, dict) or not isinstance(process, dict) or not isinstance(log, dict):
+            raise TypeError("CMK PostProcess Boundary requires valid MODEL, PROCESS and LOG pipes")
+        if image is None:
+            raise ValueError("CMK PostProcess Boundary requires the completed generation IMAGE")
+        actual = str(process.get("model_family", family)).strip().lower()
+        if actual != family:
+            raise ValueError("CMK PostProcess Boundary received a PROCESS from the wrong family")
+
+        generation_family = "hybrid" if bool(process.get("hybrid_mode", False)) else family
+        unload_requested = bool(process.get("unload_models_after_use", True))
+        generation_unload = (
+            unload_model_pipe(model) if unload_requested else "KEPT LOADED"
+        )
+        cleared_generation_entries = (
+            clear_sdxl_sampled_boundary_cache() if unload_requested else 0
+        )
+        if unload_requested:
+            try:
+                from .instantid.cmk_instantid_sampler import clear_instantid_boundary_cache
+
+                cleared_generation_entries += clear_instantid_boundary_cache()
+            except Exception:
+                pass
+        model_spec = make_postprocess_model_spec(checkpoint, vae, checkpoint_vae)
+        postprocess_disabled = is_postprocess_model_disabled(model_spec)
+        checkpoint_label = "NONE" if postprocess_disabled else str(checkpoint)
+        vae_label = (
+            "NOT USED"
+            if postprocess_disabled
+            else ("checkpoint" if bool(checkpoint_vae) else str(vae))
+        )
+        result = dict(process)
+        result.update({
+            "result_contract": "family_neutral",
+            "source_model_family": family,
+            "generation_family": generation_family,
+            "postprocess_model_family": "sdxl",
+            "postprocess_checkpoint": checkpoint_label,
+            "postprocess_vae": vae_label,
+            "postprocess_model_disabled": postprocess_disabled,
+        })
+        model_spec["source_model_family"] = family
+        model_spec["generation_family"] = generation_family
+        log = cmk_add_block(
+            log,
+            "PostProcess Boundary",
+            55,
+            [
+                f"GENERATION FAMILY : {generation_family.upper()}",
+                f"GENERATION MODEL  : {generation_unload}",
+                f"GENERATION CACHE  : CLEARED ({cleared_generation_entries})" if unload_requested else "GENERATION CACHE  : KEPT",
+                f"POSTPROCESS MODEL : {checkpoint_label}",
+                f"POSTPROCESS VAE   : {vae_label}",
+                (
+                    "MODEL LOAD         : DISABLED"
+                    if postprocess_disabled
+                    else "MODEL LOAD         : DEFERRED UNTIL REQUIRED"
+                ),
+            ],
+            True,
+        )
+        if visual is None:
+            try:
+                from .cmk_visual import empty_visual
+            except ImportError:
+                from pipe.cmk_visual import empty_visual
+            visual = empty_visual()
+        return model_spec, result, image, log, visual
+
+    RETURN_TYPES = (
+        "CMK_MODEL_PIPE",
+        "CMK_RESULT_PROCESS",
+        "IMAGE",
+        "CMK_LOG_PIPE",
+        "CMK_VISUAL_PIPE",
+    )
+    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "VISUAL")
+    CATEGORY = "CMK/Flow/Finish"
+
+
+class CMKFamilyResultMergePipe(_CMKPostProcessBoundaryBase):
+    """Lazily select SDXL/ZIT and establish the Combined PostProcess boundary."""
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "required": {},
+            "required": cls._model_widgets(),
             "optional": {
-                "MODEL SDXL": ("CMK_MODEL_PIPE", {"lazy": True}),
-                "PROCESS SDXL": ("CMK_PROCESS_SDXL", {"lazy": True}),
-                "IMAGE SDXL": ("IMAGE", {"lazy": True}),
-                "LOG SDXL": ("CMK_LOG_PIPE", {"lazy": True}),
-                "VISUAL SDXL": ("CMK_VISUAL_PIPE", {"lazy": True}),
                 "MODEL ZIT": ("CMK_MODEL_PIPE", {"lazy": True}),
                 "PROCESS ZIT": ("CMK_PROCESS_Z_IMAGE", {"lazy": True}),
                 "IMAGE ZIT": ("IMAGE", {"lazy": True}),
                 "LOG ZIT": ("CMK_LOG_PIPE", {"lazy": True}),
                 "VISUAL ZIT": ("CMK_VISUAL_PIPE", {"lazy": True}),
+                "MODEL SDXL": ("CMK_MODEL_PIPE", {"lazy": True}),
+                "PROCESS SDXL": ("CMK_PROCESS_SDXL", {"lazy": True}),
+                "IMAGE SDXL": ("IMAGE", {"lazy": True}),
+                "LOG SDXL": ("CMK_LOG_PIPE", {"lazy": True}),
+                "VISUAL SDXL": ("CMK_VISUAL_PIPE", {"lazy": True}),
             },
             "hidden": {"prompt": "PROMPT", "unique_id": "UNIQUE_ID"},
         }
 
-    RETURN_TYPES = (
-        "CMK_RESULT_MODEL",
-        "CMK_RESULT_PROCESS",
-        "CMK_RESULT_IMAGE",
-        "CMK_RESULT_LOG",
-        "CMK_VISUAL_PIPE",
-    )
-    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "VISUAL")
     FUNCTION = "merge"
-    CATEGORY = "CMK/Flow/Finish"
 
     @staticmethod
     def _pending_visual(suffix, inputs):
@@ -649,7 +818,7 @@ class CMKFamilyResultMergePipe:
                 return [input_name]
         return self._pending_visual("SDXL", inputs)
 
-    def merge(self, **inputs):
+    def merge(self, postprocess_checkpoint, postprocess_vae, use_checkpoint_vae, **inputs):
         process_sdxl = inputs.get("PROCESS SDXL")
         process_z = inputs.get("PROCESS ZIT")
         active_sdxl = isinstance(process_sdxl, dict) and process_sdxl.get("family_active", True)
@@ -675,22 +844,67 @@ class CMKFamilyResultMergePipe:
                 + ", ".join(missing)
                 + " is not connected."
             )
-        if not isinstance(model, dict) or not isinstance(process, dict) or not isinstance(log, dict):
-            raise TypeError("CMK Active Family Result requires valid MODEL, PROCESS and LOG pipes")
-        actual = str(process.get("model_family", family)).strip().lower()
-        if actual != family:
-            raise ValueError("CMK Active Family Result received a PROCESS from the wrong family")
-        result = dict(process)
-        result["result_contract"] = "family_neutral"
-        result["source_model_family"] = family
         visual = inputs.get(f"VISUAL {suffix}")
-        if visual is None:
-            try:
-                from .cmk_visual import empty_visual
-            except ImportError:  # Direct source loading in contract tests.
-                from pipe.cmk_visual import empty_visual
-            visual = empty_visual()
-        return (model, result, image, log, visual)
+        return self._finish(
+            family, model, process, image, log, visual,
+            postprocess_checkpoint, postprocess_vae, use_checkpoint_vae,
+        )
+
+
+class _CMKSinglePostProcessBoundary(_CMKPostProcessBoundaryBase):
+    PROCESS_TYPE = "CMK_PROCESS_SDXL"
+    FAMILY = "sdxl"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": cls._model_widgets(),
+            "optional": {
+                "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
+                "PROCESS": (cls.PROCESS_TYPE, {"lazy": True}),
+                "IMAGE": ("IMAGE", {"lazy": True}),
+                "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
+                "VISUAL": ("CMK_VISUAL_PIPE", {"lazy": True}),
+            },
+        }
+
+    FUNCTION = "boundary"
+
+    def check_lazy_status(self, **inputs):
+        process = inputs.get("PROCESS")
+        if process is None:
+            return ["PROCESS"]
+        # An inactive family must stop at the boundary. In particular, do not
+        # resolve MODEL merely to discover later that this branch is blocked.
+        if isinstance(process, dict) and not process.get("family_active", True):
+            return []
+        for name in ("MODEL", "IMAGE", "LOG"):
+            if inputs.get(name) is None:
+                return [name]
+        if "VISUAL" in inputs and inputs.get("VISUAL") is None:
+            return ["VISUAL"]
+        return []
+
+    def boundary(self, postprocess_checkpoint, postprocess_vae, use_checkpoint_vae, **inputs):
+        process = inputs.get("PROCESS")
+        if isinstance(process, dict) and not process.get("family_active", True):
+            blocked = ExecutionBlocker(None)
+            return blocked, blocked, blocked, blocked, blocked
+        return self._finish(
+            self.FAMILY,
+            inputs.get("MODEL"), process, inputs.get("IMAGE"), inputs.get("LOG"),
+            inputs.get("VISUAL"), postprocess_checkpoint, postprocess_vae,
+            use_checkpoint_vae,
+        )
+
+
+class CMKPostProcessBoundarySDXLPipe(_CMKSinglePostProcessBoundary):
+    pass
+
+
+class CMKPostProcessBoundaryZITPipe(_CMKSinglePostProcessBoundary):
+    PROCESS_TYPE = "CMK_PROCESS_Z_IMAGE"
+    FAMILY = "z_image_turbo"
 
 
 class CMKResultProcessForwardPipe:
@@ -726,7 +940,7 @@ class CMKZImageProcessForwardPipe:
 
     def check_lazy_status(self, PROCESS=None, **inputs):
         # PROCESS is the cheap family selector.  It must remain independent of
-        # the sampled result so module 35 can select ZIT first and only then
+        # the sampled result so the boundary can select ZIT first and only then
         # request MODEL / IMAGE / LOG through the guarded expensive path.
         # Waiting for RESULT PROCESS here can leave downstream OUTPUT_NODEs
         # blocked after a cold global-subgraph execution in ComfyUI.
@@ -762,11 +976,10 @@ class CMKResultToLegacyBridgePipe:
 
 
 class CMKResultUnpackPipe:
-    """Normalize a direct family result or the output of module 35.
+    """Normalize a legacy result or the five-part module-35 contract.
 
-    The public finish module deliberately keeps four sockets. Their values are
-    validated as one complete contract here, so a simple SDXL or ZIT flow does
-    not need an otherwise redundant family merge.
+    MODEL is the postprocess working model after the boundary; PROCESS retains the
+    generation provenance independently of that model role.
     """
 
     @classmethod
@@ -790,11 +1003,19 @@ class CMKResultUnpackPipe:
     def unpack(MODEL=None, PROCESS=None, IMAGE=None, LOG=None, **kwargs):
         MODEL = kwargs.get("MODEL (opt)", MODEL)
         if not isinstance(PROCESS, dict):
-            raise TypeError("CMK 90 requires a CMK PROCESS from SDXL, ZIT or module 35")
+            raise TypeError("CMK Result Unpack requires a CMK PROCESS from SDXL, ZIT or the PostProcess Boundary")
         if IMAGE is None:
-            raise TypeError("CMK 90 requires an IMAGE from the same active path")
+            raise TypeError("CMK Result Unpack requires an IMAGE from the same active path")
         if not isinstance(LOG, dict):
-            raise TypeError("CMK 90 requires a CMK LOG from the same active path")
+            raise TypeError("CMK Result Unpack requires a CMK LOG from the same active path")
+
+        if PROCESS.get("type") == "CMK_MASK_DETAILER_PROCESS":
+            if not isinstance(MODEL, dict):
+                raise TypeError("CMK Mask Detailer result requires its MODEL at the Visualizer")
+            normalized = dict(PROCESS)
+            normalized["result_contract"] = "mask_detailer"
+            normalized.setdefault("source_model_family", "image")
+            return (MODEL, normalized, IMAGE, LOG)
 
         family = str(
             PROCESS.get(
@@ -802,25 +1023,39 @@ class CMKResultUnpackPipe:
                 PROCESS.get("model_family", ""),
             )
         ).strip().lower()
+        neutral_image_origins = {
+            "CMK Image Load and Resize -Pipe-",
+            "CMK Swap Image Loader -Pipe-",
+        }
         neutral_image_path = (
             PROCESS.get("result_contract") == "family_neutral"
             and family == "image"
-            and PROCESS.get("pipe_origin") == "CMK Image Load and Resize -Pipe-"
+            and PROCESS.get("pipe_origin") in neutral_image_origins
         )
         if not neutral_image_path and not isinstance(MODEL, dict):
-            raise TypeError("CMK 90 requires a CMK MODEL from SDXL, ZIT or module 35")
+            raise TypeError("CMK Result Unpack requires a CMK MODEL from SDXL, ZIT or the PostProcess Boundary")
         if family not in {"sdxl", "z_image_turbo"} and not neutral_image_path:
             raise ValueError(
-                "CMK 90 accepts only a complete SDXL path, a complete ZIT path, "
-                "the output of module 35, or a complete CMK image-input path"
+                "CMK Result Unpack accepts only a complete SDXL path, a complete ZIT path, "
+                "the output of the PostProcess Boundary, or a complete CMK image-input path"
             )
         if isinstance(MODEL, dict):
             model_family = str(MODEL.get("model_family", family)).strip().lower()
             valid_neutral_model = neutral_image_path and model_family in {"", "sdxl"}
-            if model_family and model_family != family and not valid_neutral_model:
-                raise ValueError("CMK 90 received MODEL and PROCESS from different families")
+            valid_postprocess_model = (
+                MODEL.get("model_role") == "postprocess"
+                and model_family == "sdxl"
+                and PROCESS.get("result_contract") == "family_neutral"
+            )
+            if (
+                model_family
+                and model_family != family
+                and not valid_neutral_model
+                and not valid_postprocess_model
+            ):
+                raise ValueError("CMK Result Unpack received MODEL and PROCESS from different families")
         if not neutral_image_path and PROCESS.get("family_active") is False:
-            raise ValueError("CMK 90 received the inactive family path")
+            raise ValueError("CMK Result Unpack received the inactive family path")
 
         normalized = dict(PROCESS)
         normalized["result_contract"] = "family_neutral"

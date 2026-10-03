@@ -46,10 +46,10 @@ SDXL: 01 → 05 optional → 10 → 20 → 25 optional → 30 optional → 40 op
 ZIT:  01 → 05 optional → 10                    → 40 optional → 90
 ```
 
-`25 Detailer SDXL` und `30 FaceProcess SDXL` sind bewusst ausschließlich SDXL
-zugeordnet. `40 FaceSwap` und `90 Upscale & Save` sind die gemeinsam genutzten
+`Detailer SDXL` und `FaceProcess SDXL` sind bewusst ausschließlich SDXL
+zugeordnet. `FaceSwap` und `Upscale & Save` sind die gemeinsam genutzten
 Module. Ein einzelner Familienpfad kann sie direkt speisen; nur ein kombinierter
-SDXL-/ZIT-Workflow führt die aktive Familie zuvor über `35 Active Family Result`
+SDXL-/ZIT-Workflow führt die aktive Familie zuvor über `PostProcess Boundary Combined`
 zusammen.
 
 Die sichtbaren Hauptrollen sind:

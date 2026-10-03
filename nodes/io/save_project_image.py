@@ -48,13 +48,12 @@ class CMK_SaveProjectImage:
                 # PROCESS is metadata-only here. It may originate from an
                 # SDXL, ZIT or already family-neutral result branch.
                 "PROCESS": (CMK_PROCESS_METADATA_INPUT,),
-                "IMAGE": ("IMAGE",),
-                "LOG": ("CMK_LOG_PIPE",),
+                "IMAGE": (CMK_PROCESS_METADATA_INPUT,),
+                "LOG": (CMK_PROCESS_METADATA_INPUT,),
                 "SAVE ENABLED": ("BOOLEAN", {"default": True}),
                 "FILENAME PREFIX": ("STRING", {"default": "image"}),
                 "OUTPUT FOLDER": ("STRING", {"default": ""}),
                 "USE DATE FOLDER": ("BOOLEAN", {"default": True}),
-                "PROJECT FOLDER": ("STRING", {"default": ""}),
             },
         }
 
@@ -77,7 +76,6 @@ class CMK_SaveProjectImage:
         filename_prefix = str(kwargs.get("FILENAME PREFIX", "image"))
         output_folder = str(kwargs.get("OUTPUT FOLDER", ""))
         use_date_folder = bool(kwargs.get("USE DATE FOLDER", True))
-        project_folder = str(kwargs.get("PROJECT FOLDER", ""))
 
         if not save_enabled:
             return {
@@ -105,10 +103,6 @@ class CMK_SaveProjectImage:
         if use_date_folder:
             parts.append(datetime.now().strftime("%Y-%m-%d"))
 
-        clean_project = self._safe_project_name(project_folder)
-        if clean_project:
-            parts.append(clean_project)
-
         target_folder = base_output.joinpath(*parts).resolve()
         if target_folder != base_output and base_output not in target_folder.parents:
             raise ValueError("CMK Save Project Image -Pipe-: output path escapes ComfyUI output")
@@ -123,7 +117,7 @@ class CMK_SaveProjectImage:
                 break
             counter += 1
 
-        with cmk_timed("90 PNG SAVE", str(full_path)):
+        with cmk_timed("PNG SAVE", str(full_path)):
             img = IMAGE[0].cpu().numpy()
             img = np.clip(img * 255.0, 0, 255).astype(np.uint8)
             Image.fromarray(img).save(str(full_path))
@@ -131,7 +125,7 @@ class CMK_SaveProjectImage:
         log_text = cmk_render_log(LOG)
         if log_text:
             text_path = os.path.splitext(str(full_path))[0] + ".txt"
-            with cmk_timed("90 LOG SAVE", str(text_path)):
+            with cmk_timed("LOG SAVE", str(text_path)):
                 with open(text_path, "w", encoding="utf-8") as file:
                     file.write(log_text)
 

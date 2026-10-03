@@ -122,7 +122,7 @@ class ModuleCacheContractTests(unittest.TestCase):
         )
         self.assertEqual(forward["id"], process_link["origin_id"])
 
-    def test_refiner_visuals_are_routed_from_cache_boundary_images(self):
+    def test_refiner_process_owns_visual_without_display_node(self):
         root = Path(__file__).resolve().parents[1]
         document = json.loads(
             (root / "subgraphs" / "CMK Flow · 20 Refiner SDXL.json").read_text(
@@ -130,20 +130,13 @@ class ModuleCacheContractTests(unittest.TestCase):
             )
         )
         definition = document["definitions"]["subgraphs"][0]
-        boundary = next(
-            node for node in definition["nodes"]
-            if node["type"] == "CMKRefinerBoundaryCache"
-        )
-        providers = [
-            node for node in definition["nodes"]
-            if node["type"] == "CMKVisualProvider"
-        ]
-        links = {link["id"]: link for link in definition["links"]}
-
-        for provider in providers:
-            for item in provider["inputs"]:
-                if item["name"] in {"IMAGE", "BEFORE", "AFTER"} and item.get("link") is not None:
-                    self.assertEqual(boundary["id"], links[item["link"]]["origin_id"])
+        process = next(node for node in definition["nodes"] if node["type"] == "CMKRefinerPipe")
+        self.assertEqual("VISUAL", process["inputs"][-1]["name"])
+        self.assertEqual("VISUAL", process["outputs"][-1]["name"])
+        self.assertFalse(any(
+            node["type"] in {"CMKVisualProvider", "CMKVisualCompare"}
+            for node in definition["nodes"]
+        ))
 
     def test_identity_refiner_detailer_lineage_is_preserved(self):
         process = stamp_artifact({}, "sdxl.identity", "identity-a")
@@ -174,10 +167,10 @@ class ModuleCacheContractTests(unittest.TestCase):
             "                source_pipe, self._UPSTREAM_STAGE_KEY,",
             source,
         )
-        self.assertIn('_CACHE_SCHEMA = "cmk_detailer_branch_v6"', source)
+        self.assertIn('_CACHE_SCHEMA = "cmk_detailer_branch_v7"', source)
         self.assertEqual(
             2,
-            source.count('exclude_inputs=("output_image_proceed", "opt_log", "opt_diagnostic")'),
+            source.count('exclude_inputs=("output_image_proceed", "opt_log", "VISUAL", "opt_diagnostic")'),
         )
 
         boundary = (root / "pipe" / "cmk_module_boundary_cache.py").read_text(

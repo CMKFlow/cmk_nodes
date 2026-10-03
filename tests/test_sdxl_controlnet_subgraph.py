@@ -15,20 +15,17 @@ class SDXLControlNetSubgraphTests(unittest.TestCase):
         cls.definition = cls.workflow["definitions"]["subgraphs"][0]
 
     def test_outer_node_is_compact_and_exposes_only_requested_widgets(self):
-        self.assertEqual([450, 230], self.outer["size"])
-        self.assertEqual([450, 230], self.outer["properties"]["cmkOuterSize"])
-        self.assertEqual([450, 230], self.outer["properties"]["cmkManualSize"])
+        self.assertEqual([300, 190], self.outer["size"])
+        self.assertEqual([300, 100], self.outer["properties"]["cmkOuterSize"])
+        self.assertEqual([300, 100], self.outer["properties"]["cmkManualSize"])
+        self.assertNotIn("proxyWidgets", self.outer["properties"])
         self.assertEqual(
-            [["1", "ENABLE"], ["1501", "image"]],
-            self.outer["properties"]["proxyWidgets"],
-        )
-        self.assertEqual(
-            ["ENABLE", "image", "upload"],
+            ["ENABLE"],
             [item["name"] for item in self.outer["inputs"] if item.get("widget")],
         )
 
     def test_contract_is_sdxl_only_and_forwards_visual(self):
-        expected_inputs = ["PROCESS", "IMAGE", "LOG", "VISUAL", "ENABLE", "image"]
+        expected_inputs = ["PROCESS", "IMAGE", "LOG", "VISUAL", "ENABLE"]
         expected_outputs = ["PROCESS", "IMAGE", "LOG", "VISUAL", "diagnostic"]
         self.assertEqual(expected_inputs, [item["name"] for item in self.definition["inputs"]])
         self.assertEqual(expected_outputs, [item["name"] for item in self.definition["outputs"]])
@@ -40,7 +37,6 @@ class SDXLControlNetSubgraphTests(unittest.TestCase):
                 "CMKControlNetPreparePipe",
                 "CMKControlNetBypassGate",
                 "CMKLoadImage",
-                "CMKVisualProvider",
             },
             {node["type"] for node in self.definition["nodes"]},
         )
@@ -54,8 +50,16 @@ class SDXLControlNetSubgraphTests(unittest.TestCase):
         links = self.definition["links"]
         flow_image = next(link for link in links if link["target_id"] == control["id"] and link["target_slot"] == 1)
         self.assertEqual(-10, flow_image["origin_id"])
-        reference_image = next(link for link in links if link["id"] == 11)
-        reference_name = next(link for link in links if link["id"] == 12)
+        reference_image = next(
+            link for link in links
+            if link["target_id"] == control["id"]
+            and control["inputs"][link["target_slot"]]["name"] == "REFERENCE IMAGE INPUT"
+        )
+        reference_name = next(
+            link for link in links
+            if link["target_id"] == control["id"]
+            and control["inputs"][link["target_slot"]]["name"] == "REFERENCE IMAGE NAME"
+        )
         self.assertEqual(loader["id"], reference_image["origin_id"])
         self.assertEqual(loader["id"], reference_name["origin_id"])
         self.assertEqual("REFERENCE IMAGE INPUT", control["inputs"][reference_image["target_slot"]]["name"])
@@ -73,33 +77,38 @@ class SDXLControlNetSubgraphTests(unittest.TestCase):
             ROOT / "pipe" / "controlnet" / "cmk_controlnet_prepare.py"
         ).read_text(encoding="utf-8")
         self.assertIn(
-            'RETURN_NAMES = ("PROCESS", "IMAGE", "LOG", "diagnostic", "CONTROLNET IMAGE")',
+            'RETURN_NAMES = ("PROCESS", "IMAGE", "LOG", "VISUAL", "diagnostic", "CONTROLNET IMAGE")',
             prepare_source,
         )
-        provider = next(
-            node for node in self.definition["nodes"]
-            if node["type"] == "CMKVisualProvider"
+        process = next(node for node in self.definition["nodes"] if node["type"] == "CMKControlNetPreparePipe")
+        self.assertIn("VISUAL", [item["name"] for item in process["inputs"]])
+        visual_slot = next(
+            index for index, item in enumerate(process["outputs"])
+            if item["name"] == "VISUAL"
         )
-        self.assertEqual(
-            ["ControlNet", 5, "", "sdxl", "sdxl.controlnet"],
-            provider["widgets_values"],
+        visual_output_slot = next(
+            index for index, item in enumerate(self.definition["outputs"])
+            if item["name"] == "VISUAL"
         )
-        image_link = next(
+        visual_link = next(
             link for link in self.definition["links"]
-            if link["target_id"] == provider["id"] and link["target_slot"] == 0
+            if link["origin_id"] == process["id"]
+            and link["origin_slot"] == visual_slot
+            and link["target_id"] == -20
+            and link["target_slot"] == visual_output_slot
         )
-        self.assertEqual(1, image_link["origin_id"])
-        self.assertEqual(4, image_link["origin_slot"])
+        self.assertEqual("CMK_VISUAL_PIPE", visual_link["type"])
+        self.assertNotIn("CMKVisualCompare", {node["type"] for node in self.definition["nodes"]})
         declaration = self.outer["properties"]["cmkVisualProviders"][0]
-        self.assertEqual("cmk-CMKVisualProvider-7005", declaration["provider_id"])
+        self.assertEqual("cmk-CMKControlNetPreparePipe-1", declaration["provider_id"])
         self.assertEqual("sdxl.controlnet", declaration["stage_key"])
         self.assertEqual("sdxl", declaration["branch"])
 
-    def test_metadata_keeps_single_branch_independent_of_module_35(self):
+    def test_metadata_keeps_single_branch_independent_of_postprocess_boundary(self):
         metadata = self.workflow["extra"]["CMKFlow"]
         self.assertEqual(["SDXL"], metadata["compatibility"])
         self.assertEqual("STABLE", metadata["status"])
-        self.assertIn("Modul 35", metadata["placementNote"])
+        self.assertIn("PostProcess Boundary", metadata["placementNote"])
         self.assertIn("nicht erforderlich", metadata["placementNote"])
 
 

@@ -5,6 +5,7 @@ from ..nodes.swap.face_select import resolve_legacy_face_selection
 from ..utils.cmk_diagnostic import make_diagnostic_payload
 from ..utils.stable_segs import make_stable_segs, segs_with_image_crops
 from .cmk_log_pipe import CMKLogConcat, cmk_block_to_string
+from .cmk_visual import empty_visual, register_provider
 from ..nodes.utils.diagnostic_concat import CMKDiagnosticConcat
 from .cmk_persistent_cache import (
     build_node_fingerprint,
@@ -39,6 +40,7 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
             optional.pop(name, None)
 
         optional["opt_log"] = ("CMK_LOG_PIPE",)
+        optional["VISUAL"] = ("CMK_VISUAL_PIPE",)
         optional["opt_diagnostic"] = ("CMK_DIAGNOSTIC",)
 
         # The legacy ReActor selection controls remain an implementation detail.
@@ -111,6 +113,7 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
         "SEGS",
         "BOOLEAN",
         "CMK_LOG_PIPE",
+        "CMK_VISUAL_PIPE",
         "CMK_DIAGNOSTIC",
     )
     RETURN_NAMES = (
@@ -119,13 +122,14 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
         "SEGS PROCESSED",
         "ENABLED",
         "LOG",
+        "VISUAL",
         "diagnostic",
     )
     FUNCTION = "run_pipe"
     CATEGORY = "CMK/Developer/Pipe/Execute"
 
     _CACHE_SCOPE = "faceprocess_branch"
-    _CACHE_SCHEMA = "cmk_faceprocess_branch_v7"
+    _CACHE_SCHEMA = "cmk_faceprocess_branch_v8"
 
     def _cache_key(self, prompt, unique_id):
         return build_node_fingerprint(
@@ -133,7 +137,7 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
             unique_id,
             ("CMKFaceProcessPipe",),
             self._CACHE_SCHEMA,
-            exclude_inputs=("opt_log", "opt_diagnostic"),
+            exclude_inputs=("opt_log", "VISUAL", "opt_diagnostic"),
             include_node_identity=True,
         )
 
@@ -175,6 +179,7 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
         process_mode="restore",
         select_face="Largest",
         opt_log=None,
+        VISUAL=None,
         opt_diagnostic=None,
         prompt=None,
         unique_id=None,
@@ -208,8 +213,11 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
                     bool(payload.get("enabled", False)),
                     payload.get("log_block", ""),
                     payload.get("diagnostic"),
-                    opt_log,
-                    opt_diagnostic,
+                    before=payload.get("before_image"),
+                    visual=VISUAL,
+                    unique_id=unique_id,
+                    opt_log=opt_log,
+                    opt_diagnostic=opt_diagnostic,
                 )
             except Exception as exc:
                 write_status(
@@ -249,7 +257,17 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
                 },
             )
             return self._merge_transport(
-                image, empty, empty, False, block, diagnostic, opt_log, opt_diagnostic
+                image,
+                empty,
+                empty,
+                False,
+                block,
+                diagnostic,
+                before=image,
+                visual=VISUAL,
+                unique_id=unique_id,
+                opt_log=opt_log,
+                opt_diagnostic=opt_diagnostic,
             )
         refine_mode = kwargs.pop("refine_mode", "Off")
 
@@ -325,6 +343,7 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
         log_block = cmk_block_to_string("FaceProcess", 90, log_lines, True)
 
         payload = {
+            "before_image": image,
             "image_proceed": image_proceed,
             "selected_face": selected_face,
             "segs_processed": segs_processed,
@@ -372,8 +391,11 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
             bool(enabled),
             log_block,
             diagnostic,
-            opt_log,
-            opt_diagnostic,
+            before=image,
+            visual=VISUAL,
+            unique_id=unique_id,
+            opt_log=opt_log,
+            opt_diagnostic=opt_diagnostic,
         )
 
     @staticmethod
@@ -384,6 +406,10 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
         enabled,
         log_block,
         diagnostic,
+        *,
+        before,
+        visual=None,
+        unique_id=None,
         opt_log=None,
         opt_diagnostic=None,
     ):
@@ -393,12 +419,27 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
             opt_diagnostic,
             diagnostic_2=diagnostic,
         )[0]
+        result_visual = empty_visual() if visual is None else visual
+        if bool(enabled):
+            result_visual = register_provider(
+                result_visual,
+                module_instance_id=unique_id or "faceprocess",
+                module_type="CMKFaceProcessPipe",
+                module_label="FaceProcess",
+                sequence=30,
+                channels={"before": before, "after": image_proceed},
+                status="completed",
+                live_node_id=unique_id,
+                branch="sdxl",
+                stage_key="sdxl.faceprocess.standard",
+            )
         return (
             image_proceed,
             selected_face,
             segs_processed,
             bool(enabled),
             log,
+            result_visual,
             merged_diagnostic,
         )
 

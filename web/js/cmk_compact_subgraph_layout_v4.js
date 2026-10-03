@@ -3,6 +3,12 @@ import { app } from "../../../scripts/app.js";
 const STYLE_ID = "cmk-compact-subgraph-bottom-widgets-v4";
 const NODE_CLASS = "cmk-compact-subgraph-bottom-widgets";
 const NODE_SELECTOR = '.lg-node[data-node-id], [data-testid^="node-body-"]';
+const NATURAL_WIDGET_LAYOUT_STAGES = new Set([
+    "sdxl.detailer.advanced",
+    "sdxl.facerebuild.advanced",
+    "sdxl.faceprocess.advanced",
+    "result.faceswap.advanced",
+]);
 
 function installStyle() {
     if (document.getElementById(STYLE_ID)) return;
@@ -39,7 +45,10 @@ function graphNode(nodeId) {
 function isCmkVisualSubgraph(node) {
     return Boolean(
         node?.isSubgraphNode?.()
-        && Array.isArray(node?.properties?.cmkVisualProviders),
+        && Array.isArray(node?.properties?.cmkVisualProviders)
+        && !node.properties.cmkVisualProviders.some((provider) =>
+            NATURAL_WIDGET_LAYOUT_STAGES.has(String(provider?.stage_key || "")),
+        ),
     );
 }
 

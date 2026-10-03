@@ -1,0 +1,19 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · Flow · Text2Image Z-Image Turbo",
+  "kind": "task",
+  "order": 102,
+  "category": "TASK WORKFLOWS",
+  "category_en": "TASK WORKFLOWS",
+  "description": "Erzeugt ein Text2Image-Bild vollständig mit Z-Image Turbo in einem direkten Sampling-Durchlauf.",
+  "description_en": "Generates a Text2Image result entirely with Z-Image Turbo in a single direct sampling pass.",
+  "cmkHighlight": "",
+  "cmkHighlight_en": "",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image ZIT /CMK 2.5 · Flow · Text2Image ZIT .png",
+      "label": "CMK 2.5 · Flow · Text2Image ZIT ",
+      "label_en": "CMK 2.5 · Flow · Text2Image ZIT "
+    }
+  ]
+}

@@ -107,7 +107,7 @@ If an outer module must preserve `MODEL`, `PROCESS`, `IMAGE`, or `LOG`, that
 responsibility belongs to an explicit module boundary. Public results must come
 from that boundary; no alternative output may bypass it.
 
-The curated `30 FaceProcess SDXL` and `90 Upscale & Save` contracts preserve all
+The curated `FaceProcess SDXL` and `Upscale & Save` contracts preserve all
 four roles. FaceProcess serializes only its computed image/log cache payload
 while passing `MODEL` and `PROCESS` through read-only. The finish module accepts
 and returns the same four roles even though it is normally the last visible
@@ -179,6 +179,22 @@ leak into the guided surface without a user-facing reason.
 
 A compatible module should include:
 
+### 6.1 Outer-subgraph marker
+
+Every outer CMK Flow subgraph uses exactly one technical discovery marker:
+
+```json
+"properties": {
+  "cmkOuterSize": [width, height]
+}
+```
+
+`cmkOuterSize` is the sole marker used by frontend functions such as Clean View,
+node-dimension controls, and outer-node size restoration. Visible titles, module
+numbers, generated subgraph UUIDs, `cmkManualSize`, and visual-provider labels
+must not be used to identify an outer subgraph. Inner processing nodes do not
+need this marker.
+
 - a concise display name;
 - a one-sentence description;
 - short descriptions of its main functions;
@@ -223,7 +239,7 @@ Proposed minimum registration record:
   ],
   "placementNote": "Place after the first sampler and before the final output.",
   "recommendedPredecessors": ["10 KSampler 1st Pass"],
-  "recommendedSuccessors": ["90 Upscale & Save"]
+  "recommendedSuccessors": [{"label": "Upscale & Save", "targetId": "6f8d63a4-7ea5-4c18-9900-2ec3ed33c9b6"}]
 }
 ```
 
@@ -234,7 +250,7 @@ being registered:
 - `recommendedSuccessors`: modules that should be placed after this module.
 
 For the example above, the new module belongs after `10 KSampler 1st Pass` and
-before `90 Upscale & Save`.
+before `Upscale & Save`.
 
 The existing CMK Flow Browser internally uses the older field names
 `recommendedBefore` and `recommendedAfter`. They carry the same predecessor and

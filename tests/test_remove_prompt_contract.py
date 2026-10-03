@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 
-PATH = Path(__file__).resolve().parents[1] / "pipe" / "cmk_sampler_prepare.py"
+PATH = Path(__file__).resolve().parents[1] / "pipe" / "cmk_pipe_image.py"
 
 
 def load_effective_prompt_function():
@@ -46,6 +46,14 @@ class RemovePromptContractTests(unittest.TestCase):
             function("user positive", "user negative", True, "custom"),
             ("user positive", "user negative", "SOURCE"),
         )
+
+    def test_extend_without_positive_prompt_uses_generic_continuation(self):
+        function = load_effective_prompt_function()
+        positive, negative, source = function("", "low quality", True, "extend")
+
+        self.assertIn("beyond its original boundaries", positive)
+        self.assertEqual(negative, "low quality")
+        self.assertEqual(source, "INTERNAL EXTEND GUIDANCE")
 
 
 if __name__ == "__main__":

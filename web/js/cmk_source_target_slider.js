@@ -7,7 +7,7 @@ function ensureNativeSliderStyle() {
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
-        div.grid:has([data-slot="slider"][aria-label^="SAMPLING START"]) {
+        [data-testid="node-widget"]:has([data-slot="slider"][aria-label^="SAMPLING START"]) {
             align-items: center;
         }
         div.grid:has([data-slot="slider"][aria-label^="SAMPLING START"])
@@ -43,21 +43,61 @@ function ensureNativeSliderStyle() {
             .w-16:has(input[aria-label^="SAMPLING START"]) {
             display: none !important;
         }
+        [data-testid="node-widget"]:has([data-slot="slider"][aria-label^="HYBRID BALANCE"]) {
+            align-items: center;
+        }
+        div.grid:has([data-slot="slider"][aria-label^="HYBRID BALANCE"])
+            > [data-testid="widget-layout-field-label"] {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--fg-color, #ddd);
+        }
+        div.grid:has([data-slot="slider"][aria-label^="HYBRID BALANCE"])
+            > .relative > div {
+            border: 0 !important;
+            box-shadow: none !important;
+        }
+        div.grid:has([data-slot="slider"][aria-label^="HYBRID BALANCE"])
+            div.flex:has(> [data-slot="slider"]) {
+            gap: 10px !important;
+            padding: 0 2px !important;
+            background: transparent !important;
+        }
+        div.grid:has([data-slot="slider"][aria-label^="HYBRID BALANCE"])
+            div.flex:has(> [data-slot="slider"])::after {
+            content: "ZIT";
+            flex: 0 0 auto;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--fg-color, #ddd);
+        }
+        div.grid:has([data-slot="slider"][aria-label^="HYBRID BALANCE"])
+            [data-slot="slider-range"] {
+            display: none !important;
+        }
+        div.grid:has([data-slot="slider"][aria-label^="HYBRID BALANCE"])
+            .w-16:has(input[aria-label^="HYBRID BALANCE"]) {
+            display: none !important;
+        }
     `;
     document.head.appendChild(style);
 }
 
-function clampBalance(value) {
+function clampBalance(value, minimum = MIN_BALANCE, maximum = MAX_BALANCE, fallback = 0) {
     const numeric = Number(value);
-    if (!Number.isFinite(numeric) || numeric < MIN_BALANCE || numeric > MAX_BALANCE) return 0;
-    return Math.max(MIN_BALANCE, Math.min(MAX_BALANCE, Math.round(numeric)));
+    if (!Number.isFinite(numeric) || numeric < minimum || numeric > maximum) return fallback;
+    return Math.max(minimum, Math.min(maximum, Math.round(numeric)));
 }
 
 function drawSourceTarget(ctx, _node, width, y, height) {
     const centerY = y + height * 0.5;
     const lineStart = 82;
     const lineEnd = Math.max(lineStart + 40, width - 82);
-    const ratio = (clampBalance(this.value) - MIN_BALANCE) / (MAX_BALANCE - MIN_BALANCE);
+    const minimum = this._cmkBalanceMinimum ?? MIN_BALANCE;
+    const maximum = this._cmkBalanceMaximum ?? MAX_BALANCE;
+    const fallback = this._cmkBalanceFallback ?? 0;
+    const ratio = (clampBalance(this.value, minimum, maximum, fallback) - minimum)
+        / (maximum - minimum);
     const knobX = lineStart + ratio * (lineEnd - lineStart);
 
     ctx.save();
@@ -65,9 +105,9 @@ function drawSourceTarget(ctx, _node, width, y, height) {
     ctx.fillStyle = "#ddd";
     ctx.textBaseline = "middle";
     ctx.textAlign = "left";
-    ctx.fillText("SOURCE", 10, centerY);
+    ctx.fillText(this._cmkBalanceLeftLabel || "SOURCE", 10, centerY);
     ctx.textAlign = "right";
-    ctx.fillText("TARGET", width - 10, centerY);
+    ctx.fillText(this._cmkBalanceRightLabel || "TARGET", width - 10, centerY);
 
     ctx.beginPath();
     ctx.moveTo(lineStart, centerY);
@@ -86,7 +126,16 @@ function drawSourceTarget(ctx, _node, width, y, height) {
     ctx.restore();
 }
 
-export function installSourceTargetSlider(node, widget, visibleName) {
+export function installSourceTargetSlider(
+    node,
+    widget,
+    visibleName,
+    leftLabel = "SOURCE",
+    rightLabel = "TARGET",
+    minimum = MIN_BALANCE,
+    maximum = MAX_BALANCE,
+    fallback = 0,
+) {
     if (!node || !widget) return null;
     ensureNativeSliderStyle();
     const marker = `_cmkSourceTarget_${visibleName}`;
@@ -94,20 +143,25 @@ export function installSourceTargetSlider(node, widget, visibleName) {
 
     // Existing subgraphs stored an absolute start step (normally 10). The new
     // control stores only the relative SOURCE/TARGET balance, centered at zero.
-    widget.value = clampBalance(widget.value);
+    widget.value = clampBalance(widget.value, minimum, maximum, fallback);
     widget.type = "slider";
-    widget.label = "SOURCE";
+    widget.label = leftLabel;
+    widget._cmkBalanceLeftLabel = leftLabel;
+    widget._cmkBalanceRightLabel = rightLabel;
+    widget._cmkBalanceMinimum = minimum;
+    widget._cmkBalanceMaximum = maximum;
+    widget._cmkBalanceFallback = fallback;
     widget.options = {
         ...(widget.options || {}),
-        min: MIN_BALANCE,
-        max: MAX_BALANCE,
+        min: minimum,
+        max: maximum,
         step: 1,
         precision: 0,
     };
     widget.draw = drawSourceTarget;
     widget.computeSize = (width) => [Math.max(Number(width) || 300, 300), 30];
     widget._cmkSyncFromCanonical = () => {
-        widget.value = clampBalance(widget.value);
+        widget.value = clampBalance(widget.value, minimum, maximum, fallback);
     };
 
     node[marker] = widget;

@@ -1,0 +1,29 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · Flow · InOutpaint SDXL · HYBRID · ZIT",
+  "kind": "task",
+  "order": 115,
+  "category": "TASK WORKFLOWS",
+  "category_en": "TASK WORKFLOWS",
+  "description": "Zeigt denselben InOutpaint-Workflow in SDXL, HYBRID und Z-Image Turbo und macht die Unterschiede der drei Generationspfade unmittelbar vergleichbar.",
+  "description_en": "Shows the same InOutpaint workflow in SDXL, HYBRID, and Z-Image Turbo, making the differences between the three generation paths immediately comparable.",
+  "cmkHighlight": "",
+  "cmkHighlight_en": "",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint SDXL · HYBRID · ZIT/CMK 2.5 · Flow · InOutpaint SDXL · HYBRID · ZIT - 1 SDXL.png",
+      "label": "SDXL",
+      "label_en": "SDXL"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint SDXL · HYBRID · ZIT/CMK 2.5 · Flow · InOutpaint SDXL · HYBRID · ZIT - 2 HYBRID.png",
+      "label": "HYBRID",
+      "label_en": "HYBRID"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint SDXL · HYBRID · ZIT/CMK 2.5 · Flow · InOutpaint SDXL · HYBRID · ZIT - 3  ZIT.png",
+      "label": "ZIT",
+      "label_en": "ZIT"
+    }
+  ]
+}

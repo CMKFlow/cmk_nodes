@@ -274,7 +274,7 @@ class CMKInstantIDFaceRebuildPreparePipe:
         return FACEREBUILD_GUARD_VERSION
     FUNCTION = "prepare_pipe"
     RETURN_TYPES = (
-        "CMK_PROCESS_SDXL",
+        "CMK_RESULT_PROCESS",
         "IMAGE",
         "CMK_LOG_PIPE",
         "IMAGE",
@@ -297,7 +297,7 @@ class CMKInstantIDFaceRebuildPreparePipe:
         base = CMKInstantIDFaceRebuildPrepare.INPUT_TYPES()["required"]
         return {
             "required": {
-                "PROCESS": ("CMK_PROCESS_SDXL",),
+                "PROCESS": ("CMK_RESULT_PROCESS",),
                 "IMAGE": ("IMAGE",),
                 "LOG": ("CMK_LOG_PIPE",),
                 "FACEREBUILD ENABLE": ("BOOLEAN", {"default": True}),
@@ -315,9 +315,9 @@ class CMKInstantIDFaceRebuildPreparePipe:
     def prepare_pipe(self, **kwargs):
         process = kwargs["PROCESS"]
         if not isinstance(process, dict):
-            raise TypeError("InstantID Face Rebuild Prepare -Pipe- requires CMK_PROCESS_SDXL")
-        if str(process.get("model_family", "sdxl")).strip().lower() != "sdxl":
-            raise ValueError("InstantID Face Rebuild is available only for the SDXL family")
+            raise TypeError("InstantID Face Rebuild Prepare -Pipe- requires a CMK result process")
+        if process.get("result_contract") != "family_neutral":
+            raise ValueError("InstantID Face Rebuild requires the PostProcess Boundary")
         global_enabled = bool(kwargs["FACEREBUILD ENABLE"])
         flow_enabled = bool(kwargs["ENABLE"])
         enabled = global_enabled and flow_enabled
@@ -407,7 +407,7 @@ class CMKInstantIDFaceRebuildPastebackPipe:
 
     CATEGORY = "CMK/Toolbox/Face"
     FUNCTION = "pasteback_pipe"
-    RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_PROCESS_SDXL", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
+    RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_RESULT_PROCESS", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
     RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "diagnostic")
 
     @classmethod
@@ -415,7 +415,7 @@ class CMKInstantIDFaceRebuildPastebackPipe:
         return {
             "required": {
                 "MODEL": ("CMK_MODEL_PIPE",),
-                "PROCESS": ("CMK_PROCESS_SDXL",),
+                "PROCESS": ("CMK_RESULT_PROCESS",),
                 "IMAGE": ("IMAGE",),
                 "LOG": ("CMK_LOG_PIPE",),
                 "TARGET ORIGINAL": ("IMAGE",),

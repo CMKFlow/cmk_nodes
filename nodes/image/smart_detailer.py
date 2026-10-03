@@ -14,6 +14,7 @@ from ...utils.cmk_diagnostic import make_diagnostic_payload
 from ...engine.detailer_limits import clamp_detailer_denoise
 from ...utils.stable_segs import image_signature, make_stable_segs, stable_branch_components
 from ...pipe.cmk_log_pipe import CMKLogConcat, cmk_block_to_string
+from ...pipe.cmk_visual import empty_visual, register_provider
 from ..utils.diagnostic_concat import CMKDiagnosticConcat
 from ...pipe.cmk_persistent_cache import (
     build_node_fingerprint,
@@ -670,6 +671,7 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
             },
             "optional": {
                 "opt_log": ("CMK_LOG_PIPE",),
+                "VISUAL": ("CMK_VISUAL_PIPE",),
                 "opt_diagnostic": ("CMK_DIAGNOSTIC",),
             },
             "hidden": {
@@ -678,13 +680,13 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
             },
         }
 
-    RETURN_TYPES = ("SEGS", "SEGS", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC", "IMAGE")
-    RETURN_NAMES = ("SEGS DETECTED", "SEGS PROCEED", "IMAGE PROCEED", "LOG", "diagnostic", "DETAILER IMAGE")
+    RETURN_TYPES = ("SEGS", "SEGS", "IMAGE", "CMK_LOG_PIPE", "CMK_VISUAL_PIPE", "CMK_DIAGNOSTIC", "IMAGE")
+    RETURN_NAMES = ("SEGS DETECTED", "SEGS PROCEED", "IMAGE PROCEED", "LOG", "VISUAL", "diagnostic", "DETAILER IMAGE")
     FUNCTION = "run_pipe"
     CATEGORY = "CMK/Developer/Pipe/Execute"
 
     _CACHE_SCOPE = "detailer_branch"
-    _CACHE_SCHEMA = "cmk_detailer_branch_v6"
+    _CACHE_SCHEMA = "cmk_detailer_branch_v7"
     _UPSTREAM_STAGE_KEY = "sdxl.refiner"
     _RESULT_STAGE_KEY = "sdxl.detailer"
 
@@ -765,7 +767,7 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
             unique_id,
             ("CMK_SmartDetailerPipe",),
             self._CACHE_SCHEMA,
-            exclude_inputs=("output_image_proceed", "opt_log", "opt_diagnostic"),
+            exclude_inputs=("output_image_proceed", "opt_log", "VISUAL", "opt_diagnostic"),
             include_node_identity=True,
         )
 
@@ -775,7 +777,7 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
             unique_id,
             ("CMK_SmartDetailerPipe",),
             self._CACHE_SCHEMA,
-            exclude_inputs=("output_image_proceed", "opt_log", "opt_diagnostic"),
+            exclude_inputs=("output_image_proceed", "opt_log", "VISUAL", "opt_diagnostic"),
             include_node_identity=True,
         )
         if dependency_key:
@@ -842,6 +844,7 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
         output_image_proceed,
         authoritative_image,
         opt_log=None,
+        visual=None,
         opt_diagnostic=None,
         prompt=None,
         unique_id=None,
@@ -868,11 +871,14 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
             ),
             payload.get("diagnostic"),
             payload.get("log_block", ""),
-            opt_log,
-            opt_diagnostic,
-            payload.get("image_proceed"),
+            before=authoritative_image,
+            enabled=bool(payload.get("enabled", True)),
+            opt_log=opt_log,
+            visual=visual,
+            opt_diagnostic=opt_diagnostic,
+            detailer_image=payload.get("image_proceed"),
+            unique_id=unique_id,
         )
-        preview = payload.get("detection_preview")
         self._publish_dependency_revision(prompt, unique_id, cache_key)
 
         write_status(
@@ -884,7 +890,7 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
             "[CMK Smart Detailer -Pipe-] CACHE HIT "
             f"{cache_key[:12]}"
         )
-        return self._preview_result(preview, result)
+        return result
 
     @staticmethod
     def _merge_transport(
@@ -893,9 +899,14 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
         image_proceed,
         diagnostic,
         log_block,
+        *,
+        before,
+        enabled,
         opt_log=None,
+        visual=None,
         opt_diagnostic=None,
         detailer_image=None,
+        unique_id=None,
     ):
         log = CMKLogConcat().concat(opt_log, log_block)[0]
         merged_diagnostic = CMKDiagnosticConcat().concat(
@@ -903,7 +914,24 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
             opt_diagnostic,
             diagnostic_2=diagnostic,
         )[0]
-        return segs_detected, segs_proceed, image_proceed, log, merged_diagnostic, detailer_image
+        result_visual = empty_visual() if visual is None else visual
+        if bool(enabled):
+            result_visual = register_provider(
+                result_visual,
+                module_instance_id=unique_id or "detailer",
+                module_type="CMK_SmartDetailerPipe",
+                module_label="Detailer",
+                sequence=23,
+                channels={"before": before, "after": detailer_image},
+                status="completed",
+                live_node_id=unique_id,
+                branch="sdxl",
+                stage_key="sdxl.detailer.standard",
+            )
+        return (
+            segs_detected, segs_proceed, image_proceed, log, result_visual,
+            merged_diagnostic, detailer_image,
+        )
 
     @staticmethod
     def _required(detailer_pipe, key):
@@ -911,22 +939,6 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
         if value is None:
             raise ValueError(f"CMK Smart Detailer -Pipe-: detailer_pipe['{key}'] is missing")
         return value
-
-    def _preview_result(self, preview, result):
-        if preview is None:
-            return result
-        try:
-            from nodes import PreviewImage
-            payload = PreviewImage().save_images(
-                preview,
-                filename_prefix="CMK_Smart_Detailer_Detected",
-                prompt=None,
-                extra_pnginfo=None,
-            )
-            ui = payload.get("ui", {}) if isinstance(payload, dict) else {}
-            return {"ui": ui, "result": result}
-        except Exception:
-            return result
 
     def run_pipe(
         self,
@@ -945,6 +957,7 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
         noise_mask,
         force_inpaint,
         opt_log=None,
+        VISUAL=None,
         opt_diagnostic=None,
         prompt=None,
         unique_id=None,
@@ -982,10 +995,11 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
                     cache_key,
                     output_image_proceed,
                     self._required(DETAILER, "detailer_image"),
-                    opt_log,
-                    opt_diagnostic,
-                    prompt,
-                    unique_id,
+                    opt_log=opt_log,
+                    visual=VISUAL,
+                    opt_diagnostic=opt_diagnostic,
+                    prompt=prompt,
+                    unique_id=unique_id,
                 )
             except Exception as exc:
                 write_status(
@@ -1018,7 +1032,15 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
             return self._merge_transport(
                 empty, empty,
                 source_image if bool(output_image_proceed) else None,
-                diagnostic, block, opt_log, opt_diagnostic,
+                diagnostic,
+                block,
+                before=source_image,
+                enabled=False,
+                opt_log=opt_log,
+                visual=VISUAL,
+                opt_diagnostic=opt_diagnostic,
+                detailer_image=source_image,
+                unique_id=unique_id,
             )
 
         basic_pipe = (
@@ -1064,8 +1086,6 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
             coverage_segs=segs_proceed,
         )
         opt_image_proceed = image_proceed if bool(output_image_proceed) else None
-        detection_preview = self._make_detection_preview(source_image, segs_detected)
-
         detected_count = len(segs_detected[1]) if isinstance(segs_detected, tuple) and len(segs_detected) > 1 else 0
         proceed_count = len(segs_proceed[1]) if isinstance(segs_proceed, tuple) and len(segs_proceed) > 1 else 0
         effective_enable = bool(detailer_global_enable and enable)
@@ -1085,7 +1105,7 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
             "image_proceed": image_proceed,
             "diagnostic": diagnostic,
             "log_block": log_block,
-            "detection_preview": detection_preview,
+            "enabled": effective_enable,
         }
 
         if cache_key:
@@ -1131,11 +1151,15 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
             opt_image_proceed,
             diagnostic,
             log_block,
-            opt_log,
-            opt_diagnostic,
-            image_proceed,
+            before=source_image,
+            enabled=effective_enable,
+            opt_log=opt_log,
+            visual=VISUAL,
+            opt_diagnostic=opt_diagnostic,
+            detailer_image=image_proceed,
+            unique_id=unique_id,
         )
-        return self._preview_result(detection_preview, result)
+        return result
 
 
 NODE_CLASS_MAPPINGS = {

@@ -91,21 +91,24 @@ class VisualPipeTests(unittest.TestCase):
     def test_repeated_stage_instances_keep_visual_chain_order(self):
         first = object()
         second = object()
-        visual = register_provider(None, module_instance_id="23:1", module_type="CMKVisualProvider", module_label="Detailer", sequence=23, channels={"result": first}, branch="sdxl", stage_key="sdxl.detailer")
-        visual = register_provider(visual, module_instance_id="23:2", module_type="CMKVisualProvider", module_label="Detailer", sequence=23, channels={"result": second}, branch="sdxl", stage_key="sdxl.detailer")
+        visual = register_provider(None, module_instance_id="detailer:1", module_type="CMKVisualProvider", module_label="Detailer", sequence=901, channels={"result": first}, branch="sdxl", stage_key="sdxl.detailer")
+        visual = register_provider(visual, module_instance_id="detailer:2", module_type="CMKVisualProvider", module_label="Detailer", sequence=3, channels={"result": second}, branch="sdxl", stage_key="sdxl.detailer")
         self.assertEqual(2, len(visual["providers"]))
         self.assertIs(first, visual["providers"][0]["channels"]["result"])
         self.assertIs(second, visual["providers"][1]["channels"]["result"])
 
-    def test_late_convenience_provider_cannot_overwrite_an_intermediate_stage(self):
+    def test_late_convenience_provider_keeps_visual_chain_order(self):
         identity = object()
         visual = register_provider(None, module_instance_id="15", module_type="Identity", module_label="Identity", sequence=15, channels={"result": identity})
         visual = register_provider(visual, module_instance_id="10", module_type="Sampler", module_label="1st Pass", sequence=10, channels={"result": object()})
-        self.assertEqual(["Identity"], [item["module_label"] for item in visual["providers"]])
+        self.assertEqual(
+            ["Identity", "1st Pass"],
+            [item["module_label"] for item in visual["providers"]],
+        )
         self.assertIs(identity, visual["providers"][0]["channels"]["result"])
 
     def test_multichannel_declares_compare(self):
-        visual = register_provider(None, module_instance_id="40", module_type="FaceSwap", module_label="FaceSwap", sequence=40, channels={"before": object(), "after": object()})
+        visual = register_provider(None, module_instance_id="faceswap", module_type="FaceSwap", module_label="FaceSwap", sequence=0, channels={"before": object(), "after": object()})
         provider = visual["providers"][0]
         self.assertTrue(provider["capabilities"]["multi_source"])
         self.assertTrue(provider["capabilities"]["compare"])
@@ -162,15 +165,17 @@ class VisualPipeTests(unittest.TestCase):
         )["definitions"]["subgraphs"][0]
         self.assertEqual(["LOG", "VISUAL", "diagnostic"], [item["name"] for item in sampler["outputs"][-3:]])
         self.assertEqual([12701], sampler["outputs"][-2]["linkIds"])
-        sampler_provider = next(
-            node for node in sampler["nodes"] if node["type"] == "CMKVisualProvider"
+        sampler_process = next(node for node in sampler["nodes"] if node["type"] == "CMKKSamplerPipe")
+        self.assertEqual(["SAMPLER", "VISUAL"], [item["name"] for item in sampler_process["inputs"]])
+        self.assertEqual(["SAMPLED", "VISUAL"], [item["name"] for item in sampler_process["outputs"]])
+        self.assertFalse(any(node["type"] == "CMKVisualProvider" for node in sampler["nodes"]))
+        process = next(node for node in refiner["nodes"] if node["type"] == "CMKRefinerPipe")
+        self.assertEqual(["REFINER", "VISUAL"], [item["name"] for item in process["inputs"]])
+        self.assertEqual(
+            ["IMAGE 1ST PASS", "IMAGE REFINED", "VISUAL"],
+            [item["name"] for item in process["outputs"]],
         )
-        self.assertEqual("CMKVisualProvider", sampler_provider["type"])
-        self.assertEqual("1st Pass", sampler_provider["widgets_values"][0])
-        self.assertEqual("sdxl.first_pass", sampler_provider["widgets_values"][4])
-        providers = [node for node in refiner["nodes"] if node["type"] == "CMKVisualProvider"]
-        self.assertEqual(["Refiner"], [node["widgets_values"][0] for node in providers])
-        self.assertEqual(["CMKRefinerPipe"], [node["widgets_values"][2] for node in providers])
+        self.assertFalse(any(node["type"] in {"CMKVisualProvider", "CMKVisualCompare"} for node in refiner["nodes"]))
         self.assertEqual(["LOG", "VISUAL", "diagnostic"], [item["name"] for item in refiner["outputs"][-3:]])
         self.assertEqual([12713], refiner["inputs"][-1]["linkIds"])
         self.assertEqual([12716], refiner["outputs"][-2]["linkIds"])
@@ -181,15 +186,15 @@ class VisualPipeTests(unittest.TestCase):
         )
         outer_provider = payload["nodes"][0]["properties"]["cmkVisualProviders"][0]
         graph = payload["definitions"]["subgraphs"][0]
-        inner_provider = next(
-            node for node in graph["nodes"] if node["type"] == "CMKVisualProvider"
-        )
+        process = next(node for node in graph["nodes"] if node["type"] == "CMKKSamplerPipe")
         self.assertEqual("sampling", outer_provider["key"])
-        self.assertEqual("Sampling", outer_provider["label"])
+        self.assertEqual("Sampling ZIT", outer_provider["label"])
         self.assertEqual("z_image_turbo.sampling", outer_provider["stage_key"])
-        self.assertEqual("Sampling", inner_provider["widgets_values"][0])
-        self.assertEqual("z_image_turbo.sampling", inner_provider["widgets_values"][4])
+        self.assertEqual(["SAMPLER", "VISUAL"], [item["name"] for item in process["inputs"]])
+        self.assertEqual(["SAMPLED", "VISUAL"], [item["name"] for item in process["outputs"]])
+        self.assertFalse(any(node["type"] == "CMKVisualProvider" for node in graph["nodes"]))
         self.assertNotIn("1st Pass", json.dumps(payload))
+        self.assertTrue(outer_provider["capabilities"]["compare"])
 
     def test_visualizer_accepts_an_unconnected_visual_pipe(self):
         contract = MODULE.CMKVisualizer.INPUT_TYPES()
@@ -244,7 +249,7 @@ class VisualPipeTests(unittest.TestCase):
             "preview_metadata",
             "moduleMatches.length === 1",
             "function exposeProvider(state, provider)",
-            "state.catalog = graphProviders()",
+            "state.catalog = graphProviders(node)",
             "state.providers = []",
             "function remappedDeclaredProvider(outerNode, item)",
             "outerNode?.subgraph?.nodes",
@@ -273,6 +278,10 @@ class VisualPipeTests(unittest.TestCase):
             "function activateProvider(state, provider)",
             "provider.liveUrl",
             "function providerSemanticKey(provider)",
+            "function visualChainNodeIds(displayNode)",
+            "for (const nodeId of visualChainNodeIds(displayNode))",
+            "if (provider?.key) return `key\\u0000${provider.key}`",
+            "if (provider?.provider_id) return `provider\\u0000${provider.provider_id}`",
             "function completedDeclarations(declarations, completedProviders)",
             "consumed.add(declaration.provider_id)",
             "function providerDisplayLabels(providers)",
@@ -284,6 +293,7 @@ class VisualPipeTests(unittest.TestCase):
             "image_index: Number(channel.image_index)",
             "state.images = incomingImages",
             "state.completedProviderIds = new Set(completed.keys())",
+            "state.catalog?.length ? state.catalog : graphProviders(this)",
             "state.completedProviderIds.has(provider.provider_id)",
             "declaredItem.enable_widget",
             "`${declaredItem.key}_global_enable`",
@@ -294,12 +304,19 @@ class VisualPipeTests(unittest.TestCase):
         self.assertNotIn("compare.onclick", frontend)
         self.assertNotIn("function nextLiveProvider", frontend)
         self.assertNotIn("state.providers = graphProviders()", frontend)
+        self.assertNotIn("state.catalog?.length ? state.catalog : graphProviders(node)", frontend)
         self.assertNotIn('api.addEventListener("executing"', frontend)
         self.assertNotIn('api.addEventListener("progress"', frontend)
         self.assertNotIn('api.addEventListener("progress_state"', frontend)
         self.assertNotIn('api.addEventListener("execution_cached"', frontend)
         self.assertNotIn("state.providers.sort", frontend)
         self.assertNotIn("[...merged.values()].sort", frontend)
+        self.assertNotIn("a.sequence - b.sequence", frontend)
+        self.assertNotIn("Number(provider?.sequence", frontend)
+        self.assertNotIn(
+            'Number(widgetValue(inner, "sequence", 0)) === Number(item.sequence',
+            frontend,
+        )
         self.assertNotIn("for (const previous of state.providers) merged.set", frontend)
         self.assertIn("if (!sourceNodeIds.length) return", frontend)
         self.assertNotIn("cmk-visual-status", frontend)

@@ -14,6 +14,25 @@ from ...nodes.controlnet.controlnet import (
     _empty_controlnet_ui_placeholder,
 )
 from ..cmk_log_pipe import cmk_add_block
+from ..cmk_visual import empty_visual, register_provider
+
+
+def _controlnet_visual(visual, *, enabled, image, unique_id, module_type, branch, stage_key):
+    result = empty_visual() if visual is None else visual
+    if bool(enabled) and image is not None:
+        result = register_provider(
+            result,
+            module_instance_id=unique_id or module_type,
+            module_type=module_type,
+            module_label="ControlNet",
+            sequence=5,
+            channels={"result": image},
+            status="completed",
+            live_node_id=unique_id,
+            branch=branch,
+            stage_key=stage_key,
+        )
+    return result
 
 
 class CMKControlNetPreparePipe:
@@ -69,19 +88,22 @@ class CMKControlNetPreparePipe:
             },
             "optional": {
                 "LOG": ("CMK_LOG_PIPE",),
+                "VISUAL": ("CMK_VISUAL_PIPE",),
                 "REFERENCE IMAGE INPUT": ("IMAGE",),
                 "REFERENCE IMAGE NAME": ("STRING", {"forceInput": True}),
             },
+            "hidden": {"unique_id": "UNIQUE_ID"},
         }
 
     RETURN_TYPES = (
         "CMK_PROCESS_SDXL",
         "IMAGE",
         "CMK_LOG_PIPE",
+        "CMK_VISUAL_PIPE",
         "CMK_DIAGNOSTIC",
         "IMAGE",
     )
-    RETURN_NAMES = ("PROCESS", "IMAGE", "LOG", "diagnostic", "CONTROLNET IMAGE")
+    RETURN_NAMES = ("PROCESS", "IMAGE", "LOG", "VISUAL", "diagnostic", "CONTROLNET IMAGE")
     FUNCTION = "prepare_controlnet_pipe"
     CATEGORY = "CMK/Flow/Process"
     OUTPUT_NODE = True
@@ -179,7 +201,13 @@ class CMKControlNetPreparePipe:
                     else IMAGE
                 ),
                 opt_mask=new_pipe.get("mask"),
-                **{"USE CONTROLNET": enable},
+                **{
+                    "USE CONTROLNET": enable,
+                    # Keep module 05 image-only. The heavy SDXL ControlNet is
+                    # loaded in module 10 immediately before it is applied, so
+                    # no upstream PROCESS/cache can retain it after sampling.
+                    "DEFER MODEL LOAD": True,
+                },
             )
 
             if not isinstance(standalone_result, dict) or "result" not in standalone_result:
@@ -213,6 +241,14 @@ class CMKControlNetPreparePipe:
         else:
             new_pipe["control_net"] = None
             new_pipe["controlnet_image"] = None
+
+        if enabled and controlnet_image is not None:
+            new_pipe["controlnet_image"] = controlnet_image
+            new_pipe["controlnet_model_name"] = controlnet_model
+            new_pipe["controlnet_load_deferred"] = control_net is None
+        else:
+            new_pipe.pop("controlnet_model_name", None)
+            new_pipe["controlnet_load_deferred"] = False
 
         new_pipe["instantid_reference_latent_mode"] = instantid_reference_latent_mode
         new_pipe["instantid_reference_image"] = (
@@ -278,12 +314,23 @@ class CMKControlNetPreparePipe:
         else:
             ui_images = []
 
+        visual = _controlnet_visual(
+            kwargs.get("VISUAL"),
+            enabled=enabled,
+            image=controlnet_image,
+            unique_id=kwargs.get("unique_id"),
+            module_type="CMKControlNetPreparePipe",
+            branch="sdxl",
+            stage_key="sdxl.controlnet",
+        ) if kwargs.get("_register_visual", True) else kwargs.get("VISUAL")
+
         return {
             "ui": {"images": ui_images},
             "result": (
                 new_pipe,
                 IMAGE,
                 log_pipe,
+                visual,
                 diagnostic,
                 controlnet_image if enabled else None,
             ),

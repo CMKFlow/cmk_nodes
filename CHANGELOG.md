@@ -1,3 +1,65 @@
+# CMK 2.5.0 — 2026-10-03
+
+- Die CMK-Flow-Architektur unterstützt SDXL, Z-Image Turbo und HYBRID als
+  durchgängige Generationspfade mit klar getrennten technischen Verträgen.
+- Die PostProcess-Zone wurde von historischer Ablaufnummerierung gelöst und um
+  die finalen Detailer-, Face-, MaskDetailer- und Ausgabeabläufe ergänzt.
+- Der Flow Browser wurde als zentrale CMK-Schnittstelle vollständig überarbeitet:
+  kompakte Flow-Darstellung, zweisprachige Redaktion, echte Previews und ein
+  kuratierter Referenzkatalog mit Task-, Modul-, Vergleichs-, Real-World-,
+  System- und Legacy-Workflows.
+- Paketierte Referenzbilder, Workflow-Navigation und technische Empfehlungen
+  verwenden stabile Metadaten und technische Identitäten statt sichtbarer Titel.
+- `CMK FaceSwap Video`, der ursprüngliche Workflow aus CMK 1.0, bleibt als
+  unveränderte historische Referenz im aktuellen CMK-2.5-Umfeld lauffähig.
+
+# 2026-09-29 — LaMa-Altlast vollständig entfernt
+
+- `Remove Object` verwendet ausschließlich den diffusionbasierten
+  Fooocus-/SDXL-Pfad einschließlich regulärem Refiner-Pass.
+- Die nicht mehr erreichbare LaMa-Engine, ihr Modell-Downloader, die alten
+  Bypass-Felder und die Fülloption `lama` wurden entfernt. Historische
+  Changelog-Einträge bleiben als Dokumentation früherer Zwischenstände stehen.
+
+# 2026-09-29 — Schlanker Image File Loader
+
+- `CMK Image File Loader` bietet die native Bildauswahl mit Upload und Vorschau,
+  dekodiert selbst keine Pixel und gibt ausschließlich `image_file` als
+  ComfyUI-Dateireferenz aus.
+
+# 2026-09-29 — MaskDetailer-Bypass bewahrt VISUAL-Kette
+
+- Der deaktivierte oder noch nicht vorbereitete MaskDetailer fordert einen
+  tatsächlich verbundenen `VISUAL BYPASS` jetzt lazy an, bevor er sein eigenes
+  Statusregister ergänzt. Frühere Sampling- und Refiner-Register bleiben damit
+  bis zum Visualizer erhalten; unverbundene Alt-Workflows bleiben zulässig.
+
+# 2026-09-29 — Inpaint-Ersatzpromptvertrag in `01 START HERE` zentralisiert
+
+- `01 START HERE` bestimmt den wirksamen Remove-Prompt jetzt vor der Aufteilung
+  in SDXL- und ZIT-Pipe. Ein leerer Anwender-Prompt erhält damit auch im
+  HYBRID-ZIT-Finish die interne neutrale Hintergrundführung.
+- SDXL, Refiner und ZIT konsumieren denselben expliziten Effektiv-Promptvertrag;
+  der ursprüngliche Anwender-Prompt bleibt separat und unverändert erhalten.
+- `Extend Image` erhält bei leerem Anwender-Prompt ebenfalls eine neutrale
+  interne Fortsetzungsbeschreibung, ohne die Remove-spezifische Subject-Sperre.
+
+# 2026-09-27 — Unnummerierte PostProcess-Zone
+
+- Die sichtbaren Ablaufnummern 23, 25, 30, 35, 40, 90, 95 und 100 wurden aus
+  den aktuellen Modulnamen entfernt. Die gerichtete Nummerierung endet mit der
+  Generationspipeline bei 20 Refiner.
+- Detailer, FaceRebuild, FaceProcess, FaceSwap und Upscale & Save bilden danach
+  eine durch die Workflow-Topologie bestimmte PostProcess-Zone. MaskDetailer
+  und Visualizer behalten ihre vorhandenen terminalen Aufgaben ohne
+  nummernbasierten Rollenvertrag.
+- Flow-Browser-Recommendations verweisen nun über Blueprint-UUIDs oder
+  technische Node-Klassen auf ihre Ziele. Sichtbare Labels dienen nur noch der
+  Darstellung.
+- Die veröffentlichten Paket-Subgraphen wurden kontrolliert aus den aktuellen
+  User-Subgraphen aufgebaut; technische User-UUIDs, Sockets und Provider-IDs
+  blieben dabei erhalten.
+
 # 2026-08-17 — InstantID-Sampler SDXL begonnen
 
 - `15 CMK InstantID-Sampler SDXL` erreicht nach bestätigten Läufen mit freier

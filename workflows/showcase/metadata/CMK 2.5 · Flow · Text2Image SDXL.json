@@ -1,0 +1,19 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · Flow · Text2Image SDXL",
+  "kind": "task",
+  "order": 101,
+  "category": "TASK WORKFLOWS",
+  "category_en": "TASK WORKFLOWS",
+  "description": "Erzeugt ein Text2Image-Bild vollständig im SDXL-Pfad – vom 1st-Pass bis zum abschließenden Refiner-Durchlauf.",
+  "description_en": "Generates an image entirely within the SDXL Text2Image path—from the 1st pass through the final Refiner pass.",
+  "cmkHighlight": "",
+  "cmkHighlight_en": "",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image SDXL/CMK 2.5 · Flow · Text2Image SDXL.png",
+      "label": "Vorschau",
+      "label_en": "Preview"
+    }
+  ]
+}

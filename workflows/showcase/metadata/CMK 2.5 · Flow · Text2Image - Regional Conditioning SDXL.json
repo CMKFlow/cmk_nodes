@@ -1,0 +1,19 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · Flow · Text2Image – Regional Conditioning SDXL",
+  "kind": "task",
+  "order": 109,
+  "category": "TASK WORKFLOWS",
+  "category_en": "TASK WORKFLOWS",
+  "description": "Platziert mehrere Promptinhalte gezielt in definierten Bildregionen und führt die so aufgebaute Komposition vollständig im SDXL-Pfad aus.",
+  "description_en": "Places multiple prompt elements precisely within defined image regions and produces the resulting composition entirely within the SDXL path.",
+  "cmkHighlight": "",
+  "cmkHighlight_en": "",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - Regional Conditioning SDXL/CMK 2.5 · Flow · Text2Image - Regional Conditioning SDXL.png",
+      "label": "Vorschau",
+      "label_en": "Preview"
+    }
+  ]
+}

@@ -7,6 +7,11 @@
       "sha256": "aa3ceb0fa01fc7651abc89e4a3fba076907d87d749816c9780d51a1759617b8c"
     },
     {
+      "package_file": "controlnet_reference4.png",
+      "original_file": "controlnet_reference4.png",
+      "sha256": "12d429aad2fd5572f91a9cd34b25da3b1953f45e05e93544a6fa024a4508bc54"
+    },
+    {
       "package_file": "detailer_reference.png",
       "original_file": "image_00051 (1).png",
       "sha256": "f277f834cbd62942adb811cd59e233f4f88a82d52b61e1c713e234b178dc9a02"
@@ -35,6 +40,11 @@
       "package_file": "inpaint_reference2.png",
       "original_file": "inpaint_reference2.png",
       "sha256": "c3ad98c617e8d8dab652a63e413b603d1cc6f4d0fa6ecc0eb5ee6a09da0da7c9"
+    },
+    {
+      "package_file": "mask_detailer_reference.png",
+      "original_file": "mask_detailer_reference.png",
+      "sha256": "14444bcfa3b24eb144949957f91811a8eb7ef26efe637a440b4b489674c42bdd"
     },
     {
       "package_file": "remove_refrence.png",

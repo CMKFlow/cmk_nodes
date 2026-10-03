@@ -1,0 +1,39 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL",
+  "kind": "task",
+  "order": 116,
+  "category": "TASK WORKFLOWS",
+  "category_en": "TASK WORKFLOWS",
+  "description": "Führt ein SDXL-Inpaint mit InstantID-Unterstützung aus – von der Vorbereitung über den 1st-Pass und die Identity-Stufe bis zum abschließenden 2nd-Pass.",
+  "description_en": "Runs an SDXL inpainting workflow with InstantID support—from preparation through the 1st pass and identity stage to the final 2nd pass.",
+  "cmkHighlight": "InstantID wird in den laufenden SDXL-Prozess eingebunden und übernimmt die Identitätsführung zwischen 1st-Pass und 2nd-Pass.",
+  "cmkHighlight_en": "InstantID is integrated into the active SDXL process and provides identity guidance between the 1st and 2nd passes.",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL/CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL - 1 Preparation.png",
+      "label": "Preparation",
+      "label_en": "Preparation"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL/CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL - 2 1st-Passn SDXL.png",
+      "label": "1st-Pass SDXL",
+      "label_en": "1st-Pass SDXL"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL/CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL - 3 Identity.png",
+      "label": "Identity",
+      "label_en": "Identity"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL/CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL - 4 2nd-Pass SDXL.png",
+      "label": "2nd-Pass SDXL",
+      "label_en": "2nd-Pass SDXL"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL/portrait_reference_00003.png",
+      "label": "Source",
+      "label_en": "Source"
+    }
+  ]
+}

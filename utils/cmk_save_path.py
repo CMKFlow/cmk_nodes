@@ -4,6 +4,7 @@ from __future__ import annotations
 
 
 _IMAGE_SOURCE_FAMILIES = {"image", "loaded_image", "standalone_image"}
+_GENERATED_FAMILIES = {"sdxl", "z_image_turbo"}
 
 # Stable output order.  The *_applied keys are the preferred contract; the
 # legacy aliases keep already-saved workflows useful while modules migrate.
@@ -39,9 +40,41 @@ def save_base_folder(process: dict) -> str:
 
     if family in _IMAGE_SOURCE_FAMILIES or "image load" in origin:
         return "ImageProcessing"
-    if bool(process.get("boolean_inpaint_mode", False)):
+    generation_mode = str(process.get("generation_mode", "") or "").strip().casefold()
+    if (
+        bool(process.get("boolean_inpaint_mode", False))
+        or bool(process.get("hybrid_inpaint_mode", False))
+        or generation_mode == "inpaint"
+    ):
         return "Inpaint"
     return "Text2Image"
+
+
+def normalize_save_process(process: dict) -> dict:
+    """Apply the active-family result semantics used by the Visualizer.
+
+    Upscale & Save receives a family process directly and exposes the neutral
+    result consumed by the Visualizer. A generated family can
+    therefore still carry the original image source marker. Once sampling
+    has produced an image, the active model family owns the save path.
+    """
+    if not isinstance(process, dict):
+        return process
+    normalized = dict(process)
+    if normalized.get("type") == "CMK_MASK_DETAILER_PROCESS":
+        return normalized
+    family = str(normalized.get("model_family", "") or "").strip().casefold()
+    sampled = any(
+        normalized.get(key) is not None
+        for key in ("image_1st_pass", "samples", "latent_1st_pass")
+    )
+    if (
+        family in _GENERATED_FAMILIES
+        and normalized.get("family_active", True)
+        and sampled
+    ):
+        normalized["source_model_family"] = family
+    return normalized
 
 
 def save_stage_folders(process: dict) -> list[str]:
@@ -54,4 +87,5 @@ def save_stage_folders(process: dict) -> list[str]:
 
 
 def save_automatic_folders(process: dict) -> list[str]:
+    process = normalize_save_process(process)
     return [save_base_folder(process), *save_stage_folders(process)]

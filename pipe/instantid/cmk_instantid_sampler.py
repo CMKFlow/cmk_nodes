@@ -7,6 +7,8 @@ import numpy as np
 
 from ..cmk_log_pipe import cmk_add_block
 from ..cmk_module_cache_contract import stamp_artifact
+from ..cmk_visual import empty_visual, register_provider
+from ..cmk_visual import empty_visual, register_provider
 from ...utils.cmk_translation import translate_prompt
 from ...utils.cmk_diagnostic import make_diagnostic_payload
 from ...utils.cmk_timing import cmk_timed
@@ -319,7 +321,8 @@ class CMKInstantIDSamplerSDXLPipe:
                     ),
                 }),
             },
-            "hidden": {"dynprompt": "DYNPROMPT"},
+            "optional": {"VISUAL": ("CMK_VISUAL_PIPE",)},
+            "hidden": {"dynprompt": "DYNPROMPT", "unique_id": "UNIQUE_ID"},
         }
 
     RETURN_TYPES = (
@@ -328,9 +331,10 @@ class CMKInstantIDSamplerSDXLPipe:
         "CMK_SAMPLED_PIPE",
         "CMK_LOG_PIPE",
         "IMAGE",
+        "CMK_VISUAL_PIPE",
         "CMK_DIAGNOSTIC",
     )
-    RETURN_NAMES = ("MODEL", "PROCESS", "SAMPLED", "LOG", "IDENTITY IMAGE", "diagnostic")
+    RETURN_NAMES = ("MODEL", "PROCESS", "SAMPLED", "LOG", "IDENTITY IMAGE", "VISUAL", "diagnostic")
     FUNCTION = "sample"
     CATEGORY = "CMK/Toolbox/Face"
 
@@ -358,12 +362,15 @@ class CMKInstantIDSamplerSDXLPipe:
         conditioning_mode,
         reference_conditioning_weight,
         reference_start_at_step,
+        VISUAL=None,
         dynprompt=None,
+        unique_id=None,
     ):
         _reset_instantid_boundary_cache(dynprompt)
         model_pipe = _require_dict(MODEL, "MODEL")
         process = _require_dict(PROCESS, "PROCESS")
         sampled_in = _require_dict(SAMPLED, "SAMPLED")
+        visual = empty_visual() if VISUAL is None else VISUAL
         if not bool(process.get("instantid_enabled", False)):
             lines = ["InstantID          : disabled in module 01", "Sampling           : bypassed"]
             log_out = cmk_add_block(LOG, "InstantID Sampler SDXL", 45, lines, True)
@@ -376,7 +383,7 @@ class CMKInstantIDSamplerSDXLPipe:
                 mode="Bypass",
                 metadata={"identity_applied": False},
             )
-            return model_pipe, process, sampled_in, log_out, None, diagnostic
+            return model_pipe, process, sampled_in, log_out, None, visual, diagnostic
         if source_face is None:
             raise ValueError("CMK InstantID Sampler SDXL -Pipe-: source_face is missing")
         if not instantid_model or not controlnet_model:
@@ -440,9 +447,9 @@ class CMKInstantIDSamplerSDXLPipe:
             prepared_negative = negative
             clean_clip = model_pipe.get("clip")
             if clean_clip is None:
-                raise ValueError(
-                    "CMK InstantID Sampler SDXL -Pipe-: reference conditioning requires MODEL['clip']"
-                )
+                from ..loaders.checkpoint_vae_loader import ensure_sdxl_text_encoder
+
+                clean_clip, _ = ensure_sdxl_text_encoder(model_pipe)
             prompt_pos = str(process.get("prompt_pos", sampled_in.get("prompt_pos", "")) or "")
             prompt_neg = str(process.get("prompt_neg", sampled_in.get("prompt_neg", "")) or "")
             translation_pos = translate_prompt(prompt_pos)
@@ -450,6 +457,21 @@ class CMKInstantIDSamplerSDXLPipe:
             with cmk_timed("15 INSTANTID REFERENCE CONDITIONING", "native CLIP Text Encode"):
                 reference_positive = _outputs(_call_node(("CLIPTextEncode",), clip=clean_clip, text=translation_pos.text))[0]
                 reference_negative = _outputs(_call_node(("CLIPTextEncode",), clip=clean_clip, text=translation_neg.text))[0]
+            if bool(process.get("unload_models_after_use", True)):
+                from ..loaders.checkpoint_vae_loader import evict_sdxl_text_encoder
+
+                evict_sdxl_text_encoder(model_pipe, sampled_in)
+                clean_clip = None
+                import gc
+
+                gc.collect()
+                try:
+                    import comfy.model_management
+
+                    comfy.model_management.cleanup_models_gc()
+                    comfy.model_management.soft_empty_cache(force=True)
+                except Exception:
+                    pass
             reference_weight = max(0.0, min(1.0, float(reference_conditioning_weight)))
             with cmk_timed(
                 "15 INSTANTID HYBRID CONDITIONING",
@@ -657,11 +679,33 @@ class CMKInstantIDSamplerSDXLPipe:
                 "workflow": workflow_mode,
             },
         )
-        return model_pipe, process, sampled_out, log_out, identity_image, diagnostic
+        visual = register_provider(
+            visual,
+            module_instance_id=unique_id or "instantid-sampler",
+            module_type="CMKInstantIDSamplerSDXLPipe",
+            module_label="Identity",
+            sequence=15,
+            channels={"result": identity_image},
+            status="completed",
+            live_node_id=unique_id,
+            branch="sdxl",
+            stage_key="sdxl.identity",
+        )
+        if bool(process.get("unload_models_after_use", True)):
+            from ..loaders.checkpoint_vae_loader import unload_all_phase_models
+
+            unload_all_phase_models("15 InstantID complete")
+        return model_pipe, process, sampled_out, log_out, identity_image, visual, diagnostic
 
 
 _INSTANTID_BOUNDARY_CACHE = {}
 _INSTANTID_BOUNDARY_EXECUTION_TOKEN = None
+
+
+def clear_instantid_boundary_cache():
+    count = len(_INSTANTID_BOUNDARY_CACHE)
+    _INSTANTID_BOUNDARY_CACHE.clear()
+    return count
 
 
 def _reset_instantid_boundary_cache(dynprompt):

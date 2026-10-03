@@ -1,6 +1,8 @@
 import { app } from "../../../scripts/app.js";
+import { api } from "../../../scripts/api.js";
 
 const NODE_CLASS = "CMK_SmartDetailerPipe";
+const previewNodes = new Set();
 
 // Only the standard UI layer is translated into concise uppercase labels.
 // Advanced technical widget names intentionally remain unchanged.
@@ -54,8 +56,17 @@ function schedule(node) {
     for (const delay of [0, 50, 200]) setTimeout(() => configure(node), delay);
 }
 
+function clearPreviousPreviewsAtWorkflowStart() {
+    for (const node of previewNodes) {
+        if (!isTarget(node)) continue;
+        node.imgs = [];
+        node.imageIndex = null;
+        node.setDirtyCanvas?.(true, true);
+    }
+}
+
 app.registerExtension({
-    name: "cmk.smart.detailer.labels.v1",
+    name: "cmk.smart.detailer.labels.v2",
     beforeRegisterNodeDef(nodeType, nodeData) {
         if (nodeData.name !== NODE_CLASS) return;
         for (const hook of ["onNodeCreated", "onConfigure", "onAdded"]) {
@@ -66,7 +77,23 @@ app.registerExtension({
                 return result;
             };
         }
+        const originalRemoved = nodeType.prototype.onRemoved;
+        nodeType.prototype.onRemoved = function () {
+            previewNodes.delete(this);
+            return originalRemoved?.apply(this, arguments);
+        };
     },
-    nodeCreated(node) { if (isTarget(node)) schedule(node); },
-    loadedGraphNode(node) { if (isTarget(node)) schedule(node); },
+    nodeCreated(node) {
+        if (!isTarget(node)) return;
+        previewNodes.add(node);
+        schedule(node);
+    },
+    loadedGraphNode(node) {
+        if (!isTarget(node)) return;
+        previewNodes.add(node);
+        schedule(node);
+    },
+    setup() {
+        api.addEventListener("execution_start", clearPreviousPreviewsAtWorkflowStart);
+    },
 });

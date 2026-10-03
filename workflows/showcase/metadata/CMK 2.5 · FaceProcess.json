@@ -1,0 +1,24 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · FaceProcess",
+  "kind": "module",
+  "order": 201,
+  "category": "MODULE WORKFLOWS",
+  "category_en": "MODULE WORKFLOWS",
+  "description": "Zeigt FaceProcess als diskreten Stand-alone-Prozess und macht die Verarbeitung eines erkannten Gesichts im Detailer- und Restore-Modus nachvollziehbar.\n\nDer Preview Render zeigt die einzelnen Verarbeitungsschritte und Veränderungen bis zum finalen Ergebnis.",
+  "description_en": "Shows FaceProcess as a discrete standalone process, making it easy to follow how a detected face is processed in Detailer and Restore modes.\n\nThe preview render shows each processing step and the changes leading to the final result.",
+  "cmkHighlight": "",
+  "cmkHighlight_en": "",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceProcess/CMK 2.5 · FaceProcess - Detailer.png",
+      "label": "Detailer",
+      "label_en": "Detailer"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceProcess/CMK 2.5 · FaceProcess - Restore.png",
+      "label": "Restore",
+      "label_en": "Restore"
+    }
+  ]
+}

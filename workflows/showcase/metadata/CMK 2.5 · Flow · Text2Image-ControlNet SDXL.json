@@ -1,0 +1,26 @@
+{
+  "published": true,
+  "displayName": "CMK 2.5 · Flow · Text2Image ControlNet SDXL",
+  "kind": "task",
+  "order": 105,
+  "category": "TASK WORKFLOWS",
+  "category_en": "TASK WORKFLOWS",
+  "description": "Führt eine Text2Image-Generierung mit ControlNet vollständig im SDXL-Pfad aus – von der strukturellen Bildführung über den 1st-Pass bis zum abschließenden Refiner-Durchlauf.",
+  "description_en": "Runs a Text2Image generation with ControlNet entirely within the SDXL path—from structural image guidance through the 1st pass to the final Refiner pass.",
+  "cmkHighlight": "",
+  "cmkHighlight_en": "",
+  "info": "Die Dimension des ControlNet-Referenzbildes bestimmt die Ausgabeauflösung und kann damit die in `01 START HERE` gewählte Bildgröße überschreiben.",
+  "info_en": "The dimensions of the ControlNet reference image determine the output resolution and can therefore override the image size selected in `01 START HERE`.",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image-ControlNet SDXL/CMK 2.5 · Flow · Text2Image-ControlNet SDXL - 1 ControlNet.png",
+      "label": "ControlNet",
+      "label_en": "ControlNet"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image-ControlNet SDXL/CMK 2.5 · Flow · Text2Image-ControlNet SDXL - 2 SDXL.png",
+      "label": "SDXL",
+      "label_en": "SDXL"
+    }
+  ]
+}

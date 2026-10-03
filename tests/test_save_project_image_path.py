@@ -29,6 +29,75 @@ class SaveProjectImagePathTests(unittest.TestCase):
             ["Inpaint"],
         )
 
+    def test_hybrid_inpaint_uses_inpaint_base_despite_zit_execution_mode(self):
+        self.assertEqual(
+            MODULE.save_automatic_folders(
+                {
+                    "model_family": "z_image_turbo",
+                    "hybrid_mode": True,
+                    "hybrid_inpaint_mode": True,
+                    "boolean_inpaint_mode": False,
+                    "generation_mode": "inpaint",
+                    "samples": object(),
+                }
+            ),
+            ["Inpaint"],
+        )
+
+    def test_hybrid_text2image_remains_text2image(self):
+        self.assertEqual(
+            MODULE.save_automatic_folders(
+                {
+                    "model_family": "z_image_turbo",
+                    "hybrid_mode": True,
+                    "hybrid_inpaint_mode": False,
+                    "boolean_inpaint_mode": False,
+                    "generation_mode": "text2image",
+                    "samples": object(),
+                }
+            ),
+            ["Text2Image"],
+        )
+
+    def test_direct_sampled_family_uses_the_same_base_as_visualizer_result(self):
+        sampled = object()
+        self.assertEqual(
+            MODULE.save_automatic_folders(
+                {
+                    "source_model_family": "image",
+                    "model_family": "sdxl",
+                    "family_active": True,
+                    "image_1st_pass": sampled,
+                }
+            ),
+            ["Text2Image"],
+        )
+        self.assertEqual(
+            MODULE.save_automatic_folders(
+                {
+                    "source_model_family": "image",
+                    "model_family": "z_image_turbo",
+                    "family_active": True,
+                    "samples": sampled,
+                    "boolean_inpaint_mode": True,
+                }
+            ),
+            ["Inpaint"],
+        )
+
+    def test_mask_detailer_keeps_image_processing_origin(self):
+        self.assertEqual(
+            MODULE.save_automatic_folders(
+                {
+                    "type": "CMK_MASK_DETAILER_PROCESS",
+                    "source_model_family": "image",
+                    "model_family": "sdxl",
+                    "image_1st_pass": object(),
+                }
+            ),
+            ["ImageProcessing"],
+        )
+
     def test_applied_stages_are_ordered_and_combined(self):
         self.assertEqual(
             MODULE.save_automatic_folders(

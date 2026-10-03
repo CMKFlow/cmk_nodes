@@ -17,6 +17,7 @@ from ..cmk_pipe_image import (
     get_image_size,
     parse_resolution,
     resize_image_tensor,
+    resize_mask_tensor,
 )
 from ...utils.cmk_diagnostic import make_diagnostic_payload
 
@@ -34,6 +35,7 @@ CMK_PACKAGED_REFERENCES = {
         "inpaint_reference.png",
         "inpaint_reference2.png",
         "inpaint_reference3.png",
+        "mask_detailer_reference.png",
         "instantid_reference.png",
         "portrait_reference_00002.png",
         "remove_refrence.png",
@@ -113,16 +115,21 @@ class CMKImageLoadAndResizePipe:
 
     Public contract:
         image file + resize/crop parameters
-        -> optional MODEL SDXL (opt) input, then MODEL + PROCESS SDXL + IMAGE + LOG + diagnostic
+        -> optional MODEL SDXL (opt) input, then MODEL + neutral PROCESS + IMAGE + LOG
+           + diagnostic + MASK + image_file
 
     IMAGE is the only authoritative pixel transport. PROCESS contains only
     source/target/crop metadata required by downstream CMK Prepare nodes, but
-    carries the typed SDXL contract required by the standalone Detailer and
-    FaceProcess reference paths. An optionally connected MODEL SDXL (opt) is passed
+    carries the family-neutral result contract required by standalone
+    postprocessors. An
+    optionally connected MODEL SDXL (opt) is passed
     through unchanged as the ordinary downstream MODEL. Without it, pixel-only
     modules use PROCESS, IMAGE and LOG and no artificial model placeholder is
-    created. This node provides no mask, prompt, LoRA, inpaint, outpaint or
-    latent preparation.
+    created. A mask painted in the native image editor is preserved through
+    the same crop/resize transform and exposed both in PROCESS and as MASK.
+    image_file carries only the selected ComfyUI file reference so identity
+    modules can load the same source through one visible wire. This node
+    provides no prompt, LoRA, inpaint or latent preparation.
     """
 
     @classmethod
@@ -142,7 +149,10 @@ class CMKImageLoadAndResizePipe:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "IMAGE": (cls._available_images(), {"image_upload": True}),
+                "image": (
+                    cls._available_images(),
+                    {"image_upload": True, "label": "IMAGE"},
+                ),
                 "RESOLUTION": (RESOLUTION_PRESETS, {"default": "SDXL 1152x832"}),
                 "SWAP DIMENSIONS": ("BOOLEAN", {"default": False}),
                 "RESIZE METHOD": (UPSCALE_METHODS, {"default": "lanczos"}),
@@ -168,14 +178,16 @@ class CMKImageLoadAndResizePipe:
 
     RETURN_TYPES = (
         "CMK_MODEL_PIPE",
-        "CMK_PROCESS_SDXL",
+        "CMK_RESULT_PROCESS",
         "IMAGE",
         "CMK_LOG_PIPE",
         "CMK_DIAGNOSTIC",
+        "MASK",
+        "STRING",
     )
-    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "diagnostic")
+    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "diagnostic", "MASK", "image_file")
     FUNCTION = "load_and_resize"
-    CATEGORY = "CMK/Flow/Input"
+    CATEGORY = "CMK/Toolbox/Image"
 
     @staticmethod
     def _resolve_image_path(image: str) -> str:
@@ -183,9 +195,21 @@ class CMKImageLoadAndResizePipe:
         if packaged_path is not None:
             return str(packaged_path)
         try:
-            return folder_paths.get_annotated_filepath(image)
+            path = Path(folder_paths.get_annotated_filepath(image))
         except Exception:
-            return os.path.join(folder_paths.get_input_directory(), image)
+            path = Path(folder_paths.get_input_directory()) / image
+
+        # ComfyUI's mask editor may hand custom upload nodes the composited
+        # preview (painted-masked), whose RGB pixels contain the visible mask
+        # overlay. The sibling clipspace-mask file carries the untouched RGB
+        # source and the exact same alpha mask and is therefore authoritative.
+        prefix = "clipspace-painted-masked-"
+        if path.name.startswith(prefix):
+            clean_name = "clipspace-mask-" + path.name[len(prefix):]
+            clean_path = path.with_name(clean_name)
+            if clean_path.is_file():
+                path = clean_path
+        return str(path)
 
     @staticmethod
     def _probe_image(image_path: str) -> tuple[int, int, str]:
@@ -206,6 +230,7 @@ class CMKImageLoadAndResizePipe:
         crop_position: str,
     ):
         output_images = []
+        output_masks = []
         source_width = None
         source_height = None
         first_crop_box = None
@@ -232,9 +257,15 @@ class CMKImageLoadAndResizePipe:
                 elif first_crop_box is None:
                     first_crop_box = (0, 0, frame_width, frame_height)
 
+                if "A" in frame.getbands():
+                    alpha = np.asarray(frame.getchannel("A"), dtype=np.float32) / 255.0
+                    mask_array = 1.0 - alpha
+                else:
+                    mask_array = np.zeros((frame.height, frame.width), dtype=np.float32)
                 rgb = frame.convert("RGB")
                 array = np.asarray(rgb, dtype=np.float32) / 255.0
                 output_images.append(torch.from_numpy(array)[None, ...])
+                output_masks.append(torch.from_numpy(mask_array)[None, ...])
 
         if not output_images:
             raise RuntimeError(
@@ -243,6 +274,7 @@ class CMKImageLoadAndResizePipe:
 
         return (
             torch.cat(output_images, dim=0),
+            torch.cat(output_masks, dim=0),
             int(source_width or 0),
             int(source_height or 0),
             tuple(first_crop_box or (0, 0, int(source_width or 0), int(source_height or 0))),
@@ -250,7 +282,7 @@ class CMKImageLoadAndResizePipe:
 
     def load_and_resize(self, **inputs):
         model_sdxl = inputs.get("MODEL SDXL (opt)")
-        image_name = str(inputs.get("IMAGE", "") or "")
+        image_name = str(inputs.get("image", inputs.get("IMAGE", "")) or "")
         resolution = str(inputs.get("RESOLUTION", "SDXL 1152x832") or "SDXL 1152x832")
         swap_dimensions = bool(inputs.get("SWAP DIMENSIONS", False))
         resize_method = str(inputs.get("RESIZE METHOD", "lanczos") or "lanczos")
@@ -270,7 +302,7 @@ class CMKImageLoadAndResizePipe:
         if swap_dimensions:
             target_width, target_height = target_height, target_width
 
-        loaded_image, file_width, file_height, crop_box = self._load_frames(
+        loaded_image, loaded_mask, file_width, file_height, crop_box = self._load_frames(
             image_path,
             target_width=int(target_width),
             target_height=int(target_height),
@@ -285,12 +317,19 @@ class CMKImageLoadAndResizePipe:
             int(target_height),
             resize_method,
         )
+        resized_mask = resize_mask_tensor(
+            loaded_mask,
+            int(target_width),
+            int(target_height),
+        )
 
         crop_left, crop_top, crop_right, crop_bottom = [int(value) for value in crop_box]
         crop_width = max(0, crop_right - crop_left)
         crop_height = max(0, crop_bottom - crop_top)
 
         process = {
+            "image": resized_image,
+            "image_original": resized_image,
             "width": int(target_width),
             "height": int(target_height),
             "source_width": int(file_width or probed_width or target_width),
@@ -313,6 +352,9 @@ class CMKImageLoadAndResizePipe:
             "pipe_origin": "CMK Image Load and Resize -Pipe-",
             "result_contract": "family_neutral",
             "source_model_family": "image",
+            "mask": resized_mask,
+            "mask_original": loaded_mask,
+            "boolean_inpaint_mode": bool(float(resized_mask.max().detach().cpu()) > 0.0),
         }
 
         frame_count = int(resized_image.shape[0])
@@ -377,14 +419,14 @@ class CMKImageLoadAndResizePipe:
 
         if model_sdxl is not None:
             if not isinstance(model_sdxl, dict):
-                raise TypeError("CMK Image Input: MODEL SDXL must be a CMK model pipe")
+                raise TypeError("CMK Load Image: MODEL SDXL must be a CMK model pipe")
             if str(model_sdxl.get("model_family", "sdxl")).strip().lower() != "sdxl":
-                raise ValueError("CMK Image Input accepts only MODEL SDXL")
-        return model_sdxl, process, resized_image, log_pipe, diagnostic
+                raise ValueError("CMK Load Image accepts only MODEL SDXL")
+        return model_sdxl, process, resized_image, log_pipe, diagnostic, resized_mask, image_name
 
     @classmethod
     def IS_CHANGED(cls, **inputs):
-        image_name = str(inputs.get("IMAGE", "") or "")
+        image_name = str(inputs.get("image", inputs.get("IMAGE", "")) or "")
         try:
             packaged_path = _packaged_reference_path(image_name)
             image_path = (
@@ -399,7 +441,7 @@ class CMKImageLoadAndResizePipe:
 
     @classmethod
     def VALIDATE_INPUTS(cls, **inputs):
-        image_name = str(inputs.get("IMAGE", "") or "")
+        image_name = str(inputs.get("image", inputs.get("IMAGE", "")) or "")
         if _packaged_reference_path(image_name) is not None:
             return True
         try:

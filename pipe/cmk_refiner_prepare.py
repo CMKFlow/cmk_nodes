@@ -16,6 +16,10 @@ from .cmk_sampler_prepare import (
 )
 from ..utils.cmk_diagnostic import make_diagnostic_payload
 from ..utils.cmk_timing import cmk_timed_call
+from .loaders.checkpoint_vae_loader import (
+    ensure_sdxl_text_encoder,
+    evict_sdxl_text_encoder,
+)
 
 
 def _safe_default(items, preferred):
@@ -157,8 +161,16 @@ class CMKRefinerPrepareSDXLPipe:
         model = MODEL.get("model")
         clip = MODEL.get("clip")
         vae = MODEL.get("vae")
-        if model is None or clip is None or vae is None:
-            raise ValueError("CMK Refiner Prepare SDXL -Pipe-: MODEL must provide model, clip and vae")
+        if model is None or vae is None:
+            raise ValueError(
+                "CMK Refiner Prepare SDXL -Pipe-: MODEL must provide model and vae"
+            )
+        if clip is None:
+            clip, _ = ensure_sdxl_text_encoder(MODEL)
+        if clip is None:
+            raise ValueError(
+                "CMK Refiner Prepare SDXL -Pipe-: MODEL text encoder could not be restored"
+            )
 
         width = _int(SAMPLED.get("width", PROCESS.get("width", PROCESS.get("target_width"))), 1024)
         height = _int(SAMPLED.get("height", PROCESS.get("height", PROCESS.get("target_height"))), 1024)
@@ -171,8 +183,20 @@ class CMKRefinerPrepareSDXLPipe:
         local_prompt_neg = prompt_neg if prompt_neg_input is None else prompt_neg_input
 
         if inherit_prompt:
-            selected_prompt_pos = _clean_text(SAMPLED.get("prompt_pos", PROCESS.get("prompt_pos")), "")
-            selected_prompt_neg = _clean_text(SAMPLED.get("prompt_neg", PROCESS.get("prompt_neg")), "")
+            selected_prompt_pos = _clean_text(
+                SAMPLED.get(
+                    "effective_prompt_pos",
+                    SAMPLED.get("prompt_pos", PROCESS.get("prompt_pos")),
+                ),
+                "",
+            )
+            selected_prompt_neg = _clean_text(
+                SAMPLED.get(
+                    "effective_prompt_neg",
+                    SAMPLED.get("prompt_neg", PROCESS.get("prompt_neg")),
+                ),
+                "",
+            )
         else:
             selected_prompt_pos = _clean_text(local_prompt_pos, "")
             selected_prompt_neg = _clean_text(local_prompt_neg, "")
@@ -335,4 +359,23 @@ class CMKRefinerPrepareSDXLPipe:
                 "seed": refiner_pipe["refiner_seed"],
             },
         )
+        if bool(PROCESS.get("unload_models_after_use", True)):
+            refiner_pipe["refiner_text_encoder_status"] = (
+                evict_sdxl_text_encoder(
+                    MODEL, refiner_pipe, label="SDXL Refiner"
+                )
+            )
+            # The base and optional LoRA clone have finished producing both
+            # Refiner conditionings; neither is needed by KSamplerAdvanced.
+            clip = None
+            import gc
+
+            gc.collect()
+            try:
+                import comfy.model_management
+
+                comfy.model_management.cleanup_models_gc()
+                comfy.model_management.soft_empty_cache(force=True)
+            except Exception:
+                pass
         return (refiner_pipe, log_pipe, diagnostic)
