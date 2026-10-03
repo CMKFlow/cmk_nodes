@@ -101,15 +101,26 @@ Run inside the target ComfyUI installation:
 ```bash
 cd /path/to/ComfyUI
 git clone https://github.com/CMKFlow/cmk_nodes.git custom_nodes/cmk_nodes
-python -m pip install -r custom_nodes/cmk_nodes/requirements.txt
+python3 custom_nodes/cmk_nodes/scripts/install_cmk_requirements.py
 ```
+
+The installer derives the Python environment actually used by ComfyUI from the
+repository location, installs `requirements.txt` into that environment, and
+then verifies every mandatory CMK import. This matters especially with ComfyUI
+Desktop, where the system Python, `standalone-env`, and `ComfyUI/.venv` may all
+exist side by side.
 
 Fully stop and restart ComfyUI. To update:
 
 ```bash
 git -C custom_nodes/cmk_nodes pull --ff-only
-python -m pip install -r custom_nodes/cmk_nodes/requirements.txt
+python3 custom_nodes/cmk_nodes/scripts/install_cmk_requirements.py
 ```
+
+When CMK is installed entirely through ComfyUI Manager, the manager normally
+installs `requirements.txt`. A manual Git clone never runs `pip` on its own, so
+the installer above is mandatory for that route. A repository merely appearing
+in Manager does not prove that its Python module imported successfully.
 
 For an existing manual installation, back up and completely replace the old
 folder. Do not leave historical individual files beside the current package.

@@ -105,15 +105,27 @@ In einem Terminal der gewünschten ComfyUI-Installation:
 ```bash
 cd /Pfad/zu/ComfyUI
 git clone https://github.com/CMKFlow/cmk_nodes.git custom_nodes/cmk_nodes
-python -m pip install -r custom_nodes/cmk_nodes/requirements.txt
+python3 custom_nodes/cmk_nodes/scripts/install_cmk_requirements.py
 ```
+
+Der Installationshelfer ermittelt aus dem Zielpfad automatisch die tatsächlich
+von ComfyUI verwendete Python-Umgebung, installiert dort `requirements.txt` und
+prüft anschließend alle verpflichtenden CMK-Importe. Das ist insbesondere bei
+ComfyUI Desktop wichtig, weil System-Python, `standalone-env` und
+`ComfyUI/.venv` nebeneinander vorhanden sein können.
 
 Anschließend ComfyUI vollständig beenden und neu starten. Für ein Update:
 
 ```bash
 git -C custom_nodes/cmk_nodes pull --ff-only
-python -m pip install -r custom_nodes/cmk_nodes/requirements.txt
+python3 custom_nodes/cmk_nodes/scripts/install_cmk_requirements.py
 ```
+
+Bei einer vollständigen Installation über den ComfyUI Manager werden die
+Pakete aus `requirements.txt` normalerweise vom Manager installiert. Ein
+manueller Git-Clone führt dagegen niemals automatisch `pip` aus; dafür ist der
+obige Installationshelfer verbindlich. Ein bloß im Manager sichtbarer
+Repository-Ordner bestätigt noch keinen erfolgreichen Python-Import.
 
 ### Erforderliche ComfyUI-Oberfläche
 
