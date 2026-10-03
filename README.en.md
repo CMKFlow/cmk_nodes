@@ -96,10 +96,23 @@ of its very high memory and runtime requirements.
 
 ## Installation
 
-Run inside the target ComfyUI installation:
+CMK is currently installed manually from GitHub. Fully quit ComfyUI before
+starting the installation.
+
+### 1. Open the correct ComfyUI folder
+
+Open the root folder of your ComfyUI installation. This is the folder that
+contains `main.py` and the `custom_nodes` subfolder. Open a terminal **in that
+exact folder**.
+
+If `custom_nodes/cmk_nodes` already exists there, do not install over it. Back
+up or completely remove the existing folder first.
+
+### 2. Download CMK and install its dependencies
+
+Copy these two commands into the terminal one after the other:
 
 ```bash
-cd /path/to/ComfyUI
 git clone https://github.com/CMKFlow/cmk_nodes.git custom_nodes/cmk_nodes
 python3 custom_nodes/cmk_nodes/scripts/install_cmk_requirements.py
 ```
@@ -110,22 +123,32 @@ then verifies every mandatory CMK import. This matters especially with ComfyUI
 Desktop, where the system Python, `standalone-env`, and `ComfyUI/.venv` may all
 exist side by side.
 
-Fully stop and restart ComfyUI. To update:
+The installation succeeded when the final line reads:
+
+```text
+CMK dependency check: OK
+```
+
+### 3. Restart ComfyUI
+
+Start ComfyUI again only after the success message appears. The Flow Browser is
+registered automatically when the CMK package loads.
+
+### Updating
+
+To update, open a terminal in the ComfyUI root folder again and run:
 
 ```bash
 git -C custom_nodes/cmk_nodes pull --ff-only
 python3 custom_nodes/cmk_nodes/scripts/install_cmk_requirements.py
 ```
 
-When CMK is installed entirely through ComfyUI Manager, the manager normally
-installs `requirements.txt`. A manual Git clone never runs `pip` on its own, so
-the installer above is mandatory for that route. A repository merely appearing
-in Manager does not prove that its Python module imported successfully.
+A manual Git clone never runs `pip` on its own. The second command is therefore
+a required part of every installation and update.
 
-For an existing manual installation, back up and completely replace the old
-folder. Do not leave historical individual files beside the current package.
-The JSON files in `subgraphs/` remain part of the node pack; additional copies
-under `user/default/subgraphs/` create duplicate blueprint entries.
+Do not leave historical individual files beside the current package. The JSON
+files in `subgraphs/` remain part of the node pack; additional copies under
+`user/default/subgraphs/` create duplicate blueprint entries.
 
 ## Required ComfyUI frontend
 

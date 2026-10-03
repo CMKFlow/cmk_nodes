@@ -100,10 +100,23 @@ Node-Klassen, Provider-Keys und UUIDs.
 
 ## Installation
 
-In einem Terminal der gewünschten ComfyUI-Installation:
+CMK wird derzeit manuell von GitHub installiert. ComfyUI vor der Installation
+vollständig beenden.
+
+### 1. Den richtigen ComfyUI-Ordner öffnen
+
+Öffne den Hauptordner deiner ComfyUI-Installation. Es ist der Ordner, der die
+Datei `main.py` und den Unterordner `custom_nodes` enthält. Öffne **genau in
+diesem Ordner** ein Terminal.
+
+Falls dort bereits `custom_nodes/cmk_nodes` existiert, nicht darüberinstallieren:
+Den vorhandenen Ordner zuerst sichern oder vollständig entfernen.
+
+### 2. CMK herunterladen und Abhängigkeiten installieren
+
+Diese beiden Befehle nacheinander in das geöffnete Terminal kopieren:
 
 ```bash
-cd /Pfad/zu/ComfyUI
 git clone https://github.com/CMKFlow/cmk_nodes.git custom_nodes/cmk_nodes
 python3 custom_nodes/cmk_nodes/scripts/install_cmk_requirements.py
 ```
@@ -114,18 +127,28 @@ prüft anschließend alle verpflichtenden CMK-Importe. Das ist insbesondere bei
 ComfyUI Desktop wichtig, weil System-Python, `standalone-env` und
 `ComfyUI/.venv` nebeneinander vorhanden sein können.
 
-Anschließend ComfyUI vollständig beenden und neu starten. Für ein Update:
+Die Installation war erfolgreich, wenn am Ende diese Meldung erscheint:
+
+```text
+CMK dependency check: OK
+```
+
+### 3. ComfyUI neu starten
+
+ComfyUI erst nach der Erfolgsmeldung wieder starten. Der Flow Browser wird mit
+dem geladenen CMK-Paket automatisch registriert.
+
+### Update
+
+Für ein Update erneut ein Terminal im ComfyUI-Hauptordner öffnen und ausführen:
 
 ```bash
 git -C custom_nodes/cmk_nodes pull --ff-only
 python3 custom_nodes/cmk_nodes/scripts/install_cmk_requirements.py
 ```
 
-Bei einer vollständigen Installation über den ComfyUI Manager werden die
-Pakete aus `requirements.txt` normalerweise vom Manager installiert. Ein
-manueller Git-Clone führt dagegen niemals automatisch `pip` aus; dafür ist der
-obige Installationshelfer verbindlich. Ein bloß im Manager sichtbarer
-Repository-Ordner bestätigt noch keinen erfolgreichen Python-Import.
+Ein manueller Git-Clone führt niemals automatisch `pip` aus. Deshalb gehört der
+zweite Befehl verbindlich zur Installation und zu jedem Update.
 
 ### Erforderliche ComfyUI-Oberfläche
 
@@ -147,7 +170,9 @@ Oberfläche wechselt beim Aktivieren unmittelbar; ein Neuladen ist nicht nötig.
 Für Vorschauen während Sampler- und Refiner-Läufen sollte unter
 **Comfy → Execution → Live preview method** der Wert **auto** gewählt sein.
 
-Bei einer bestehenden manuellen CMK-Installation den bisherigen Ordner zuerst sichern und vollständig ersetzen; keine alten Einzeldateien daneben liegen lassen. Die JSON-Dateien unter `subgraphs/` bleiben im Node-Pack. Zusätzliche Kopien unter `user/default/subgraphs/` erzeugen doppelte Blueprint-Einträge.
+Keine alten Einzeldateien neben einer aktuellen Installation liegen lassen. Die
+JSON-Dateien unter `subgraphs/` bleiben im Node-Pack. Zusätzliche Kopien unter
+`user/default/subgraphs/` erzeugen doppelte Blueprint-Einträge.
 
 Vor dem Kopieren sollten vorhandene gleichnamige Workflows außerhalb des Node-Packs gesichert werden. Historische Entwicklungsstände sind nicht Bestandteil der öffentlichen CMK-Veröffentlichung.
 

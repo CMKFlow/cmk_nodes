@@ -77,8 +77,16 @@ class InstallationContractTests(unittest.TestCase):
 
     def test_bilingual_readmes_use_the_environment_aware_installer(self):
         command = "scripts/install_cmk_requirements.py"
-        self.assertIn(command, (ROOT / "README.md").read_text(encoding="utf-8"))
-        self.assertIn(command, (ROOT / "README.en.md").read_text(encoding="utf-8"))
+        german = (ROOT / "README.md").read_text(encoding="utf-8")
+        english = (ROOT / "README.en.md").read_text(encoding="utf-8")
+        self.assertIn(command, german)
+        self.assertIn(command, english)
+        self.assertIn("CMK dependency check: OK", german)
+        self.assertIn("CMK dependency check: OK", english)
+        self.assertNotIn("cd /Pfad/zu/ComfyUI", german)
+        self.assertNotIn("cd /path/to/ComfyUI", english)
+        self.assertNotIn("ComfyUI Manager", german)
+        self.assertNotIn("ComfyUI Manager", english)
 
 
 if __name__ == "__main__":
