@@ -11,12 +11,10 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-import hashlib
 import os
 from pathlib import Path
-import shutil
 import sys
-import tempfile
+import time
 from typing import Iterable
 from urllib.request import Request, urlopen
 
@@ -176,6 +174,41 @@ def audit(comfy_root: Path, extra_roots: Iterable[Path] = ()) -> list[tuple[Reso
     return [(resource, locate(resource, roots)) for resource in RESOURCES]
 
 
+def _human_size(value: int) -> str:
+    size = float(max(0, value))
+    for unit in ("B", "KiB", "MiB", "GiB"):
+        if size < 1024.0 or unit == "GiB":
+            return f"{size:.1f} {unit}"
+        size /= 1024.0
+    return f"{size:.1f} GiB"
+
+
+def _copy_with_progress(response, output, chunk_size: int = 1024 * 1024) -> int:
+    header = response.headers.get("Content-Length") if response.headers else None
+    total = int(header) if header and str(header).isdigit() else 0
+    transferred = 0
+    started = time.monotonic()
+    while True:
+        chunk = response.read(chunk_size)
+        if not chunk:
+            break
+        output.write(chunk)
+        transferred += len(chunk)
+        elapsed = max(0.001, time.monotonic() - started)
+        speed = _human_size(int(transferred / elapsed)) + "/s"
+        if total:
+            percent = min(100.0, transferred * 100.0 / total)
+            progress = (
+                f"{percent:6.2f}% · {_human_size(transferred)} / "
+                f"{_human_size(total)} · {speed}"
+            )
+        else:
+            progress = f"{_human_size(transferred)} · {speed}"
+        print(f"\rDownloading : {progress}", end="", flush=True)
+    print()
+    return transferred
+
+
 def _download(resource: Resource, destination: Path) -> Path:
     if not resource.download_url or not resource.target_path:
         raise RuntimeError(f"{resource.resource_id} has no approved automatic download source.")
@@ -187,7 +220,7 @@ def _download(resource: Resource, destination: Path) -> Path:
     request = Request(resource.download_url, headers={"User-Agent": "CMK-resource-installer/1"})
     try:
         with urlopen(request, timeout=60) as response, temporary.open("wb") as output:
-            shutil.copyfileobj(response, output, length=1024 * 1024)
+            _copy_with_progress(response, output)
         temporary.replace(target)
     except Exception:
         temporary.unlink(missing_ok=True)

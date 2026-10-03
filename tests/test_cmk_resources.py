@@ -1,3 +1,5 @@
+from contextlib import redirect_stdout
+import io
 import importlib.util
 from pathlib import Path
 import sys
@@ -51,6 +53,25 @@ class CmkResourceAuditTests(unittest.TestCase):
         for resource in self.audit_module.RESOURCES:
             if resource.download_url:
                 self.assertTrue(resource.target_path, resource.resource_id)
+
+    def test_download_copy_reports_percentage_and_size(self):
+        payload = b"x" * 4096
+        response = io.BytesIO(payload)
+        response.headers = {"Content-Length": str(len(payload))}
+        output = io.BytesIO()
+        terminal = io.StringIO()
+
+        with redirect_stdout(terminal):
+            transferred = self.audit_module._copy_with_progress(
+                response,
+                output,
+                chunk_size=1024,
+            )
+
+        self.assertEqual(len(payload), transferred)
+        self.assertEqual(payload, output.getvalue())
+        self.assertIn("100.00%", terminal.getvalue())
+        self.assertIn("4.0 KiB", terminal.getvalue())
 
 
 if __name__ == "__main__":
