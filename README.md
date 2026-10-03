@@ -135,8 +135,8 @@ CMK dependency check: OK
 
 ### 3. Modellressourcen prüfen
 
-Die Python-Prüfung lädt keine großen oder lizenzpflichtigen Modelle. Prüfe die
-Ressourcen deshalb ausdrücklich gegen die Installation und optional gegen den
+Die Python-Abhängigkeiten enthalten keine Modellgewichte. Prüfe die Ressourcen
+deshalb ausdrücklich gegen die Installation und – falls verwendet – gegen den
 gemeinsamen Modellordner:
 
 ```bash
@@ -144,12 +144,20 @@ python3 custom_nodes/cmk_nodes/scripts/check_cmk_resources.py \\
   --models-root "/Pfad/zum/ComfyUI-Shared"
 ```
 
-Jede Ressource wird einzeln als `FOUND` oder `MISSING` ausgegeben. Direkt nach
-einem fehlenden, öffentlich verfügbaren Download fragt der Helfer, ob die Datei
-jetzt in den angegebenen Modellordner installiert werden soll. Mit `n` läuft
-die Prüfung weiter; mit `y` wird zuerst die aktuelle Datei installiert. Die
-beiden öffentlichen InstantID-Dateien können so einzeln installiert werden;
-alle anderen Ressourcen mit Lizenz- oder Modellwahl bleiben bewusst manuell.
+Der Helfer prüft die konkreten Dateinamen der ausgelieferten CMK-2.5-Workflows;
+ein lediglich nicht-leerer Modellordner gilt nicht als Treffer. Jede Ressource
+wird einzeln mit ihrem CMK-Einsatzbereich als `FOUND` oder `MISSING` ausgegeben.
+Direkt nach einer fehlenden Ressource mit eindeutigem öffentlichem Original-
+Download fragt der Helfer, ob sie jetzt installiert werden soll. Mit `n` läuft
+die Prüfung weiter; mit `y` wird zuerst diese Datei mit Fortschrittsanzeige in
+den korrekten ComfyUI-Modellordner geladen.
+
+Direkt installierbar sind die CMK-seitig festgelegten Ressourcen für InstantID,
+Z-Image Turbo, SAM, GFPGAN, Fooocus Inpaint und RealESRGAN. Checkpoints,
+Detektor- und FaceSwap-Gewichte mit eigener Modellwahl oder gesonderten
+Lizenzbedingungen werden vollständig gemeldet, aber bewusst nicht automatisch
+heruntergeladen. Die Meldung nennt dann die betroffene Funktion und den Grund
+für die manuelle Installation.
 
 ```bash
 python3 custom_nodes/cmk_nodes/scripts/check_cmk_resources.py \\
@@ -163,8 +171,9 @@ python3 custom_nodes/cmk_nodes/scripts/check_cmk_resources.py \\
   --target-root "/Pfad/zum/ComfyUI-Shared"
 ```
 
-Der ControlNet-Download ist etwa 2,5 GB groß. Workflows und technische
-Identitäten werden durch den Ressourcencheck nicht verändert.
+Mehrere Z-Image-/ControlNet-Dateien sind mehrere Gigabyte groß; jede davon wird
+deshalb separat bestätigt. Workflows und technische Identitäten werden durch
+den Ressourcencheck nicht verändert.
 
 Für automatisierte Prüfungen ohne Nachfrage steht `--non-interactive` zur
 Verfügung.

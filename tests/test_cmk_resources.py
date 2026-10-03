@@ -1,6 +1,7 @@
 from contextlib import redirect_stdout
 import io
 import importlib.util
+import json
 from pathlib import Path
 import sys
 import tempfile
@@ -68,6 +69,46 @@ class CmkResourceAuditTests(unittest.TestCase):
         for resource in self.audit_module.RESOURCES:
             if resource.download_url:
                 self.assertTrue(resource.target_path, resource.resource_id)
+
+    def test_manifest_uses_exact_files_instead_of_nonempty_model_directories(self):
+        for resource in self.audit_module.RESOURCES:
+            for relative in resource.relative_paths:
+                if resource.resource_id == "insightface-buffalo-l":
+                    continue
+                self.assertTrue(Path(relative).suffix, resource.resource_id)
+
+    def test_all_model_files_selected_by_showcase_and_subgraphs_are_audited(self):
+        extensions = {".safetensors", ".pth", ".pt", ".onnx", ".bin"}
+        selected = set()
+
+        def visit(value):
+            if isinstance(value, dict):
+                for child in value.values():
+                    visit(child)
+            elif isinstance(value, list):
+                for child in value:
+                    visit(child)
+            elif isinstance(value, str) and Path(value).suffix.lower() in extensions:
+                selected.add(Path(value).name)
+
+        for folder in (ROOT / "workflows" / "showcase", ROOT / "subgraphs"):
+            for path in folder.glob("*.json"):
+                visit(json.loads(path.read_text(encoding="utf-8")))
+
+        audited = {
+            Path(relative).name
+            for resource in self.audit_module.RESOURCES
+            for relative in resource.relative_paths
+        }
+        self.assertEqual(set(), selected - audited)
+
+    def test_zit_controlnet_weights_are_installed_as_model_patches(self):
+        for resource_id in ("zit-controlnet", "zit-inpaint-model-patch"):
+            resource = next(
+                item for item in self.audit_module.RESOURCES
+                if item.resource_id == resource_id
+            )
+            self.assertTrue(resource.target_path.startswith("model_patches/"))
 
     def test_download_copy_reports_percentage_and_size(self):
         payload = b"x" * 4096

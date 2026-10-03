@@ -131,21 +131,28 @@ CMK dependency check: OK
 
 ### 3. Audit model resources
 
-The Python check does not silently download large or licensed model files. Run
-an explicit resource audit against the installation and, optionally, the
-shared model directory:
+Python dependencies do not include model weights. Run an explicit resource
+audit against the installation and, when used, the shared model directory:
 
 ```bash
 python3 custom_nodes/cmk_nodes/scripts/check_cmk_resources.py \\
   --models-root "/path/to/ComfyUI-Shared"
 ```
 
-Each resource is reported independently as `FOUND` or `MISSING`. Immediately
-after a missing resource with a public download source, the helper asks whether
-to install it into the selected model directory. `n` continues the audit;
-`y` installs the current file first. The two public InstantID files can be
-installed individually this way; resources that require a licence or a
-user-selected model remain manual:
+The helper checks the exact filenames selected by the bundled CMK 2.5
+workflows; a merely non-empty model directory does not count as a match. Every
+resource is reported independently as `FOUND` or `MISSING`, together with the
+CMK feature that uses it. Immediately after a missing resource with an
+unambiguous public upstream download, the helper asks whether to install it.
+`n` continues the audit; `y` installs that file first, with download progress,
+into the correct ComfyUI model directory.
+
+The fixed CMK resources for InstantID, Z-Image Turbo, SAM, GFPGAN, Fooocus
+Inpaint, and RealESRGAN can be installed directly. Checkpoints, detector
+weights, and FaceSwap weights that involve a model choice or separate licence
+terms are all reported but are deliberately not downloaded automatically. In
+those cases the report identifies the affected feature and why manual
+installation is required:
 
 ```bash
 python3 custom_nodes/cmk_nodes/scripts/check_cmk_resources.py \\
@@ -159,8 +166,9 @@ python3 custom_nodes/cmk_nodes/scripts/check_cmk_resources.py \\
   --target-root "/path/to/ComfyUI-Shared"
 ```
 
-The ControlNet download is approximately 2.5 GB. The resource audit never
-changes workflows or technical identities.
+Several Z-Image and ControlNet files are multiple gigabytes in size, so each
+one requires separate confirmation. The resource audit never changes workflows
+or technical identities.
 
 Use `--non-interactive` for automated audits without prompts.
 
