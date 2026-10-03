@@ -129,7 +129,37 @@ The installation succeeded when the final line reads:
 CMK dependency check: OK
 ```
 
-### 3. Restart ComfyUI
+### 3. Audit model resources
+
+The Python check does not silently download large or licensed model files. Run
+an explicit resource audit against the installation and, optionally, the
+shared model directory:
+
+```bash
+python3 custom_nodes/cmk_nodes/scripts/check_cmk_resources.py \\
+  --models-root "/path/to/ComfyUI-Shared"
+```
+
+Each resource is reported independently as `FOUND` or `MISSING`. The two
+public InstantID files can be installed individually; resources that require a
+licence or a user-selected model remain manual:
+
+```bash
+python3 custom_nodes/cmk_nodes/scripts/check_cmk_resources.py \\
+  --models-root "/path/to/ComfyUI-Shared" \\
+  --install instantid-adapter \\
+  --target-root "/path/to/ComfyUI-Shared"
+
+python3 custom_nodes/cmk_nodes/scripts/check_cmk_resources.py \\
+  --models-root "/path/to/ComfyUI-Shared" \\
+  --install instantid-controlnet \\
+  --target-root "/path/to/ComfyUI-Shared"
+```
+
+The ControlNet download is approximately 2.5 GB. The resource audit never
+changes workflows or technical identities.
+
+### 4. Restart ComfyUI
 
 Start ComfyUI again only after the success message appears. The Flow Browser is
 registered automatically when the CMK package loads.
