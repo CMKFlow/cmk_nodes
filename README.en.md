@@ -6,6 +6,8 @@
 
 Modular custom-node package for ComfyUI.
 
+**Current release: CMK 2.5.0**
+
 [Deutsch](README.md) · **English**
 
 [Source](https://github.com/CMKFlow/cmk_nodes) · [Documentation](#documents) · [Support the project](https://paypal.me/CMKFlow)
@@ -31,43 +33,62 @@ open-source project; it does not claim code reuse.
 
 ## Getting started
 
-The `CMK Flow Browser` provides the current Flow modules, the open toolbox, and
-curated reference workflows directly inside ComfyUI.
+The `CMK Flow Browser` is the central interface between users and CMK. Inside
+ComfyUI, it provides a concise overview, quick access to nodes and subgraphs,
+real previews, and curated reference workflows. It is a working tool rather
+than a manual or technical reference.
 
-The model families use separate, type-safe process paths:
+CMK 2.5 separates the model-specific generation stage from the
+family-neutral post-processing stage:
 
 ```text
-SDXL: 01 → optional 05 → 10 → 20 → optional 25 → optional 30 → optional 40 → 90
-ZIT:  01 → optional 05 → 10                                → optional 40 → 90
+Preparation: Loader / LoRA → 01 START HERE
+Generation:  02 Regional Conditioning (optional, SDXL)
+             → 05 ControlNet (optional)
+             → 10 KSampler
+             → 15 InstantID (optional, SDXL)
+             → 20 Refiner (SDXL)
+Handoff:     PostProcess Boundary (SDXL / Z-Image Turbo / Combined)
+PostProcess: FaceRebuild · FaceSwap · FaceProcess · Detailer · MaskDetailer
+Output:      Visualizer and/or Upscale & Save
 ```
 
-`Detailer SDXL` and `FaceProcess SDXL` are intentionally SDXL-only.
-`FaceSwap` and `Upscale & Save` are shared. A single family can connect
-to them directly; only a combined SDXL/ZIT workflow needs `PostProcess Boundary
-Result` to select the active path first.
+SDXL, Z-Image Turbo, and HYBRID remain technically separate during generation.
+HYBRID first builds the image with SDXL, then hands it to Z-Image Turbo for the
+final finish. The appropriate `PostProcess Boundary` ends generation and
+provides an independent, family-neutral context for subsequent processing. In
+workflows with parallel model families, the `Combined` variant accepts only the
+active SDXL, ZIT, or HYBRID branch.
 
 The public transport roles are:
 
 ```text
-MODEL | PROCESS | IMAGE | LOG
+MODEL | PROCESS | IMAGE | LOG | VISUAL
 ```
 
-Between the SDXL sampler and refiner, the proprietary latent handoff type
-`SAMPLED` replaces `IMAGE`.
+Between the SDXL sampler, InstantID, and refiner, the proprietary latent
+handoff type `SAMPLED` replaces `IMAGE`. Visible titles are presentational
+only; technical identity and navigation use metadata, node classes, provider
+keys, and UUIDs.
 
 ## Key features
 
-- explicit separation of model resources, process state, image data, and logs;
+- explicit separation of model resources, process state, image data, logs, and visualization;
 - proprietary Prepare/Execute contracts that prevent ambiguous wiring;
-- lazy SDXL/ZIT family routing and cache-safe optional modules;
+- separate SDXL, Z-Image Turbo, and HYBRID generation paths followed by a
+  shared family-neutral post-processing stage;
 - parallel Smart Detailer and FaceProcess instances;
 - dynamic `SEGS`, `LOG BLOCK`, and `DIAGNOSTIC` inputs;
-- standalone Detailer and FaceProcess operation through CMK loaders;
+- persistent branch caches for unchanged parallel instances;
+- mandatory module boundaries before comparers, downstream modules, and public outputs;
+- a central `VISUAL` chain for processing stages registered with the Visualizer;
+- standalone post-processing modules as either discrete workflows or packaged subgraphs;
 - aspect-ratio-safe Fit/Crop preparation, positioned cropping, mask alignment,
   Replace, Remove, Extend, and controlled outpainting overlap;
 - local FaceSwap image/video paths with mandatory ContentGuard;
-- curated SDXL, ZIT, ControlNet, FaceSwap, Inpaint, and combined Full Flow
-  references in the Flow Browser;
+- a Flow Browser reference catalog organized into Task Workflows, Module
+  Workflows, Comparisons, Real-World Workflows, System Workflow, and Legacy,
+  including 20 task workflows ordered by increasing functional complexity;
 - dedicated Z-Image Turbo loader, sampler, and optional ControlNet modules.
 
 ZIT-Inpaint is explicitly marked `EXPERIMENTAL` and temporarily frozen because
@@ -97,17 +118,12 @@ under `user/default/subgraphs/` create duplicate blueprint entries.
 
 ## Required ComfyUI frontend
 
-> **Validated release target / temporary standby**
+> **Validated release target**
 >
-> This release is comprehensively validated with **ComfyUI 0.28.2** and
-> **comfyui-frontend-package 1.45.21**. With **ComfyUI 0.31.1** and frontend
-> **1.48.7**, live and final previews on outer subgraph nodes may remain blank
-> even though execution, image transport, saving, and results remain correct.
-> Adaptation to newer ComfyUI versions is temporarily on **standby** while the
-> upstream subgraph-preview behavior is being revised. CMK will re-test after a
-> relevant frontend update before adding package-specific workarounds.
->
-> Upstream context: [missing subgraph live previews](https://github.com/Comfy-Org/ComfyUI_frontend/issues/9859) and [custom-node preview detection](https://github.com/Comfy-Org/ComfyUI_frontend/issues/10531).
+> CMK 2.5.0 was fully validated with **ComfyUI 0.37.0** and
+> **comfyui-frontend-package 1.52.7**. This includes Flow Browser navigation,
+> packaged subgraphs and reference workflows, embedded previews, cache paths,
+> and the serialized link, socket, UUID, and topology contracts.
 
 CMK Flow requires **Vue Nodes / Nodes 2.0** in the active ComfyUI user profile.
 Without it, dynamic CMK nodes fall back to legacy LiteGraph rendering and their
@@ -121,8 +137,9 @@ method → auto**.
 
 The CMK core nodes for detection, `SEGS`, Detailer, pasteback, FaceProcess
 restore, SAM loading, and the included ControlNet preprocessors do not require
-third-party custom-node packs. The optional `02 SDXL LoRA Stack` subgraph and
-references that use it require the
+third-party custom-node packs. The optional `LoRA Stack · SDXL`, `LoRA Stack ·
+ZIT`, and `LoRA Stack · Combined` subgraphs, as well as references that use
+them, require the
 [ComfyUI LoRA Manager](https://github.com/willmiao/ComfyUI-Lora-Manager).
 All other CMK modules remain usable without it.
 
@@ -173,9 +190,9 @@ segments to `output/video/segments/<video_name>/`, and returns the persistent
 without another encode. `CMK FaceSwap Video Loader` adds video and source-image
 selection to the persistent Split path.
 
-The technical `CMK FaceSwap Video` reference remains separate because its
-project, segment, and continuation contract needs dedicated migration and
-compatibility testing.
+`CMK FaceSwap Video` is the historical legacy reference that started the CMK
+project. It dates back to CMK 1.0, was intentionally not modernized to the CMK
+2.5 architecture, and continues to run unchanged in the current environment.
 
 ## Documents
 
@@ -191,6 +208,7 @@ compatibility testing.
 | `TOOLBOX.md` | open-toolbox product boundary and maintenance plan |
 | `CMK_FLOW_COMPATIBILITY.md` | draft integration contract for third parties |
 | `CONTENT_GUARD.md` | authoritative local FaceSwap protection policy |
+| `RELEASE_AUDIT_CMK_2_5.md` | final audit of CMK 2.5 contracts, tests, and release deviations |
 
 ## License
 

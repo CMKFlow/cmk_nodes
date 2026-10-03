@@ -6,6 +6,8 @@
 
 Modulares Custom-Node-Paket für ComfyUI.
 
+**Aktueller Release: CMK 2.5.0**
+
 **Deutsch** · [English](README.en.md)
 
 [Quellcode](https://github.com/CMKFlow/cmk_nodes) · [Dokumentation](#dokumente) · [Freiwillig unterstützen](https://paypal.me/CMKFlow)
@@ -35,44 +37,66 @@ Arbeit hinter dem Open-Source-Projekt; sie behauptet keine Übernahme von Code.
 
 ## Einstieg
 
-Der zentrale Einstieg ist der `CMK Flow Browser`. Er stellt die aktuellen
-Flow-Module, den offenen Baukasten und die kuratierten Referenzworkflows direkt
-in ComfyUI bereit.
+Der `CMK Flow Browser` ist die zentrale Schnittstelle zwischen Anwender und CMK.
+Er bietet direkt in ComfyUI einen kompakten Überblick, schnellen Zugriff auf
+Nodes und Subgraphen, echte Vorschauen sowie kuratierte Referenzworkflows. Er
+ist ein Arbeitswerkzeug und bewusst weder Handbuch noch technische
+Dokumentation.
 
-Die beiden Modellfamilien besitzen getrennte, typgesicherte Prozesspfade:
+CMK 2.5 trennt die familientypische Generationszone von der
+familienunabhängigen PostProcess-Zone:
 
 ```text
-SDXL: 01 → 05 optional → 10 → 20 → 25 optional → 30 optional → 40 optional → 90
-ZIT:  01 → 05 optional → 10                    → 40 optional → 90
+Vorbereitung: Loader / LoRA → 01 START HERE
+Generierung: 02 Regional Conditioning (optional, SDXL)
+              → 05 ControlNet (optional)
+              → 10 KSampler
+              → 15 InstantID (optional, SDXL)
+              → 20 Refiner (SDXL)
+Übergabe:     PostProcess Boundary (SDXL / Z-Image Turbo / Combined)
+PostProcess:  FaceRebuild · FaceSwap · FaceProcess · Detailer · MaskDetailer
+Ausgabe:      Visualizer und/oder Upscale & Save
 ```
 
-`Detailer SDXL` und `FaceProcess SDXL` sind bewusst ausschließlich SDXL
-zugeordnet. `FaceSwap` und `Upscale & Save` sind die gemeinsam genutzten
-Module. Ein einzelner Familienpfad kann sie direkt speisen; nur ein kombinierter
-SDXL-/ZIT-Workflow führt die aktive Familie zuvor über `PostProcess Boundary Combined`
-zusammen.
+SDXL, Z-Image Turbo und HYBRID bleiben während der Generierung technisch
+getrennte Pfade. HYBRID baut das Bild zunächst mit SDXL auf und übergibt es für
+den abschließenden Finish an Z-Image Turbo. Die passende `PostProcess Boundary`
+beendet den Generationsabschnitt und stellt anschließend einen unabhängigen,
+familienneutralen Arbeitskontext bereit. Bei parallelen Familien übernimmt die
+Variante `Combined` ausschließlich den aktiven SDXL-, ZIT- oder HYBRID-Zweig.
 
 Die sichtbaren Hauptrollen sind:
 
 ```text
-MODEL | PROCESS | IMAGE | LOG
+MODEL | PROCESS | IMAGE | LOG | VISUAL
 ```
 
-Zwischen Sampler und Refiner wird statt `IMAGE` der proprietäre Latent-Übergabetyp `SAMPLED` verwendet.
+Zwischen SDXL-Sampler, InstantID und Refiner wird statt `IMAGE` der proprietäre
+Latent-Übergabetyp `SAMPLED` verwendet. Sichtbare Titel dienen ausschließlich
+der Darstellung; technische Identität und Navigation beruhen auf Metadaten,
+Node-Klassen, Provider-Keys und UUIDs.
 
 ## Wesentliche Eigenschaften
 
-- klare Trennung von Modellressourcen, Prozesszustand, Bild und Dokumentation;
+- klare Trennung von Modellressourcen, Prozesszustand, Bild, Log und Visualisierung;
 - proprietäre Prepare-/Execute-Schnittstellen gegen Fehlverkabelung;
+- getrennte SDXL-, Z-Image-Turbo- und HYBRID-Generationspfade mit gemeinsamer
+  familienneutraler PostProcess-Zone;
 - parallele Smart-Detailer- und FaceProcess-Instanzen;
 - dynamische `SEGS`, `LOG BLOCK` und `DIAGNOSTIC`-Eingänge;
 - persistente Branch-Caches für unveränderte parallele Instanzen;
 - verpflichtende Modul-Boundaries vor Comparer, nachfolgenden Modulen und öffentlichen Ausgängen;
-- eigenständige Nutzung von Detailer und FaceProcess über die CMK-Loader bleibt möglich;
+- zentrale `VISUAL`-Kette für registrierte Bearbeitungsstufen im Visualizer;
+- eigenständige Nutzung der PostProcess-Module in diskreten oder gekapselten
+  Modul-Workflows;
 - `CMK Flow · Image Input` verwendet für neue Nodes standardmäßig den sichtbaren seitenverhältnistreuen Crop. `center/top/bottom/left/right` bestimmen, welcher Bildbereich beim Resize erhalten bleibt; dadurch wird das Bild nicht auf das Zielseitenverhältnis verzerrt.
 - `CMK Swap Image Loader -Pipe-` lädt Target und Source in einer zweispaltigen Oberfläche; nur das Target nutzt Resize und optionalen Advanced-Crop, die Source bleibt pixelmäßig unverändert.
 - Z-Image Turbo besitzt eigene Loader-, Sampler- und optionale ControlNet-Module. ZIT-Inpaint bleibt aufgrund der sehr hohen Speicher- und Laufzeitanforderungen ausdrücklich `EXPERIMENTAL` und vorläufig eingefroren.
-- Der Referenzkatalog enthält getrennte SDXL- und ZIT-Beispiele sowie den kombinierten Full Flow als Nachweis der modularen Familienumschaltung.
+- Der Referenzkatalog gliedert sich in Task Workflows, Module Workflows,
+  Comparisons, Real-World Workflows, System Workflow und Legacy. Er enthält 20
+  aufsteigend komplexe Task-Workflows, diskrete und gekapselte Modulbeispiele,
+  direkte Vergleiche, vollständige Praxisabläufe und den Full Flow als
+  Systemreferenz.
 
 ## Installation
 
@@ -93,20 +117,13 @@ python -m pip install -r custom_nodes/cmk_nodes/requirements.txt
 
 ### Erforderliche ComfyUI-Oberfläche
 
-> **Bestätigte Zielversion und vorläufiger Stand-by**
+> **Bestätigte Zielversion**
 >
-> Dieser Veröffentlichungsstand ist funktional umfassend mit **ComfyUI 0.28.2**
-> und **comfyui-frontend-package 1.45.21** bestätigt. Mit **ComfyUI 0.31.1**
-> und **Frontend 1.48.7** werden Live- und Endvorschauen innerhalb äußerer
-> Subgraph-Nodes teilweise nicht angezeigt, obwohl Berechnung, Bildtransport,
-> Speicherung und Ergebnisse korrekt bleiben. Die Einschränkung betrifft die
-> geänderte Preview-Behandlung des ComfyUI-Frontends. Da die zugrunde liegende
-> Subgraph-Preview-Thematik bereits upstream bearbeitet beziehungsweise
-> diskutiert wird, befindet sich die Anpassung an neuere ComfyUI-Versionen
-> vorübergehend im **Stand-by**. Nach einem entsprechenden Frontend-Update wird
-> die Kompatibilität neu geprüft, bevor CMK eigene Übergangslösungen einführt.
->
-> Upstream-Kontext: [fehlende Subgraph-Live-Previews](https://github.com/Comfy-Org/ComfyUI_frontend/issues/9859) und [Preview-Erkennung für Custom Nodes](https://github.com/Comfy-Org/ComfyUI_frontend/issues/10531).
+> CMK 2.5.0 wurde mit **ComfyUI 0.37.0** und
+> **comfyui-frontend-package 1.52.7** vollständig geprüft. Dazu gehören die
+> Flow-Browser-Navigation, paketierte Subgraphen und Referenzworkflows,
+> eingebettete Vorschauen, Cache-Pfade sowie die serialisierten Link-, Socket-,
+> UUID- und Topologieverträge.
 
 CMK Flow benötigt die ComfyUI-Einstellung **Vue Nodes / Nodes 2.0**. Ohne sie
 fallen dynamische CMK-Nodes auf die alte LiteGraph-Darstellung zurück;
@@ -126,8 +143,9 @@ Vor dem Kopieren sollten vorhandene gleichnamige Workflows außerhalb des Node-P
 
 Die CMK-Kernnodes für Detektion, `SEGS`, Detailer, Pasteback,
 FaceProcess-Restore, SAM-Laden und die angebotenen ControlNet-Preprozessoren
-benötigen keine fremden Custom-Node-Pakete. Der optionale Subgraph
-`02 SDXL LoRA Stack` und Referenzworkflows, die ihn verwenden, setzen den
+benötigen keine fremden Custom-Node-Pakete. Die optionalen Subgraphen
+`LoRA Stack · SDXL`, `LoRA Stack · ZIT` und `LoRA Stack · Combined` sowie
+Referenzworkflows, die sie verwenden, setzen den
 [ComfyUI LoRA Manager](https://github.com/willmiao/ComfyUI-Lora-Manager)
 voraus. Ohne ihn bleiben die übrigen CMK-Module verwendbar.
 
@@ -200,9 +218,10 @@ Video-Workflows.
 veröffentlicht es optional ohne erneutes Encoding. `CMK FaceSwap Video Loader`
 ergänzt den persistenten Split-Pfad um Video- und Source-Auswahl.
 
-Die technische Referenz `CMK FaceSwap Video` wird separat gepflegt, weil ihr
-Projekt-, Segment- und Fortsetzungsvertrag eigene Migrations- und
-Kompatibilitätsprüfungen benötigt.
+`CMK FaceSwap Video` ist die historische Legacy-Referenz, mit der die
+Entwicklung von CMK begann. Der Workflow stammt aus CMK 1.0, wurde bewusst
+nicht auf die CMK-2.5-Architektur modernisiert und bleibt unverändert im
+aktuellen Umfeld lauffähig.
 
 ## Dokumente
 
@@ -218,6 +237,7 @@ Kompatibilitätsprüfungen benötigt.
 | `TOOLBOX.md` | Produktgrenze, Funktionsinventar und Pflegeplan des offenen Baukastens |
 | `CMK_FLOW_COMPATIBILITY.md` | Entwurf des Integrationsvertrags für externe Baukasten-Nodes und Flow-Module |
 | `CONTENT_GUARD.md` | verbindliche lokale FaceSwap-Schutzpolicy, Abbruchregeln und Grenzen |
+| `RELEASE_AUDIT_CMK_2_5.md` | Abschlussaudit der CMK-2.5-Verträge, Tests und Release-Abweichungen |
 
 ## Lizenz
 
