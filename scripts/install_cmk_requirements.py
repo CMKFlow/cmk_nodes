@@ -63,7 +63,10 @@ def python_candidates(comfy_root: Path, current_executable: Path) -> Iterable[Pa
     )
     seen: set[Path] = set()
     for candidate in candidates:
-        candidate = candidate.expanduser().resolve()
+        # Preserve virtual-environment launcher symlinks. Resolving
+        # ComfyUI/.venv/bin/python to the base interpreter makes Python lose
+        # the .venv context and installs into the wrong environment.
+        candidate = candidate.expanduser().absolute()
         if candidate not in seen:
             seen.add(candidate)
             yield candidate

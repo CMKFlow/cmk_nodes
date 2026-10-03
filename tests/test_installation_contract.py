@@ -33,7 +33,7 @@ class InstallationContractTests(unittest.TestCase):
 
             self.assertEqual(comfy.resolve(), self.installer.find_comfy_root(repo))
             self.assertEqual(
-                python.resolve(),
+                python.absolute(),
                 self.installer.find_comfy_python(comfy, Path("/usr/bin/python3")),
             )
 
@@ -43,6 +43,22 @@ class InstallationContractTests(unittest.TestCase):
             repo.mkdir()
             with self.assertRaisesRegex(RuntimeError, "ComfyUI/custom_nodes/cmk_nodes"):
                 self.installer.find_comfy_root(repo)
+
+    def test_virtual_environment_launcher_symlink_is_not_resolved(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            comfy = root / "ComfyUI"
+            base_python = root / "standalone-env" / "bin" / "python3"
+            venv_python = comfy / ".venv" / "bin" / "python3"
+            base_python.parent.mkdir(parents=True)
+            base_python.touch(mode=0o755)
+            venv_python.parent.mkdir(parents=True)
+            venv_python.symlink_to(base_python)
+
+            self.assertEqual(
+                venv_python.absolute(),
+                self.installer.find_comfy_python(comfy, Path("/usr/bin/python3")),
+            )
 
     def test_requirements_cover_all_runtime_imports(self):
         requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8").lower()
