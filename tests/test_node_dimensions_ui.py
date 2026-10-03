@@ -209,6 +209,17 @@ class NodeDimensionsUITests(unittest.TestCase):
         for node_type, (width, height) in expected.items():
             self.assertIn(f"{node_type}: [{width}, {height}]", self.source)
 
+    def test_create_image_minimum_overrides_frontend_layout_estimates(self):
+        self.assertIn("const AUTHORITATIVE_MINIMUMS = {", self.source)
+        self.assertIn("CMKPipeCreateImage: [400, 800]", self.source)
+        self.assertIn("AUTHORITATIVE_MINIMUMS[sizeKey(node)]", self.source)
+        self.assertIn(
+            "const authoritative = AUTHORITATIVE_MINIMUMS[text(nodeData?.name).trim()]",
+            self.source,
+        )
+        self.assertIn("nodeType.min_size = [...authoritative]", self.source)
+        self.assertIn("nodeType.prototype.min_size = [...authoritative]", self.source)
+
     def test_standard_facerebuild_uses_a_minimum_not_a_fixed_size(self):
         source = (
             ROOT / "web" / "js" / "cmk_instantid_face_rebuild_advanced_ui.js"

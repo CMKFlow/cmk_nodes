@@ -4,6 +4,12 @@ const STORAGE_KEY = "cmk-node-size-defaults-v1";
 const MENU_LABEL = "CMK · Node Dimensions …";
 const MIN_WIDTH = 140;
 const MIN_HEIGHT = 60;
+// Newer ComfyUI DOM layouts can publish a transient type-level min_size that
+// is taller than CMK's calibrated Standard UI. These CMK minima take
+// precedence over that frontend estimate.
+const AUTHORITATIVE_MINIMUMS = {
+    CMKPipeCreateImage: [400, 800],
+};
 const BUILTIN_MINIMUMS = {
     CMKSamplerPrepareSDXLPipe: [450, 360],
     CMKRefinerPrepareSDXLPipe: [450, 360],
@@ -88,6 +94,16 @@ function saveDefaults(value) {
 }
 
 function minimumSize(node) {
+    const authoritative = (
+        AUTHORITATIVE_MINIMUMS[sizeKey(node)]
+        || AUTHORITATIVE_MINIMUMS[text(node?.title).trim()]
+    );
+    if (validSize(authoritative)) {
+        return [
+            Math.max(MIN_WIDTH, Number(authoritative[0])),
+            Math.max(MIN_HEIGHT, Number(authoritative[1])),
+        ];
+    }
     const builtIn = (
         BUILTIN_MINIMUMS[sizeKey(node)]
         || BUILTIN_MINIMUMS[text(node?.title).trim()]
@@ -101,7 +117,9 @@ function minimumSize(node) {
 
 function enforceBuiltInMinimum(node) {
     const requested = (
-        BUILTIN_MINIMUMS[sizeKey(node)]
+        AUTHORITATIVE_MINIMUMS[sizeKey(node)]
+        || AUTHORITATIVE_MINIMUMS[text(node?.title).trim()]
+        || BUILTIN_MINIMUMS[sizeKey(node)]
         || BUILTIN_MINIMUMS[text(node?.title).trim()]
     );
     if (!validSize(requested)) return;
@@ -113,6 +131,12 @@ function enforceBuiltInMinimum(node) {
 }
 
 function installTypeMinimum(nodeType, nodeData) {
+    const authoritative = AUTHORITATIVE_MINIMUMS[text(nodeData?.name).trim()];
+    if (validSize(authoritative)) {
+        nodeType.min_size = [...authoritative];
+        nodeType.prototype.min_size = [...authoritative];
+        return;
+    }
     const requested = BUILTIN_MINIMUMS[text(nodeData?.name).trim()];
     if (!validSize(requested)) return;
     const declared = nodeType?.min_size || nodeType?.prototype?.min_size;
