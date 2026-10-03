@@ -152,12 +152,18 @@ Download fragt der Helfer, ob sie jetzt installiert werden soll. Mit `n` läuft
 die Prüfung weiter; mit `y` wird zuerst diese Datei mit Fortschrittsanzeige in
 den korrekten ComfyUI-Modellordner geladen.
 
-Direkt installierbar sind die CMK-seitig festgelegten Ressourcen für InstantID,
-Z-Image Turbo, SAM, GFPGAN, Fooocus Inpaint und RealESRGAN. Checkpoints,
-Detektor- und FaceSwap-Gewichte mit eigener Modellwahl oder gesonderten
-Lizenzbedingungen werden vollständig gemeldet, aber bewusst nicht automatisch
-heruntergeladen. Die Meldung nennt dann die betroffene Funktion und den Grund
-für die manuelle Installation.
+Direkt installierbar sind die in den ausgelieferten Workflows festgelegten
+Ressourcen für SDXL, Z-Image Turbo, ControlNet, InstantID, InsightFace, SAM,
+Ultralytics-Detektoren, FaceSwap, GFPGAN, Fooocus Inpaint, Refiner-LoRAs und
+RealESRGAN. Vor jeder einzelnen Datei zeigt der Helfer Quelle, Lizenzhinweis,
+Zielpfad und – bei großen Dateien – die ungefähre Größe an und fragt ausdrücklich
+nach. Downloads mit festgelegter Referenzversion werden vor der Installation per
+SHA-256 geprüft; das offizielle `buffalo_l`-Archiv wird kontrolliert in den
+erwarteten InsightFace-Modellordner entpackt.
+
+Kann für eine künftig ergänzte Ressource keine eindeutig verifizierte Datei oder
+automatisierbare Bezugsquelle festgelegt werden, bleibt sie als manueller Fall
+sichtbar. Die Meldung nennt dann die betroffene Funktion und den Grund.
 
 ```bash
 python3 custom_nodes/cmk_nodes/scripts/check_cmk_resources.py \\

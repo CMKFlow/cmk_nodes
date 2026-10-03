@@ -11,12 +11,15 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+import hashlib
 import os
 from pathlib import Path
+import shutil
 import sys
 import time
 from typing import Iterable
 from urllib.request import Request, urlopen
+import zipfile
 
 
 @dataclass(frozen=True)
@@ -29,6 +32,8 @@ class Resource:
     target_path: str | None = None
     license_note: str = ""
     require_all: bool = False
+    expected_sha256: str | None = None
+    archive_members: tuple[str, ...] = ()
 
 
 RESOURCES = (
@@ -37,42 +42,60 @@ RESOURCES = (
         "SDXL checkpoint: juggernautXL_ragnarok.safetensors",
         "SDXL / HYBRID generation",
         ("checkpoints/juggernautXL_ragnarok.safetensors",),
-        license_note="Showcase selection; install manually from its authorised model page.",
+        "https://civitai.com/api/download/models/1759168?fileId=1659952",
+        "checkpoints/juggernautXL_ragnarok.safetensors",
+        "Civitai model version 1759168; creator terms apply (approximately 6.6 GiB)",
+        expected_sha256="dd08fa32f98d05a2443ca1419e46df1575a0811f6e3b246d9dd47ff20f5eb66a",
     ),
     Resource(
         "sdxl-checkpoint-pony",
         "PostProcess checkpoint: Realism By Stable Yogi (Pony)XL_V3VAE.safetensors",
         "PostProcess",
         ("checkpoints/Realism By Stable Yogi (Pony)XL_V3VAE.safetensors",),
-        license_note="Showcase selection; install manually from its authorised model page.",
+        "https://civitai.com/api/download/models/992946",
+        "checkpoints/Realism By Stable Yogi (Pony)XL_V3VAE.safetensors",
+        "Civitai model version 992946; creator terms apply (approximately 6.5 GiB)",
+        expected_sha256="4796b66fd03fd9c8330df6cd44f6bf0cfbeccef6a010a80e61cb8a70d8edf56f",
     ),
     Resource(
         "sdxl-vae-clear",
         "SDXL VAE: ClearVAE_V2.2.safetensors",
         "SDXL / HYBRID / PostProcess",
         ("vae/ClearVAE_V2.2.safetensors",),
-        license_note="Showcase selection; install manually from its authorised model page.",
+        "https://huggingface.co/theboylzh/ClearVAE/resolve/main/ClearVAE_V2.2.safetensors",
+        "vae/ClearVAE_V2.2.safetensors",
+        "theboylzh/ClearVAE (OpenRAIL; approximately 319 MiB)",
+        expected_sha256="54b156d6ce34d0627ca0b63a824f58f5bf9c4e879549eb84ec499662726c4013",
     ),
     Resource(
         "sdxl-refiner",
         "SDXL Refiner 1.0",
         "20 Refiner",
         ("checkpoints/refiner/sd_xl_refiner_1.0.safetensors",),
-        license_note="Install the official SDXL Refiner model manually after accepting its licence.",
+        "https://civitai.com/api/download/models/126613",
+        "checkpoints/refiner/sd_xl_refiner_1.0.safetensors",
+        "SDXL Refiner 1.0, Civitai model version 126613 (approximately 5.7 GiB)",
+        expected_sha256="7440042bbdc8a24813002c09b6b69b64dc90fded4472613437b7f55f9b7d9c5f",
     ),
     Resource(
         "sdxl-refiner-vae",
         "SDXL Refiner VAE",
         "20 Refiner",
         ("vae/sdxl_vae.safetensors",),
-        license_note="Install the VAE used by the SDXL Refiner workflow.",
+        "https://huggingface.co/stabilityai/sdxl-vae/resolve/main/sdxl_vae.safetensors",
+        "vae/sdxl_vae.safetensors",
+        "Stability AI SDXL VAE (approximately 319 MiB)",
+        expected_sha256="63aeecb90ff7bc1c115395962d3e803571385b61938377bc7089b36e81e92e2e",
     ),
     Resource(
         "sdxl-controlnet",
         "SDXL ControlNet: controlnetxlCNXL_2vxpswa7AnytestV4.safetensors",
         "05 ControlNet SDXL / Combined",
         ("controlnet/controlnetxlCNXL_2vxpswa7AnytestV4.safetensors",),
-        license_note="Showcase selection; install manually from its authorised model page.",
+        "https://civitai.com/api/download/models/1296881?fileId=1201251",
+        "controlnet/controlnetxlCNXL_2vxpswa7AnytestV4.safetensors",
+        "ControlNetXL (CNXL) 2vXpSwA7 Anytest v4, Civitai model version 1296881 (approximately 2.3 GiB)",
+        expected_sha256="807aa29189c10660dff77a5bbfcf5cf39d60f7780199db36db36a9096e11ace7",
     ),
     Resource(
         "zit-diffusion-model",
@@ -146,10 +169,24 @@ RESOURCES = (
         "InsightFace buffalo_l",
         "InstantID / FaceRebuild / FaceSwap",
         (
-            "insightface/models/buffalo_l",
-            "insightface/buffalo_l",
+            "insightface/models/buffalo_l/genderage.onnx",
+            "insightface/models/buffalo_l/2d106det.onnx",
+            "insightface/models/buffalo_l/det_10g.onnx",
+            "insightface/models/buffalo_l/1k3d68.onnx",
+            "insightface/models/buffalo_l/w600k_r50.onnx",
         ),
-        license_note="InsightFace model licence must be accepted; install the official buffalo_l pack manually.",
+        "https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip",
+        "insightface/models/buffalo_l",
+        "Official InsightFace buffalo_l pack; InsightFace pretrained-model terms apply (approximately 275 MiB)",
+        require_all=True,
+        expected_sha256="80ffe37d8a5940d59a7384c201a2a38d4741f2f3c51eef46ebb28218a7b0ca2f",
+        archive_members=(
+            "genderage.onnx",
+            "2d106det.onnx",
+            "det_10g.onnx",
+            "1k3d68.onnx",
+            "w600k_r50.onnx",
+        ),
     ),
     Resource(
         "sam-vit-b",
@@ -165,35 +202,40 @@ RESOURCES = (
         "Ultralytics face detector: face_yolov8m.pt",
         "FaceProcess / Detailer",
         ("ultralytics/bbox/face/face_yolov8m.pt",),
-        license_note="Install this third-party detector weight manually from its authorised model page.",
+        "https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov8m.pt",
+        "ultralytics/bbox/face/face_yolov8m.pt",
+        "Bingsu/adetailer face detector",
+        expected_sha256="717923c19b3f4bbf5250b728f1fa6b2cb72a33aed1d236ea9caf0e21ad943e5f",
     ),
     Resource(
         "ultralytics-face-yolov8s",
         "Ultralytics face detector: face_yolov8s.pt",
         "Detailer",
         ("ultralytics/bbox/face/face_yolov8s.pt",),
-        license_note="Install this third-party detector weight manually from its authorised model page.",
+        "https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov8s.pt",
+        "ultralytics/bbox/face/face_yolov8s.pt",
+        "Bingsu/adetailer face detector",
+        expected_sha256="c7237eff25787377de196961140ceaed324d859ee8de5a775d93d33a0e3fab78",
+    ),
+    Resource(
+        "ultralytics-hand-yolov8n",
+        "Ultralytics hand detector: hand_yolov8n.pt",
+        "Detailer",
+        ("ultralytics/bbox/div/hand_yolov8n.pt",),
+        "https://huggingface.co/Bingsu/adetailer/resolve/main/hand_yolov8n.pt",
+        "ultralytics/bbox/div/hand_yolov8n.pt",
+        "Bingsu/adetailer hand detector",
+        expected_sha256="f3f23b865741cc8373a76dfac31a71ffd71356a480ca43266f294815b608e174",
     ),
     Resource(
         "ultralytics-hand-yolov8s",
         "Ultralytics hand detector: hand_yolov8s.pt",
         "Detailer",
         ("ultralytics/bbox/div/hand_yolov8s.pt",),
-        license_note="Install this third-party detector weight manually from its authorised model page.",
-    ),
-    Resource(
-        "ultralytics-hand-segm-yolov8n",
-        "Ultralytics hand segmentation: hand_yolov8n.pt",
-        "Detailer",
-        ("ultralytics/segm/div/hand_yolov8n.pt",),
-        license_note="Install this third-party detector weight manually from its authorised model page.",
-    ),
-    Resource(
-        "ultralytics-hand-segm-yolov8s",
-        "Ultralytics hand segmentation: hand_yolov8s.pt",
-        "Detailer",
-        ("ultralytics/segm/div/hand_yolov8s.pt",),
-        license_note="Install this third-party detector weight manually from its authorised model page.",
+        "https://huggingface.co/Bingsu/adetailer/resolve/main/hand_yolov8s.pt",
+        "ultralytics/bbox/div/hand_yolov8s.pt",
+        "Bingsu/adetailer hand detector",
+        expected_sha256="70b540063fbc385736d8258970744a4afbc4cbf7932134bae3b24cdadeadec06",
     ),
     Resource(
         "gfpgan-v1.4",
@@ -218,28 +260,40 @@ RESOURCES = (
         "GPEN-BFR-512 face restore model",
         "Legacy video FaceSwap enhancement",
         ("facerestore_models/GPEN-BFR-512.onnx",),
-        license_note="Install manually from the official GPEN project after reviewing its model terms.",
+        "https://github.com/visomaster/visomaster-assets/releases/download/v0.1.0/GPEN-BFR-512.onnx",
+        "facerestore_models/GPEN-BFR-512.onnx",
+        "GPEN ONNX conversion distributed by VisoMaster; GPEN model terms apply (approximately 271 MiB)",
+        expected_sha256="0960f836488735444d508b588e44fb5dfd19c68fde9163ad7878aa24d1d5115e",
     ),
     Resource(
         "faceswap-inswapper-128",
         "FaceSwap model: inswapper_128.onnx",
         "FaceSwap / Legacy video FaceSwap",
         ("insightface/inswapper_128.onnx", "insightface/models/inswapper_128.onnx"),
-        license_note="Install manually only from a source whose model licence you have accepted.",
+        "https://github.com/deepinsight/insightface/releases/download/model-zoo/inswapper_128.onnx",
+        "insightface/inswapper_128.onnx",
+        "Official InsightFace model-zoo asset; non-commercial research terms apply (approximately 529 MiB)",
+        expected_sha256="e4a3f08c753cb72d04e10aa0f7dbe3deebbf39567d4ead6dce08e98aa49e16af",
     ),
     Resource(
         "faceswap-hyperswap-1b",
         "FaceSwap model: hyperswap_1b_256.onnx",
         "FaceSwap",
         ("insightface/hyperswap/hyperswap_1b_256.onnx", "insightface/hyperswap_1b_256.onnx"),
-        license_note="Install manually only from a source whose model licence you have accepted.",
+        "https://github.com/facefusion/facefusion-assets/releases/download/models-3.3.0/hyperswap_1b_256.onnx",
+        "insightface/hyperswap/hyperswap_1b_256.onnx",
+        "Official FaceFusion asset (ResearchRAIL; approximately 384 MiB)",
+        expected_sha256="5124031789c42f71b9558fb71954ef7aedb6da7ed9fac79293e23c61a792a73e",
     ),
     Resource(
         "faceswap-hyperswap-1c",
         "FaceSwap model: hyperswap_1c_256.onnx",
         "FaceSwap",
         ("insightface/hyperswap/hyperswap_1c_256.onnx", "insightface/hyperswap_1c_256.onnx"),
-        license_note="Install manually only from a source whose model licence you have accepted.",
+        "https://github.com/facefusion/facefusion-assets/releases/download/models-3.3.0/hyperswap_1c_256.onnx",
+        "insightface/hyperswap/hyperswap_1c_256.onnx",
+        "Official FaceFusion asset (ResearchRAIL; approximately 384 MiB)",
+        expected_sha256="5528c2d76fe9986c99d829278987ef9f3a630cb606db7628d02b57b330f406a5",
     ),
     Resource(
         "fooocus-inpaint-head",
@@ -282,21 +336,36 @@ RESOURCES = (
         "Legacy RealESRGAN x2 upscaler: RealESRGAN_x2.pth",
         "Legacy examples",
         ("upscale_models/RealESRGAN_x2.pth",),
-        license_note="Legacy workflow selection; install manually from its authorised source if needed.",
+        "https://huggingface.co/ai-forever/Real-ESRGAN/resolve/main/RealESRGAN_x2.pth",
+        "upscale_models/RealESRGAN_x2.pth",
+        "ai-forever/Real-ESRGAN legacy x2 weight",
+        expected_sha256="c830d067d54fc767b9543a8432f36d91bc2de313584e8bbfe4ac26a47339e899",
     ),
     Resource(
         "refiner-hyper-sdxl-lora",
         "Hyper-SDXL 1-step Refiner LoRA",
         "20 Refiner",
-        ("loras/refiner/Hyper-SDXL-1step-lora.safetensors",),
-        license_note="Optional Refiner LoRA; install manually from the official model repository.",
+        (
+            "loras/refiner/Hyper-SDXL-1step-lora.safetensors",
+            "loras/SDXL/refiner/Hyper-SDXL-1step-lora.safetensors",
+        ),
+        "https://huggingface.co/ByteDance/Hyper-SD/resolve/main/Hyper-SDXL-1step-lora.safetensors",
+        "loras/refiner/Hyper-SDXL-1step-lora.safetensors",
+        "Official ByteDance Hyper-SD repository",
+        expected_sha256="c912df184c5116792d2c604d26c6bc2aa916685f4a793755255cda1c43a3c78a",
     ),
     Resource(
         "sdxl-dmd2-lora",
         "DMD2 SDXL 4-step LoRA",
         "SDXL sampling",
-        ("loras/misc/dmd2_sdxl_4step_lora_fp16.safetensors",),
-        license_note="Optional workflow LoRA; install manually from the official model repository.",
+        (
+            "loras/misc/dmd2_sdxl_4step_lora_fp16.safetensors",
+            "loras/SDXL/misc/dmd2_sdxl_4step_lora_fp16.safetensors",
+        ),
+        "https://huggingface.co/tianweiy/DMD2/resolve/main/dmd2_sdxl_4step_lora_fp16.safetensors",
+        "loras/misc/dmd2_sdxl_4step_lora_fp16.safetensors",
+        "Official tianweiy/DMD2 repository",
+        expected_sha256="b3d9173815a4b595991c3a7a0e0e63ad821080f314a0b2a3cc31ecd7fcf2cbb8",
     ),
 )
 
@@ -393,6 +462,52 @@ def _copy_with_progress(response, output, chunk_size: int = 1024 * 1024) -> int:
     return transferred
 
 
+def _sha256(path: Path, chunk_size: int = 1024 * 1024) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        while chunk := source.read(chunk_size):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _verify_download(resource: Resource, path: Path) -> None:
+    if not resource.expected_sha256:
+        return
+    actual = _sha256(path)
+    if actual.lower() != resource.expected_sha256.lower():
+        raise RuntimeError(
+            f"Checksum mismatch for {resource.resource_id}: "
+            f"expected {resource.expected_sha256}, got {actual}"
+        )
+    print(f"Verified    : SHA-256 {actual}")
+
+
+def _extract_archive(resource: Resource, archive: Path, target: Path) -> Path:
+    if not resource.archive_members:
+        raise RuntimeError(f"{resource.resource_id} has no archive member manifest.")
+    staging = target.with_name(target.name + ".extracting")
+    if staging.exists():
+        raise FileExistsError(f"Archive staging directory already exists: {staging}")
+    try:
+        with zipfile.ZipFile(archive) as bundle:
+            names = set(bundle.namelist())
+            missing = [name for name in resource.archive_members if name not in names]
+            if missing:
+                raise RuntimeError(
+                    f"Archive for {resource.resource_id} is missing: {', '.join(missing)}"
+                )
+            staging.mkdir(parents=True, exist_ok=False)
+            for name in resource.archive_members:
+                member_target = staging / Path(name).name
+                with bundle.open(name) as source, member_target.open("wb") as output:
+                    shutil.copyfileobj(source, output)
+        staging.replace(target)
+    except Exception:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise
+    return target
+
+
 def _download(resource: Resource, destination: Path) -> Path:
     if not resource.download_url or not resource.target_path:
         raise RuntimeError(f"{resource.resource_id} has no approved automatic download source.")
@@ -400,11 +515,17 @@ def _download(resource: Resource, destination: Path) -> Path:
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.exists():
         raise FileExistsError(f"Target already exists: {target}")
-    temporary = target.with_name(target.name + ".part")
+    suffix = ".zip.part" if resource.archive_members else ".part"
+    temporary = target.with_name(target.name + suffix)
     request = Request(resource.download_url, headers={"User-Agent": "CMK-resource-installer/1"})
     try:
         with urlopen(request, timeout=60) as response, temporary.open("wb") as output:
             _copy_with_progress(response, output)
+        _verify_download(resource, temporary)
+        if resource.archive_members:
+            installed = _extract_archive(resource, temporary, target)
+            temporary.unlink(missing_ok=True)
+            return installed
         temporary.replace(target)
     except Exception:
         temporary.unlink(missing_ok=True)
@@ -467,13 +588,15 @@ def main() -> int:
         )
         if path or not resource.download_url or args.non_interactive:
             continue
+        print(f"Source      : {resource.download_url}")
+        print(f"Destination : {target_root / resource.target_path}")
+        if resource.expected_sha256:
+            print(f"SHA-256     : {resource.expected_sha256}")
         answer = input(f"Install {resource.label} now into {target_root}? [y/N] ").strip().lower()
         if answer not in {"y", "yes", "j", "ja"}:
             print(f"Skipped     : {resource.resource_id}")
             continue
         print(f"Installing  : {resource.label}")
-        print(f"Destination : {target_root / resource.target_path}")
-        print(f"Source      : {resource.download_url}")
         installed = _download(resource, target_root)
         print(f"Installed   : {installed}")
     return 0
