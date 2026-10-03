@@ -135,12 +135,20 @@ def find_comfy_root(repo_root: Path) -> Path:
     raise RuntimeError("CMK must be installed below ComfyUI/custom_nodes/cmk_nodes.")
 
 
+def _models_root(path: Path) -> Path:
+    """Accept either a shared ComfyUI root or its actual models directory."""
+
+    path = Path(path).expanduser()
+    nested = path / "models"
+    return nested if path.name != "models" and nested.is_dir() else path
+
+
 def _candidate_roots(comfy_root: Path, explicit: Iterable[Path] = ()) -> list[Path]:
-    roots = [Path(value).expanduser() for value in explicit if value]
+    roots = [_models_root(Path(value)) for value in explicit if value]
     roots.append(comfy_root / "models")
     shared = os.environ.get("CMK_SHARED_MODELS")
     if shared:
-        roots.append(Path(shared).expanduser())
+        roots.append(_models_root(Path(shared)))
     config = comfy_root / "extra_model_paths.yaml"
     if config.is_file():
         for line in config.read_text(encoding="utf-8", errors="ignore").splitlines():
@@ -148,8 +156,7 @@ def _candidate_roots(comfy_root: Path, explicit: Iterable[Path] = ()) -> list[Pa
             if value.startswith("base_path:"):
                 base = value.split(":", 1)[1].strip().strip("'\"")
                 if base:
-                    base_path = Path(base).expanduser()
-                    roots.extend((base_path, base_path / "models"))
+                    roots.append(_models_root(Path(base)))
     return list(dict.fromkeys(path.resolve() for path in roots))
 
 
@@ -230,7 +237,13 @@ def _download(resource: Resource, destination: Path) -> Path:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--models-root", action="append", type=Path, default=[], help="additional model root; repeatable")
+    parser.add_argument(
+        "--models-root",
+        action="append",
+        type=Path,
+        default=[],
+        help="shared ComfyUI root or models directory; repeatable",
+    )
     parser.add_argument("--install", metavar="RESOURCE_ID", help="download exactly one resource into the selected model root")
     parser.add_argument("--target-root", type=Path, help="destination model root for --install (defaults to ComfyUI/models)")
     parser.add_argument(
@@ -252,7 +265,7 @@ def main() -> int:
         resource = next((item for item in RESOURCES if item.resource_id == args.install), None)
         if resource is None:
             raise RuntimeError(f"Unknown resource: {args.install}")
-        target_root = (args.target_root or (comfy_root / "models")).expanduser().resolve()
+        target_root = _models_root(args.target_root or (comfy_root / "models")).resolve()
         print(f"Installing   : {resource.label}")
         if resource.license_note:
             print(f"Notice       : {resource.license_note}")
@@ -266,7 +279,8 @@ def main() -> int:
         args.target_root
         or (args.models_root[0] if args.models_root else None)
         or (comfy_root / "models")
-    ).expanduser().resolve()
+    )
+    target_root = _models_root(target_root).resolve()
     for resource, path in audit(comfy_root, args.models_root):
         status = "FOUND" if path else "MISSING"
         detail = f" -> {path}" if path else (f" | {resource.license_note}" if resource.license_note else "")

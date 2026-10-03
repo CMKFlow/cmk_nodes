@@ -49,6 +49,21 @@ class CmkResourceAuditTests(unittest.TestCase):
             found = dict((resource.resource_id, path) for resource, path in results)
             self.assertEqual(target.resolve(), found["instantid-controlnet"])
 
+    def test_shared_comfy_root_resolves_to_nested_models_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            shared = Path(directory) / "ComfyUI-Shared"
+            models = shared / "models"
+            models.mkdir(parents=True)
+
+            self.assertEqual(
+                models.resolve(),
+                self.audit_module._models_root(shared).resolve(),
+            )
+            self.assertEqual(
+                models.resolve(),
+                self.audit_module._models_root(models).resolve(),
+            )
+
     def test_downloadable_resources_have_destination_and_url(self):
         for resource in self.audit_module.RESOURCES:
             if resource.download_url:
