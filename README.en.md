@@ -140,9 +140,12 @@ python3 custom_nodes/cmk_nodes/scripts/check_cmk_resources.py \\
   --models-root "/path/to/ComfyUI-Shared"
 ```
 
-Each resource is reported independently as `FOUND` or `MISSING`. The two
-public InstantID files can be installed individually; resources that require a
-licence or a user-selected model remain manual:
+Each resource is reported independently as `FOUND` or `MISSING`. Immediately
+after a missing resource with a public download source, the helper asks whether
+to install it into the selected model directory. `n` continues the audit;
+`y` installs the current file first. The two public InstantID files can be
+installed individually this way; resources that require a licence or a
+user-selected model remain manual:
 
 ```bash
 python3 custom_nodes/cmk_nodes/scripts/check_cmk_resources.py \\
@@ -158,6 +161,8 @@ python3 custom_nodes/cmk_nodes/scripts/check_cmk_resources.py \\
 
 The ControlNet download is approximately 2.5 GB. The resource audit never
 changes workflows or technical identities.
+
+Use `--non-interactive` for automated audits without prompts.
 
 ### 4. Restart ComfyUI
 

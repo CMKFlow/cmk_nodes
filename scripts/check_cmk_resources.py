@@ -200,6 +200,11 @@ def main() -> int:
     parser.add_argument("--models-root", action="append", type=Path, default=[], help="additional model root; repeatable")
     parser.add_argument("--install", metavar="RESOURCE_ID", help="download exactly one resource into the selected model root")
     parser.add_argument("--target-root", type=Path, help="destination model root for --install (defaults to ComfyUI/models)")
+    parser.add_argument(
+        "--non-interactive",
+        action="store_true",
+        help="report missing resources without asking to install downloadable ones",
+    )
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parents[1]
@@ -224,10 +229,26 @@ def main() -> int:
         return 0
 
     print("\nCMK resource audit")
+    target_root = (
+        args.target_root
+        or (args.models_root[0] if args.models_root else None)
+        or (comfy_root / "models")
+    ).expanduser().resolve()
     for resource, path in audit(comfy_root, args.models_root):
         status = "FOUND" if path else "MISSING"
         detail = f" -> {path}" if path else (f" | {resource.license_note}" if resource.license_note else "")
         print(f"[{status:7}] {resource.resource_id:24} {resource.label}{detail}")
+        if path or not resource.download_url or args.non_interactive:
+            continue
+        answer = input(f"Install {resource.label} now into {target_root}? [y/N] ").strip().lower()
+        if answer not in {"y", "yes", "j", "ja"}:
+            print(f"Skipped     : {resource.resource_id}")
+            continue
+        print(f"Installing  : {resource.label}")
+        print(f"Destination : {target_root / resource.target_path}")
+        print(f"Source      : {resource.download_url}")
+        installed = _download(resource, target_root)
+        print(f"Installed   : {installed}")
     return 0
 
 
