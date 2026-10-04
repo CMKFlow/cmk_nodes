@@ -158,6 +158,12 @@ Download fragt der Helfer, ob sie jetzt installiert werden soll. Mit `n` läuft
 die Prüfung weiter; mit `y` wird zuerst diese Datei mit Fortschrittsanzeige in
 den korrekten ComfyUI-Modellordner geladen.
 
+Wenn mehrere installierbare Ressourcen fehlen, stehen zwei Modi zur Auswahl:
+`INSTALL ALL MISSING` bestätigt und installiert alle diese Ressourcen in einem
+Durchlauf; `INSTALL ONE BY ONE` fragt jede Ressource einzeln ab. Mit
+`--install-mode all` oder `--install-mode one-by-one` lässt sich der Modus für
+Skripte direkt vorgeben.
+
 Direkt installierbar sind die in den ausgelieferten Workflows festgelegten
 Ressourcen für SDXL, Z-Image Turbo, ControlNet, InstantID, InsightFace, SAM,
 Ultralytics-Detektoren, FaceSwap, GFPGAN, Fooocus Inpaint, Refiner-LoRAs und

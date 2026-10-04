@@ -704,6 +704,11 @@ def main() -> int:
         action="store_true",
         help="report missing resources without asking to install downloadable ones",
     )
+    parser.add_argument(
+        "--install-mode",
+        choices=("all", "one-by-one"),
+        help="installation mode for missing downloadable resources",
+    )
     args = parser.parse_args()
     civitai_token = os.environ.get("CIVITAI_API_TOKEN", "").strip() or None
 
@@ -755,23 +760,51 @@ def main() -> int:
         or (comfy_root / "models")
     )
     target_root = _models_root(target_root).resolve()
-    for resource, path in audit(comfy_root, args.models_root):
+    results = audit(comfy_root, args.models_root)
+    for resource, path in results:
         status = "FOUND" if path else "MISSING"
         detail = f" -> {path}" if path else (f" | {resource.license_note}" if resource.license_note else "")
         print(
             f"[{status:7}] {resource.resource_id:30} {resource.label}"
             f" | {resource.feature}{detail}"
         )
-        if path or not resource.download_url or args.non_interactive:
-            continue
+
+    missing_downloads = [
+        resource for resource, path in results
+        if path is None and resource.download_url
+    ]
+    if args.non_interactive or not missing_downloads:
+        return 0
+
+    mode = args.install_mode
+    if mode is None:
+        print("\nMissing downloadable resources")
+        print("  1) INSTALL ALL MISSING")
+        print("  2) INSTALL ONE BY ONE")
+        selection = input("Choose installation mode [1/2, Enter to skip]: ").strip().lower()
+        mode = {"1": "all", "2": "one-by-one"}.get(selection)
+    if mode is None:
+        print("Installation skipped.")
+        return 0
+
+    if mode == "all":
+        answer = input(
+            f"Install all {len(missing_downloads)} missing downloadable resources now? [y/N] "
+        ).strip().lower()
+        if answer not in {"y", "yes", "j", "ja"}:
+            print("Installation skipped.")
+            return 0
+
+    for resource in missing_downloads:
         print(f"Source      : {resource.download_url}")
         print(f"Destination : {target_root / resource.target_path}")
         if resource.expected_sha256:
             print(f"SHA-256     : {resource.expected_sha256}")
-        answer = input(f"Install {resource.label} now into {target_root}? [y/N] ").strip().lower()
-        if answer not in {"y", "yes", "j", "ja"}:
-            print(f"Skipped     : {resource.resource_id}")
-            continue
+        if mode == "one-by-one":
+            answer = input(f"Install {resource.label} now into {target_root}? [y/N] ").strip().lower()
+            if answer not in {"y", "yes", "j", "ja"}:
+                print(f"Skipped     : {resource.resource_id}")
+                continue
         print(f"Installing  : {resource.label}")
         try:
             installed, civitai_token = _download_with_civitai_retry(

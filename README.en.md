@@ -153,6 +153,11 @@ unambiguous public upstream download, the helper asks whether to install it.
 `n` continues the audit; `y` installs that file first, with download progress,
 into the correct ComfyUI model directory.
 
+When several installable resources are missing, two modes are available:
+`INSTALL ALL MISSING` confirms and installs all of them in one run;
+`INSTALL ONE BY ONE` asks for each resource separately. Scripts can select a
+mode directly with `--install-mode all` or `--install-mode one-by-one`.
+
 The fixed CMK resources for InstantID, Z-Image Turbo, SAM, GFPGAN, Fooocus
 Inpaint, and RealESRGAN can be installed directly. Checkpoints, detector
 weights, and FaceSwap weights that involve a model choice or separate licence
