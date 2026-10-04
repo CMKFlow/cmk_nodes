@@ -362,6 +362,7 @@
 - Die in vier ausgelieferten Workflows fälschlich als Segmentierungsmodelle gespeicherten Hand-Detektoren verweisen nun auf ihre korrekten `bbox`-Pfade; beide festgelegten Varianten werden vom Ressourcencheck angeboten.
 - Civitai-Downloads unterstützen nun die vom Modelldownload-Endpunkt erwartete Token-Authentifizierung über einen verdeckt abgefragten API-Key oder `CIVITAI_API_TOKEN`; ein abgelehnter oder übersprungener Download beendet den übrigen interaktiven Ressourcencheck nicht mehr.
 - Die interaktive API-Key-Eingabe zeigt für jedes übernommene Zeichen ein `*` und bestätigt anschließend die Zeichenanzahl, ohne den Key selbst offenzulegen.
+- Die SHA-256-Referenz des aktuellen `hand_yolov8n.pt`-Downloads wurde auf die tatsächlich ausgelieferte Datei aktualisiert.
 - CMK warnt verständlich, wenn im aktiven ComfyUI-Profil Vue Nodes / Nodes 2.0 deaktiviert ist, und entfernt den Hinweis unmittelbar nach dem Aktivieren.
 - Die Installationshinweise nennen `Live preview method: auto` als Voraussetzung für laufende Sampler- und Refiner-Vorschauen.
 - README und „About CMK Flow“ würdigen den ComfyUI LoRA Manager als gestalterische Inspiration für die integrierte Browsererfahrung.

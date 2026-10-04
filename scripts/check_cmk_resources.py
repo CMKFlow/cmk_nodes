@@ -228,7 +228,7 @@ RESOURCES = (
         "https://huggingface.co/Bingsu/adetailer/resolve/main/hand_yolov8n.pt",
         "ultralytics/bbox/div/hand_yolov8n.pt",
         "Bingsu/adetailer hand detector",
-        expected_sha256="f3f23b865741cc8373a76dfac31a71ffd71356a480ca43266f294815b608e174",
+        expected_sha256="3991202eb69e9ddcb3b9ba80cdeb41e734ffaf844403d6c9f47d515cd88c6f29",
     ),
     Resource(
         "ultralytics-hand-yolov8s",
