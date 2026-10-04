@@ -11,12 +11,6 @@ const ADVANCED_WIDGETS = new Set([
     "postprocess_vae",
     "use_checkpoint_vae",
 ]);
-const ORDER = [
-    "postprocess_checkpoint", "postprocess_vae", "use_checkpoint_vae",
-    "MODEL ZIT", "PROCESS ZIT", "IMAGE ZIT", "LOG ZIT", "VISUAL ZIT",
-    "MODEL SDXL", "PROCESS SDXL", "IMAGE SDXL", "LOG SDXL", "VISUAL SDXL",
-];
-
 function nodeClass(node) {
     return node?.comfyClass
         ?? node?.constructor?.comfyClass
@@ -26,26 +20,6 @@ function nodeClass(node) {
 
 function isBoundary(node) {
     return BOUNDARY_TYPES.has(nodeClass(node));
-}
-
-// Reorder the existing slot objects, preserving their links and metadata.
-function arrangeInputs(node) {
-    if (nodeClass(node) !== COMBINED_TYPE || !node.inputs) return;
-    const previous = [...node.inputs];
-    const rank = (input) => {
-        const index = ORDER.indexOf(input.name);
-        return index < 0 ? ORDER.length : index;
-    };
-    const sorted = [...previous].sort((a, b) => rank(a) - rank(b));
-    if (sorted.every((input, index) => input === previous[index])) return;
-    node.inputs.splice(0, node.inputs.length, ...sorted);
-    for (const [index, input] of node.inputs.entries()) {
-        if (input.link == null) continue;
-        const links = node.graph?.links;
-        const link = links?.get?.(input.link) ?? links?.[input.link];
-        if (link) link.target_slot = index;
-    }
-    node.setDirtyCanvas?.(true, true);
 }
 
 function configureAdvancedWidgets(node) {
@@ -61,14 +35,9 @@ function configureAdvancedWidgets(node) {
     node.setDirtyCanvas?.(true, true);
 }
 
-function configure(node) {
-    arrangeInputs(node);
-    configureAdvancedWidgets(node);
-}
-
 function scheduleConfigure(node) {
     for (const delay of [0, 50, 200]) {
-        setTimeout(() => configure(node), delay);
+        setTimeout(() => configureAdvancedWidgets(node), delay);
     }
 }
 
@@ -107,16 +76,12 @@ app.registerExtension({
         scheduleConfigure(node);
     },
     afterConfigureGraph() {
-        // Graph links are fully available only after graph configuration.
+        // Slot order is part of the Python node contract. Never reorder live
+        // input arrays here: frontend releases differ in how assigned slot
+        // views are resolved, and moving them can retarget serialized links.
         for (const graph of new Set([app.canvas?.graph, app.graph, app.rootGraph])) {
             for (const node of graph?._nodes || []) {
-                configure(node);
-                if (nodeClass(node) !== COMBINED_TYPE) continue;
-                for (const [index, input] of (node.inputs || []).entries()) {
-                    if (input.link == null) continue;
-                    const link = graph.links?.get?.(input.link) ?? graph.links?.[input.link];
-                    if (link) link.target_slot = index;
-                }
+                configureAdvancedWidgets(node);
             }
         }
         queueMicrotask(decorate);
