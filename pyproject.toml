@@ -1,6 +1,6 @@
 [project]
 name = "cmk-flow"
-version = "2.5.4"
+version = "2.5.5"
 description = "Modular workflow system for SDXL, Z-Image Turbo and HYBRID generation with integrated identity, ControlNet and post-processing tools."
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
@@ -24,4 +24,4 @@ Documentation = "https://github.com/CMKFlow/cmk_nodes#readme"
 PublisherId = "cmkflow"
 DisplayName = "CMK Flow"
 Icon = "https://raw.githubusercontent.com/CMKFlow/cmk_nodes/main/web/assets/brand/cmk-logo.png"
-includes = ["subgraphs", "workflows"]
+includes = ["subgraphs", "workflows", "web/assets"]

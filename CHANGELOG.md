@@ -1,3 +1,8 @@
+# CMK 2.5.5 — 2026-10-04
+
+- Nimmt zusätzlich sämtliche Unicode-benannten Preview- und Showcase-Bilder
+  unter `web/assets` vollständig in das Comfy-Registry-Paket auf.
+
 # CMK 2.5.4 — 2026-10-04
 
 - Erzwingt die vollständige Aufnahme der Unicode-benannten Subgraph- und

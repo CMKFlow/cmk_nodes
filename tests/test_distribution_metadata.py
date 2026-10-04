@@ -15,12 +15,12 @@ class DistributionMetadataTests(unittest.TestCase):
         metadata = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
         self.assertEqual("cmk-flow", metadata["project"]["name"])
-        self.assertEqual("2.5.4", metadata["project"]["version"])
+        self.assertEqual("2.5.5", metadata["project"]["version"])
 
     def test_registry_package_forces_unicode_workflow_directories(self):
         metadata = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
         self.assertEqual(
-            ["subgraphs", "workflows"],
+            ["subgraphs", "workflows", "web/assets"],
             metadata["tool"]["comfy"]["includes"],
         )
         self.assertEqual(
