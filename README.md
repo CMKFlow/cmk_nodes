@@ -6,7 +6,7 @@
 
 Modulares Custom-Node-Paket für ComfyUI.
 
-**Aktueller Release: CMK 2.5.0**
+**Aktueller Release: CMK 2.5.1**
 
 **Deutsch** · [English](README.en.md)
 
@@ -226,8 +226,8 @@ zweite Befehl verbindlich zur Installation und zu jedem Update.
 
 > **Bestätigte Zielversion**
 >
-> CMK 2.5.0 wurde mit **ComfyUI 0.37.0** und
-> **comfyui-frontend-package 1.52.7** vollständig geprüft. Dazu gehören die
+> CMK 2.5.1 wurde mit **ComfyUI 0.38.2** und
+> **comfyui-frontend-package 1.53.6** vollständig geprüft. Dazu gehören die
 > Flow-Browser-Navigation, paketierte Subgraphen und Referenzworkflows,
 > eingebettete Vorschauen, Cache-Pfade sowie die serialisierten Link-, Socket-,
 > UUID- und Topologieverträge.

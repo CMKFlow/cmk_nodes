@@ -1,3 +1,17 @@
+# CMK 2.5.1 — 2026-10-04
+
+- Eine neue Clean-Installationsroutine prüft die benötigten CMK-Ressourcen,
+  bietet die Installation aller fehlenden Ressourcen oder eine Einzelauswahl an
+  und bindet einen gemeinsamen Modellordner korrekt in ComfyUI ein.
+- Ressourcen-Downloads zeigen ihren Fortschritt und installieren Modelle in die
+  von ComfyUI erwartete Verzeichnisstruktur. Geschützte Civitai-Downloads
+  unterstützen die bewusste Eingabe eines persönlichen API-Schlüssels.
+- Die Slotbehandlung von `CMKFamilyResultMergePipe` verändert keine
+  serialisierten Link-Zuordnungen mehr. Bestehende Workflows öffnen damit sowohl
+  unter Frontend 1.52.7 als auch unter 1.53.6 mit korrekter SDXL-/ZIT-Zuordnung.
+- Regressionstests prüfen den Minimalfall sowie alle sieben paketierten
+  Workflows mit der kombinierten PostProcess Boundary.
+
 # CMK 2.5.0 — 2026-10-03
 
 - Die Clean-Installationsprüfung registriert einen ausdrücklich angegebenen
