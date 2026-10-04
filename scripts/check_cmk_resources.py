@@ -392,6 +392,55 @@ def _models_root(path: Path) -> Path:
     return nested if path.name != "models" and nested.is_dir() else path
 
 
+_SHARED_CONFIG_MARKER = "# CMK Flow shared model paths (managed by check_cmk_resources.py)"
+_SHARED_MODEL_DIRS = (
+    "checkpoints",
+    "vae",
+    "loras",
+    "text_encoders",
+    "diffusion_models",
+    "controlnet",
+    "model_patches",
+    "upscale_models",
+    "instantid",
+    "insightface",
+    "sams",
+    "ultralytics",
+    "facerestore_models",
+    "inpaint",
+)
+
+
+def register_shared_model_paths(comfy_root: Path, shared_path: Path) -> tuple[Path, bool]:
+    """Register an explicit shared model root for ComfyUI runtime discovery.
+
+    The resource audit can search arbitrary roots, but ComfyUI itself only
+    searches paths loaded from ``extra_model_paths.yaml``. A clean install
+    therefore needs this additive configuration step before its first restart.
+    Existing configuration is preserved and the managed block is added once.
+    """
+
+    shared_path = Path(shared_path).expanduser().resolve()
+    shared_base = shared_path.parent if shared_path.name == "models" else shared_path
+    config_path = Path(comfy_root).resolve() / "extra_model_paths.yaml"
+    existing = config_path.read_text(encoding="utf-8") if config_path.exists() else ""
+    if _SHARED_CONFIG_MARKER in existing or "\ncmk_shared:" in f"\n{existing}":
+        return config_path, False
+
+    lines = [
+        _SHARED_CONFIG_MARKER,
+        "cmk_shared:",
+        f"  base_path: {str(shared_base)!r}",
+    ]
+    lines.extend(f"  {name}: models/{name}" for name in _SHARED_MODEL_DIRS)
+    block = "\n".join(lines) + "\n"
+    if existing and not existing.endswith("\n"):
+        existing += "\n"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(existing + block, encoding="utf-8")
+    return config_path, True
+
+
 def _candidate_roots(comfy_root: Path, explicit: Iterable[Path] = ()) -> list[Path]:
     roots = [_models_root(Path(value)) for value in explicit if value]
     roots.append(comfy_root / "models")
@@ -660,6 +709,13 @@ def main() -> int:
 
     repo_root = Path(__file__).resolve().parents[1]
     comfy_root = find_comfy_root(repo_root)
+    if args.models_root:
+        config_path, created = register_shared_model_paths(comfy_root, args.models_root[0])
+        action = "registered" if created else "already registered"
+        print(
+            f"Runtime paths: {action} {config_path}; "
+            "restart ComfyUI after this audit to load shared models."
+        )
     roots = _candidate_roots(comfy_root, args.models_root)
     print(f"ComfyUI root : {comfy_root}")
     print("Model roots  :")

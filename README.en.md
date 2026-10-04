@@ -139,6 +139,12 @@ python3 custom_nodes/cmk_nodes/scripts/check_cmk_resources.py \\
   --models-root "/path/to/ComfyUI-Shared"
 ```
 
+On the first run with `--models-root`, the helper also registers that shared
+model directory in `ComfyUI/extra_model_paths.yaml`, so ComfyUI can use the
+discovered models at runtime. Existing configuration is preserved; the CMK
+block is added at most once. Restart ComfyUI after the audit so the paths are
+loaded.
+
 The helper checks the exact filenames selected by the bundled CMK 2.5
 workflows; a merely non-empty model directory does not count as a match. Every
 resource is reported independently as `FOUND` or `MISSING`, together with the

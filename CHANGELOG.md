@@ -1,5 +1,8 @@
 # CMK 2.5.0 — 2026-10-03
 
+- Die Clean-Installationsprüfung registriert einen ausdrücklich angegebenen
+  gemeinsamen Modellordner einmalig in `extra_model_paths.yaml`, sodass die
+  gefundenen Ressourcen nach dem Neustart auch zur Laufzeit verfügbar sind.
 - Die CMK-Flow-Architektur unterstützt SDXL, Z-Image Turbo und HYBRID als
   durchgängige Generationspfade mit klar getrennten technischen Verträgen.
 - Die PostProcess-Zone wurde von historischer Ablaufnummerierung gelöst und um

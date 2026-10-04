@@ -69,6 +69,44 @@ class CmkResourceAuditTests(unittest.TestCase):
                 self.audit_module._models_root(models).resolve(),
             )
 
+    def test_register_shared_model_paths_creates_runtime_config(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            comfy = root / "ComfyUI"
+            comfy.mkdir()
+            shared = root / "ComfyUI-Shared"
+            shared.mkdir()
+
+            config, created = self.audit_module.register_shared_model_paths(comfy, shared)
+            content = config.read_text(encoding="utf-8")
+            self.assertTrue(created)
+            self.assertIn("cmk_shared:", content)
+            self.assertIn(f"base_path: {str(shared.resolve())!r}", content)
+            self.assertIn("insightface: models/insightface", content)
+            self.assertIn("facerestore_models: models/facerestore_models", content)
+
+            same_config, created_again = self.audit_module.register_shared_model_paths(comfy, shared)
+            self.assertEqual(config, same_config)
+            self.assertFalse(created_again)
+            self.assertEqual(content, config.read_text(encoding="utf-8"))
+
+    def test_register_shared_model_paths_preserves_existing_config(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            comfy = root / "ComfyUI"
+            comfy.mkdir()
+            existing = "custom_models:\n  base_path: '/other/models'\n  checkpoints: checkpoints\n"
+            config = comfy / "extra_model_paths.yaml"
+            config.write_text(existing, encoding="utf-8")
+
+            shared = root / "ComfyUI-Shared" / "models"
+            shared.mkdir(parents=True)
+            _, created = self.audit_module.register_shared_model_paths(comfy, shared)
+            content = config.read_text(encoding="utf-8")
+            self.assertTrue(created)
+            self.assertTrue(content.startswith(existing))
+            self.assertIn(f"base_path: {str(shared.parent.resolve())!r}", content)
+
     def test_downloadable_resources_have_destination_and_url(self):
         for resource in self.audit_module.RESOURCES:
             if resource.download_url:
