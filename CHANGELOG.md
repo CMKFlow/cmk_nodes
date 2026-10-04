@@ -1,3 +1,14 @@
+# CMK 2.5.2 — 2026-10-04
+
+- CMK ist mit Registry-Metadaten und einer bereinigten Paketdefinition für die
+  Distribution über Comfy Registry und ComfyUI-Manager vorbereitet.
+- Installations- und Ressourcenpfade funktionieren unabhängig vom konkreten
+  CMK-Verzeichnisnamen unter `custom_nodes`; Flow-Browser-Assets werden relativ
+  zum tatsächlich geladenen Erweiterungsverzeichnis aufgelöst.
+- `.comfyignore` hält Tests, Backups und interne Audit-Dokumente aus dem
+  Registry-Paket heraus. Die Setuptools-Konfiguration verhindert zugleich die
+  irrtümliche Erzeugung klassischer Python-Pakete aus CMK-Laufzeitordnern.
+
 # CMK 2.5.1 — 2026-10-04
 
 - Eine neue Clean-Installationsroutine prüft die benötigten CMK-Ressourcen,

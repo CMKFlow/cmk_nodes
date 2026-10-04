@@ -1,0 +1,26 @@
+[project]
+name = "cmk-flow"
+version = "2.5.2"
+description = "Modular workflow system for SDXL, Z-Image Turbo and HYBRID generation with integrated identity, ControlNet and post-processing tools."
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dynamic = ["dependencies"]
+classifiers = [
+    "Operating System :: OS Independent",
+]
+
+[tool.setuptools]
+packages = []
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[project.urls]
+Repository = "https://github.com/CMKFlow/cmk_nodes"
+Documentation = "https://github.com/CMKFlow/cmk_nodes#readme"
+"Bug Tracker" = "https://github.com/CMKFlow/cmk_nodes/issues"
+
+[tool.comfy]
+PublisherId = "CMKFlow"
+DisplayName = "CMK Flow"
+Icon = "https://raw.githubusercontent.com/CMKFlow/cmk_nodes/main/web/assets/brand/cmk-logo.png"

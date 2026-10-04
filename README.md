@@ -6,7 +6,7 @@
 
 Modulares Custom-Node-Paket für ComfyUI.
 
-**Aktueller Release: CMK 2.5.1**
+**Aktueller Release: CMK 2.5.2**
 
 **Deutsch** · [English](README.en.md)
 
@@ -100,10 +100,27 @@ Node-Klassen, Provider-Keys und UUIDs.
 
 ## Installation
 
-CMK wird derzeit manuell von GitHub installiert. ComfyUI vor der Installation
-vollständig beenden.
+### Installation über den ComfyUI-Manager
 
-### 1. Den richtigen ComfyUI-Ordner öffnen
+Nach der Veröffentlichung in der Comfy Registry im ComfyUI-Manager nach
+`CMK Flow` suchen, den Eintrag von `CMKFlow` installieren und ComfyUI neu
+starten. Der Manager lädt CMK und installiert die Python-Abhängigkeiten aus
+`requirements.txt` automatisch. Modellgewichte gehören bewusst nicht zum
+Python-Paket und werden anschließend mit dem CMK-Ressourcencheck geprüft.
+
+Der Registry-Paketname lautet `cmk-flow`. CMK selbst setzt jedoch keinen festen
+Namen des Installationsordners voraus; auch ein durch den Manager normalisierter
+oder manuell gewählter Verzeichnisname funktioniert.
+
+Die Manager-Installation lädt keine Modellressourcen automatisch und übernimmt
+oder migriert keine Dateien aus historischen CMK-Installationen. Der separate
+Ressourcencheck bleibt dafür der ausdrücklich vorgesehene nächste Schritt.
+
+### Alternative: manuelle Installation von GitHub
+
+ComfyUI vor der Installation vollständig beenden.
+
+#### 1. Den richtigen ComfyUI-Ordner öffnen
 
 Öffne den Hauptordner deiner ComfyUI-Installation. Es ist der Ordner, der die
 Datei `main.py` und den Unterordner `custom_nodes` enthält. Öffne **genau in
@@ -112,7 +129,7 @@ diesem Ordner** ein Terminal.
 Falls dort bereits `custom_nodes/cmk_nodes` existiert, nicht darüberinstallieren:
 Den vorhandenen Ordner zuerst sichern oder vollständig entfernen.
 
-### 2. CMK herunterladen und Abhängigkeiten installieren
+#### 2. CMK herunterladen und Abhängigkeiten installieren
 
 Diese beiden Befehle nacheinander in das geöffnete Terminal kopieren:
 
@@ -133,7 +150,7 @@ Die Installation war erfolgreich, wenn am Ende diese Meldung erscheint:
 CMK dependency check: OK
 ```
 
-### 3. Modellressourcen prüfen
+### Modellressourcen prüfen
 
 Die Python-Abhängigkeiten enthalten keine Modellgewichte. Prüfe die Ressourcen
 deshalb ausdrücklich gegen die Installation und – falls verwendet – gegen den
@@ -143,6 +160,17 @@ gemeinsamen Modellordner:
 python3 custom_nodes/cmk_nodes/scripts/check_cmk_resources.py \\
   --models-root "/Pfad/zum/ComfyUI-Shared"
 ```
+
+Nach einer Manager-Installation liegt dasselbe Skript regulär unter
+`custom_nodes/cmk-flow/scripts/check_cmk_resources.py`. Der Ressourcencheck
+ermittelt ComfyUI aus seinem eigenen Speicherort und funktioniert unabhängig
+vom Namen des CMK-Installationsordners.
+
+Wenn ein gemeinsamer Modellordner verwendet wird, ist er das bevorzugte Ziel
+für fehlende Ressourcen und wird über `--models-root` angegeben. CMK verschiebt
+oder kopiert dabei keine Modelle aus älteren Installationen; vorhandene
+Ressourcen werden ausschließlich an den ausdrücklich angegebenen und von
+ComfyUI registrierten Modellpfaden gesucht.
 
 Beim ersten Lauf mit `--models-root` registriert der Helfer diesen gemeinsamen
 Modellordner zusätzlich in `ComfyUI/extra_model_paths.yaml`, damit ComfyUI die
@@ -205,14 +233,18 @@ den Ressourcencheck nicht verändert.
 Für automatisierte Prüfungen ohne Nachfrage steht `--non-interactive` zur
 Verfügung.
 
-### 4. ComfyUI neu starten
+### ComfyUI neu starten
 
 ComfyUI erst nach der Erfolgsmeldung wieder starten. Der Flow Browser wird mit
 dem geladenen CMK-Paket automatisch registriert.
 
 ### Update
 
-Für ein Update erneut ein Terminal im ComfyUI-Hauptordner öffnen und ausführen:
+Manager-Installationen werden über **Update** im ComfyUI-Manager aktualisiert;
+der Manager pflegt dabei auch die Abhängigkeiten aus `requirements.txt`.
+
+Für ein manuelles Git-Update erneut ein Terminal im ComfyUI-Hauptordner öffnen
+und ausführen:
 
 ```bash
 git -C custom_nodes/cmk_nodes pull --ff-only
@@ -226,7 +258,7 @@ zweite Befehl verbindlich zur Installation und zu jedem Update.
 
 > **Bestätigte Zielversion**
 >
-> CMK 2.5.1 wurde mit **ComfyUI 0.38.2** und
+> CMK 2.5.2 wurde mit **ComfyUI 0.38.2** und
 > **comfyui-frontend-package 1.53.6** vollständig geprüft. Dazu gehören die
 > Flow-Browser-Navigation, paketierte Subgraphen und Referenzworkflows,
 > eingebettete Vorschauen, Cache-Pfade sowie die serialisierten Link-, Socket-,

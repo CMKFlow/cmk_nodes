@@ -37,11 +37,20 @@ class InstallationContractTests(unittest.TestCase):
                 self.installer.find_comfy_python(comfy, Path("/usr/bin/python3")),
             )
 
-    def test_manual_install_requires_the_canonical_repository_location(self):
+    def test_installation_directory_name_is_not_part_of_the_contract(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = Path(directory) / "ComfyUI"
+            repo = comfy / "custom_nodes" / "manager-normalized-package-name"
+            repo.mkdir(parents=True)
+            (comfy / "main.py").touch()
+
+            self.assertEqual(comfy.resolve(), self.installer.find_comfy_root(repo))
+
+    def test_manual_install_requires_a_comfyui_custom_nodes_location(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory) / "cmk_nodes"
             repo.mkdir()
-            with self.assertRaisesRegex(RuntimeError, "ComfyUI/custom_nodes/cmk_nodes"):
+            with self.assertRaisesRegex(RuntimeError, "ComfyUI custom_nodes"):
                 self.installer.find_comfy_root(repo)
 
     def test_virtual_environment_launcher_symlink_is_not_resolved(self):
@@ -85,8 +94,8 @@ class InstallationContractTests(unittest.TestCase):
         self.assertIn("CMK dependency check: OK", english)
         self.assertNotIn("cd /Pfad/zu/ComfyUI", german)
         self.assertNotIn("cd /path/to/ComfyUI", english)
-        self.assertNotIn("ComfyUI Manager", german)
-        self.assertNotIn("ComfyUI Manager", english)
+        self.assertIn("ComfyUI-Manager", german)
+        self.assertIn("ComfyUI Manager", english)
 
 
 if __name__ == "__main__":

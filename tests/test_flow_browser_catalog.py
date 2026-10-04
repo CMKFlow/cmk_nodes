@@ -724,8 +724,17 @@ class FlowBrowserCatalogTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn(
-            'preview.src.split("/").map(encodeURIComponent).join("/")', source
+            'String(path).split("/").map(encodeURIComponent).join("/")', source
         )
+
+    def test_extension_assets_follow_the_installed_directory_name(self):
+        source = (ROOT / "web" / "js" / "cmk_flow_browser.js").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('new URL("../", import.meta.url)', source)
+        self.assertIn("const NODE_PACK = `custom_nodes.${EXTENSION_DIRECTORY}`", source)
+        self.assertIn("extensionAssetUrl(preview.src, PREVIEW_CACHE_VERSION)", source)
+        self.assertNotIn("/extensions/cmk_nodes/", source)
 
     def test_flow_browser_uses_custom_node_catalog_metadata(self):
         source = (ROOT / "web" / "js" / "cmk_flow_browser.js").read_text(

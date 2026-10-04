@@ -3,7 +3,11 @@ import { api } from "../../../scripts/api.js";
 
 const EXTENSION_NAME = "CMK.FlowBrowser";
 const COMMAND_ID = "cmk.openFlowBrowser";
-const NODE_PACK = "custom_nodes.cmk_nodes";
+const EXTENSION_ROOT_URL = new URL("../", import.meta.url);
+const EXTENSION_DIRECTORY = decodeURIComponent(
+  EXTENSION_ROOT_URL.pathname.replace(/\/$/, "").split("/").pop() || "",
+);
+const NODE_PACK = `custom_nodes.${EXTENSION_DIRECTORY}`;
 const ALLOWED_STATUS = new Set(["STABLE", "BETA", "EXPERIMENTAL"]);
 const PREVIEW_CACHE_VERSION = "20261002-cmk25-flow-showcase";
 const MEMORY_DISPLAY_KEY = "cmk-flow-memory-display";
@@ -25,6 +29,13 @@ let referenceSearchText = "";
 let referenceExpandedCategory = null;
 let referenceGroupsInitialized = false;
 let language = localStorage.getItem("cmk-flow-language") || (navigator.language?.toLowerCase().startsWith("de") ? "de" : "en");
+
+function extensionAssetUrl(path, cacheVersion = "") {
+  const encodedPath = String(path).split("/").map(encodeURIComponent).join("/");
+  const url = new URL(encodedPath, EXTENSION_ROOT_URL);
+  if (cacheVersion) url.searchParams.set("v", cacheVersion);
+  return url.href;
+}
 
 const UI_TEXT = {
   de: { toolbox:"Baukasten", all:"Alle", searchFlows:"Flows durchsuchen …", searchToolbox:"Baukasten durchsuchen …", subtitleFlow:"Flow auswählen und in den aktuellen Workflow einfügen.", subtitleToolbox:"Node aus dem Baukasten auswählen und in den aktuellen Workflow einfügen.", noFlows:"Keine passenden Flows gefunden.", noNodes:"Keine passenden Nodes gefunden.", selectFlow:"Flow auswählen, um Details zu sehen.", selectNode:"Node auswählen, um Details zu sehen.", features:"Was dieser Baustein macht", placement:"Empfohlene Platzierung", category:"Kategorie", compatibility:"Kompatibilität", version:"Version", author:"Erstellt von", interfaces:"Ein- und Ausgänge", inputs:"Eingänge", outputs:"Ausgänge", related:"Passende Bausteine davor und danach", before:"Davor", after:"Danach", preview:"So sieht der Baustein aus", insert:"In Workflow einfügen", recommended:"Empfohlen", none:"Keine", previewMissing:"Noch keine reale Vorschau hinterlegt.", canStart:"Kann am Anfang stehen", canFinish:"Kann den Ablauf abschließen", loading:"Flows werden geladen …", loadError:"Browser-Inhalte konnten nicht geladen werden.", videoStorage:"Video-Speicher", videoStorageIntro:"Hier verwaltest du die dauerhaft gespeicherten Arbeitsdateien deiner CMK-Videoprojekte. Du kannst Projekte im Flow öffnen, ihre Speicherordner anzeigen oder nicht mehr benötigte Projektdateien gezielt löschen. Die Segmente bleiben erhalten, damit du später ohne erneute Segmentierung weiterarbeiten kannst.", segments:"Segmente", mergedVideos:"Zusammengeführte Videos", files:"Dateien", technicalLocations:"Technische Speicherorte", deleteAllVideoFiles:"Video-Arbeitsdateien löschen", videoProjects:"Videoprojekte", noVideoProjects:"Keine Video-Arbeitsdateien vorhanden.", mergedWorkingVideos:"zusammengeführte Videos", total:"Gesamt", lastUsed:"Zuletzt verwendet", openInFlow:"▶ Im Flow öffnen", openFolder:"📂 Speicherordner öffnen", deleteProjectFiles:"🗑 Projektdateien löschen", openingFlow:"Video-Workflow wird geöffnet …", folderOpened:"Speicherordner wurde geöffnet.", openFailed:"Öffnen fehlgeschlagen", deleteProjectTitle:"Video-Arbeitsdateien dieses Projekts löschen?", deleteProjectText:(name)=>`Alle gespeicherten Segmente und zusammengeführten Arbeitsvideos für „${name}“ werden gelöscht. Dieser Vorgang kann nicht rückgängig gemacht werden.`, cancel:"Abbrechen", deleteProject:"Projekt löschen", deleteAllTitle:"Alle Video-Arbeitsdateien löschen?", deleteAllText:"Alle gespeicherten Videosegmente und zusammengeführten Arbeitsvideos sämtlicher Projekte werden gelöscht. Laufende Videoprozesse müssen zuvor beendet sein. Dieser Vorgang kann nicht rückgängig gemacht werden.", deleteAll:"Alle Projekte löschen", deleting:"Dateien werden gelöscht …", projectDeleted:(size)=>`Projektdateien gelöscht. ${size} freigegeben.`, allDeleted:"Alle Video-Arbeitsdateien wurden gelöscht.", partialDelete:"Ein Teil der Dateien konnte nicht gelöscht werden.", deleteFailed:"Löschen fehlgeschlagen", storageUnavailable:"Speicherstatus nicht verfügbar" },
@@ -254,7 +265,7 @@ async function fetchJson(path) {
 
 async function fetchNodeMetadata() {
   try {
-    const response = await fetch("/extensions/cmk_nodes/flow_node_metadata.json", { cache: "no-store" });
+    const response = await fetch(extensionAssetUrl("flow_node_metadata.json"), { cache: "no-store" });
     if (!response.ok) return {};
     return (await response.json()).nodes || {};
   } catch {
@@ -264,7 +275,7 @@ async function fetchNodeMetadata() {
 
 async function fetchToolboxMetadata() {
   try {
-    const response = await fetch("/extensions/cmk_nodes/toolbox_node_metadata.json", { cache: "no-store" });
+    const response = await fetch(extensionAssetUrl("toolbox_node_metadata.json"), { cache: "no-store" });
     if (!response.ok) return {};
     return (await response.json()).nodes || {};
   } catch {
@@ -274,7 +285,7 @@ async function fetchToolboxMetadata() {
 
 async function fetchEnglishContent() {
   try {
-    const response = await fetch("/extensions/cmk_nodes/browser_content_en.json", { cache: "no-store" });
+    const response = await fetch(extensionAssetUrl("browser_content_en.json"), { cache: "no-store" });
     return response.ok ? await response.json() : { flows: {}, toolbox: {} };
   } catch {
     return { flows: {}, toolbox: {} };
@@ -300,7 +311,7 @@ function normalizePreviews(metadata = {}) {
     .map((preview, index) => typeof preview === "string" ? { src: preview } : preview)
     .filter((preview) => preview?.src)
     .map((preview, index) => ({
-      src: `/extensions/cmk_nodes/${preview.src.split("/").map(encodeURIComponent).join("/")}?v=${PREVIEW_CACHE_VERSION}`,
+      src: extensionAssetUrl(preview.src, PREVIEW_CACHE_VERSION),
       group: preview.group || "",
       label: language === "en"
         ? ({
@@ -1395,7 +1406,7 @@ function openAboutDialog(root) {
     <section class="cmk-about-dialog" role="dialog" aria-modal="true" aria-labelledby="cmk-about-title">
       <header class="cmk-about-header">
         <div class="cmk-about-title">
-          <img class="cmk-about-logo" src="/extensions/cmk_nodes/assets/brand/cmk-logo.png" alt="" width="36" height="36">
+          <img class="cmk-about-logo" src="${extensionAssetUrl("assets/brand/cmk-logo.png")}" alt="" width="36" height="36">
           <h3 id="cmk-about-title">About CMK Flow</h3>
         </div>
         <button class="cmk-flow-close" type="button" aria-label="Close">×</button>

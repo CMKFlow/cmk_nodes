@@ -6,7 +6,7 @@
 
 Modular custom-node package for ComfyUI.
 
-**Current release: CMK 2.5.1**
+**Current release: CMK 2.5.2**
 
 [Deutsch](README.md) · **English**
 
@@ -96,10 +96,27 @@ of its very high memory and runtime requirements.
 
 ## Installation
 
-CMK is currently installed manually from GitHub. Fully quit ComfyUI before
-starting the installation.
+### Install with ComfyUI Manager
 
-### 1. Open the correct ComfyUI folder
+Once CMK has been published to the Comfy Registry, search for `CMK Flow` in
+ComfyUI Manager, install the entry published by `CMKFlow`, and restart ComfyUI.
+The Manager downloads CMK and installs the Python dependencies from
+`requirements.txt` automatically. Model weights are intentionally kept outside
+the Python package and are checked afterwards with CMK's resource audit.
+
+The Registry package id is `cmk-flow`. CMK itself does not depend on a fixed
+installation-directory name, so Manager-normalized and manually selected folder
+names are both supported.
+
+The Manager installation does not download model resources automatically and
+does not adopt or migrate files from historical CMK installations. The separate
+resource audit remains the explicitly intended next step.
+
+### Alternative: manual installation from GitHub
+
+Fully quit ComfyUI before starting the installation.
+
+#### 1. Open the correct ComfyUI folder
 
 Open the root folder of your ComfyUI installation. This is the folder that
 contains `main.py` and the `custom_nodes` subfolder. Open a terminal **in that
@@ -108,7 +125,7 @@ exact folder**.
 If `custom_nodes/cmk_nodes` already exists there, do not install over it. Back
 up or completely remove the existing folder first.
 
-### 2. Download CMK and install its dependencies
+#### 2. Download CMK and install its dependencies
 
 Copy these two commands into the terminal one after the other:
 
@@ -129,7 +146,7 @@ The installation succeeded when the final line reads:
 CMK dependency check: OK
 ```
 
-### 3. Audit model resources
+### Audit model resources
 
 Python dependencies do not include model weights. Run an explicit resource
 audit against the installation and, when used, the shared model directory:
@@ -138,6 +155,16 @@ audit against the installation and, when used, the shared model directory:
 python3 custom_nodes/cmk_nodes/scripts/check_cmk_resources.py \\
   --models-root "/path/to/ComfyUI-Shared"
 ```
+
+After a Manager installation, the same script normally resides at
+`custom_nodes/cmk-flow/scripts/check_cmk_resources.py`. The audit locates
+ComfyUI from its own file location and works independently of the CMK
+installation-directory name.
+
+When a shared model directory is used, it is the preferred destination for
+missing resources and is supplied through `--models-root`. CMK does not move or
+copy models from older installations; existing resources are searched only in
+the explicitly supplied model roots registered with ComfyUI.
 
 On the first run with `--models-root`, the helper also registers that shared
 model directory in `ComfyUI/extra_model_paths.yaml`, so ComfyUI can use the
@@ -183,14 +210,18 @@ or technical identities.
 
 Use `--non-interactive` for automated audits without prompts.
 
-### 4. Restart ComfyUI
+### Restart ComfyUI
 
 Start ComfyUI again only after the success message appears. The Flow Browser is
 registered automatically when the CMK package loads.
 
 ### Updating
 
-To update, open a terminal in the ComfyUI root folder again and run:
+For Manager installations, use **Update** in ComfyUI Manager; the Manager also
+maintains the dependencies declared in `requirements.txt`.
+
+For a manual Git update, open a terminal in the ComfyUI root folder again and
+run:
 
 ```bash
 git -C custom_nodes/cmk_nodes pull --ff-only
@@ -208,7 +239,7 @@ files in `subgraphs/` remain part of the node pack; additional copies under
 
 > **Validated release target**
 >
-> CMK 2.5.1 was fully validated with **ComfyUI 0.38.2** and
+> CMK 2.5.2 was fully validated with **ComfyUI 0.38.2** and
 > **comfyui-frontend-package 1.53.6**. This includes Flow Browser navigation,
 > packaged subgraphs and reference workflows, embedded previews, cache paths,
 > and the serialized link, socket, UUID, and topology contracts.

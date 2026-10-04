@@ -381,7 +381,7 @@ def find_comfy_root(repo_root: Path) -> Path:
     for parent in repo_root.parents:
         if (parent / "main.py").is_file() and (parent / "custom_nodes").is_dir():
             return parent
-    raise RuntimeError("CMK must be installed below ComfyUI/custom_nodes/cmk_nodes.")
+    raise RuntimeError("CMK must be installed below a ComfyUI custom_nodes directory.")
 
 
 def _models_root(path: Path) -> Path:

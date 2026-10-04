@@ -1,0 +1,8 @@
+# Development and audit material; runtime assets remain included.
+.github/
+tests/
+_cmk_backups/
+CMK_Design_Guidelines.md
+NEXT_SESSION.md
+RELEASE_AUDIT_CMK_2_5.md
+SUBGRAPH_AUDIT.md

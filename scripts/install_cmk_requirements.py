@@ -40,7 +40,7 @@ def find_comfy_root(repo_root: Path) -> Path:
             return parent
 
     raise RuntimeError(
-        "CMK must be installed as ComfyUI/custom_nodes/cmk_nodes before its "
+        "CMK must be installed below a ComfyUI custom_nodes directory before its "
         "runtime dependencies can be selected safely."
     )
 

@@ -69,6 +69,15 @@ class CmkResourceAuditTests(unittest.TestCase):
                 self.audit_module._models_root(models).resolve(),
             )
 
+    def test_manager_normalized_install_directory_is_supported(self):
+        with tempfile.TemporaryDirectory() as directory:
+            comfy = Path(directory) / "ComfyUI"
+            repo = comfy / "custom_nodes" / "cmk-flow"
+            repo.mkdir(parents=True)
+            (comfy / "main.py").touch()
+
+            self.assertEqual(comfy.resolve(), self.audit_module.find_comfy_root(repo))
+
     def test_register_shared_model_paths_creates_runtime_config(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
