@@ -6,6 +6,8 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
+from urllib.error import HTTPError
 import zipfile
 
 
@@ -234,6 +236,59 @@ class CmkResourceAuditTests(unittest.TestCase):
         self.assertEqual(payload, output.getvalue())
         self.assertIn("100.00%", terminal.getvalue())
         self.assertIn("4.0 KiB", terminal.getvalue())
+
+    def test_civitai_token_is_sent_as_bearer_header(self):
+        resource = next(
+            item for item in self.audit_module.RESOURCES
+            if item.resource_id == "sdxl-checkpoint-pony"
+        )
+        request = self.audit_module._download_request(resource, "secret-token")
+        self.assertEqual("Bearer secret-token", request.get_header("Authorization"))
+        self.assertNotIn("secret-token", request.full_url)
+
+    def test_civitai_unauthorized_download_prompts_once_and_retries(self):
+        resource = next(
+            item for item in self.audit_module.RESOURCES
+            if item.resource_id == "sdxl-checkpoint-pony"
+        )
+        unauthorized = HTTPError(resource.download_url, 401, "Unauthorized", {}, None)
+        installed = Path("/models/checkpoint.safetensors")
+        with (
+            patch.object(self.audit_module, "_download", side_effect=[unauthorized, installed]) as download,
+            patch.object(self.audit_module.getpass, "getpass", return_value="new-token"),
+        ):
+            result, token = self.audit_module._download_with_civitai_retry(
+                resource,
+                Path("/models"),
+                None,
+                allow_prompt=True,
+            )
+
+        self.assertEqual(installed, result)
+        self.assertEqual("new-token", token)
+        self.assertEqual(2, download.call_count)
+        self.assertIsNone(download.call_args_list[0].args[2])
+        self.assertEqual("new-token", download.call_args_list[1].args[2])
+
+    def test_civitai_authentication_can_be_skipped_without_raising(self):
+        resource = next(
+            item for item in self.audit_module.RESOURCES
+            if item.resource_id == "sdxl-checkpoint-pony"
+        )
+        unauthorized = HTTPError(resource.download_url, 401, "Unauthorized", {}, None)
+        with (
+            patch.object(self.audit_module, "_download", side_effect=unauthorized),
+            patch.object(self.audit_module.getpass, "getpass", return_value=""),
+        ):
+            result, token = self.audit_module._download_with_civitai_retry(
+                resource,
+                Path("/models"),
+                None,
+                allow_prompt=True,
+            )
+
+        self.assertIsNone(result)
+        self.assertIsNone(token)
 
 
 if __name__ == "__main__":

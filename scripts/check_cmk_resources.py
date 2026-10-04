@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+import getpass
 import hashlib
 import os
 from pathlib import Path
@@ -18,6 +19,7 @@ import shutil
 import sys
 import time
 from typing import Iterable
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 import zipfile
 
@@ -508,7 +510,22 @@ def _extract_archive(resource: Resource, archive: Path, target: Path) -> Path:
     return target
 
 
-def _download(resource: Resource, destination: Path) -> Path:
+def _is_civitai_download(resource: Resource) -> bool:
+    return bool(resource.download_url and resource.download_url.startswith("https://civitai.com/"))
+
+
+def _download_request(resource: Resource, civitai_token: str | None = None) -> Request:
+    headers = {"User-Agent": "CMK-resource-installer/1"}
+    if civitai_token and _is_civitai_download(resource):
+        headers["Authorization"] = f"Bearer {civitai_token}"
+    return Request(str(resource.download_url), headers=headers)
+
+
+def _download(
+    resource: Resource,
+    destination: Path,
+    civitai_token: str | None = None,
+) -> Path:
     if not resource.download_url or not resource.target_path:
         raise RuntimeError(f"{resource.resource_id} has no approved automatic download source.")
     target = destination / resource.target_path
@@ -517,7 +534,7 @@ def _download(resource: Resource, destination: Path) -> Path:
         raise FileExistsError(f"Target already exists: {target}")
     suffix = ".zip.part" if resource.archive_members else ".part"
     temporary = target.with_name(target.name + suffix)
-    request = Request(resource.download_url, headers={"User-Agent": "CMK-resource-installer/1"})
+    request = _download_request(resource, civitai_token)
     try:
         with urlopen(request, timeout=60) as response, temporary.open("wb") as output:
             _copy_with_progress(response, output)
@@ -531,6 +548,32 @@ def _download(resource: Resource, destination: Path) -> Path:
         temporary.unlink(missing_ok=True)
         raise
     return target
+
+
+def _download_with_civitai_retry(
+    resource: Resource,
+    destination: Path,
+    civitai_token: str | None,
+    allow_prompt: bool,
+) -> tuple[Path | None, str | None]:
+    try:
+        return _download(resource, destination, civitai_token), civitai_token
+    except HTTPError as exc:
+        if exc.code not in (401, 403) or not _is_civitai_download(resource):
+            raise
+        print("Civitai requires authentication for this resource.")
+        print("Create an API key in your Civitai account settings:")
+        print("https://civitai.com/user/account")
+        if not allow_prompt:
+            raise RuntimeError(
+                "Civitai authentication required. Set CIVITAI_API_TOKEN and run again."
+            ) from exc
+        token = getpass.getpass(
+            "Civitai API key (hidden; press Enter to skip this resource): "
+        ).strip()
+        if not token:
+            return None, civitai_token
+        return _download(resource, destination, token), token
 
 
 def main() -> int:
@@ -550,6 +593,7 @@ def main() -> int:
         help="report missing resources without asking to install downloadable ones",
     )
     args = parser.parse_args()
+    civitai_token = os.environ.get("CIVITAI_API_TOKEN", "").strip() or None
 
     repo_root = Path(__file__).resolve().parents[1]
     comfy_root = find_comfy_root(repo_root)
@@ -569,7 +613,20 @@ def main() -> int:
             print(f"Notice       : {resource.license_note}")
         print(f"Source       : {resource.download_url}")
         print(f"Destination  : {target_root / resource.target_path}")
-        print(f"Installed    : {_download(resource, target_root)}")
+        try:
+            installed, civitai_token = _download_with_civitai_retry(
+                resource,
+                target_root,
+                civitai_token,
+                allow_prompt=not args.non_interactive,
+            )
+        except (RuntimeError, OSError, ValueError) as exc:
+            print(f"Failed       : {resource.resource_id} | {exc}", file=sys.stderr)
+            return 1
+        if installed is None:
+            print(f"Skipped      : {resource.resource_id}")
+            return 1
+        print(f"Installed    : {installed}")
         return 0
 
     print("\nCMK resource audit")
@@ -597,7 +654,19 @@ def main() -> int:
             print(f"Skipped     : {resource.resource_id}")
             continue
         print(f"Installing  : {resource.label}")
-        installed = _download(resource, target_root)
+        try:
+            installed, civitai_token = _download_with_civitai_retry(
+                resource,
+                target_root,
+                civitai_token,
+                allow_prompt=True,
+            )
+        except (RuntimeError, OSError, ValueError) as exc:
+            print(f"Failed       : {resource.resource_id} | {exc}", file=sys.stderr)
+            continue
+        if installed is None:
+            print(f"Skipped     : {resource.resource_id}")
+            continue
         print(f"Installed   : {installed}")
     return 0
 
