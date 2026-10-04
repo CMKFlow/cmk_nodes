@@ -20,6 +20,7 @@ import sys
 import time
 from typing import Iterable
 from urllib.error import HTTPError
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 import zipfile
 
@@ -516,9 +517,13 @@ def _is_civitai_download(resource: Resource) -> bool:
 
 def _download_request(resource: Resource, civitai_token: str | None = None) -> Request:
     headers = {"User-Agent": "CMK-resource-installer/1"}
+    url = str(resource.download_url)
     if civitai_token and _is_civitai_download(resource):
-        headers["Authorization"] = f"Bearer {civitai_token}"
-    return Request(str(resource.download_url), headers=headers)
+        parts = urlsplit(url)
+        query = dict(parse_qsl(parts.query, keep_blank_values=True))
+        query["token"] = civitai_token
+        url = urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+    return Request(url, headers=headers)
 
 
 def _download(
@@ -550,6 +555,55 @@ def _download(
     return target
 
 
+def _collect_masked_input(read_character, output) -> str:
+    characters = []
+    while True:
+        character = read_character()
+        if character in ("\r", "\n", ""):
+            break
+        if character == "\x03":
+            raise KeyboardInterrupt
+        if character in ("\x08", "\x7f"):
+            if characters:
+                characters.pop()
+                output.write("\b \b")
+                output.flush()
+            continue
+        if character.isprintable():
+            characters.append(character)
+            output.write("*")
+            output.flush()
+    return "".join(characters)
+
+
+def _masked_input(prompt: str) -> str:
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
+        return getpass.getpass(prompt)
+
+    sys.stdout.write(prompt)
+    sys.stdout.flush()
+    try:
+        if os.name == "nt":
+            import msvcrt
+
+            value = _collect_masked_input(msvcrt.getwch, sys.stdout)
+        else:
+            import termios
+            import tty
+
+            descriptor = sys.stdin.fileno()
+            previous = termios.tcgetattr(descriptor)
+            try:
+                tty.setraw(descriptor)
+                value = _collect_masked_input(lambda: sys.stdin.read(1), sys.stdout)
+            finally:
+                termios.tcsetattr(descriptor, termios.TCSADRAIN, previous)
+    finally:
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+    return value
+
+
 def _download_with_civitai_retry(
     resource: Resource,
     destination: Path,
@@ -568,12 +622,21 @@ def _download_with_civitai_retry(
             raise RuntimeError(
                 "Civitai authentication required. Set CIVITAI_API_TOKEN and run again."
             ) from exc
-        token = getpass.getpass(
-            "Civitai API key (hidden; press Enter to skip this resource): "
+        token = _masked_input(
+            "Civitai API key (shown as *; press Enter to skip): "
         ).strip()
         if not token:
             return None, civitai_token
-        return _download(resource, destination, token), token
+        print(f"API key received: {len(token)} characters.")
+        try:
+            return _download(resource, destination, token), token
+        except HTTPError as retry_exc:
+            if retry_exc.code in (401, 403):
+                raise RuntimeError(
+                    "Civitai rejected the API key. Create a Personal API Key in "
+                    "Civitai account settings, copy the complete value, and try again."
+                ) from retry_exc
+            raise
 
 
 def main() -> int:

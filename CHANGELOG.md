@@ -360,7 +360,8 @@
 - `requirements.txt` und die Installationsanleitung beschreiben nun den vollständigen GitHub-Clean-Room-Weg.
 - Der Clean-Install-Ressourcencheck bietet nun auch die festgelegten SDXL-Checkpoints, VAEs, ControlNet-, InsightFace-, HyperSwap-, Ultralytics-, GPEN- und Refiner-Ressourcen einzeln zur Installation an. Referenzdownloads werden anhand ihrer geprüften SHA-256-Summe validiert; `buffalo_l` wird aus dem offiziellen InsightFace-Archiv vollständig installiert.
 - Die in vier ausgelieferten Workflows fälschlich als Segmentierungsmodelle gespeicherten Hand-Detektoren verweisen nun auf ihre korrekten `bbox`-Pfade; beide festgelegten Varianten werden vom Ressourcencheck angeboten.
-- Civitai-Downloads unterstützen nun Bearer-Authentifizierung über einen verdeckt abgefragten API-Key oder `CIVITAI_API_TOKEN`; ein abgelehnter oder übersprungener Download beendet den übrigen interaktiven Ressourcencheck nicht mehr.
+- Civitai-Downloads unterstützen nun die vom Modelldownload-Endpunkt erwartete Token-Authentifizierung über einen verdeckt abgefragten API-Key oder `CIVITAI_API_TOKEN`; ein abgelehnter oder übersprungener Download beendet den übrigen interaktiven Ressourcencheck nicht mehr.
+- Die interaktive API-Key-Eingabe zeigt für jedes übernommene Zeichen ein `*` und bestätigt anschließend die Zeichenanzahl, ohne den Key selbst offenzulegen.
 - CMK warnt verständlich, wenn im aktiven ComfyUI-Profil Vue Nodes / Nodes 2.0 deaktiviert ist, und entfernt den Hinweis unmittelbar nach dem Aktivieren.
 - Die Installationshinweise nennen `Live preview method: auto` als Voraussetzung für laufende Sampler- und Refiner-Vorschauen.
 - README und „About CMK Flow“ würdigen den ComfyUI LoRA Manager als gestalterische Inspiration für die integrierte Browsererfahrung.

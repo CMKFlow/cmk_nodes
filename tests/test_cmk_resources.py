@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError
+from urllib.parse import parse_qs, urlsplit
 import zipfile
 
 
@@ -237,14 +238,25 @@ class CmkResourceAuditTests(unittest.TestCase):
         self.assertIn("100.00%", terminal.getvalue())
         self.assertIn("4.0 KiB", terminal.getvalue())
 
-    def test_civitai_token_is_sent_as_bearer_header(self):
+    def test_civitai_token_is_added_to_download_query(self):
         resource = next(
             item for item in self.audit_module.RESOURCES
             if item.resource_id == "sdxl-checkpoint-pony"
         )
         request = self.audit_module._download_request(resource, "secret-token")
-        self.assertEqual("Bearer secret-token", request.get_header("Authorization"))
-        self.assertNotIn("secret-token", request.full_url)
+        query = parse_qs(urlsplit(request.full_url).query)
+        self.assertEqual(["secret-token"], query["token"])
+        self.assertIsNone(request.get_header("Authorization"))
+
+    def test_civitai_token_preserves_existing_download_query(self):
+        resource = next(
+            item for item in self.audit_module.RESOURCES
+            if item.resource_id == "sdxl-checkpoint-juggernaut"
+        )
+        request = self.audit_module._download_request(resource, "secret-token")
+        query = parse_qs(urlsplit(request.full_url).query)
+        self.assertEqual(["1659952"], query["fileId"])
+        self.assertEqual(["secret-token"], query["token"])
 
     def test_civitai_unauthorized_download_prompts_once_and_retries(self):
         resource = next(
@@ -255,7 +267,7 @@ class CmkResourceAuditTests(unittest.TestCase):
         installed = Path("/models/checkpoint.safetensors")
         with (
             patch.object(self.audit_module, "_download", side_effect=[unauthorized, installed]) as download,
-            patch.object(self.audit_module.getpass, "getpass", return_value="new-token"),
+            patch.object(self.audit_module, "_masked_input", return_value="new-token"),
         ):
             result, token = self.audit_module._download_with_civitai_retry(
                 resource,
@@ -270,6 +282,24 @@ class CmkResourceAuditTests(unittest.TestCase):
         self.assertIsNone(download.call_args_list[0].args[2])
         self.assertEqual("new-token", download.call_args_list[1].args[2])
 
+    def test_civitai_rejected_key_has_actionable_error(self):
+        resource = next(
+            item for item in self.audit_module.RESOURCES
+            if item.resource_id == "sdxl-controlnet"
+        )
+        unauthorized = HTTPError(resource.download_url, 401, "Unauthorized", {}, None)
+        with (
+            patch.object(self.audit_module, "_download", side_effect=[unauthorized, unauthorized]),
+            patch.object(self.audit_module, "_masked_input", return_value="bad-token"),
+            self.assertRaisesRegex(RuntimeError, "rejected the API key"),
+        ):
+            self.audit_module._download_with_civitai_retry(
+                resource,
+                Path("/models"),
+                None,
+                allow_prompt=True,
+            )
+
     def test_civitai_authentication_can_be_skipped_without_raising(self):
         resource = next(
             item for item in self.audit_module.RESOURCES
@@ -278,7 +308,7 @@ class CmkResourceAuditTests(unittest.TestCase):
         unauthorized = HTTPError(resource.download_url, 401, "Unauthorized", {}, None)
         with (
             patch.object(self.audit_module, "_download", side_effect=unauthorized),
-            patch.object(self.audit_module.getpass, "getpass", return_value=""),
+            patch.object(self.audit_module, "_masked_input", return_value=""),
         ):
             result, token = self.audit_module._download_with_civitai_retry(
                 resource,
@@ -289,6 +319,14 @@ class CmkResourceAuditTests(unittest.TestCase):
 
         self.assertIsNone(result)
         self.assertIsNone(token)
+
+    def test_masked_input_shows_character_count_and_backspace(self):
+        characters = iter("abc\x7fD\r")
+        output = io.StringIO()
+        value = self.audit_module._collect_masked_input(lambda: next(characters), output)
+
+        self.assertEqual("abD", value)
+        self.assertEqual("***\b \b*", output.getvalue())
 
 
 if __name__ == "__main__":

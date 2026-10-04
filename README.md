@@ -162,11 +162,13 @@ SHA-256 geprüft; das offizielle `buffalo_l`-Archiv wird kontrolliert in den
 erwarteten InsightFace-Modellordner entpackt.
 
 Verlangt Civitai für eine Ressource eine Anmeldung, fragt der Helfer nach dem
-Civitai-API-Key und liest ihn verdeckt ein. Der Key wird nur für den laufenden
-Prozess im Speicher gehalten und weder angezeigt noch gespeichert. Alternativ
-kann er vorab über die Umgebungsvariable `CIVITAI_API_TOKEN` bereitgestellt
-werden. Ohne Key lässt sich die betroffene Ressource überspringen; die Prüfung
-läuft danach mit den übrigen Ressourcen weiter.
+Civitai-API-Key. Jedes übernommene Zeichen wird als `*` dargestellt; anschließend
+bestätigt der Helfer zusätzlich die übernommene Zeichenanzahl. Der Key selbst
+wird nur für den laufenden Prozess im Speicher gehalten und weder angezeigt noch
+gespeichert. Alternativ kann er vorab über die Umgebungsvariable
+`CIVITAI_API_TOKEN` bereitgestellt werden. Ohne Key lässt sich die betroffene
+Ressource überspringen; die Prüfung läuft danach mit den übrigen Ressourcen
+weiter.
 
 Kann für eine künftig ergänzte Ressource keine eindeutig verifizierte Datei oder
 automatisierbare Bezugsquelle festgelegt werden, bleibt sie als manueller Fall
