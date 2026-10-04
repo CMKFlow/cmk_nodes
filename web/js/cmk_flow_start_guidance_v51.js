@@ -307,7 +307,9 @@ function setWidgetVisible(widget, visible) {
         widget.options.hidden = original.optionsHidden;
         return;
     }
-    widget.type = "converted-widget";
+    // Keep the original type so current Vue node rendering can filter this
+    // widget via options.hidden instead of retaining a socket-only grid row.
+    widget.type = original.type;
     widget.computeSize = () => [0, -4];
     widget.draw = () => {};
     widget.hidden = true;

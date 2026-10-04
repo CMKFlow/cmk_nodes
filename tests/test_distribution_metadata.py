@@ -15,7 +15,7 @@ class DistributionMetadataTests(unittest.TestCase):
         metadata = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
         self.assertEqual("cmk-flow", metadata["project"]["name"])
-        self.assertEqual("2.5.2", metadata["project"]["version"])
+        self.assertEqual("2.5.3", metadata["project"]["version"])
         self.assertEqual(
             "Modular workflow system for SDXL, Z-Image Turbo and HYBRID "
             "generation with integrated identity, ControlNet and post-processing tools.",

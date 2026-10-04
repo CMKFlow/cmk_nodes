@@ -40,6 +40,10 @@ class RegionalConditioningUITests(unittest.TestCase):
         self.assertIn("widget.computeLayoutSize = undefined;", self.source)
         self.assertNotIn("const DEFAULT_NODE_HEIGHT = 1225;", self.source)
 
+    def test_hidden_widgets_do_not_leave_vue_socket_rows(self):
+        self.assertIn("widget.type = original.type;", self.source)
+        self.assertIn("widget.options.hidden = true;", self.source)
+        self.assertNotIn('widget.type = "converted-widget";', self.source)
 
 if __name__ == "__main__":
     unittest.main()

@@ -56,6 +56,14 @@ class NodeDimensionsUITests(unittest.TestCase):
         self.assertIn('element.style.height = "100%"', source)
         self.assertIn('element.style.removeProperty("--comfy-widget-max-height")', source)
 
+    def test_create_image_hidden_widgets_do_not_leave_vue_socket_rows(self):
+        source = (
+            ROOT / "web" / "js" / "cmk_flow_start_guidance_v51.js"
+        ).read_text(encoding="utf-8")
+        self.assertIn("widget.type = original.type;", source)
+        self.assertIn("widget.options.hidden = true;", source)
+        self.assertNotIn('widget.type = "converted-widget";', source)
+
     def test_source_target_slider_centers_only_its_own_widget_row(self):
         source = (
             ROOT / "web" / "js" / "cmk_source_target_slider.js"

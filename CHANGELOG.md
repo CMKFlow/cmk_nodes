@@ -1,3 +1,10 @@
+# CMK 2.5.3 — 2026-10-04
+
+- Verhindert, dass ausgeblendete Widgets in den Modulen `01 START HERE` und
+  `02 Regional Conditioning SDXL` unter aktuellem ComfyUI-Frontend weiterhin
+  als leere Socket-Zeilen gerendert werden und dadurch die gespeicherte
+  Node-Höhe überschreiten.
+
 # CMK 2.5.2 — 2026-10-04
 
 - CMK ist mit Registry-Metadaten und einer bereinigten Paketdefinition für die
