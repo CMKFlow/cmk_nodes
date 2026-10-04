@@ -21,6 +21,6 @@ Documentation = "https://github.com/CMKFlow/cmk_nodes#readme"
 "Bug Tracker" = "https://github.com/CMKFlow/cmk_nodes/issues"
 
 [tool.comfy]
-PublisherId = "CMKFlow"
+PublisherId = "cmkflow"
 DisplayName = "CMK Flow"
 Icon = "https://raw.githubusercontent.com/CMKFlow/cmk_nodes/main/web/assets/brand/cmk-logo.png"

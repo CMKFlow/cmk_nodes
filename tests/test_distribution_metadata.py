@@ -25,7 +25,7 @@ class DistributionMetadataTests(unittest.TestCase):
             "https://github.com/CMKFlow/cmk_nodes",
             metadata["project"]["urls"]["Repository"],
         )
-        self.assertEqual("CMKFlow", metadata["tool"]["comfy"]["PublisherId"])
+        self.assertEqual("cmkflow", metadata["tool"]["comfy"]["PublisherId"])
         self.assertEqual("CMK Flow", metadata["tool"]["comfy"]["DisplayName"])
 
     def test_registry_dependencies_are_sourced_from_requirements(self):
