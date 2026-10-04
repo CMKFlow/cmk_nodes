@@ -1,3 +1,9 @@
+# CMK 2.5.4 — 2026-10-04
+
+- Erzwingt die vollständige Aufnahme der Unicode-benannten Subgraph- und
+  Showcase-Dateien in das Comfy-Registry-Paket. Der Funktionsstand entspricht
+  ansonsten CMK 2.5.3.
+
 # CMK 2.5.3 — 2026-10-04
 
 - Verhindert, dass ausgeblendete Widgets in den Modulen `01 START HERE` und
