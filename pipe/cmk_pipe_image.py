@@ -891,6 +891,21 @@ class CMKPipeCreateImage:
                         ),
                     },
                 ),
+                # Appended so existing positional widget values remain stable.
+                # The frontend presents this beside the model-lifecycle switch.
+                "live_preview_zit": (
+                    "BOOLEAN",
+                    {
+                        "default": True,
+                        "advanced": True,
+                        "label": "LIVE PREVIEW ZIT",
+                        "tooltip": (
+                            "Enables latent live previews during Z-Image Turbo "
+                            "sampling. Enabled by default; SDXL live previews "
+                            "are unaffected."
+                        ),
+                    },
+                ),
             },
             "hidden": {"unique_id": "UNIQUE_ID"},
         }
@@ -981,6 +996,7 @@ class CMKPipeCreateImage:
                 inputs.get("unload_zit_after", True),
             )
         )
+        live_preview_zit = bool(inputs.get("live_preview_zit", True))
         raw_mode = inputs.get("INPAINT_MODE", "Text2Image")
         INPAINT_MODE = (
             bool(raw_mode)
@@ -1148,6 +1164,7 @@ class CMKPipeCreateImage:
             "hybrid_zit_denoise": hybrid_zit_denoise,
             "hybrid_balance": hybrid_balance,
             "unload_models_after_use": unload_models_after_use,
+            "live_preview_zit": live_preview_zit,
             "generation_mode": "inpaint" if INPAINT_MODE else "text2image",
             "swap_dimensions": swap_dimensions,
             "resize_mode": resize_mode,

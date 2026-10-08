@@ -415,6 +415,11 @@ class CMKSamplerPrepareZImageTurboPipe:
                 "zit_inpaint_model_patch": inpaint_model_patch_resource,
                 "loaded_loras": loaded_loras,
                 "text_encoder_status": text_encoder_status,
+                # Node 01 owns this user preference. Only the ZIT sampler
+                # consumes it; SDXL and the HYBRID SDXL handoff stay live.
+                "suppress_sampler_preview": not bool(
+                    PROCESS.get("live_preview_zit", True)
+                ),
             }
         )
         if inpaint_enabled:

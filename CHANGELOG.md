@@ -1,3 +1,15 @@
+# CMK 2.5.6 — 2026-10-08
+
+- Ergänzt in den erweiterten Einstellungen von `01 START HERE` den standardmäßig
+  aktivierten Schalter `LIVE PREVIEW ZIT`. Er steuert ausschließlich die
+  Z-Image-Turbo-Live-Vorschau; SDXL bleibt davon unberührt.
+- Ordnet die laufende ZIT-Sampling-Vorschau korrekt dem `VISUAL`-Pfad zu, sodass
+  sie auch im CMK Visualizer erscheint.
+- Weist beim Start darauf hin, wenn die globale ComfyUI-Live-Preview-Methode
+  deaktiviert ist, ohne die Benutzereinstellung automatisch zu verändern.
+- Führt den SDXL-Eintrag im Flow Browser unter dem kompakten Anzeigenamen
+  `LoRA Stack`; technische Subgraph-Namen und IDs bleiben unverändert.
+
 # CMK 2.5.5 — 2026-10-04
 
 - Nimmt zusätzlich sämtliche Unicode-benannten Preview- und Showcase-Bilder

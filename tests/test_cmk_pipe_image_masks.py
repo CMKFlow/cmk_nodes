@@ -302,6 +302,26 @@ class CreateImageMaskTests(unittest.TestCase):
         self.assertNotIn("ACTIVE LORAS", optional)
         self.assertNotIn("ADDITIONAL PROMPT", optional)
 
+    def test_zit_live_preview_defaults_on_and_can_be_disabled(self):
+        optional = self.module.CMKPipeCreateImage.INPUT_TYPES()["optional"]
+        self.assertTrue(optional["live_preview_zit"][1]["default"])
+
+        default_result = self.result(
+            self.module.CMKPipeCreateImage().create_image(
+                **{"MODEL FAMILY TABS": "Z-Image Turbo"}
+            )
+        )
+        disabled_result = self.result(
+            self.module.CMKPipeCreateImage().create_image(
+                **{
+                    "MODEL FAMILY TABS": "Z-Image Turbo",
+                    "live_preview_zit": False,
+                }
+            )
+        )
+        self.assertTrue(default_result[1]["live_preview_zit"])
+        self.assertFalse(disabled_result[1]["live_preview_zit"])
+
     def test_only_selected_family_lora_bundle_is_applied(self):
         sdxl_bundle = {
             "family": "sdxl",

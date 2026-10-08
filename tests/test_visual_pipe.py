@@ -263,6 +263,7 @@ class VisualPipeTests(unittest.TestCase):
             "cmk-CMKVisualProvider-${outerNode.id}-${visualProvider.id}",
             "fallbackLiveTypes",
             '"first-pass": "CMKKSamplerPipe"',
+            'sampling: "CMKKSamplerPipe"',
             'controlnet: "CMKControlNetPreparePipe"',
             "live_node_resolved: liveNodes.length > 0",
             "live_node_resolved: Boolean(item.live_node_resolved)",

@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class FlowBrowserCatalogTests(unittest.TestCase):
     EXPECTED_FLOWS = {
         "LoRA Stack · Combined",
-        "LoRA Stack · SDXL",
+        "LoRA Stack",
         "LoRA Stack · ZIT",
         "05 ControlNet",
         "05 ControlNet ZIT",
@@ -1058,7 +1058,7 @@ class FlowBrowserCatalogTests(unittest.TestCase):
             "CMKImageLoadAndResizePipe",
         )
         for filename, display_name, family in (
-            ("LoRA Stack · SDXL.json", "LoRA Stack · SDXL", "SDXL"),
+            ("LoRA Stack · SDXL.json", "LoRA Stack", "SDXL"),
             ("LoRA Stack · ZIT.json", "LoRA Stack · ZIT", "Z-Image Turbo"),
         ):
             lora_stack = json.loads(

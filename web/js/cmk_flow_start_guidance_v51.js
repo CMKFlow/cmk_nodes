@@ -98,6 +98,7 @@ const USER_WIDGET_LABELS = {
     "hybrid_sdxl_handoff": "SDXL HANDOFF",
     "hybrid_zit_denoise": "ZIT DENOISE",
     "unload_models_after_use": "UNLOAD MODELS AFTER USE",
+    "live_preview_zit": "LIVE PREVIEW ZIT",
 };
 const NEUTRAL_IMAGE_SIZES = [
     "1024x1024",
@@ -571,6 +572,19 @@ function rebuildModeWidgets(node, force = false) {
             .filter((name) => mode.startsWith("hybrid") || name !== "HYBRID BALANCE")
             .filter((name) => name !== "unload_zit_after")
             .filter((name) => name !== CROP_POSITION_WIDGET || resizeMode !== "stretch");
+        // The backend appends new widgets to preserve legacy positional
+        // serialization. Present the ZIT preview switch beside model unload
+        // without changing that canonical serialization order.
+        const previewIndex = visibleNames.indexOf("live_preview_zit");
+        const unloadIndex = visibleNames.indexOf("unload_models_after_use");
+        if (previewIndex >= 0 && unloadIndex >= 0) {
+            visibleNames.splice(previewIndex, 1);
+            visibleNames.splice(
+                visibleNames.indexOf("unload_models_after_use") + 1,
+                0,
+                "live_preview_zit",
+            );
+        }
         const visibleNameSet = new Set(visibleNames);
         for (const name of state.canonicalOrder) {
             setWidgetVisible(state.widgetsByName.get(name), visibleNameSet.has(name));

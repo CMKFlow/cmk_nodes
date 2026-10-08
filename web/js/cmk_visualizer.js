@@ -102,6 +102,7 @@ function remappedDeclaredProvider(outerNode, item) {
   const fallbackLiveTypes = {
     controlnet: "CMKControlNetPreparePipe",
     "first-pass": "CMKKSamplerPipe",
+    sampling: "CMKKSamplerPipe",
     identity: "CMKInstantIDSamplerSDXLPipe",
     refiner: "CMKRefinerPipe",
     detailer: "CMK_SmartDetailerPipe",

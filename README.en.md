@@ -6,7 +6,7 @@
 
 Modular custom-node package for ComfyUI.
 
-**Current release: CMK 2.5.5**
+**Current release: CMK 2.5.6**
 
 [Deutsch](README.md) · **English**
 
@@ -239,7 +239,7 @@ files in `subgraphs/` remain part of the node pack; additional copies under
 
 > **Validated release target**
 >
-> CMK 2.5.5 was fully validated with **ComfyUI 0.38.2** and
+> CMK 2.5.6 was fully validated with **ComfyUI 0.38.2** and
 > **comfyui-frontend-package 1.53.6**. This includes Flow Browser navigation,
 > packaged subgraphs and reference workflows, embedded previews, cache paths,
 > and the serialized link, socket, UUID, and topology contracts.
