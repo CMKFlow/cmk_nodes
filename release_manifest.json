@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "requiredFiles": [
+    "__init__.py",
+    "cmk_mappings.py",
+    "pyproject.toml",
+    "requirements.txt",
+    "web/flow_node_metadata.json",
+    "web/browser_content_en.json"
+  ],
+  "forbiddenArtifactPaths": [
+    ".git",
+    ".ruff_cache",
+    "_cmk_backups",
+    "tests"
+  ],
+  "releaseFeatures": [
+    {
+      "name": "CMK Flow Image Resize",
+      "nodeClass": "CMKImageResize",
+      "requiredFiles": [
+        "nodes/image/image_resize.py",
+        "web/js/cmk_image_resize_ui.js",
+        "web/assets/previews/CMK Flow · Image Resize.png"
+      ],
+      "requiredMarkers": {
+        "cmk_mappings.py": [
+          "from .nodes.image.image_resize import CMKImageResize",
+          "\"CMKImageResize\": CMKImageResize",
+          "\"CMKImageResize\": \"CMK Flow · Image Resize\""
+        ],
+        "pipe/cmk_sampler_prepare.py": [
+          "ensure_sdxl_text_encoder",
+          "clip, _ = ensure_sdxl_text_encoder(MODEL)"
+        ],
+        "web/js/cmk_flow_browser.js": [
+          "selected.features, \"Noch keine Funktionsübersicht hinterlegt\""
+        ]
+      },
+      "requiredJsonKeys": {
+        "web/flow_node_metadata.json": "nodes.CMKImageResize",
+        "web/browser_content_en.json": "flows.CMKImageResize"
+      }
+    }
+  ]
+}

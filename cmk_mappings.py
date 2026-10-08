@@ -85,6 +85,7 @@ from .nodes.image.mask_detailer import (
 from .nodes.image.segs_concate import CMK_SEGSConcate
 from .nodes.image.smart_outpaint_pad import CMK_SmartOutpaintPad
 from .nodes.image.smart_upscale import CMK_SmartUpscaler, CMK_SmartUpscalerPipe
+from .nodes.image.image_resize import CMKImageResize
 from .nodes.swap.face_process import CMK_FaceProcess
 from .nodes.io.filename_tools import CMK_FilenameBase
 from .nodes.io.source_path_info import CMKSourcePathInfo
@@ -268,6 +269,7 @@ NODE_CLASS_MAPPINGS = {
     "CMK_SmartOutpaintPad": CMK_SmartOutpaintPad,
     "CMK_SmartUpscaler": CMK_SmartUpscaler,
     "CMK_SmartUpscalerPipe": CMK_SmartUpscalerPipe,
+    "CMKImageResize": CMKImageResize,
     "CMK_FaceProcess": CMK_FaceProcess,
     "CMK_FilenameBase": CMK_FilenameBase,
     "CMK_SourcePathInfo": CMKSourcePathInfo,
@@ -429,6 +431,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CMK_SmartOutpaintPad": "CMK Smart Outpaint Pad",
     "CMK_SmartUpscaler": "CMK Smart Upscaler",
     "CMK_SmartUpscalerPipe": "CMK Smart Upscaler -Pipe-",
+    "CMKImageResize": "CMK Flow · Image Resize",
     "CMK_FaceProcess": "CMK FaceProcess",
     "CMK_FilenameBase": "CMK Filename Base",
     "CMK_SourcePathInfo": "CMK SourcePathInfo",

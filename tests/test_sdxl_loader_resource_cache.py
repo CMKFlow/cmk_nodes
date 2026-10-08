@@ -182,6 +182,42 @@ class SDXLLoaderResourceCacheTests(unittest.TestCase):
         )
         self.assertEqual(1, len(calls))
 
+    def test_repeated_consumers_rematerialize_after_each_explicit_eviction(self):
+        module, calls = _load_module()
+        loader = module.CMKCheckpointVAELoaderPipe()
+        model_pipe = loader.load_checkpoint_vae_pipe(
+            "base.safetensors", "vae.safetensors", True,
+            {"model_family": "sdxl", "unload_models_after_use": True},
+        )[0]
+        model = model_pipe["model"]
+        vae = model_pipe["vae"]
+        rematerialized = []
+
+        def load_clip(_name):
+            clip = {"clip": len(rematerialized) + 1}
+            rematerialized.append(clip)
+            return clip
+
+        module._load_checkpoint_clip = load_clip
+        for _index in range(2):
+            module.evict_sdxl_text_encoder(model_pipe)
+            clip, status = module.ensure_sdxl_text_encoder(model_pipe)
+            self.assertIs(clip, rematerialized[-1])
+            self.assertEqual("REMATERIALIZED", status)
+            self.assertIs(model_pipe["model"], model)
+            self.assertIs(model_pipe["vae"], vae)
+
+        self.assertEqual(2, len(rematerialized))
+        self.assertEqual(1, len(calls), "MODEL and VAE must not be reloaded")
+
+    def test_sampler_prepare_requests_an_evicted_encoder_before_rejecting_it(self):
+        source = (ROOT / "pipe" / "cmk_sampler_prepare.py").read_text(encoding="utf-8")
+        lookup = "clip = MODEL.get(\"clip\")"
+        rematerialize = "clip, _ = ensure_sdxl_text_encoder(MODEL)"
+        rejection = "MODEL['clip'] is missing"
+        self.assertLess(source.index(lookup), source.index(rematerialize))
+        self.assertLess(source.index(rematerialize), source.index(rejection))
+
 
 if __name__ == "__main__":
     unittest.main()

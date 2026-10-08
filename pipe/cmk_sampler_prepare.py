@@ -15,7 +15,10 @@ from ..utils.cmk_translation import translate_prompt
 from .cmk_pipe_sampler import CMKPipeSetSampler
 from ..utils.cmk_diagnostic import make_diagnostic_payload
 from ..utils.cmk_timing import cmk_timed_call
-from .loaders.checkpoint_vae_loader import evict_sdxl_text_encoder
+from .loaders.checkpoint_vae_loader import (
+    ensure_sdxl_text_encoder,
+    evict_sdxl_text_encoder,
+)
 
 
 SAMPLING_MODES = ["eps", "v_prediction", "lcm"]
@@ -625,6 +628,8 @@ class CMKSamplerPrepareSDXLPipe:
         vae = MODEL.get("vae")
         if model is None:
             raise ValueError("CMK Sampler Prepare SDXL -Pipe-: MODEL['model'] is missing")
+        if clip is None:
+            clip, _ = ensure_sdxl_text_encoder(MODEL)
         if clip is None:
             raise ValueError("CMK Sampler Prepare SDXL -Pipe-: MODEL['clip'] is missing")
         if vae is None:

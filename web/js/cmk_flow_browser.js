@@ -1048,7 +1048,7 @@ function renderFlowBrowser(root, flows) {
         variantBar.append(button);
       }
     }
-    fillTextList(detail.querySelector('[data-list="features"]'), selected.features.slice(0, 3), "Noch keine Funktionsübersicht hinterlegt");
+    fillTextList(detail.querySelector('[data-list="features"]'), selected.features, "Noch keine Funktionsübersicht hinterlegt");
     const info = detail.querySelector(".cmk-flow-compact-info");
     if (selected.info) {
       info.hidden = false;

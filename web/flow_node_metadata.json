@@ -138,6 +138,34 @@
       "previewAlt": "CMK Flow Checkpoint und VAE Node",
       "variantOrder": 30
     },
+    "CMKImageResize": {
+      "category": "PostProcess",
+      "domain": "Image Processing",
+      "compatibility": [
+        "SDXL",
+        "Z-Image Turbo",
+        "Hybrid"
+      ],
+      "version": "1.0.0",
+      "author": "CMK Nodes",
+      "status": "STABLE",
+      "description": "Skaliert das aktuelle Bild ohne Upscale-Modell und erhält den vollständigen CMK-PostProcess-Transportvertrag.",
+      "features": [
+        "Skaliert Bilder ohne Upscale-Modell.",
+        "Behält das ursprüngliche Seitenverhältnis bei.",
+        "Skaliert wahlweise auf eine maximale Kantenlänge oder eine Ziel-Megapixelzahl.",
+        "Passt Bilder alternativ in feste Zielabmessungen ein und ergänzt schwarze oder weiße Ränder.",
+        "Reicht das Bild bei deaktiviertem SCALE ENABLE unverändert weiter."
+      ],
+      "placementNote": "Auf dem familienneutralen Pfad nach der PostProcess Boundary und vor Upscale & Save oder dem Visualizer platzieren.",
+      "previews": [
+        {
+          "src": "assets/previews/CMK Flow · Image Resize.png",
+          "label": "Vorschau"
+        }
+      ],
+      "previewAlt": "CMK Flow Image Resize mit den drei Skalierungsmethoden"
+    },
     "CMKLoadImage": {
       "variantOf": "CMKImageLoadAndResizePipe",
       "variantLabel": "For Inpaint",

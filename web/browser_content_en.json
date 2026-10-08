@@ -48,6 +48,18 @@
       ],
       "placementNote": "Place at the beginning of an image-based standalone flow directly before a family-neutral postprocess module."
     },
+    "CMKImageResize": {
+      "previewAlt": "CMK Flow Image Resize postprocess node",
+      "description": "Resizes the current image without loading a model and preserves the complete CMK postprocess transport contract.",
+      "features": [
+        "Resizes images without an upscale model.",
+        "Preserves the original aspect ratio.",
+        "Scales either to a maximum edge length or a target megapixel count.",
+        "Alternatively fits images into fixed target dimensions and adds black or white padding.",
+        "Passes the image through unchanged when SCALE ENABLE is disabled."
+      ],
+      "placementNote": "Place on the family-neutral path after the PostProcess Boundary and before Upscale & Save or the Visualizer."
+    },
     "CMKSwapImageLoaderPipe": {
       "previewAlt": "CMK Flow FaceSwap Image Input with target and source image selection",
       "description": "Loads target and source images for FaceSwap.",

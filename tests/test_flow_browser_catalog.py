@@ -83,6 +83,22 @@ class FlowBrowserCatalogTests(unittest.TestCase):
         "REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceSwap · Modul/portrait_reference_00003.png",
     }
 
+    def test_image_resize_browser_entry_is_complete_and_untruncated(self):
+        metadata = json.loads(
+            (ROOT / "web" / "flow_node_metadata.json").read_text(encoding="utf-8")
+        )["nodes"]["CMKImageResize"]
+        english = json.loads(
+            (ROOT / "web" / "browser_content_en.json").read_text(encoding="utf-8")
+        )["flows"]["CMKImageResize"]
+        self.assertEqual(5, len(metadata["features"]))
+        self.assertEqual(5, len(english["features"]))
+        for preview in metadata["previews"]:
+            self.assertTrue((ROOT / "web" / preview["src"]).is_file())
+
+        browser = (ROOT / "web" / "js" / "cmk_flow_browser.js").read_text(encoding="utf-8")
+        self.assertIn("selected.features,", browser)
+        self.assertNotIn("selected.features.slice(0, 3)", browser)
+
     def test_image_loaders_default_to_face_reference(self):
         for relative_path in (
             "pipe/loaders/cmk_load_image.py",
@@ -549,8 +565,8 @@ class FlowBrowserCatalogTests(unittest.TestCase):
             for entry in node_metadata.values()
             for preview in entry.get("previews", [])
         )
-        self.assertEqual(len(preview_paths), 51)
-        self.assertEqual(len(set(preview_paths)), 51)
+        self.assertEqual(len(preview_paths), 52)
+        self.assertEqual(len(set(preview_paths)), 52)
         for preview_path in preview_paths:
             self.assertTrue((ROOT / "web" / preview_path).is_file(), preview_path)
 
@@ -1178,7 +1194,8 @@ class FlowBrowserCatalogTests(unittest.TestCase):
         self.assertIn('class="cmk-flow-compact-features"', flow_renderer)
         self.assertIn('class="cmk-flow-compact-info" hidden', flow_renderer)
         self.assertIn(".cmk-flow-compact-info[hidden] { display: none; }", source)
-        self.assertIn("selected.features.slice(0, 3)", flow_renderer)
+        self.assertIn("selected.features,", flow_renderer)
+        self.assertNotIn("selected.features.slice(0, 3)", flow_renderer)
         self.assertIn("if (selected.info)", flow_renderer)
         self.assertIn(
             ".cmk-flow-compact-top.has-variants { grid-template-columns: minmax(260px, 1fr) minmax(300px, 1.2fr); }",

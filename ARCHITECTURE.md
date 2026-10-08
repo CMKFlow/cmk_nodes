@@ -893,7 +893,28 @@ ebenfalls `FaceProcess` und wird unabhängig vom gewählten `process mode` auf d
 unterstützten konkreten FaceProcess-Node-Typen aufgelöst. Restore und Detailer
 erzeugen daher niemals unterschiedliche Registeridentitäten.
 
-### 5.8 Upscale und Save
+### 5.8 Image Resize
+
+`CMK Flow · Image Resize` ist ein modellfreies, familienunabhängiges
+PostProcess-Modul. Es übernimmt den vollständigen öffentlichen Vertrag der
+PostProcess Boundary und reicht `MODEL` sowie `PROCESS` unverändert weiter:
+
+```text
+MODEL (opt) + PROCESS + IMAGE + LOG + VISUAL
+    → MODEL + PROCESS + IMAGE + LOG + VISUAL + diagnostic
+```
+
+Der zentrale Parameter `scale_method` wählt exklusiv zwischen Skalierung auf
+die längste Kante, Skalierung auf eine Ziel-Megapixelzahl und proportionalem
+Einpassen mit Padding. Nicht gewählte Verfahren werden nicht aufgerufen. Bei
+deaktiviertem `SCALE ENABLE` wird das Eingangsbild identisch durchgereicht und
+kein Cache-Eintrag erzeugt. Der vorhandene persistente Boundary-Cache wird mit
+einem methodenspezifischen Fingerprint verwendet; Parameter inaktiver Verfahren
+gehören deshalb nicht zum Cache-Schlüssel. Erfolgreiche Verarbeitung ergänzt
+LOG, VISUAL und das CMK-Diagnostic-Format, ohne Modelle zu laden oder den
+Model-Lifecycle zu verändern.
+
+### 5.8a Upscale und Save
 
 `CMK Upscale and Save -Pipe-` ist der empfohlene Abschluss des geschlossenen
 CMK-Flow-Hauptwegs. Der öffentliche Subgraph bündelt finales Upscaling,

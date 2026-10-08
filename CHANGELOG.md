@@ -1,3 +1,16 @@
+# CMK 2.5.7 — 2026-10-08
+
+- Ergänzt den modellfreien PostProcess-Node `CMK Flow · Image Resize` mit
+  Skalierung auf maximale Kantenlänge, Ziel-Megapixel sowie proportionalem
+  Einpassen mit schwarzem oder weißem Padding.
+- Stellt einen zuvor freigegebenen SDXL-Textencoder bei erneuter Ausführung von
+  Sampler Prepare bedarfsgesteuert wieder her, ohne die bestehende Eviction und
+  Speicheroptimierung aufzuheben.
+- Zeigt im Flow Browser die vollständige Funktionsliste eines Nodes an und
+  ergänzt deutsche und englische Inhalte sowie die Vorschau für Image Resize.
+- Ergänzt eine wiederverwendbare Prüfung des tatsächlichen Release-Artefakts,
+  damit registrierte Release-Bestandteile künftig nicht unbemerkt fehlen.
+
 # CMK 2.5.6 — 2026-10-08
 
 - Ergänzt in den erweiterten Einstellungen von `01 START HERE` den standardmäßig
