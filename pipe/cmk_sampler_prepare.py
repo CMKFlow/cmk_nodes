@@ -280,6 +280,46 @@ def _int(value: Any, default: int) -> int:
         return default
 
 
+def _resolve_instantid_handoff(
+    *,
+    active: bool,
+    inpaint_mode: bool,
+    instantid_mode: str,
+    strategy: str,
+    controlnet_applied: bool,
+    effective_steps: int,
+    inpaint_handoff: int,
+) -> tuple[int, str, str]:
+    """Resolve module 10's contribution before InstantID takes over."""
+    normalized_strategy = str(strategy or "AUTO").strip().upper()
+    if normalized_strategy not in {"AUTO", "EARLY", "SAFE"}:
+        normalized_strategy = "AUTO"
+
+    if not active:
+        requested = inpaint_handoff if inpaint_mode else 4
+        source = "INACTIVE"
+    elif not inpaint_mode and str(instantid_mode).strip().upper() == "ZERO-PASS":
+        return 0, "ZERO-PASS", normalized_strategy
+    elif inpaint_mode:
+        requested = inpaint_handoff
+        source = "INPAINT"
+    elif normalized_strategy == "EARLY":
+        requested = 1
+        source = "EARLY"
+    elif normalized_strategy == "SAFE":
+        requested = 4
+        source = "SAFE"
+    elif bool(controlnet_applied):
+        requested = 1
+        source = "AUTO · CONTROLNET"
+    else:
+        requested = 4
+        source = "AUTO · SAFE"
+
+    handoff = max(1, min(max(1, int(effective_steps) - 1), int(requested)))
+    return handoff, source, normalized_strategy
+
+
 def _float(value: Any, default: float) -> float:
     try:
         return float(value)
@@ -389,33 +429,6 @@ class CMKSamplerPrepareSDXLPipe:
                         "tooltip": (
                             "Remove Object only. Expands the fully generated mask core "
                             "outward before the soft colour transition is added."
-                        ),
-                    },
-                ),
-                "instantid_end_at_step": (
-                    "INT",
-                    {
-                        "default": 2,
-                        "min": 0,
-                        "max": 10,
-                        "step": 1,
-                        "advanced": True,
-                        "label": "INSTANTID HANDOFF · TEXT2IMAGE",
-                        "tooltip": "Text2Image HYBRID handoff. ZERO-PASS overrides this value with step 0.",
-                    },
-                ),
-                "instantid_inpaint_end_at_step": (
-                    "INT",
-                    {
-                        "default": 10,
-                        "min": 1,
-                        "max": 20,
-                        "step": 1,
-                        "advanced": True,
-                        "label": "INSTANTID HANDOFF · INPAINT",
-                        "tooltip": (
-                            "Inpaint HYBRID handoff. Later values preserve a mature Fooocus composition; "
-                            "early values allow InstantID to reinterpret it."
                         ),
                     },
                 ),
@@ -607,8 +620,6 @@ class CMKSamplerPrepareSDXLPipe:
         replace_spatial_strength=0.35,
         remove_blend_radius=24.0,
         remove_mask_expand=12,
-        instantid_end_at_step=2,
-        instantid_inpaint_end_at_step=10,
         LOG=None,
     ):
         if PROCESS is None:
@@ -1095,15 +1106,17 @@ class CMKSamplerPrepareSDXLPipe:
         instantid_active = bool(pipe.get("instantid_enabled", False))
         effective_steps = _int(steps_1st_pass, 20)
         instantid_mode = str(pipe.get("instantid_mode", "HYBRID") or "HYBRID").strip().upper()
-        if instantid_active and not inpaint_mode and instantid_mode == "ZERO-PASS":
-            instantid_handoff = 0
-        else:
-            requested_handoff = (
-                _int(instantid_inpaint_end_at_step, 10)
-                if inpaint_mode
-                else _int(instantid_end_at_step, 2)
+        instantid_handoff, instantid_handoff_source, handshake_strategy = (
+            _resolve_instantid_handoff(
+                active=instantid_active,
+                inpaint_mode=inpaint_mode,
+                instantid_mode=instantid_mode,
+                strategy=pipe.get("instantid_handshake_strategy", "AUTO"),
+                controlnet_applied=bool(controlnet_applied),
+                effective_steps=effective_steps,
+                inpaint_handoff=10,
             )
-            instantid_handoff = max(1, min(max(1, effective_steps - 1), requested_handoff))
+        )
         effective_sampler = sampler
         effective_scheduler = scheduler
         new_pipe["steps_1st_pass"] = effective_steps
@@ -1113,6 +1126,8 @@ class CMKSamplerPrepareSDXLPipe:
         new_pipe["scheduler"] = effective_scheduler
         new_pipe["instantid_end_at_step"] = instantid_handoff
         new_pipe["instantid_mode"] = instantid_mode
+        new_pipe["instantid_handshake_strategy"] = handshake_strategy
+        new_pipe["instantid_handoff_source"] = instantid_handoff_source
         new_pipe["seed"] = _int(seed, 0)
         new_pipe["denoise"] = effective_denoise
         new_pipe["sdxl_width"] = width
@@ -1171,6 +1186,7 @@ class CMKSamplerPrepareSDXLPipe:
             f"loras_bypassed={requested_process_mode == 'remove'} | "
             f"clip_layer={new_pipe['stop_at_clip_layer']} | size_cond_factor={new_pipe['size_cond_factor']} | "
             f"seed={new_pipe['seed']} | seed_mode=fixed | "
+            f"instantid_handoff={instantid_handoff} ({instantid_handoff_source}) | "
             f"latent={'ok' if latent_image is not None else 'missing'} | {fooocus_log} | {context_reference_log} | {controlnet_log}"
         )
         new_pipe["sampler_prepare_status"] = {
@@ -1212,6 +1228,7 @@ class CMKSamplerPrepareSDXLPipe:
             f"FOOOCUS INPAINT : {'PREPARED' if inpaint_mode else 'DISABLED'}",
             f"CONTEXT REF.    : {'PREPARED' if context_reference_active else 'DISABLED'}",
             f"CONTROLNET      : {'PREPARED' if controlnet_applied else 'DISABLED'}",
+            f"ID HANDSHAKE    : STEP {instantid_handoff} · {instantid_handoff_source}",
             f"PROMPT SOURCE   : {prompt_source}",
             f"LORAS BYPASSED  : {'YES' if requested_process_mode == 'remove' else 'NO'}",
             f"LORA SOURCE     : {lora_source}",
@@ -1245,6 +1262,9 @@ class CMKSamplerPrepareSDXLPipe:
                 "sampler": effective_sampler,
                 "scheduler": effective_scheduler,
                 "seed": new_pipe["seed"],
+                "instantid_handshake_strategy": handshake_strategy,
+                "instantid_handoff": instantid_handoff,
+                "instantid_handoff_source": instantid_handoff_source,
             },
         )
         if bool(

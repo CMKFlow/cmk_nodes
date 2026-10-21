@@ -6,6 +6,12 @@ import os
 from pathlib import Path
 from typing import Any
 
+from ...cmk_distribution import (
+    CONTENT_GUARD_PROCESS_KEY,
+    content_guard_control_visible,
+    content_guard_state_token,
+    effective_content_guard_enabled,
+)
 from ...pipe.cmk_log_pipe import cmk_add_block
 from ...pipe.loaders.cmk_swap_image_loader import _load_rgb_frames, _resolve_image_path
 from .split_video_segments import (
@@ -88,8 +94,7 @@ class CMKFaceSwapVideoLoader:
 
     @classmethod
     def INPUT_TYPES(cls):
-        return {
-            "required": {
+        required = {
                 "MAX FRAMES 720P": (
                     "INT",
                     {"default": 540, "min": 1, "max": 100000, "step": 1},
@@ -112,8 +117,22 @@ class CMKFaceSwapVideoLoader:
                     "STRING",
                     {"default": _MEDIA_DEFAULT, "multiline": False},
                 ),
-            }
         }
+        if content_guard_control_visible():
+            # Appended to preserve positional values in every existing video
+            # workflow. Public RELEASE builds omit the control entirely.
+            required[CONTENT_GUARD_PROCESS_KEY] = (
+                "BOOLEAN",
+                {
+                    "default": True,
+                    "label": "CONTENT GUARD",
+                    "tooltip": (
+                        "Baseline only. Enables source and per-frame ContentGuard "
+                        "checks in CMK FaceSwap Video."
+                    ),
+                },
+            )
+        return {"required": required}
 
     RETURN_TYPES = ("CMK_VIDEO_SEGMENTS", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
     RETURN_NAMES = ("SEGMENTS", "IMAGE SOURCE", "LOG", "diagnostic")
@@ -143,8 +162,12 @@ class CMKFaceSwapVideoLoader:
             raise RuntimeError("CMK FaceSwap Video Loader: Split backend returned an invalid result")
 
         segments, log_pipe, diagnostic = split_result["result"]
+        content_guard_enabled = effective_content_guard_enabled({
+            CONTENT_GUARD_PROCESS_KEY: inputs.get(CONTENT_GUARD_PROCESS_KEY, True),
+        })
         segments["source_image_name"] = source_name
         segments["source_video_name"] = video_name
+        segments[CONTENT_GUARD_PROCESS_KEY] = content_guard_enabled
         _write_project_metadata(segments, video_name, source_name)
         log_pipe = cmk_add_block(
             log_pipe,
@@ -154,6 +177,11 @@ class CMKFaceSwapVideoLoader:
                 f"SOURCE VIDEO      : {video_name}",
                 f"SOURCE IMAGE      : {source_name}",
                 f"SOURCE IMAGE SIZE : {source_width} × {source_height}",
+                (
+                    "CONTENT GUARD     : ON"
+                    if content_guard_enabled
+                    else "CONTENT GUARD     : OFF · BASELINE"
+                ),
             ],
             True,
         )
@@ -181,6 +209,9 @@ class CMKFaceSwapVideoLoader:
             state = {
                 "split": split_state,
                 "source_image": _source_image_state(source_name),
+                "content_guard": content_guard_state_token({
+                    CONTENT_GUARD_PROCESS_KEY: inputs.get(CONTENT_GUARD_PROCESS_KEY, True),
+                }),
             }
             return hashlib.sha256(
                 json.dumps(state, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")

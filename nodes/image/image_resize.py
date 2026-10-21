@@ -52,7 +52,7 @@ class CMKImageResize:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "PROCESS": ("CMK_RESULT_PROCESS",),
+                "PROCESS": ("CMK_RESULT_PROCESS,CMK_MASK_DETAILER_PROCESS",),
                 "IMAGE": ("IMAGE",),
                 "LOG": ("CMK_LOG_PIPE",),
                 "SCALE ENABLE": ("BOOLEAN", {"default": True}),

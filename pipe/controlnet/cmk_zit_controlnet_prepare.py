@@ -38,7 +38,7 @@ class CMKZITControlNetPreparePipe:
             "required": {
                 "PROCESS": ("CMK_PROCESS_Z_IMAGE",),
                 "IMAGE": ("IMAGE", {"lazy": True}),
-                "ENABLE": ("BOOLEAN", {"default": False}),
+                "ENABLE": ("BOOLEAN", {"default": False, "forceInput": True}),
                 "IMAGE SOURCE": (
                     CONTROLNET_IMAGE_SOURCES,
                     {"default": "Reference Image"},
@@ -56,7 +56,6 @@ class CMKZITControlNetPreparePipe:
                         "min": 64,
                         "max": 8192,
                         "step": 8,
-                        "advanced": True,
                         "label": "resolution",
                     },
                 ),
@@ -92,7 +91,7 @@ class CMKZITControlNetPreparePipe:
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
                 "VISUAL": ("CMK_VISUAL_PIPE",),
                 "REFERENCE IMAGE INPUT": ("IMAGE", {"lazy": True}),
-                "REFERENCE IMAGE NAME": ("STRING",),
+                "REFERENCE IMAGE NAME": ("STRING", {"forceInput": True}),
             },
             "hidden": {"prompt": "PROMPT", "unique_id": "UNIQUE_ID"},
         }

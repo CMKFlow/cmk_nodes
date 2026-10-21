@@ -3,6 +3,10 @@ from __future__ import annotations
 import numpy as np
 import torch
 
+from ..cmk_distribution import (
+    content_guard_state_token,
+    effective_content_guard_enabled,
+)
 from ..engine.detector_engine import CMKDetectorEngine, DetectorSettings
 from ..engine.content_guard import GUARD_VERSION, get_content_guard
 from ..engine.instantid_face_rebuild import (
@@ -82,7 +86,9 @@ class CMKInstantIDFaceRebuildPrepare:
         )
         target_selection = str(kwargs["TARGET FACE"])
         face = select_target_face(faces, target_selection, rgb.shape[1], rgb.shape[0])
-        get_content_guard().inspect_image(rgb, face, "target")
+        content_guard_enabled = bool(kwargs.get("_content_guard_enabled", True))
+        if content_guard_enabled:
+            get_content_guard().inspect_image(rgb, face, "target")
         geometry = build_geometry(
             face["bbox"],
             rgb.shape[1],
@@ -127,6 +133,7 @@ class CMKInstantIDFaceRebuildPrepare:
             "detector_model": detector_model,
             "feather": geometry.feather,
             "content_guard_version": FACEREBUILD_GUARD_VERSION,
+            "content_guard_enabled": content_guard_enabled,
         }
         lines = [
             "Workflow            : INSTANTID FACE REBUILD",
@@ -138,7 +145,11 @@ class CMKInstantIDFaceRebuildPrepare:
             "Mask Separation     : Inpaint broad / Pasteback inset",
             "Pasteback Neck      : configured by Pasteback",
             "ROI Border Guard    : PASS",
-            "ContentGuard        : PASS · TARGET",
+            (
+                "ContentGuard        : PASS · TARGET"
+                if content_guard_enabled
+                else "ContentGuard        : BYPASS · BASELINE"
+            ),
             "Sampling            : configured by Face Detailer",
             f"Shape Transfer      : {shape_status}",
             "Identity/Pose/Noise : 1.00 / 0.70 / 0.75",
@@ -270,8 +281,8 @@ class CMKInstantIDFaceRebuildPreparePipe:
     CATEGORY = "CMK/Toolbox/Face"
 
     @classmethod
-    def IS_CHANGED(cls, **_kwargs):
-        return FACEREBUILD_GUARD_VERSION
+    def IS_CHANGED(cls, PROCESS=None, **_kwargs):
+        return f"{FACEREBUILD_GUARD_VERSION}:{content_guard_state_token(PROCESS)}"
     FUNCTION = "prepare_pipe"
     RETURN_TYPES = (
         "CMK_RESULT_PROCESS",
@@ -321,6 +332,7 @@ class CMKInstantIDFaceRebuildPreparePipe:
         global_enabled = bool(kwargs["FACEREBUILD ENABLE"])
         flow_enabled = bool(kwargs["ENABLE"])
         enabled = global_enabled and flow_enabled
+        content_guard_enabled = effective_content_guard_enabled(process)
         if not enabled:
             image = kwargs["IMAGE"]
             height, width = int(image.shape[1]), int(image.shape[2])
@@ -372,6 +384,7 @@ class CMKInstantIDFaceRebuildPreparePipe:
                 "WORKING RESOLUTION": kwargs["WORKING RESOLUTION"],
                 "DETECT MODEL": kwargs["DETECT MODEL"],
                 "DETECT SIZE": kwargs["DETECT SIZE"],
+                "_content_guard_enabled": content_guard_enabled,
             }
         )
         target, roi, _source, inpaint_mask, pasteback_mask, context, log_block, diagnostic = result

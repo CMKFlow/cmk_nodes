@@ -1,10 +1,10 @@
 import { app } from "../../../scripts/app.js";
 
-const COMBINED_TYPE = "CMKFamilyResultMergePipe";
-const BOUNDARY_TYPES = new Set([
-    COMBINED_TYPE,
-    "CMKPostProcessBoundarySDXLPipe",
-    "CMKPostProcessBoundaryZITPipe",
+const POSTPROCESS_SETUP_TYPE = "CMKPostProcessSetupPipe";
+const VISUALIZER_TYPE = "CMKVisualizer";
+const FAMILY_BLOCK_STARTS = new Map([
+    [POSTPROCESS_SETUP_TYPE, new Set(["MODEL SDXL"])],
+    [VISUALIZER_TYPE, new Set(["MODEL SDXL", "MODEL"])],
 ]);
 const ADVANCED_WIDGETS = new Set([
     "postprocess_checkpoint",
@@ -19,7 +19,7 @@ function nodeClass(node) {
 }
 
 function isBoundary(node) {
-    return BOUNDARY_TYPES.has(nodeClass(node));
+    return nodeClass(node) === POSTPROCESS_SETUP_TYPE;
 }
 
 function configureAdvancedWidgets(node) {
@@ -47,10 +47,10 @@ function decorate() {
         const node = [app.canvas?.graph, app.graph, app.rootGraph]
             .map((graph) => graph?.getNodeById?.(id) ?? graph?.getNodeById?.(Number(id)))
             .find(Boolean);
-        const target = nodeClass(node) === COMBINED_TYPE;
+        const blockStarts = FAMILY_BLOCK_STARTS.get(nodeClass(node));
         for (const slot of root.querySelectorAll(".lg-slot--input")) {
-            const isSdxlStart = target && slot.textContent.trim() === "MODEL SDXL";
-            slot.classList.toggle("cmk-family-block-start", isSdxlStart);
+            const isBlockStart = blockStarts?.has(slot.textContent.trim()) ?? false;
+            slot.classList.toggle("cmk-family-block-start", isBlockStart);
         }
     }
 }

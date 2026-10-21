@@ -28,9 +28,7 @@ const BUILTIN_DEFAULTS = {
     CMKImageLoadAndResizePipe: [600, 860],
     CMKLoadImage: [600, 1225],
     CMKSwapImageLoaderPipe: [1200, 800],
-    CMKFamilyResultMergePipe: [600, 500],
-    CMKPostProcessBoundarySDXLPipe: [600, 300],
-    CMKPostProcessBoundaryZITPipe: [600, 300],
+    CMKPostProcessSetupPipe: [600, 500],
     CMKDiagnosticConcat: [320, 135],
     CMK_FaceProcess: [540, 1015],
     CMKFaceSwapImage: [400, 395],
@@ -93,7 +91,44 @@ function saveDefaults(value) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
 }
 
-function minimumSize(node) {
+function nodeRoot(node) {
+    const id = node?.id;
+    if (id == null) return null;
+    return document.querySelector(`.lg-node[data-node-id="${CSS.escape(String(id))}"]`);
+}
+
+function domMinimumHeight(node, width) {
+    const root = nodeRoot(node);
+    if (!(root instanceof HTMLElement)) return null;
+
+    const requestedWidth = Number(width);
+    const savedWidth = root.style.getPropertyValue("--node-width");
+    const savedHeight = root.style.getPropertyValue("--node-height");
+    if (Number.isFinite(requestedWidth) && requestedWidth > 0) {
+        root.style.setProperty("--node-width", `${requestedWidth}px`);
+    }
+    root.style.setProperty("--node-height", "0px");
+    const fullHeight = Number(root.offsetHeight);
+    root.style.setProperty("--node-height", savedHeight || "");
+    root.style.setProperty("--node-width", savedWidth || "");
+
+    const titleHeight = Number(globalThis.LiteGraph?.NODE_TITLE_HEIGHT) || 30;
+    const minimum = Math.max(0, Math.ceil(fullHeight - titleHeight));
+    return Number.isFinite(minimum) && minimum > 0 ? minimum : null;
+}
+
+function activeViewMinimumHeight(node, width) {
+    if (node?.properties?.cmkCleanView !== true) {
+        return domMinimumHeight(node, width);
+    }
+    const measured = node.__cmkCleanViewMinimumHeightForWidth?.(width);
+    const minimum = Number(measured ?? node.__cmkCleanViewMinimumHeight);
+    return Number.isFinite(minimum) && minimum > 0 ? minimum : MIN_HEIGHT;
+}
+
+function minimumSize(node, width = node?.size?.[0]) {
+    const activeMinimum = activeViewMinimumHeight(node, width);
+    const cleanView = node?.properties?.cmkCleanView === true;
     const authoritative = (
         AUTHORITATIVE_MINIMUMS[sizeKey(node)]
         || AUTHORITATIVE_MINIMUMS[text(node?.title).trim()]
@@ -101,7 +136,9 @@ function minimumSize(node) {
     if (validSize(authoritative)) {
         return [
             Math.max(MIN_WIDTH, Number(authoritative[0])),
-            Math.max(MIN_HEIGHT, Number(authoritative[1])),
+            cleanView
+                ? Math.max(MIN_HEIGHT, Number(activeMinimum) || 0)
+                : Math.max(MIN_HEIGHT, Number(authoritative[1]), Number(activeMinimum) || 0),
         ];
     }
     const builtIn = (
@@ -111,7 +148,14 @@ function minimumSize(node) {
     const declared = node?.constructor?.min_size || node?.min_size || node?.minSize || builtIn;
     return [
         Math.max(MIN_WIDTH, Number(declared?.[0]) || 0, Number(builtIn?.[0]) || 0),
-        Math.max(MIN_HEIGHT, Number(declared?.[1]) || 0, Number(builtIn?.[1]) || 0),
+        cleanView
+            ? Math.max(MIN_HEIGHT, Number(activeMinimum) || 0)
+            : Math.max(
+                MIN_HEIGHT,
+                Number(declared?.[1]) || 0,
+                Number(builtIn?.[1]) || 0,
+                Number(activeMinimum) || 0,
+            ),
     ];
 }
 
@@ -123,8 +167,9 @@ function enforceBuiltInMinimum(node) {
         || BUILTIN_MINIMUMS[text(node?.title).trim()]
     );
     if (!validSize(requested)) return;
-    const width = Math.max(Number(node?.size?.[0]) || 0, Number(requested[0]));
-    const height = Math.max(Number(node?.size?.[1]) || 0, Number(requested[1]));
+    const minimum = minimumSize(node);
+    const width = Math.max(Number(node?.size?.[0]) || 0, Number(minimum[0]));
+    const height = Math.max(Number(node?.size?.[1]) || 0, Number(minimum[1]));
     if (width === Number(node?.size?.[0]) && height === Number(node?.size?.[1])) return;
     node.setSize?.([width, height]);
     node.setDirtyCanvas?.(true, true);
@@ -149,7 +194,7 @@ function installTypeMinimum(nodeType, nodeData) {
 }
 
 function normalizeSize(node, width, height) {
-    const minimum = minimumSize(node);
+    const minimum = minimumSize(node, width);
     return [
         Math.max(minimum[0], Math.round(Number(width) || minimum[0])),
         Math.max(minimum[1], Math.round(Number(height) || minimum[1])),

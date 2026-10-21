@@ -4,8 +4,13 @@ import numpy as np
 import torch
 import folder_paths
 
+from ...cmk_distribution import (
+    CONTENT_GUARD_EXECUTION_KEY,
+    effective_content_guard_enabled,
+)
 from ...engine.detector_engine import CMKDetectorEngine, DetectorSettings
 from ...engine.swap_selected_engine import CMKSelectedSwapEngine, SelectedSwapSettings
+from ...engine.content_guard import ContentGuardBlocked, cleanup_content_guard_abort
 from ...engine.native_face_restore import RestoreFaceAdvanced
 from ...engine.enhance_backends import (
     get_available_enhancer_modes,
@@ -224,7 +229,16 @@ class CMKFaceSwapImage:
             },
         }
 
-    def run(
+    def run(self, *args, **kwargs):
+        try:
+            return self._run(*args, **kwargs)
+        except ContentGuardBlocked as exc:
+            cleanup_content_guard_abort(exc, label="FaceSwap Image")
+            args = ()
+            kwargs.clear()
+            raise exc.with_traceback(None) from None
+
+    def _run(
         self,
         target_image: torch.Tensor,
         source_image: torch.Tensor,
@@ -487,6 +501,9 @@ class CMKFaceSwapImagePipe:
                 "opt_log": ("CMK_LOG_PIPE",),
                 "VISUAL": ("CMK_VISUAL_PIPE",),
                 "opt_diagnostic": ("CMK_DIAGNOSTIC",),
+                CONTENT_GUARD_EXECUTION_KEY: (
+                    "BOOLEAN", {"default": True, "advanced": True},
+                ),
             },
             "hidden": {"unique_id": "UNIQUE_ID"},
         }
@@ -534,6 +551,14 @@ class CMKFaceSwapImagePipe:
         return []
 
     def run_pipe(self, **inputs):
+        try:
+            return self._run_pipe(**inputs)
+        except ContentGuardBlocked as exc:
+            cleanup_content_guard_abort(exc, label="FaceSwap Image -Pipe-")
+            inputs.clear()
+            raise exc.with_traceback(None) from None
+
+    def _run_pipe(self, **inputs):
         opt_log = inputs.get("opt_log")
         visual = inputs.get("VISUAL")
         opt_diagnostic = inputs.get("opt_diagnostic")
@@ -571,6 +596,9 @@ class CMKFaceSwapImagePipe:
         restore_model = str(inputs.get("POST RESTORE MODEL", inputs.get("RESTORE MODEL", "none")) or "none")
         restore_visibility = _clamp_float(inputs.get("RESTORE VISIBILITY", 1.0), 0.0, 1.0, 1.0)
         process = inputs.get("PROCESS")
+        content_guard_enabled = effective_content_guard_enabled(
+            process, inputs.get(CONTENT_GUARD_EXECUTION_KEY),
+        )
         family = str(process.get("source_model_family", process.get("model_family", ""))).lower() if isinstance(process, dict) else ""
         effective_profile = quality_profile
         if quality_profile == "Automatic":
@@ -699,6 +727,7 @@ class CMKFaceSwapImagePipe:
                     source_selected_face=source_payload,
                     target_selected_face=target_payload,
                     settings=settings,
+                    content_guard_enabled=content_guard_enabled,
                 )
                 result_rgb = _blend(target_rgb, raw_result, blend)
                 effective_mask = np.clip(paste_mask * float(blend), 0.0, 1.0)
@@ -793,6 +822,11 @@ class CMKFaceSwapImagePipe:
             f"FEATHER         : {feather}",
             f"IDENTITY STRENGTH: {identity_strength:.2f}",
             f"QUALITY PROFILE : {quality_profile} → {effective_profile}",
+            (
+                "CONTENT GUARD   : PASS · SOURCE + TARGET"
+                if content_guard_enabled
+                else "CONTENT GUARD   : BYPASS · BASELINE"
+            ),
             f"TARGET DETECTED : {int(target_detect_count)}",
             f"SOURCE DETECTED : {int(source_detect_count)}",
             f"CHANGED         : {changed_avg:.4f}",

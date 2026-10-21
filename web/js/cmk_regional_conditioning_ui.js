@@ -8,12 +8,22 @@ const EXTENTS = { SMALL: 0.33, MEDIUM: 0.50, LARGE: 0.67 };
 const DEFAULT_NODE_WIDTH = 600;
 const MIN_NODE_HEIGHT = 800;
 const LEGACY_DEFAULT_NODE_HEIGHT = 1225;
+const PROCESS_INPUT_NAME = "PROCESS";
+const PROCESS_INPUT_LABEL = "PROCESS SDXL";
 
 function isTarget(node) {
   return Boolean(node) && (
     node.comfyClass === NODE_CLASS || node.type === NODE_CLASS ||
     node.constructor?.comfyClass === NODE_CLASS || node.constructor?.nodeData?.name === NODE_CLASS
   );
+}
+
+function applyProcessInputLabel(node) {
+  if (!isTarget(node) || !Array.isArray(node.inputs)) return;
+  const input = node.inputs.find((slot) => slot?.name === PROCESS_INPUT_NAME);
+  if (!input || input.localized_name === PROCESS_INPUT_LABEL) return;
+  input.localized_name = PROCESS_INPUT_LABEL;
+  node.setDirtyCanvas?.(true, true);
 }
 
 function geometry(position, size) {
@@ -193,6 +203,7 @@ function installStableSerialization(node, canonical) {
 }
 
 function configure(node, applyDefaultSize = false) {
+  applyProcessInputLabel(node);
   if (!isTarget(node) || !Array.isArray(node.widgets) || typeof node.addDOMWidget !== "function") return;
   if (node._cmkRegionalUiInstalled) {
     node._cmkRegionalRebuild?.(applyDefaultSize);
@@ -339,8 +350,12 @@ function configure(node, applyDefaultSize = false) {
 }
 
 function schedule(node, applyDefaultSize = false) {
+  applyProcessInputLabel(node);
   for (const delay of [0, 50, 200]) {
-    setTimeout(() => configure(node, delay === 0 && applyDefaultSize), delay);
+    setTimeout(() => {
+      applyProcessInputLabel(node);
+      configure(node, delay === 0 && applyDefaultSize);
+    }, delay);
   }
 }
 

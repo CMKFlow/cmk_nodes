@@ -14,7 +14,17 @@ from ...utils.cmk_diagnostic import make_diagnostic_payload
 from ...utils.cmk_timing import cmk_timed
 from ...utils.cmk_sampling_warnings import ignore_torchsde_boundary_rounding
 from ...cmk_common import SAMPLERS, SCHEDULERS
-from ...engine.content_guard import ContentGuardBlocked, GUARD_VERSION, get_content_guard
+from ...cmk_distribution import (
+    CONTENT_GUARD_EXECUTION_KEY,
+    content_guard_state_token,
+    effective_content_guard_enabled,
+)
+from ...engine.content_guard import (
+    ContentGuardBlocked,
+    GUARD_VERSION,
+    cleanup_content_guard_abort,
+    get_content_guard,
+)
 from ...engine.instantid_face_rebuild import select_target_face
 from ...utils.tensor_utils import tensor_to_uint8_rgb
 
@@ -251,6 +261,29 @@ def _sample_with_midpoint_guard(
     return result
 
 
+def _sample_without_content_guard(
+    *, model, add_noise, noise_seed, steps, cfg, sampler_name, scheduler,
+    positive, negative, latent_image, start_at_step, end_at_step,
+):
+    """Use ComfyUI's unchanged sampler path when the baseline guard is disabled."""
+    return _outputs(_call_node(
+        ("KSamplerAdvanced",),
+        model=model,
+        add_noise=add_noise,
+        noise_seed=int(noise_seed),
+        steps=int(steps),
+        cfg=float(cfg),
+        sampler_name=str(sampler_name),
+        scheduler=str(scheduler),
+        positive=positive,
+        negative=negative,
+        latent_image=latent_image,
+        start_at_step=int(start_at_step),
+        end_at_step=int(end_at_step),
+        return_with_leftover_noise="disable",
+    ))[0]
+
+
 class CMKInstantIDSamplerSDXLPipe:
     """Apply InstantID to an existing layout latent and return a sampled CMK pipe."""
 
@@ -321,7 +354,10 @@ class CMKInstantIDSamplerSDXLPipe:
                     ),
                 }),
             },
-            "optional": {"VISUAL": ("CMK_VISUAL_PIPE",)},
+            "optional": {
+                "VISUAL": ("CMK_VISUAL_PIPE",),
+                CONTENT_GUARD_EXECUTION_KEY: ("BOOLEAN", {"default": True, "advanced": True}),
+            },
             "hidden": {"dynprompt": "DYNPROMPT", "unique_id": "UNIQUE_ID"},
         }
 
@@ -339,10 +375,34 @@ class CMKInstantIDSamplerSDXLPipe:
     CATEGORY = "CMK/Toolbox/Face"
 
     @classmethod
-    def IS_CHANGED(cls, **_kwargs):
-        return INSTANTID_GUARD_VERSION
+    def IS_CHANGED(cls, PROCESS=None, **kwargs):
+        return (
+            f"{INSTANTID_GUARD_VERSION}:"
+            f"{content_guard_state_token(PROCESS, kwargs.get(CONTENT_GUARD_EXECUTION_KEY))}"
+        )
 
-    def sample(
+    def sample(self, *args, **kwargs):
+        try:
+            return self._sample(*args, **kwargs)
+        except ContentGuardBlocked as exc:
+            model_pipe = kwargs.get("MODEL", args[0] if args else None)
+            process = kwargs.get("PROCESS", args[1] if len(args) > 1 else None)
+            cleanup_content_guard_abort(
+                exc,
+                label="15 InstantID",
+                model_pipe=model_pipe,
+                unload_models=bool(
+                    isinstance(process, dict)
+                    and process.get("unload_models_after_use", True)
+                ),
+            )
+            args = ()
+            kwargs.clear()
+            model_pipe = None
+            process = None
+            raise exc.with_traceback(None) from None
+
+    def _sample(
         self,
         MODEL,
         PROCESS,
@@ -363,12 +423,16 @@ class CMKInstantIDSamplerSDXLPipe:
         reference_conditioning_weight,
         reference_start_at_step,
         VISUAL=None,
+        _cmk_content_guard_enabled=None,
         dynprompt=None,
         unique_id=None,
     ):
         _reset_instantid_boundary_cache(dynprompt)
         model_pipe = _require_dict(MODEL, "MODEL")
         process = _require_dict(PROCESS, "PROCESS")
+        content_guard_enabled = effective_content_guard_enabled(
+            process, _cmk_content_guard_enabled,
+        )
         sampled_in = _require_dict(SAMPLED, "SAMPLED")
         visual = empty_visual() if VISUAL is None else VISUAL
         if not bool(process.get("instantid_enabled", False)):
@@ -526,8 +590,9 @@ class CMKInstantIDSamplerSDXLPipe:
                 layout_image = _outputs(_call_node(("VAEDecode",), samples=keypoints_latent, vae=vae))[0]
         with cmk_timed("15 INSTANTID FACEANALYSIS LOAD", str(provider)):
             faceanalysis = _outputs(_call_node(("CMKInternalInstantIDFaceAnalysis",), provider=provider))[0]
-        with cmk_timed("15 INSTANTID CONTENTGUARD SOURCE", "all detected donor faces"):
-            _guard_source_images(faceanalysis, source_face)
+        if content_guard_enabled:
+            with cmk_timed("15 INSTANTID CONTENTGUARD SOURCE", "all detected donor faces"):
+                _guard_source_images(faceanalysis, source_face)
         with cmk_timed("15 INSTANTID MODEL LOAD", str(instantid_model)):
             instantid = _outputs(_call_node(("CMKInternalInstantIDModelLoader",), instantid_file=instantid_model))[0]
         with cmk_timed("15 INSTANTID CONTROLNET LOAD", str(controlnet_model)):
@@ -591,24 +656,34 @@ class CMKInstantIDSamplerSDXLPipe:
             f"steps {start_at_step}-{final_steps}/{final_steps} | {sampler_name} | {scheduler}",
         ):
             with ignore_torchsde_boundary_rounding():
-                result = _sample_with_midpoint_guard(
-                    model=patched_model,
-                    add_noise=add_noise,
-                    noise_seed=int(sampled_in.get("seed", process.get("seed", 0))),
-                    steps=final_steps,
-                    cfg=float(cfg),
-                    sampler_name=str(sampler_name),
-                    scheduler=str(scheduler),
-                    positive=positive_out,
-                    negative=negative_out,
-                    latent_image=layout_latent,
-                    start_at_step=start_at_step,
-                    end_at_step=final_steps,
-                    vae=vae,
-                )
-        with cmk_timed("15 INSTANTID CONTENTGUARD TARGET", "internal final decode"):
-            _guard_generated_latent(result, vae, faceanalysis, target_face)
-        with cmk_timed("15 INSTANTID VISUAL VAE DECODE", "guard-approved result"):
+                sampling_args = {
+                    "model": patched_model,
+                    "add_noise": add_noise,
+                    "noise_seed": int(sampled_in.get("seed", process.get("seed", 0))),
+                    "steps": final_steps,
+                    "cfg": float(cfg),
+                    "sampler_name": str(sampler_name),
+                    "scheduler": str(scheduler),
+                    "positive": positive_out,
+                    "negative": negative_out,
+                    "latent_image": layout_latent,
+                    "start_at_step": start_at_step,
+                    "end_at_step": final_steps,
+                }
+                if content_guard_enabled:
+                    result = _sample_with_midpoint_guard(
+                        **sampling_args,
+                        vae=vae,
+                    )
+                else:
+                    result = _sample_without_content_guard(**sampling_args)
+        if content_guard_enabled:
+            with cmk_timed("15 INSTANTID CONTENTGUARD TARGET", "internal final decode"):
+                _guard_generated_latent(result, vae, faceanalysis, target_face)
+        with cmk_timed(
+            "15 INSTANTID VISUAL VAE DECODE",
+            "guard-approved result" if content_guard_enabled else "baseline guard bypass",
+        ):
             identity_decoded = _outputs(_call_node(("VAEDecode",), samples=result, vae=vae))
             identity_image = identity_decoded[0]
         sampled_out = dict(sampled_in)
@@ -631,6 +706,7 @@ class CMKInstantIDSamplerSDXLPipe:
             "instantid_inpaint_bridge": inpaint_bridge_mode,
             "instantid_workflow": workflow_mode,
             "content_guard_version": INSTANTID_GUARD_VERSION,
+            "content_guard_enabled": content_guard_enabled,
         })
         lines = [
             f"Workflow          : {workflow_mode}",
@@ -654,8 +730,14 @@ class CMKInstantIDSamplerSDXLPipe:
             f"InstantID CFG     : {float(cfg):.2f}",
             f"Identity emb noise: {float(noise):.2f}",
             f"Target face       : {target_face}",
-            "ContentGuard      : PASS · SOURCE + GENERATED TARGET",
-            "Early Guard       : PASS · 50% x0 explicit-content gate",
+            *(
+                [
+                    "ContentGuard      : PASS · SOURCE + GENERATED TARGET",
+                    "Early Guard       : PASS · 50% x0 explicit-content gate",
+                ]
+                if content_guard_enabled
+                else ["ContentGuard      : BYPASS · BASELINE"]
+            ),
             f"Method            : {sampler_name} | {scheduler}",
             f"InstantID model   : {instantid_model}",
             f"ControlNet model  : {controlnet_model}",
@@ -767,7 +849,11 @@ class CMKInstantIDBoundary:
     def _cache_key(prompt, unique_id):
         try:
             from ..cmk_family_result import _sampled_boundary_key
-            return _sampled_boundary_key(prompt, unique_id)
+            return _sampled_boundary_key(
+                prompt,
+                unique_id,
+                include_content_guard=True,
+            )
         except Exception:
             return None
 

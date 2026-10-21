@@ -85,7 +85,7 @@ class CMKRegionalConditioningSDXL:
         "CMK_PROCESS_SDXL", "IMAGE", "CMK_LOG_PIPE", "CMK_VISUAL_PIPE",
         "CMK_DIAGNOSTIC",
     )
-    RETURN_NAMES = ("PROCESS", "IMAGE", "LOG", "VISUAL", "diagnostic")
+    RETURN_NAMES = ("PROCESS SDXL", "IMAGE", "LOG", "VISUAL", "diagnostic")
     FUNCTION = "configure"
     CATEGORY = "CMK/Flow/Conditioning"
     DESCRIPTION = "Adds up to three spatial prompt regions to the SDXL process before ControlNet and sampling."

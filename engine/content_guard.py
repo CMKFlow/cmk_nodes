@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import lru_cache
+import gc
 import hashlib
+import traceback
 from typing import Any
 
 import numpy as np
@@ -153,3 +155,62 @@ class CMKContentGuard:
 @lru_cache(maxsize=1)
 def get_content_guard() -> CMKContentGuard:
     return CMKContentGuard()
+
+
+def clear_content_guard_transients() -> int:
+    """Drop image payloads retained only by the bounded inference memoizer."""
+    info = _explicit_detections.cache_info()
+    _explicit_detections.cache_clear()
+    return int(info.currsize)
+
+
+def cleanup_content_guard_abort(
+    exc: ContentGuardBlocked,
+    *,
+    label: str,
+    model_pipe=None,
+    unload_models: bool = False,
+) -> None:
+    """Best-effort abort cleanup which must never replace the guard refusal.
+
+    The detector and swap-model caches are reusable process resources.  Only
+    per-image guard payloads, aborted traceback frames, and an explicitly
+    owned Comfy model patcher are released here.
+    """
+    messages = []
+    try:
+        cleared = clear_content_guard_transients()
+        messages.append(f"guard payloads={cleared}")
+    except Exception as cleanup_exc:
+        messages.append(f"guard payload cleanup failed: {cleanup_exc}")
+
+    if unload_models and model_pipe is not None:
+        try:
+            from ..pipe.loaders.checkpoint_vae_loader import unload_model_pipe
+
+            messages.append(f"model={unload_model_pipe(model_pipe)}")
+        except Exception as cleanup_exc:
+            messages.append(f"model cleanup failed: {cleanup_exc}")
+
+    try:
+        # The execution framework retains the raised exception.  Clear locals
+        # from already-unwound sampling/frame-processing calls so that tensors,
+        # patched models and decoded frames are not retained by its traceback.
+        traceback.clear_frames(exc.__traceback__)
+    except Exception as cleanup_exc:
+        messages.append(f"traceback cleanup failed: {cleanup_exc}")
+
+    try:
+        gc.collect()
+        import comfy.model_management
+
+        comfy.model_management.cleanup_models_gc()
+        comfy.model_management.soft_empty_cache(force=True)
+        messages.append("allocator=trimmed")
+    except Exception as cleanup_exc:
+        messages.append(f"allocator cleanup unavailable: {cleanup_exc}")
+
+    print(
+        f"[CMK ContentGuard] {label}: ABORT CLEANUP · " + "; ".join(messages),
+        flush=True,
+    )

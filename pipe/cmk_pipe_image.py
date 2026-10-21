@@ -2,6 +2,10 @@ import json
 
 from .cmk_log_pipe import cmk_add_block, cmk_bool, cmk_clean_text
 from .cmk_visual import empty_visual, register_provider
+from ..cmk_distribution import (
+    content_guard_control_visible,
+    effective_content_guard_enabled,
+)
 from ..utils.cmk_diagnostic import make_diagnostic_payload
 from comfy.utils import common_upscale
 
@@ -828,8 +832,9 @@ class CMKPipeCreateImage:
                         "label": "INSTANTID MODE",
                         "tooltip": (
                             "Text2Image only. HYBRID lets module 10 establish the composition; "
-                            "ZERO-PASS lets module 15 create it directly. Inpaint always uses "
-                            "the dedicated HYBRID INPAINT bridge."
+                            "ZERO-PASS lets module 15 create it directly and is intended for "
+                            "a single person only. For multiple people use HYBRID. Inpaint "
+                            "always uses the dedicated HYBRID INPAINT bridge."
                         ),
                     },
                 ),
@@ -903,6 +908,53 @@ class CMKPipeCreateImage:
                             "Enables latent live previews during Z-Image Turbo "
                             "sampling. Enabled by default; SDXL live previews "
                             "are unaffected."
+                        ),
+                    },
+                ),
+                # Appended after every existing widget to preserve positional
+                # values in workflows saved before the Baseline control.  It is
+                # optional at the API boundary so the frontend can omit it from
+                # module 01's execution prompt and keep the generation branch's
+                # native ComfyUI cache identity stable.
+                "content_guard_enabled": (
+                    "BOOLEAN",
+                    {
+                        "default": True,
+                        "advanced": True,
+                        "label": "CONTENT GUARD",
+                        "cmk_baseline_visible": content_guard_control_visible(),
+                        "tooltip": (
+                            "Baseline only. Enables ContentGuard checks in InstantID, "
+                            "FaceRebuild and FaceSwap image/video processing. Public "
+                            "release builds always enforce this setting as enabled."
+                        ),
+                    },
+                ),
+                # Appended after every existing widget so older workflows keep
+                # their positional values.  The frontend presents this switch
+                # with the other primary process controls.
+                "controlnet_enabled": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "label": "CONTROLNET",
+                        "tooltip": (
+                            "Activates module 05 from the central process control. "
+                            "When disabled, the validated ControlNet standby path "
+                            "passes PROCESS, IMAGE and LOG through unchanged."
+                        ),
+                    },
+                ),
+                "instantid_handshake_strategy": (
+                    ["AUTO", "EARLY", "SAFE"],
+                    {
+                        "default": "AUTO",
+                        "label": "INSTANTID HANDSHAKE",
+                        "tooltip": (
+                            "Text2Image only. AUTO uses step 1 when ControlNet is "
+                            "actually applied and step 4 otherwise. EARLY always uses "
+                            "step 1; SAFE always uses step 4. Inpaint remains at step 10 "
+                            "and ZERO-PASS at step 0."
                         ),
                     },
                 ),
@@ -997,6 +1049,15 @@ class CMKPipeCreateImage:
             )
         )
         live_preview_zit = bool(inputs.get("live_preview_zit", True))
+        content_guard_enabled = effective_content_guard_enabled({
+            "content_guard_enabled": inputs.get("content_guard_enabled", True),
+        })
+        controlnet_enabled = bool(inputs.get("controlnet_enabled", False))
+        instantid_handshake_strategy = str(
+            inputs.get("instantid_handshake_strategy", "AUTO") or "AUTO"
+        ).strip().upper()
+        if instantid_handshake_strategy not in {"AUTO", "EARLY", "SAFE"}:
+            instantid_handshake_strategy = "AUTO"
         raw_mode = inputs.get("INPAINT_MODE", "Text2Image")
         INPAINT_MODE = (
             bool(raw_mode)
@@ -1165,6 +1226,7 @@ class CMKPipeCreateImage:
             "hybrid_balance": hybrid_balance,
             "unload_models_after_use": unload_models_after_use,
             "live_preview_zit": live_preview_zit,
+            "content_guard_enabled": content_guard_enabled,
             "generation_mode": "inpaint" if INPAINT_MODE else "text2image",
             "swap_dimensions": swap_dimensions,
             "resize_mode": resize_mode,
@@ -1197,6 +1259,8 @@ class CMKPipeCreateImage:
             "inpaint_process_mode": inpaint_process_mode,
             "control_net": None,
             "controlnet_image": None,
+            "controlnet_enabled": controlnet_enabled,
+            "instantid_handshake_strategy": instantid_handshake_strategy,
             "instantid_enabled": bool(
                 instantid_enabled and model_family == "sdxl"
             ),
@@ -1235,6 +1299,7 @@ class CMKPipeCreateImage:
             ])
         log_lines.extend([
             "",
+            f"CONTROLNET      : {'ENABLED' if controlnet_enabled else 'STANDBY'}",
             f"MODEL LIFECYCLE : {'UNLOAD AFTER USE' if unload_models_after_use else 'KEEP LOADED'}",
         ])
         if filename_string:

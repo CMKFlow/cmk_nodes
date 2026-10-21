@@ -36,13 +36,17 @@ def _raw_face(selected_face: Dict[str, Any], role: str):
 class CMKSelectedSwapEngine:
     """Swap using selected faces. Public selected-face behavior remains unchanged."""
 
-    def swap_faces(self, target_rgb: np.ndarray, source_rgb: np.ndarray, source_face, target_face, settings: SelectedSwapSettings) -> np.ndarray:
-        get_content_guard().assert_swap_allowed(
-            target_rgb=target_rgb,
-            source_rgb=source_rgb,
-            target_face=target_face,
-            source_face=source_face,
-        )
+    def swap_faces(
+        self, target_rgb: np.ndarray, source_rgb: np.ndarray, source_face,
+        target_face, settings: SelectedSwapSettings, *, content_guard_enabled: bool = True,
+    ) -> np.ndarray:
+        if content_guard_enabled:
+            get_content_guard().assert_swap_allowed(
+                target_rgb=target_rgb,
+                source_rgb=source_rgb,
+                target_face=target_face,
+                source_face=source_face,
+            )
         backend = get_default_swap_backend()
         return backend.swap(
             target_rgb=target_rgb, source_face=source_face, target_face=target_face,
@@ -62,13 +66,16 @@ class CMKSelectedSwapEngine:
         source_face,
         target_face,
         settings: SelectedSwapSettings,
+        *,
+        content_guard_enabled: bool = True,
     ):
-        get_content_guard().assert_swap_allowed(
-            target_rgb=target_rgb,
-            source_rgb=source_rgb,
-            target_face=target_face,
-            source_face=source_face,
-        )
+        if content_guard_enabled:
+            get_content_guard().assert_swap_allowed(
+                target_rgb=target_rgb,
+                source_rgb=source_rgb,
+                target_face=target_face,
+                source_face=source_face,
+            )
         backend = get_default_swap_backend()
         method = getattr(backend, "swap_with_mask", None)
         if method is None:
@@ -95,6 +102,8 @@ class CMKSelectedSwapEngine:
         source_selected_face: Dict[str, Any],
         target_selected_face: Dict[str, Any],
         settings: SelectedSwapSettings,
+        *,
+        content_guard_enabled: bool = True,
     ):
         source_face = _raw_face(source_selected_face, "source")
         target_face = _raw_face(target_selected_face, "target")
@@ -104,6 +113,7 @@ class CMKSelectedSwapEngine:
             source_face,
             target_face,
             settings,
+            content_guard_enabled=content_guard_enabled,
         )
 
     def swap_selected(
@@ -113,7 +123,16 @@ class CMKSelectedSwapEngine:
         source_selected_face: Dict[str, Any],
         target_selected_face: Dict[str, Any],
         settings: SelectedSwapSettings,
+        *,
+        content_guard_enabled: bool = True,
     ) -> np.ndarray:
         source_face = _raw_face(source_selected_face, "source")
         target_face = _raw_face(target_selected_face, "target")
-        return self.swap_faces(target_rgb, source_rgb, source_face, target_face, settings)
+        return self.swap_faces(
+            target_rgb,
+            source_rgb,
+            source_face,
+            target_face,
+            settings,
+            content_guard_enabled=content_guard_enabled,
+        )

@@ -3,6 +3,8 @@ import { app } from "../../../scripts/app.js";
 const EXTENSION_NAME = "cmk.clean_view.prototype.v1";
 const STYLE_ID = "cmk-clean-view-prototype-style";
 const ROOT_CLASS = "cmk-clean-view-prototype";
+const ROOT_ATTRIBUTE = "data-cmk-clean-view";
+const ROOT_SELECTOR = `[${ROOT_ATTRIBUTE}="true"]`;
 const WRAPPER_CLASS = "cmk-clean-view-slot-wrapper";
 const CONTRACT_CLASS = "cmk-clean-view-contract-slot";
 const BAR_CLASS = "cmk-clean-view-connections-bar";
@@ -128,8 +130,8 @@ function isMaskDetailer95(node) {
     ) || nodeIdentity(node).some((value) => value === "CMKMaskDetailer");
 }
 
-function isBoundary35Combined(node) {
-    return nodeIdentity(node).some((value) => value === "CMKFamilyResultMergePipe");
+function isPostProcessSetup(node) {
+    return nodeIdentity(node).some((value) => value === "CMKPostProcessSetupPipe");
 }
 
 function isCleanSlot(node, slot) {
@@ -174,6 +176,47 @@ function validSize(value) {
         && Number.isFinite(Number(value[1]))
         && Number(value[0]) > 0
         && Number(value[1]) > 0;
+}
+
+function cleanViewRoot(node) {
+    const id = node?.id;
+    if (id == null) return null;
+    return document.querySelector(`.lg-node[data-node-id="${CSS.escape(String(id))}"]`);
+}
+
+function measureCleanMinimumHeight(node, root, width = node?.size?.[0]) {
+    if (!cleanEnabled(node) || !(root instanceof HTMLElement)) return null;
+
+    const requestedWidth = Number(width);
+    const savedWidth = root.style.getPropertyValue("--node-width");
+    const savedHeight = root.style.getPropertyValue("--node-height");
+    if (Number.isFinite(requestedWidth) && requestedWidth > 0) {
+        root.style.setProperty("--node-width", `${requestedWidth}px`);
+    }
+    root.style.setProperty("--node-height", "0px");
+
+    const fullHeight = Number(root.offsetHeight);
+    root.style.setProperty("--node-height", savedHeight || "");
+    root.style.setProperty("--node-width", savedWidth || "");
+
+    const titleHeight = Number(globalThis.LiteGraph?.NODE_TITLE_HEIGHT) || 30;
+    const minimum = Math.max(0, Math.ceil(fullHeight - titleHeight));
+    if (!Number.isFinite(minimum)) return null;
+    node.__cmkCleanViewMinimumHeight = minimum;
+    return minimum;
+}
+
+function installCleanMinimumProvider(node) {
+    if (node.__cmkCleanViewMinimumHeightForWidth) return;
+    node.__cmkCleanViewMinimumHeightForWidth = (width) => {
+        const root = cleanViewRoot(node);
+        if (!root) return Number(node.__cmkCleanViewMinimumHeight) || null;
+        // CMK Node Dimension can request a minimum for a width that differs
+        // from the current node width. Ensure the same Clean View rows are in
+        // effect before measuring that candidate size.
+        decorate(root);
+        return measureCleanMinimumHeight(node, root, width);
+    };
 }
 
 function rememberCompactSize(node, size = node?.size) {
@@ -236,13 +279,13 @@ function installStyle() {
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
-        .${ROOT_CLASS} .${WRAPPER_CLASS} {
+        ${ROOT_SELECTOR} .${WRAPPER_CLASS} {
             position: relative !important;
             min-height: 28px !important;
             padding-top: 28px !important;
         }
 
-        .${ROOT_CLASS} .${WRAPPER_CLASS} .${CONTRACT_CLASS} {
+        ${ROOT_SELECTOR} .${WRAPPER_CLASS} .${CONTRACT_CLASS} {
             position: absolute !important;
             top: 2px !important;
             z-index: 2 !important;
@@ -255,17 +298,17 @@ function installStyle() {
             pointer-events: none !important;
         }
 
-        .${ROOT_CLASS} .${WRAPPER_CLASS} .${CONTRACT_CLASS}.lg-slot--input {
+        ${ROOT_SELECTOR} .${WRAPPER_CLASS} .${CONTRACT_CLASS}.lg-slot--input {
             left: 0 !important;
             right: auto !important;
         }
 
-        .${ROOT_CLASS} .${WRAPPER_CLASS} .${CONTRACT_CLASS}.lg-slot--output {
+        ${ROOT_SELECTOR} .${WRAPPER_CLASS} .${CONTRACT_CLASS}.lg-slot--output {
             right: 0 !important;
             left: auto !important;
         }
 
-        .${ROOT_CLASS} .${BAR_CLASS} {
+        ${ROOT_SELECTOR} .${BAR_CLASS} {
             position: absolute;
             inset: 0 0 auto 0;
             z-index: 1;
@@ -278,8 +321,8 @@ function installStyle() {
             pointer-events: none;
         }
 
-        .${ROOT_CLASS} .${BAR_CLASS}::before,
-        .${ROOT_CLASS} .${BAR_CLASS}::after {
+        ${ROOT_SELECTOR} .${BAR_CLASS}::before,
+        ${ROOT_SELECTOR} .${BAR_CLASS}::after {
             position: absolute;
             top: 7px;
             box-sizing: border-box;
@@ -293,15 +336,15 @@ function installStyle() {
             content: "";
         }
 
-        .${ROOT_CLASS} .${BAR_CLASS}::before { left: -4px; }
-        .${ROOT_CLASS} .${BAR_CLASS}::after {
+        ${ROOT_SELECTOR} .${BAR_CLASS}::before { left: -4px; }
+        ${ROOT_SELECTOR} .${BAR_CLASS}::after {
             right: -4px;
             background: var(--cmk-clean-output-fill, #94a3b8);
         }
-        .${ROOT_CLASS} .${BAR_CLASS}:not(.cmk-clean-view-has-input)::before {
+        ${ROOT_SELECTOR} .${BAR_CLASS}:not(.cmk-clean-view-has-input)::before {
             display: none;
         }
-        .${ROOT_CLASS} .${BAR_CLASS}:not(.cmk-clean-view-has-output)::after {
+        ${ROOT_SELECTOR} .${BAR_CLASS}:not(.cmk-clean-view-has-output)::after {
             display: none;
         }
     `;
@@ -316,6 +359,7 @@ function slotWrapper(body) {
 
 function clearDecoration(root) {
     root?.classList?.remove(ROOT_CLASS);
+    root?.removeAttribute?.(ROOT_ATTRIBUTE);
     const wrapper = root?.querySelector?.(`.${WRAPPER_CLASS}`);
     wrapper?.classList?.remove(WRAPPER_CLASS);
     for (const slot of root?.querySelectorAll?.(`.${CONTRACT_CLASS}`) || []) {
@@ -351,6 +395,7 @@ function addConnectionsBar(root, wrapper, node) {
     bar.style.setProperty("--cmk-clean-input-fill", slotColorFill(inputSlots));
     bar.style.setProperty("--cmk-clean-output-fill", slotColorFill(outputSlots));
     root.classList.add(ROOT_CLASS);
+    root.setAttribute(ROOT_ATTRIBUTE, "true");
     wrapper.classList.add(WRAPPER_CLASS);
 }
 
@@ -374,7 +419,7 @@ function decorate(root) {
         node.setDirtyCanvas?.(true, true);
         app.graph?.setDirtyCanvas?.(true, true);
     }
-    if (isBoundary35Combined(node)
+    if (isPostProcessSetup(node)
         && !validSize(node?.properties?.[COMPACT_SIZE_PROPERTY])) {
         rememberCompactSize(node, [230, 100]);
     }
@@ -389,6 +434,7 @@ function decorate(root) {
     markCanonicalRows(node, inputRows, visibleInputSlots(node));
     markCanonicalRows(node, outputRows, node.outputs || []);
     addConnectionsBar(root, wrapper, node);
+    measureCleanMinimumHeight(node, root);
 
     // The Vue renderer measures the undecorated port rows during some mount
     // sequences and can replace a manually selected compact height with that
@@ -435,7 +481,7 @@ function resizeForState(node, enabled) {
 
     if (enabled) {
         rememberExpandedSize(node, [width, height]);
-        if (isBoundary35Combined(node)) {
+        if (isPostProcessSetup(node)) {
             applyCompactSize(node, [230, 100], true);
             return;
         }
@@ -492,6 +538,7 @@ function addMenuOption(node, options) {
 
 function installMenu(node) {
     if (!eligible(node)) return;
+    installCleanMinimumProvider(node);
     if (node.__cmkCleanViewPrototypeMenu
         && node.__cmkCleanViewPrototypeMenu === node.getExtraMenuOptions) return;
     const original = typeof node.getExtraMenuOptions === "function"

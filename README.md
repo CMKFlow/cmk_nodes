@@ -6,7 +6,7 @@
 
 Modulares Custom-Node-Paket für ComfyUI.
 
-**Aktueller Release: CMK 2.5.7**
+**Aktueller Release: CMK 2.6.0 · CMK Flow**
 
 **Deutsch** · [English](README.en.md)
 
@@ -85,6 +85,8 @@ Node-Klassen, Provider-Keys und UUIDs.
 - parallele Smart-Detailer- und FaceProcess-Instanzen;
 - dynamische `SEGS`, `LOG BLOCK` und `DIAGNOSTIC`-Eingänge;
 - persistente Branch-Caches für unveränderte parallele Instanzen;
+- persistente Generation-Completion-Erkennung mit manueller Cache-Bereinigung
+  und einer ausschließlich lesenden CMK-Statistik im Flow Browser;
 - verpflichtende Modul-Boundaries vor Comparer, nachfolgenden Modulen und öffentlichen Ausgängen;
 - zentrale `VISUAL`-Kette für registrierte Bearbeitungsstufen im Visualizer;
 - eigenständige Nutzung der PostProcess-Module in diskreten oder gekapselten
@@ -93,10 +95,11 @@ Node-Klassen, Provider-Keys und UUIDs.
 - `CMK Swap Image Loader -Pipe-` lädt Target und Source in einer zweispaltigen Oberfläche; nur das Target nutzt Resize und optionalen Advanced-Crop, die Source bleibt pixelmäßig unverändert.
 - Z-Image Turbo besitzt eigene Loader-, Sampler- und optionale ControlNet-Module. ZIT-Inpaint bleibt aufgrund der sehr hohen Speicher- und Laufzeitanforderungen ausdrücklich `EXPERIMENTAL` und vorläufig eingefroren.
 - Der Referenzkatalog gliedert sich in Task Workflows, Module Workflows,
-  Comparisons, Real-World Workflows, System Workflow und Legacy. Er enthält 20
-  aufsteigend komplexe Task-Workflows, diskrete und gekapselte Modulbeispiele,
-  direkte Vergleiche, vollständige Praxisabläufe und den Full Flow als
-  Systemreferenz.
+  Comparisons, Real-World Workflows, System Workflow und Legacy. Er enthält
+  37 Referenzworkflows, davon 35 sichtbar und 2 temporär ausgeblendet, mit 19
+  aufsteigend komplexen Task-Workflows, diskreten und gekapselten
+  Modulbeispielen, direkten Vergleichen, vollständigen Praxisabläufen und dem
+  Full Flow als Systemreferenz.
 
 ## Installation
 
@@ -258,8 +261,8 @@ zweite Befehl verbindlich zur Installation und zu jedem Update.
 
 > **Bestätigte Zielversion**
 >
-> CMK 2.5.7 wurde mit **ComfyUI 0.38.2** und
-> **comfyui-frontend-package 1.53.6** vollständig geprüft. Dazu gehören die
+> CMK Flow 2.6.0 wurde mit **ComfyUI 0.42.1** und der zugehörigen
+> ComfyUI-Oberfläche geprüft. Dazu gehören die
 > Flow-Browser-Navigation, paketierte Subgraphen und Referenzworkflows,
 > eingebettete Vorschauen, Cache-Pfade sowie die serialisierten Link-, Socket-,
 > UUID- und Topologieverträge.
@@ -375,8 +378,7 @@ aktuellen Umfeld lauffähig.
 | `CHANGELOG.md` | historische Änderungen; keine aktuelle API-Definition |
 | `WORKFLOWS.md` | Subgraph-, Workflow- und Installationsübersicht |
 | `SUBGRAPH_AUDIT.md` | Nutzungsinventar und sicherer Bereinigungsplan der Subgraphs |
-| `TOOLBOX.md` | Produktgrenze, Funktionsinventar und Pflegeplan des offenen Baukastens |
-| `CMK_FLOW_COMPATIBILITY.md` | Entwurf des Integrationsvertrags für externe Baukasten-Nodes und Flow-Module |
+| `CMK_FLOW_COMPATIBILITY.md` | Entwurf des Integrationsvertrags für einzelne ComfyUI-Nodes und Flow-Module |
 | `CONTENT_GUARD.md` | verbindliche lokale FaceSwap-Schutzpolicy, Abbruchregeln und Grenzen |
 | `RELEASE_AUDIT_CMK_2_5.md` | Abschlussaudit der CMK-2.5-Verträge, Tests und Release-Abweichungen |
 

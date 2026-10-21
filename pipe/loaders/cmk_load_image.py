@@ -15,6 +15,7 @@ from ..cmk_log_pipe import cmk_add_block
 
 _CMK_REFERENCE_FILENAMES = (
     "black.png",
+    "clipspace-mask-1792499379891.png",
     "face_reference.png",
     "controlnet_reference.png",
     "controlnet_reference4.png",
@@ -80,7 +81,8 @@ class CMKLoadImage:
     An optional opt_LOG input lets the loader append its source-image block to
     an existing workflow log instead of starting a separate log chain.
     opt_image_file can override the local picker with a centrally distributed
-    ComfyUI file reference; the picker remains the fallback when unconnected.
+    ComfyUI file reference while OPT IN is enabled. The picker remains the
+    fallback when OPT IN is disabled or the input is unconnected.
 
     IMAGE and MASK remain available inside PROCESS as well. Their explicit
     outputs allow direct use by Create Image and native ComfyUI nodes.
@@ -95,6 +97,7 @@ class CMKLoadImage:
             "optional": {
                 "opt_LOG": ("CMK_LOG_PIPE",),
                 "opt_image_file": ("STRING", {"forceInput": True}),
+                "opt_in": ("BOOLEAN", {"default": True, "label": "OPT IN"}),
             },
         }
 
@@ -111,6 +114,12 @@ class CMKLoadImage:
             return folder_paths.get_annotated_filepath(image)
         except Exception:
             return os.path.join(folder_paths.get_input_directory(), image)
+
+    @staticmethod
+    def _selected_image(image, opt_in, opt_image_file):
+        if opt_in and opt_image_file is not None and str(opt_image_file).strip():
+            return str(opt_image_file)
+        return image
 
     @staticmethod
     def _preview_descriptor(image: str) -> dict[str, str]:
@@ -136,9 +145,8 @@ class CMKLoadImage:
             "type": image_type,
         }
 
-    def load_image(self, image, opt_LOG=None, opt_image_file=None):
-        if opt_image_file is not None and str(opt_image_file).strip():
-            image = str(opt_image_file)
+    def load_image(self, image, opt_LOG=None, opt_image_file=None, opt_in=True):
+        image = self._selected_image(image, opt_in, opt_image_file)
         image_path = self._resolve_image_path(image)
 
         output_images = []
@@ -220,9 +228,8 @@ class CMKLoadImage:
         }
 
     @classmethod
-    def IS_CHANGED(cls, image, opt_image_file=None, **_kwargs):
-        if opt_image_file is not None and str(opt_image_file).strip():
-            image = str(opt_image_file)
+    def IS_CHANGED(cls, image, opt_image_file=None, opt_in=True, **_kwargs):
+        image = cls._selected_image(image, opt_in, opt_image_file)
         try:
             packaged_path = _packaged_reference_path(image)
             image_path = str(packaged_path) if packaged_path is not None else folder_paths.get_annotated_filepath(image)
@@ -232,9 +239,8 @@ class CMKLoadImage:
             return float("nan")
 
     @classmethod
-    def VALIDATE_INPUTS(cls, image, opt_image_file=None, **_kwargs):
-        if opt_image_file is not None and str(opt_image_file).strip():
-            image = str(opt_image_file)
+    def VALIDATE_INPUTS(cls, image, opt_image_file=None, opt_in=True, **_kwargs):
+        image = cls._selected_image(image, opt_in, opt_image_file)
         if _packaged_reference_path(image) is not None:
             return True
         try:

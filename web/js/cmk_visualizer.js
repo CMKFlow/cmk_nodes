@@ -3,12 +3,18 @@ import { api } from "/scripts/api.js";
 
 const VISUALIZER = "CMKVisualizer";
 const VISUAL_COMPARE = "CMKVisualCompare";
+const LEGACY_VISUALIZER_INPUTS = ["MODEL (opt)", "PROCESS", "IMAGE", "LOG", "VISUAL"];
+const VISUALIZER_COMMON_OFFSET = 10;
 const stateByNode = new WeakMap();
 const graphHookInstalled = Symbol("cmkVisualGraphHookInstalled");
 const providerWidgetHookInstalled = Symbol("cmkVisualProviderWidgetHookInstalled");
-const providerWidgetNames = new Set(["label", "sequence", "branch", "stage_key", "live_node_type"]);
+const providerWidgetNames = new Set([
+  "label", "sequence", "branch", "stage_key", "live_node_type",
+  "controlnet_enabled",
+]);
 const visualDisplayNodes = new Set();
 let executionId = null;
+let executingNodeIds = [];
 let providerRefreshTimer = null;
 let lastMetadataPreviewBlob = null;
 
@@ -36,6 +42,69 @@ function parseVisualStage(output) {
 
 function nodeKind(node) {
   return node?.comfyClass || node?.type || node?.constructor?.comfyClass || "";
+}
+
+function applyVisualizerInputLabels(node) {
+  if (nodeKind(node) !== VISUALIZER || !Array.isArray(node.inputs)) return;
+  const model = node.inputs.find((input) => input?.name === "MODEL (opt)");
+  if (model) model.localized_name = "MODEL";
+  node.setDirtyCanvas?.(true, true);
+}
+
+function migrateLegacyVisualizerGraph(graphData) {
+  if (!Array.isArray(graphData?.nodes) || !Array.isArray(graphData?.links)) return;
+  for (const node of graphData.nodes) {
+    if (node?.type !== VISUALIZER || !Array.isArray(node.inputs)) continue;
+    const sockets = node.inputs.filter((input) => !input?.widget);
+    if (
+      sockets.length !== LEGACY_VISUALIZER_INPUTS.length
+      || sockets.some((input, index) => input?.name !== LEGACY_VISUALIZER_INPUTS[index])
+    ) continue;
+    const legacyLinkIds = new Set(
+      sockets
+        .map((input) => input?.link)
+        .filter((linkId) => linkId != null)
+        .map(String),
+    );
+    for (const link of graphData.links) {
+      if (Array.isArray(link)) {
+        if (
+          String(link[3]) === String(node.id)
+          && Number(link[4]) >= 0
+          && Number(link[4]) < LEGACY_VISUALIZER_INPUTS.length
+          && legacyLinkIds.has(String(link[0]))
+        ) link[4] = Number(link[4]) + VISUALIZER_COMMON_OFFSET;
+        continue;
+      }
+      if (!link || typeof link !== "object") continue;
+      const targetId = link.target_id ?? link.targetId;
+      const targetSlotKey = "target_slot" in link ? "target_slot" : "targetSlot";
+      const targetSlot = Number(link[targetSlotKey]);
+      const linkId = link.id ?? link.link_id ?? link.linkId;
+      if (
+        String(targetId) === String(node.id)
+        && targetSlot >= 0
+        && targetSlot < LEGACY_VISUALIZER_INPUTS.length
+        && legacyLinkIds.has(String(linkId))
+      ) link[targetSlotKey] = targetSlot + VISUALIZER_COMMON_OFFSET;
+    }
+  }
+}
+
+function migrateLegacyVisualizerInputs(workflowData) {
+  migrateLegacyVisualizerGraph(workflowData);
+  for (const subgraph of workflowData?.definitions?.subgraphs || []) {
+    migrateLegacyVisualizerGraph(subgraph);
+  }
+}
+
+function runtimeProviderId(moduleType, moduleInstanceId) {
+  const safe = (value) => String(value || "")
+    .split("")
+    .map((character) => /[A-Za-z0-9]/.test(character) ? character : "-")
+    .join("")
+    .replace(/^-+|-+$/g, "");
+  return `cmk-${safe(moduleType)}-${safe(moduleInstanceId)}`;
 }
 
 function activeVisualDisplayNodes() {
@@ -108,6 +177,7 @@ function remappedDeclaredProvider(outerNode, item) {
     detailer: "CMK_SmartDetailerPipe",
     "mask-detailer": "CMKMaskDetailerProcess",
     faceprocess: "FaceProcess",
+    facerebuild: "CMKInstantIDFaceRebuildSDXL",
     faceswap: "CMKFaceSwapImagePipe",
   };
   const liveType = String(
@@ -116,7 +186,20 @@ function remappedDeclaredProvider(outerNode, item) {
     || "",
   );
   const liveTypeAliases = {
+    CMKControlNetPreparePipe: new Set([
+      "CMKControlNetPreparePipe",
+      "CMKZITControlNetPreparePipe",
+      "CMKCombinedControlNetPreparePipe",
+    ]),
     FaceProcess: new Set(["CMKFaceProcessPipe", "CMK_FaceProcess", "CMKFaceProcess"]),
+    CMKInstantIDSamplerSDXLPipe: new Set([
+      "CMKInstantIDSamplerSDXLPipe",
+      "CMKInstantIDRegionalAdvancedSDXLPipe",
+    ]),
+    CMKInstantIDFaceRebuildSDXL: new Set([
+      "CMKInstantIDFaceRebuildSDXL",
+      "CMKInstantIDFaceRebuildAdvancedSDXL",
+    ]),
   };
   const matchesLiveType = (inner) => {
     const actual = nodeKind(inner);
@@ -142,8 +225,10 @@ function remappedDeclaredProvider(outerNode, item) {
       ? String(widgetValue(visualProvider, "stage_key", item.stage_key || ""))
       : item.stage_key,
     provider_id: visualProvider
-      ? `cmk-CMKVisualProvider-${outerNode.id}-${visualProvider.id}`
-      : item.provider_id,
+      ? runtimeProviderId("CMKVisualProvider", scopedNodeId(visualProvider))
+      : (liveNode
+          ? runtimeProviderId(nodeKind(liveNode), scopedNodeId(liveNode))
+          : item.provider_id),
     provider_node_id: scopedNodeId(visualProvider) || item.provider_node_id,
     live_node_id: scopedNodeId(liveNode) || item.live_node_id,
     live_node_ids: liveNodes.length
@@ -228,7 +313,11 @@ function graphProviders(displayNode) {
           || (declaredItem.key ? `${declaredItem.key}_global_enable` : ""),
         );
         if (!enableWidget) return true;
-        const widget = node?.widgets?.find((item) => item.name === enableWidget);
+        const widget = node?.widgets?.find((item) => item.name === enableWidget)
+          || (app.graph?._nodes || [])
+            .filter((item) => nodeKind(item) === "CMKPipeCreateImage")
+            .flatMap((item) => item.widgets || [])
+            .find((item) => item.name === enableWidget);
         return !widget || Boolean(widget.value);
       })
       .map((declaredItem) => {
@@ -285,6 +374,21 @@ function providerSemanticKey(provider) {
   return `instance\u0000${provider?.module_type || ""}\u0000${provider?.module_instance_id || ""}`;
 }
 
+function sameProviderStage(left, right) {
+  if (!left || !right) return false;
+  if (left.provider_id && left.provider_id === right.provider_id) return true;
+  if (providerSemanticKey(left) === providerSemanticKey(right)) return true;
+  if (!left.stage_key || String(left.stage_key) !== String(right.stage_key || "")) return false;
+  return !left.branch || !right.branch || String(left.branch) === String(right.branch);
+}
+
+function snapshotProviderIndex(state, provider) {
+  const providers = state?.cachedSnapshot?.providers
+    || state?.completedSnapshot?.providers
+    || [];
+  return providers.findIndex((item) => sameProviderStage(item, provider));
+}
+
 function completedDeclarations(declarations, completedProviders) {
   const grouped = new Map();
   for (const declaration of declarations) {
@@ -339,6 +443,76 @@ function providerForNode(state, ...nodeIds) {
   return moduleMatches.length === 1 ? moduleMatches[0] : null;
 }
 
+function cachedProviderSnapshot(state) {
+  if (!(state?.completedProviderIds instanceof Set) || !state.providers.length) return null;
+  return {
+    providers: state.providers.map((provider) => ({
+      ...provider,
+      liveUrl: null,
+      channels: (provider.channels || []).map((channel) => ({ ...channel })),
+    })),
+    images: [...(state.images || [])],
+    providerId: state.providerId,
+    channel: state.channel,
+  };
+}
+
+function providerWasCached(provider, cachedNodeIds) {
+  const candidates = [
+    ...(provider.live_node_ids || []),
+    provider.live_node_id,
+    provider.provider_node_id,
+    provider.module_instance_id,
+  ].filter((value) => value != null);
+  return candidates.some((candidate) =>
+    cachedNodeIds.some((nodeId) => nodeIdMatches(candidate, nodeId)),
+  );
+}
+
+function restoreCachedProviders(node, cachedNodeIds) {
+  const state = stateByNode.get(node);
+  const snapshot = state?.cachedSnapshot;
+  if (!state || !snapshot || !state.runActive) return;
+  const declarationsById = new Map(
+    (state.catalog || []).map((provider) => [provider.provider_id, provider]),
+  );
+  const declarationsBySemanticKey = new Map(
+    (state.catalog || []).map((provider) => [providerSemanticKey(provider), provider]),
+  );
+  const restored = [];
+  // The completed backend VISUAL pipe is authoritative for module order.
+  // Keep that order and only filter out providers whose computation is no
+  // longer cached; the static graph catalog may differ for nested subgraphs.
+  for (const previous of snapshot.providers) {
+    const stageMatches = previous.stage_key
+      ? (state.catalog || []).filter((provider) =>
+          String(provider.stage_key || "") === String(previous.stage_key)
+          && (!previous.branch || String(provider.branch || "") === String(previous.branch)),
+        )
+      : [];
+    const declaration = declarationsById.get(previous.provider_id)
+      || declarationsBySemanticKey.get(providerSemanticKey(previous))
+      || (stageMatches.length === 1 ? stageMatches[0] : null);
+    if (!declaration) continue;
+    if (!providerWasCached(declaration, cachedNodeIds)) continue;
+    restored.push({
+      ...previous,
+      ...declaration,
+      channels: (previous.channels || []).map((channel) => ({ ...channel })),
+      status: "available",
+      liveUrl: null,
+    });
+  }
+  if (!restored.length) return;
+  state.providers = restored;
+  state.images = [...snapshot.images];
+  state.providerId = restored.some((provider) => provider.provider_id === snapshot.providerId)
+    ? snapshot.providerId
+    : restored.at(-1)?.provider_id || null;
+  state.channel = snapshot.channel;
+  render(node);
+}
+
 function eventNodeIds(detail = {}) {
   if (["string", "number"].includes(typeof detail)) return [detail];
   const metadata = detail.metadata || detail.preview_metadata || {};
@@ -359,7 +533,16 @@ function exposeProvider(state, provider) {
   let visible = state.providers.find((item) => item.provider_id === provider.provider_id);
   if (!visible) {
     visible = { ...provider, channels: [...(provider.channels || [])] };
-    state.providers.push(visible);
+    const desiredIndex = snapshotProviderIndex(state, visible);
+    if (desiredIndex < 0) {
+      state.providers.push(visible);
+    } else {
+      const insertionIndex = state.providers.findIndex((item) => {
+        const itemIndex = snapshotProviderIndex(state, item);
+        return itemIndex >= 0 && itemIndex > desiredIndex;
+      });
+      state.providers.splice(insertionIndex < 0 ? state.providers.length : insertionIndex, 0, visible);
+    }
   }
   return visible;
 }
@@ -571,9 +754,11 @@ function render(node) {
 
 api.addEventListener("execution_start", (event) => {
   executionId = eventExecutionId(event);
+  executingNodeIds = [];
   for (const node of [...new Set([...(app.graph?._nodes || []), ...visualDisplayNodes])]) {
     const state = stateByNode.get(node);
     if (!state) continue;
+    state.cachedSnapshot = state.completedSnapshot;
     state.executionId = executionId;
     state.runActive = true;
     state.autoFollow = true;
@@ -591,17 +776,37 @@ api.addEventListener("execution_start", (event) => {
   }
 });
 
+api.addEventListener("execution_cached", (event) => {
+  const eventId = eventExecutionId(event);
+  if (eventId && eventId !== executionId) return;
+  const cachedNodeIds = (event.detail?.nodes || []).map(String);
+  if (!cachedNodeIds.length) return;
+  for (const node of activeVisualDisplayNodes()) {
+    restoreCachedProviders(node, cachedNodeIds);
+  }
+});
+
+api.addEventListener("executing", (event) => {
+  const eventId = eventExecutionId(event);
+  if (eventId && eventId !== executionId) return;
+  const nodeIds = eventNodeIds(event.detail);
+  if (nodeIds.length) executingNodeIds = nodeIds;
+});
+
 api.addEventListener("b_preview_with_metadata", (event) => {
   const eventId = eventExecutionId(event);
   if (eventId && eventId !== executionId) return;
   const detail = event.detail || {};
   const blob = detail.blob;
   if (!blob) return;
+  const sourceNodeIds = eventNodeIds(detail);
+  const previewNodeIds = sourceNodeIds.length ? sourceNodeIds : executingNodeIds;
+  if (!previewNodeIds.length) return;
   let accepted = false;
   for (const node of activeVisualDisplayNodes()) {
     const state = stateByNode.get(node);
     if (!state || !state.runActive || state.executionId !== executionId) continue;
-    const provider = providerForNode(state, ...eventNodeIds(detail));
+    const provider = providerForNode(state, ...previewNodeIds);
     if (!provider) continue;
     acceptLivePreview(state, provider, blob);
     accepted = true;
@@ -619,11 +824,12 @@ api.addEventListener("b_preview", (event) => {
   const eventId = eventExecutionId(event);
   if (eventId && eventId !== executionId) return;
   const sourceNodeIds = eventNodeIds(event.detail || {});
-  if (!sourceNodeIds.length) return;
+  const previewNodeIds = sourceNodeIds.length ? sourceNodeIds : executingNodeIds;
+  if (!previewNodeIds.length) return;
   for (const node of activeVisualDisplayNodes()) {
     const state = stateByNode.get(node);
     if (!state || !state.runActive || state.executionId !== executionId) continue;
-    const provider = providerForNode(state, ...sourceNodeIds);
+    const provider = providerForNode(state, ...previewNodeIds);
     if (!provider) continue;
     acceptLivePreview(state, provider, blob);
     render(node);
@@ -664,6 +870,7 @@ api.addEventListener("executed", (event) => {
 function finishExecution(event) {
   const eventId = eventExecutionId(event);
   if (eventId && eventId !== executionId) return;
+  executingNodeIds = [];
   for (const node of activeVisualDisplayNodes()) {
     const state = stateByNode.get(node);
     if (!state) continue;
@@ -694,13 +901,19 @@ api.addEventListener("execution_error", finishExecution);
 
 app.registerExtension({
   name: "cmk.visualizer",
+  beforeConfigureGraph(workflowData) {
+    migrateLegacyVisualizerInputs(workflowData);
+  },
   async beforeRegisterNodeDef(nodeType, nodeData) {
     installGraphHooks(nodeType);
-    if (nodeData.name === "CMKVisualProvider") installProviderWidgetRefresh(nodeType);
+    if (["CMKVisualProvider", "CMKPipeCreateImage"].includes(nodeData.name)) {
+      installProviderWidgetRefresh(nodeType);
+    }
     if (nodeData.name !== VISUALIZER && nodeData.name !== VISUAL_COMPARE) return;
     const created = nodeType.prototype.onNodeCreated;
     nodeType.prototype.onNodeCreated = function () {
       const result = created?.apply(this, arguments);
+      applyVisualizerInputLabels(this);
       const compareOnly = nodeData.name === VISUAL_COMPARE;
       const root = document.createElement("div");
       root.className = compareOnly ? "cmk-visualizer cmk-preview-compare" : "cmk-visualizer";
@@ -708,7 +921,7 @@ app.registerExtension({
         root.addEventListener(eventName, (event) => event.stopPropagation());
       }
       this.addDOMWidget("cmk_visualizer", "visual", root, { serialize: false });
-      stateByNode.set(this, { root, catalog: [], providers: [], images: [], providerId: null, channel: null, live: null, completedProviderIds: null, executionId, runActive: false, autoFollow: false, compareOnly });
+      stateByNode.set(this, { root, catalog: [], providers: [], images: [], providerId: null, channel: null, live: null, completedProviderIds: null, cachedSnapshot: null, completedSnapshot: null, executionId, runActive: false, autoFollow: false, compareOnly });
       visualDisplayNodes.add(this);
       setTimeout(() => loadWaitingProviders(this), 0);
       return result;
@@ -721,6 +934,7 @@ app.registerExtension({
     const configured = nodeType.prototype.onConfigure;
     nodeType.prototype.onConfigure = function () {
       const result = configured?.apply(this, arguments);
+      applyVisualizerInputLabels(this);
       setTimeout(() => loadWaitingProviders(this), 0);
       return result;
     };
@@ -733,6 +947,8 @@ app.registerExtension({
           state.providers = [];
           state.images = [];
           state.completedProviderIds = new Set();
+          state.cachedSnapshot = null;
+          state.completedSnapshot = null;
           render(this);
         }
         return result;
@@ -775,6 +991,8 @@ app.registerExtension({
           state.providerId = state.providers.at(-1)?.provider_id || null;
         }
         state.live = null;
+        state.completedSnapshot = cachedProviderSnapshot(state);
+        state.cachedSnapshot = null;
         render(this);
       }
       return result;

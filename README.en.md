@@ -6,7 +6,7 @@
 
 Modular custom-node package for ComfyUI.
 
-**Current release: CMK 2.5.7**
+**Current release: CMK 2.6.0 · CMK Flow**
 
 [Deutsch](README.md) · **English**
 
@@ -18,7 +18,7 @@ CMK Flow deliberately separates two concepts:
 
 ```text
 CMK **** -Pipe- → closed, guided ecosystem
-all other nodes → open experimental toolbox
+all other nodes → regular ComfyUI node search
 ```
 
 [`ARCHITECTURE.md`](ARCHITECTURE.md) is the authoritative architecture and interface contract.
@@ -80,6 +80,8 @@ keys, and UUIDs.
 - parallel Smart Detailer and FaceProcess instances;
 - dynamic `SEGS`, `LOG BLOCK`, and `DIAGNOSTIC` inputs;
 - persistent branch caches for unchanged parallel instances;
+- persistent generation-completion detection with manual cache cleanup and
+  read-only CMK statistics in the Flow Browser;
 - mandatory module boundaries before comparers, downstream modules, and public outputs;
 - a central `VISUAL` chain for processing stages registered with the Visualizer;
 - standalone post-processing modules as either discrete workflows or packaged subgraphs;
@@ -88,7 +90,9 @@ keys, and UUIDs.
 - local FaceSwap image/video paths with mandatory ContentGuard;
 - a Flow Browser reference catalog organized into Task Workflows, Module
   Workflows, Comparisons, Real-World Workflows, System Workflow, and Legacy,
-  including 20 task workflows ordered by increasing functional complexity;
+  containing 37 reference workflows, of which 35 are visible and 2 are
+  temporarily hidden, including 19 task workflows ordered by increasing
+  functional complexity;
 - dedicated Z-Image Turbo loader, sampler, and optional ControlNet modules.
 
 ZIT-Inpaint is explicitly marked `EXPERIMENTAL` and temporarily frozen because
@@ -239,8 +243,8 @@ files in `subgraphs/` remain part of the node pack; additional copies under
 
 > **Validated release target**
 >
-> CMK 2.5.7 was fully validated with **ComfyUI 0.38.2** and
-> **comfyui-frontend-package 1.53.6**. This includes Flow Browser navigation,
+> CMK Flow 2.6.0 was validated with **ComfyUI 0.42.1** and its corresponding
+> ComfyUI frontend. This includes Flow Browser navigation,
 > packaged subgraphs and reference workflows, embedded previews, cache paths,
 > and the serialized link, socket, UUID, and topology contracts.
 
@@ -324,7 +328,6 @@ project. It dates back to CMK 1.0, was intentionally not modernized to the CMK
 | `CHANGELOG.md` | historical changes, not the current API contract |
 | `WORKFLOWS.md` | subgraph, workflow, and installation overview |
 | `SUBGRAPH_AUDIT.md` | subgraph inventory and safe cleanup plan |
-| `TOOLBOX.md` | open-toolbox product boundary and maintenance plan |
 | `CMK_FLOW_COMPATIBILITY.md` | draft integration contract for third parties |
 | `CONTENT_GUARD.md` | authoritative local FaceSwap protection policy |
 | `RELEASE_AUDIT_CMK_2_5.md` | final audit of CMK 2.5 contracts, tests, and release deviations |

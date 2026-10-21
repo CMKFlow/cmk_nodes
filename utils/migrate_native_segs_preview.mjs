@@ -9,6 +9,12 @@ const contentDirs = [
 ];
 
 for (const contentDir of contentDirs) {
+    try {
+        fs.statSync(contentDir);
+    } catch (error) {
+        if (error.code === "ENOENT") continue;
+        throw error;
+    }
     for (const filename of fs.readdirSync(contentDir)) {
         if (!filename.endsWith(".json")) continue;
         const file = path.join(contentDir, filename);

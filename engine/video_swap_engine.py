@@ -64,10 +64,17 @@ def _select_initial(faces: list[dict], mode: str, width: int, height: int) -> di
 
 
 class CMKVideoSwapEngine:
-    def __init__(self, detector_model: str, detector_size: int = 640):
+    def __init__(
+        self,
+        detector_model: str,
+        detector_size: int = 640,
+        *,
+        content_guard_enabled: bool = True,
+    ):
         self.detector = CMKDetectorEngine()
         self.detector_settings = DetectorSettings(detector_model=detector_model, detector_size=detector_size)
         self.swapper = CMKSelectedSwapEngine()
+        self.content_guard_enabled = bool(content_guard_enabled)
 
     def detect_filtered(self, image_rgb: np.ndarray, drop_size: int) -> list[dict]:
         faces = self.detector.detect_image(image_rgb, self.detector_settings)
@@ -83,11 +90,13 @@ class CMKVideoSwapEngine:
         if not faces:
             raise RuntimeError("CMK FaceSwap Video: no source face detected")
         selected = _select_initial(faces, selection, image_rgb.shape[1], image_rgb.shape[0])
-        get_content_guard().inspect_image(image_rgb, selected["raw"], "source")
+        if self.content_guard_enabled:
+            get_content_guard().inspect_image(image_rgb, selected["raw"], "source")
         return selected
 
     def inspect_target_content(self, image_rgb: np.ndarray) -> None:
-        get_content_guard().inspect_content(image_rgb, "target_frame")
+        if self.content_guard_enabled:
+            get_content_guard().inspect_content(image_rgb, "target_frame")
 
     def select_target(self, image_rgb: np.ndarray, faces: list[dict], selection: str, state: TrackState | None,
                       max_missing_frames: int, tracking_iou_threshold: float, tracking_embedding_threshold: float):
@@ -115,4 +124,11 @@ class CMKVideoSwapEngine:
         return best, TrackState(_bbox(best), emb if emb is not None else state.embedding, 0)
 
     def swap_frame(self, image_rgb: np.ndarray, source_rgb: np.ndarray, source_face: dict, target_face: dict, settings: SelectedSwapSettings) -> np.ndarray:
-        return self.swapper.swap_faces(image_rgb, source_rgb, source_face["raw"], target_face["raw"], settings)
+        return self.swapper.swap_faces(
+            image_rgb,
+            source_rgb,
+            source_face["raw"],
+            target_face["raw"],
+            settings,
+            content_guard_enabled=self.content_guard_enabled,
+        )

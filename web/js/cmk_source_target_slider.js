@@ -89,43 +89,6 @@ function clampBalance(value, minimum = MIN_BALANCE, maximum = MAX_BALANCE, fallb
     return Math.max(minimum, Math.min(maximum, Math.round(numeric)));
 }
 
-function drawSourceTarget(ctx, _node, width, y, height) {
-    const centerY = y + height * 0.5;
-    const lineStart = 82;
-    const lineEnd = Math.max(lineStart + 40, width - 82);
-    const minimum = this._cmkBalanceMinimum ?? MIN_BALANCE;
-    const maximum = this._cmkBalanceMaximum ?? MAX_BALANCE;
-    const fallback = this._cmkBalanceFallback ?? 0;
-    const ratio = (clampBalance(this.value, minimum, maximum, fallback) - minimum)
-        / (maximum - minimum);
-    const knobX = lineStart + ratio * (lineEnd - lineStart);
-
-    ctx.save();
-    ctx.font = "600 11px system-ui, sans-serif";
-    ctx.fillStyle = "#ddd";
-    ctx.textBaseline = "middle";
-    ctx.textAlign = "left";
-    ctx.fillText(this._cmkBalanceLeftLabel || "SOURCE", 10, centerY);
-    ctx.textAlign = "right";
-    ctx.fillText(this._cmkBalanceRightLabel || "TARGET", width - 10, centerY);
-
-    ctx.beginPath();
-    ctx.moveTo(lineStart, centerY);
-    ctx.lineTo(lineEnd, centerY);
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "rgba(190, 198, 210, .62)";
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(knobX, centerY, 7, 0, Math.PI * 2);
-    ctx.fillStyle = "#8aa9d6";
-    ctx.fill();
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = "rgba(225, 232, 242, .78)";
-    ctx.stroke();
-    ctx.restore();
-}
-
 export function installSourceTargetSlider(
     node,
     widget,
@@ -146,11 +109,6 @@ export function installSourceTargetSlider(
     widget.value = clampBalance(widget.value, minimum, maximum, fallback);
     widget.type = "slider";
     widget.label = leftLabel;
-    widget._cmkBalanceLeftLabel = leftLabel;
-    widget._cmkBalanceRightLabel = rightLabel;
-    widget._cmkBalanceMinimum = minimum;
-    widget._cmkBalanceMaximum = maximum;
-    widget._cmkBalanceFallback = fallback;
     widget.options = {
         ...(widget.options || {}),
         min: minimum,
@@ -158,8 +116,6 @@ export function installSourceTargetSlider(
         step: 1,
         precision: 0,
     };
-    widget.draw = drawSourceTarget;
-    widget.computeSize = (width) => [Math.max(Number(width) || 300, 300), 30];
     widget._cmkSyncFromCanonical = () => {
         widget.value = clampBalance(widget.value, minimum, maximum, fallback);
     };

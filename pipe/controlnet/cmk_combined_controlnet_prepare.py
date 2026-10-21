@@ -50,7 +50,7 @@ class CMKCombinedControlNetPreparePipe:
                 "PROCESS SDXL": ("CMK_PROCESS_SDXL",),
                 "PROCESS ZIT": ("CMK_PROCESS_Z_IMAGE",),
                 "IMAGE": ("IMAGE",),
-                "ENABLE": ("BOOLEAN", {"default": False}),
+                "ENABLE": ("BOOLEAN", {"default": False, "forceInput": True}),
                 "IMAGE SOURCE": (
                     CONTROLNET_IMAGE_SOURCES,
                     {"default": "Reference Image"},
@@ -142,7 +142,7 @@ class CMKCombinedControlNetPreparePipe:
                 "LOG": ("CMK_LOG_PIPE",),
                 "VISUAL": ("CMK_VISUAL_PIPE",),
                 "REFERENCE IMAGE INPUT": ("IMAGE",),
-                "REFERENCE IMAGE NAME": ("STRING",),
+                "REFERENCE IMAGE NAME": ("STRING", {"forceInput": True}),
             },
             "hidden": {"unique_id": "UNIQUE_ID"},
         }

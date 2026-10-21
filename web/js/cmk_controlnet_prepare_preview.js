@@ -57,7 +57,8 @@ function findWidget(node, name) {
 }
 
 function controlNetEnabled(node) {
-    return Boolean(findWidget(node, "ENABLE")?.value ?? findWidget(node, "enable")?.value);
+    const widget = findWidget(node, "ENABLE") || findWidget(node, "enable");
+    return widget ? Boolean(widget.value) : null;
 }
 
 function clearNodePreview(node) {
@@ -138,7 +139,9 @@ async function uploadReferenceImage(file) {
 
 function showCombinedReferencePreview(node, filename) {
     if (!isCMKControlNetPrepare(node) || !filename) return;
-    if (!controlNetEnabled(node)) {
+    // A missing ENABLE widget means the state is supplied through the PROCESS
+    // connection by module 01. It is unknown in the frontend, not disabled.
+    if (controlNetEnabled(node) === false) {
         clearNodePreview(node);
         return;
     }
@@ -209,7 +212,7 @@ function setupCombinedReferencePreview(node) {
             return result;
         };
     }
-    if (controlNetEnabled(node)) showCombinedReferencePreview(node, widget.value);
+    if (controlNetEnabled(node) === true) showCombinedReferencePreview(node, widget.value);
     else clearNodePreview(node);
 }
 
@@ -266,11 +269,36 @@ function addReferencePickerButton(node) {
     node.setDirtyCanvas?.(true, true);
 }
 
+function removeLegacyConnectionWidgetValues(node, values) {
+    const normalized = [...values];
+
+    // ENABLE is now a connection-only input controlled by module 01. Older
+    // workflows still carry its former boolean widget value at position 0.
+    if (!findWidget(node, "ENABLE") && typeof normalized[0] === "boolean") {
+        normalized.shift();
+    }
+
+    // REFERENCE IMAGE NAME is connection-only as well. ZIT and Combined used
+    // to serialize its empty text widget at the end; SDXL may instead carry
+    // the legacy non-serializing picker placeholder there.
+    const functionalCount = Math.max(0, (node?.widgets?.length ?? 1) - 1);
+    if (
+        normalized.length > functionalCount &&
+        (normalized.at(-1) == null || normalized.at(-1) === "")
+    ) {
+        normalized.pop();
+    }
+
+    return normalized;
+}
+
 function normalizePickerValue(node, values) {
     if (!Array.isArray(values)) return values;
 
     const pickerIndex = node?.widgets?.findIndex((widget) => widget?.name === BUTTON_WIDGET_NAME) ?? -1;
     if (pickerIndex < 0) return values;
+
+    values = removeLegacyConnectionWidgetValues(node, values);
 
     const functionalCount = node.widgets.length - 1;
     if (values.length === functionalCount) {
@@ -289,20 +317,22 @@ function normalizePickerValue(node, values) {
     if (values.length === node.widgets.length) {
         const withoutPicker = values.filter((_, index) => index !== pickerIndex);
         const valid = (
-            typeof withoutPicker[0] === "boolean" &&
-            typeof withoutPicker[4] === "boolean" &&
-            typeof withoutPicker[5] === "string" &&
+            typeof withoutPicker[0] === "string" &&
+            typeof withoutPicker[1] === "string" &&
+            typeof withoutPicker[2] === "string" &&
+            typeof withoutPicker[3] === "boolean" &&
+            typeof withoutPicker[4] === "string" &&
+            typeof withoutPicker[5] === "number" &&
             typeof withoutPicker[6] === "number" &&
             typeof withoutPicker[7] === "number" &&
             typeof withoutPicker[8] === "number" &&
-            typeof withoutPicker[9] === "number" &&
-            typeof withoutPicker[10] === "boolean"
+            typeof withoutPicker[9] === "boolean"
         );
         if (valid) return values;
     }
 
-    // Recover files affected by repeated positional shifts. The first four
-    // values precede the picker and are stable. Locate the last recognisable
+    // Recover files affected by repeated positional shifts. Values preceding
+    // the picker are stable. Locate the last recognisable
     // preprocessor and retain any numeric settings that still follow it.
     const head = values.slice(0, pickerIndex);
     const tail = values.slice(pickerIndex).filter((value) => value != null);
@@ -334,6 +364,8 @@ function normalizeZITPickerValue(node, values) {
     ) ?? -1;
     if (pickerIndex < 0) return values;
 
+    values = removeLegacyConnectionWidgetValues(node, values);
+
     const functionalCount = node.widgets.length - 1;
     if (values.length === functionalCount) {
         const normalized = [...values];
@@ -342,15 +374,15 @@ function normalizeZITPickerValue(node, values) {
         // resolution=STRENGTH, low_threshold=resolution,
         // high_threshold=low_threshold, MODEL PATCH=high_threshold.
         if (
-            functionalCount === 9 &&
-            typeof normalized[8] === "number" &&
-            typeof normalized[6] === "number" &&
-            normalized[6] > 1
+            functionalCount === 8 &&
+            typeof normalized[7] === "number" &&
+            typeof normalized[5] === "number" &&
+            normalized[5] > 1
         ) {
+            normalized[4] = normalized[5];
             normalized[5] = normalized[6];
             normalized[6] = normalized[7];
-            normalized[7] = normalized[8];
-            normalized[8] = "Z-Image-Turbo-Fun-Controlnet-Union.safetensors";
+            normalized[7] = "Z-Image-Turbo-Fun-Controlnet-Union.safetensors";
         }
         normalized.splice(pickerIndex, 0, null);
         return normalized;
@@ -374,6 +406,8 @@ function normalizeCombinedPickerValue(node, values) {
     ) ?? -1;
     if (pickerIndex < 0) return values;
 
+    values = removeLegacyConnectionWidgetValues(node, values);
+
     const functionalCount = node.widgets.length - 1;
     if (values.length === functionalCount) {
         const normalized = [...values];
@@ -392,7 +426,7 @@ function normalizeCombinedPickerValue(node, values) {
 }
 
 app.registerExtension({
-    name: "cmk.controlnet.prepare.reference_picker.v33",
+    name: "cmk.controlnet.prepare.reference_picker.v35",
 
     beforeRegisterNodeDef(nodeType, nodeData) {
         if (
@@ -485,7 +519,15 @@ app.registerExtension({
             const result = originalOnSerialize?.call(this, info);
             info.properties = { ...(info.properties || {}), cmkControlNetPercentScale: 100 };
             const pickerIndex = this.widgets?.findIndex((widget) => widget?.name === BUTTON_WIDGET_NAME) ?? -1;
-            if (pickerIndex >= 0 && Array.isArray(info?.widgets_values)) {
+            // Current ComfyUI versions already omit widgets with
+            // `serialize = false`. Only remove the picker when it is actually
+            // present in the serialized array; otherwise index 4 is APPLY MASK
+            // and every following ControlNet value shifts during copy/paste.
+            if (
+                pickerIndex >= 0 &&
+                Array.isArray(info?.widgets_values) &&
+                info.widgets_values.length === this.widgets.length
+            ) {
                 const [pickerValue] = info.widgets_values.splice(pickerIndex, 1);
                 info.widgets_values.push(pickerValue ?? null);
             }

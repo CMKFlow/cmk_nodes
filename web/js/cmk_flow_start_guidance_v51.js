@@ -93,13 +93,44 @@ const USER_WIDGET_LABELS = {
     "resize_mode": "IMAGE FIT",
     "crop_position": "IMAGE POSITION",
     "instantid_enabled": "INSTANTID",
+    "controlnet_enabled": "CONTROLNET",
+    "instantid_handshake_strategy": "INSTANTID HANDSHAKE",
     "instantid_mode": "INSTANTID MODE",
     "inpaint_mask_expand": "INPAINT MASK EXPAND",
     "hybrid_sdxl_handoff": "SDXL HANDOFF",
     "hybrid_zit_denoise": "ZIT DENOISE",
     "unload_models_after_use": "UNLOAD MODELS AFTER USE",
     "live_preview_zit": "LIVE PREVIEW ZIT",
+    "content_guard_enabled": "CONTENT GUARD",
 };
+const CONTENT_GUARD_WIDGET = "content_guard_enabled";
+const CONTENT_GUARD_EXECUTION_INPUT = "_cmk_content_guard_enabled";
+const INSTANTID_MODE_LABELS = Object.freeze({
+    "ZERO-PASS": "ZERO-PASS · SINGLE PERSON ONLY",
+});
+const CONTENT_GUARD_EXECUTION_NODES = new Set([
+    "CMKInstantIDSamplerSDXLPipe",
+    "CMKInstantIDRegionalAdvancedSDXLPipe",
+    "CMKInstantIDFaceRebuildSDXL",
+    "CMKInstantIDFaceRebuildAdvancedSDXL",
+    "CMKFaceSwapImagePipe",
+]);
+
+function contentGuardConsumerIsActive(node, startNode) {
+    switch (node?.class_type) {
+        case "CMKInstantIDSamplerSDXLPipe":
+        case "CMKInstantIDRegionalAdvancedSDXLPipe":
+            return startNode?.inputs?.instantid_enabled === true;
+        case "CMKInstantIDFaceRebuildSDXL":
+        case "CMKInstantIDFaceRebuildAdvancedSDXL":
+            return node?.inputs?.["FACEREBUILD ENABLE"] !== false;
+        case "CMKFaceSwapImagePipe":
+            return node?.inputs?.["GLOBAL ENABLE"] !== false
+                && node?.inputs?.ENABLE !== false;
+        default:
+            return false;
+    }
+}
 const NEUTRAL_IMAGE_SIZES = [
     "1024x1024",
     "1152x832",
@@ -568,10 +599,43 @@ function rebuildModeWidgets(node, force = false) {
             .filter((name) => !["text2image", "hybrid"].includes(mode) || !TEXT2IMAGE_HIDDEN_WIDGETS.has(name))
             .filter((name) => ["text2image", "inpaint"].includes(mode) || name !== "instantid_enabled")
             .filter((name) => name !== "instantid_mode" || (mode === "text2image" && instantIDEnabled))
+            .filter((name) => name !== "instantid_handshake_strategy" || (mode === "text2image" && instantIDEnabled))
             .filter((name) => !["hybrid_sdxl_handoff", "hybrid_zit_denoise"].includes(name))
             .filter((name) => mode.startsWith("hybrid") || name !== "HYBRID BALANCE")
             .filter((name) => name !== "unload_zit_after")
+            .filter((name) => {
+                if (name !== "content_guard_enabled") return true;
+                const widget = state.widgetsByName.get(name);
+                return widget?.options?.cmk_baseline_visible !== false;
+            })
             .filter((name) => name !== CROP_POSITION_WIDGET || resizeMode !== "stretch");
+        // The backend appends this control for positional compatibility with
+        // existing workflows.  Display it with the primary process switches.
+        const controlNetIndex = visibleNames.indexOf("controlnet_enabled");
+        if (controlNetIndex >= 0) {
+            visibleNames.splice(controlNetIndex, 1);
+            const instantIDIndex = visibleNames.indexOf("instantid_enabled");
+            const lifecycleIndex = visibleNames.indexOf("unload_models_after_use");
+            visibleNames.splice(
+                instantIDIndex >= 0
+                    ? instantIDIndex
+                    : (lifecycleIndex >= 0 ? lifecycleIndex : visibleNames.length),
+                0,
+                "controlnet_enabled",
+            );
+        }
+        const handshakeIndex = visibleNames.indexOf("instantid_handshake_strategy");
+        if (handshakeIndex >= 0) {
+            visibleNames.splice(handshakeIndex, 1);
+            const modeIndex = visibleNames.indexOf("instantid_mode");
+            const toggleIndex = visibleNames.indexOf("instantid_enabled");
+            const insertAfter = modeIndex >= 0 ? modeIndex : toggleIndex;
+            visibleNames.splice(
+                insertAfter >= 0 ? insertAfter + 1 : visibleNames.length,
+                0,
+                "instantid_handshake_strategy",
+            );
+        }
         // The backend appends new widgets to preserve legacy positional
         // serialization. Present the ZIT preview switch beside model unload
         // without changing that canonical serialization order.
@@ -583,6 +647,18 @@ function rebuildModeWidgets(node, force = false) {
                 visibleNames.indexOf("unload_models_after_use") + 1,
                 0,
                 "live_preview_zit",
+            );
+        }
+        const guardIndex = visibleNames.indexOf("content_guard_enabled");
+        if (guardIndex >= 0 && unloadIndex >= 0) {
+            visibleNames.splice(guardIndex, 1);
+            const previewPosition = visibleNames.indexOf("live_preview_zit");
+            visibleNames.splice(
+                previewPosition >= 0
+                    ? previewPosition + 1
+                    : visibleNames.indexOf("unload_models_after_use") + 1,
+                0,
+                "content_guard_enabled",
             );
         }
         const visibleNameSet = new Set(visibleNames);
@@ -718,6 +794,20 @@ function configure(node) {
             return result;
         };
         instantIDToggle._cmkModeVisibilityCallbackInstalled = true;
+    }
+
+    const instantIDMode = getWidget(node, "instantid_mode");
+    if (instantIDMode && !instantIDMode._cmkOptionLabelsInstalled) {
+        const originalGetOptionLabel = instantIDMode.options?.getOptionLabel;
+        instantIDMode.options = {
+            ...(instantIDMode.options ?? {}),
+            getOptionLabel: (value) => (
+                INSTANTID_MODE_LABELS[String(value)]
+                ?? originalGetOptionLabel?.(value)
+                ?? String(value)
+            ),
+        };
+        instantIDMode._cmkOptionLabelsInstalled = true;
     }
 
     const resolution = getWidget(node, "resolution");
@@ -868,11 +958,61 @@ function schedule(node) {
     for (const delay of [0, 50, 200, 500]) setTimeout(() => configure(node), delay);
 }
 
+function routeContentGuardAtExecution(output) {
+    if (!output || typeof output !== "object") return;
+    const adjacency = new Map();
+    for (const [targetId, node] of Object.entries(output)) {
+        for (const value of Object.values(node?.inputs ?? {})) {
+            if (!Array.isArray(value) || value.length !== 2) continue;
+            const sourceId = String(value[0]);
+            if (!adjacency.has(sourceId)) adjacency.set(sourceId, []);
+            adjacency.get(sourceId).push(String(targetId));
+        }
+    }
+
+    for (const [startId, startNode] of Object.entries(output)) {
+        if (startNode?.class_type !== NODE_CLASS) continue;
+        const requested = startNode.inputs?.[CONTENT_GUARD_WIDGET] !== false;
+        // Keep the UI value in workflow serialization, but remove it from
+        // module 01's API inputs so ComfyUI's native cache identity for the
+        // generation branch stays unchanged.
+        if (startNode.inputs) delete startNode.inputs[CONTENT_GUARD_WIDGET];
+
+        const pending = [...(adjacency.get(String(startId)) ?? [])];
+        const visited = new Set();
+        while (pending.length) {
+            const nodeId = pending.pop();
+            if (visited.has(nodeId)) continue;
+            visited.add(nodeId);
+            const node = output[nodeId];
+            if (!node) continue;
+            if (CONTENT_GUARD_EXECUTION_NODES.has(node.class_type)
+                && contentGuardConsumerIsActive(node, startNode)) {
+                node.inputs ??= {};
+                node.inputs[CONTENT_GUARD_EXECUTION_INPUT] = requested;
+            }
+            pending.push(...(adjacency.get(nodeId) ?? []));
+        }
+    }
+}
+
+function installContentGuardPromptRouting() {
+    if (app._cmkContentGuardPromptRouting || typeof app.graphToPrompt !== "function") return;
+    const original = app.graphToPrompt.bind(app);
+    app.graphToPrompt = async function () {
+        const result = await original(...arguments);
+        routeContentGuardAtExecution(result?.output);
+        return result;
+    };
+    app._cmkContentGuardPromptRouting = true;
+}
+
 app.registerExtension({
     name: "cmk.flow.start.guidance.v51",
 
     setup() {
         installDomBehavior();
+        installContentGuardPromptRouting();
     },
 
     beforeRegisterNodeDef(nodeType, nodeData) {

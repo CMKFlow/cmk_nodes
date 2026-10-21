@@ -3,6 +3,7 @@
   "requiredFiles": [
     "__init__.py",
     "cmk_mappings.py",
+    "cmk_distribution.py",
     "pyproject.toml",
     "requirements.txt",
     "web/flow_node_metadata.json",
@@ -15,6 +16,39 @@
     "tests"
   ],
   "releaseFeatures": [
+    {
+      "name": "ContentGuard distribution policy",
+      "requiredFiles": [
+        "cmk_distribution.py",
+        "engine/content_guard.py"
+      ],
+      "requiredMarkers": {
+        "cmk_distribution.py": [
+          "DISTRIBUTION_MODE =",
+          "CONTENT_GUARD_EXECUTION_KEY",
+          "if distribution_mode() == RELEASE:",
+          "return True"
+        ],
+        "pipe/cmk_pipe_image.py": [
+          "content_guard_enabled",
+          "cmk_baseline_visible"
+        ],
+        "nodes/video/face_swap_video.py": [
+          "content_guard_prompt_token",
+          "content_guard_enabled=content_guard_enabled"
+        ],
+        "nodes/video/face_swap_video_loader.py": [
+          "content_guard_control_visible",
+          "segments[CONTENT_GUARD_PROCESS_KEY] = content_guard_enabled"
+        ],
+        "web/js/cmk_flow_start_guidance_v51.js": [
+          "routeContentGuardAtExecution",
+          "contentGuardConsumerIsActive",
+          "delete startNode.inputs[CONTENT_GUARD_WIDGET]",
+          "node.inputs[CONTENT_GUARD_EXECUTION_INPUT] = requested"
+        ]
+      }
+    },
     {
       "name": "CMK Flow Image Resize",
       "nodeClass": "CMKImageResize",

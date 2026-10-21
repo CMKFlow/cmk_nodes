@@ -16,12 +16,582 @@ try:
 except ImportError:  # Direct source loading in contract tests.
     from pipe.cmk_module_cache_contract import stamp_artifact
 
+try:
+    from .cmk_persistent_cache import build_node_fingerprint
+except ImportError:  # Direct source loading in contract tests.
+    from pipe.cmk_persistent_cache import build_node_fingerprint
+
+try:
+    from .cmk_generation_completion_cache import (
+        build_completion_key,
+        invalidate_completion,
+        lookup_completion,
+        store_completion,
+    )
+except ImportError:  # Direct source loading in contract tests.
+    from pipe.cmk_generation_completion_cache import (
+        build_completion_key,
+        invalidate_completion,
+        lookup_completion,
+        store_completion,
+    )
+
+try:
+    from ..cmk_distribution import content_guard_prompt_token
+except ImportError:  # Direct source loading in contract tests.
+    from cmk_distribution import content_guard_prompt_token
+
+try:
+    from .cmk_prompt_result_state import (
+        IncompleteResultError,
+        MISSING,
+        PromptStateUnavailableError,
+        UnsafeSnapshotTypeError,
+        active_prompt_id,
+        get_resource,
+        get_result,
+        make_key,
+        publish_result,
+        release_resources,
+        store_resource,
+    )
+except ImportError:  # Direct source loading in contract tests.
+    from pipe.cmk_prompt_result_state import (
+        IncompleteResultError,
+        MISSING,
+        PromptStateUnavailableError,
+        UnsafeSnapshotTypeError,
+        active_prompt_id,
+        get_resource,
+        get_result,
+        make_key,
+        publish_result,
+        release_resources,
+        store_resource,
+    )
+
 class _CMKAnyType(str):
     def __ne__(self, other):
         return False
 
 
 CMK_FINISH_INPUT = _CMKAnyType("*")
+
+
+def _detailer_diag_context(unique_id=None):
+    """Return prompt/node context for temporary Detailer diagnostics."""
+    try:
+        prompt_id = active_prompt_id()
+    except Exception:
+        prompt_id = None
+    return (
+        f"prompt_id={prompt_id if prompt_id is not None else 'UNAVAILABLE'} "
+        f"node_id={unique_id if unique_id is not None else 'UNAVAILABLE'}"
+    )
+
+
+def _detailer_diag_sdxl_state(state_key):
+    """Inspect SDXL prompt state without changing either state store."""
+    if state_key is None:
+        return {
+            "result": False,
+            "resource": False,
+            "descriptor": False,
+            "reason": "STATE_KEY_UNAVAILABLE",
+        }
+    try:
+        result = get_result(state_key)
+        resource = get_resource(state_key)
+    except PromptStateUnavailableError:
+        return {
+            "result": False,
+            "resource": False,
+            "descriptor": False,
+            "reason": "PROMPT_STATE_UNAVAILABLE",
+        }
+    has_result = result is not MISSING
+    has_resource = resource is not MISSING
+    has_descriptor = bool(
+        isinstance(result, dict) and result.get("released_model_descriptor") is not None
+    )
+    if not has_result:
+        reason = "RESULT_MISSING"
+    elif has_resource:
+        reason = "RESOURCE_AVAILABLE"
+    elif has_descriptor:
+        reason = "RELEASED_DESCRIPTOR_AVAILABLE"
+    else:
+        reason = "RESOURCE_AND_DESCRIPTOR_MISSING"
+    return {
+        "result": has_result,
+        "resource": has_resource,
+        "descriptor": has_descriptor,
+        "reason": reason,
+    }
+
+_GENERATION_MODEL_DESCRIPTOR_TYPE = "cmk_generation_model_descriptor"
+_GENERATION_MODEL_DESCRIPTOR_VERSION = 1
+_GENERATION_MODEL_FAMILIES = {"sdxl", "z_image_turbo"}
+_GENERATION_RESOURCE_RELEASE_STATUSES = {"released", "unloaded"}
+_GENERATION_MODEL_DESCRIPTOR_FIELDS = {
+    "descriptor_type",
+    "descriptor_version",
+    "model_role",
+    "model_family",
+    "generation_model_identity",
+    "generation_vae_identity",
+    "resource_status",
+    "resource_release_status",
+    "resources_released",
+    "materialized",
+}
+
+
+def make_released_generation_model_descriptor(
+    model_family, model_identity, vae_identity, resource_release_status
+):
+    """Describe generation resources only after their successful release."""
+    if not all(
+        isinstance(value, str)
+        for value in (
+            model_family,
+            model_identity,
+            vae_identity,
+            resource_release_status,
+        )
+    ):
+        raise TypeError("CMK generation MODEL descriptor identities and status must be strings")
+    family = str(model_family or "").strip().lower()
+    model_name = str(model_identity or "").strip()
+    vae_name = str(vae_identity or "").strip()
+    release_status = str(resource_release_status or "").strip().lower()
+    if family not in _GENERATION_MODEL_FAMILIES:
+        raise ValueError("CMK generation MODEL descriptor requires SDXL or Z-Image Turbo")
+    if not model_name or not vae_name:
+        raise ValueError("CMK generation MODEL descriptor requires model and VAE identities")
+    if release_status not in _GENERATION_RESOURCE_RELEASE_STATUSES:
+        raise ValueError("CMK generation MODEL descriptor requires a successful resource release status")
+    return {
+        "descriptor_type": _GENERATION_MODEL_DESCRIPTOR_TYPE,
+        "descriptor_version": _GENERATION_MODEL_DESCRIPTOR_VERSION,
+        "model_role": "generation_result",
+        "model_family": family,
+        "generation_model_identity": model_name,
+        "generation_vae_identity": vae_name,
+        "resource_status": "released",
+        "resource_release_status": release_status.upper(),
+        "resources_released": True,
+        "materialized": False,
+    }
+
+
+def _released_generation_model_descriptor(value):
+    if not isinstance(value, dict) or value.get("descriptor_type") != _GENERATION_MODEL_DESCRIPTOR_TYPE:
+        return None
+    if value.get("descriptor_version") != _GENERATION_MODEL_DESCRIPTOR_VERSION:
+        raise ValueError("CMK generation MODEL descriptor has an unsupported version")
+    unexpected = set(value) - _GENERATION_MODEL_DESCRIPTOR_FIELDS
+    if unexpected:
+        raise ValueError(
+            "CMK generation MODEL descriptor contains unsupported fields: "
+            + ", ".join(sorted(str(name) for name in unexpected))
+        )
+    if any(type(item) not in (str, int, bool) for item in value.values()):
+        raise TypeError("CMK generation MODEL descriptor contains a non-primitive value")
+    family = str(value.get("model_family", "")).strip().lower()
+    if family not in _GENERATION_MODEL_FAMILIES:
+        raise ValueError("CMK generation MODEL descriptor has an invalid model family")
+    if not all(
+        isinstance(value.get(name), str) and value[name].strip()
+        for name in ("generation_model_identity", "generation_vae_identity")
+    ):
+        raise ValueError("CMK generation MODEL descriptor is missing model or VAE identity")
+    release_status_value = value.get("resource_release_status")
+    release_status = (
+        release_status_value.strip().lower()
+        if isinstance(release_status_value, str)
+        else ""
+    )
+    if (
+        value.get("model_role") != "generation_result"
+        or value.get("resource_status") != "released"
+        or value.get("resources_released") is not True
+        or value.get("materialized") is not False
+        or release_status not in _GENERATION_RESOURCE_RELEASE_STATUSES
+    ):
+        raise ValueError("CMK generation MODEL descriptor does not prove completed resource release")
+    return value
+
+
+class _CMKGenerationCompletionMode:
+    __slots__ = (
+        "name",
+        "generation_mode",
+        "cache_family",
+        "runtime_family",
+        "historical_root_roles",
+        "root_ports",
+        "required_root_roles",
+        "graph_validator",
+        "hit_validator",
+        "finalization_validator",
+        "finalization_uses_process",
+        "descriptor_family",
+        "log_label",
+    )
+
+    def __init__(
+        self,
+        *,
+        name,
+        generation_mode,
+        cache_family,
+        runtime_family,
+        historical_root_roles,
+        root_ports,
+        required_root_roles,
+        graph_validator,
+        hit_validator,
+        finalization_validator,
+        finalization_uses_process,
+        descriptor_family,
+        log_label,
+    ):
+        self.name = name
+        self.generation_mode = generation_mode
+        self.cache_family = cache_family
+        self.runtime_family = runtime_family
+        self.historical_root_roles = tuple(historical_root_roles)
+        self.root_ports = {
+            role: tuple(names) for role, names in root_ports.items()
+        }
+        self.required_root_roles = frozenset(required_root_roles)
+        self.graph_validator = graph_validator
+        self.hit_validator = hit_validator
+        self.finalization_validator = finalization_validator
+        self.finalization_uses_process = bool(finalization_uses_process)
+        self.descriptor_family = descriptor_family
+        self.log_label = log_label
+
+
+_GENERIC_ROOT_ROLES = ("MODEL", "PROCESS", "IMAGE", "LOG", "VISUAL")
+_SDXL_MERGE_ROOT_ROLES = (
+    "MODEL SDXL",
+    "PROCESS SDXL",
+    "IMAGE SDXL",
+    "LOG SDXL",
+    "VISUAL SDXL",
+)
+_ZIT_MERGE_ROOT_ROLES = (
+    "MODEL ZIT",
+    "PROCESS ZIT",
+    "IMAGE ZIT",
+    "LOG ZIT",
+    "VISUAL ZIT",
+)
+
+
+def _root_ports(historical_roles, *port_groups):
+    return {
+        role: tuple(group[index] for group in port_groups)
+        for index, role in enumerate(historical_roles)
+    }
+
+
+_SDXL_COMPLETION = _CMKGenerationCompletionMode(
+    name="SDXL",
+    generation_mode="sdxl",
+    cache_family="sdxl",
+    runtime_family="sdxl",
+    historical_root_roles=_GENERIC_ROOT_ROLES,
+    root_ports=_root_ports(_GENERIC_ROOT_ROLES, _GENERIC_ROOT_ROLES, _SDXL_MERGE_ROOT_ROLES),
+    required_root_roles=("MODEL", "PROCESS", "IMAGE", "LOG"),
+    graph_validator="_sdxl_completion_graph",
+    hit_validator="_sdxl_completion_hit",
+    finalization_validator=None,
+    finalization_uses_process=False,
+    descriptor_family="sdxl",
+    log_label="SDXL",
+)
+_ZIT_COMPLETION = _CMKGenerationCompletionMode(
+    name="Z_IMAGE_TURBO",
+    generation_mode="z_image_turbo",
+    cache_family="z_image_turbo",
+    runtime_family="z_image_turbo",
+    historical_root_roles=_GENERIC_ROOT_ROLES,
+    root_ports=_root_ports(_GENERIC_ROOT_ROLES, _GENERIC_ROOT_ROLES, _ZIT_MERGE_ROOT_ROLES),
+    required_root_roles=("MODEL", "PROCESS", "IMAGE", "LOG"),
+    graph_validator="_zit_completion_graph",
+    hit_validator="_zit_completion_hit",
+    finalization_validator="_zit_finalization_evidence",
+    finalization_uses_process=False,
+    descriptor_family="z_image_turbo",
+    log_label="ZIT",
+)
+_SDXL_ZIT_HYBRID_COMPLETION = _CMKGenerationCompletionMode(
+    name="SDXL_ZIT_HYBRID",
+    generation_mode="sdxl_zit_hybrid",
+    cache_family="hybrid",
+    runtime_family="z_image_turbo",
+    historical_root_roles=_ZIT_MERGE_ROOT_ROLES,
+    root_ports=_root_ports(_ZIT_MERGE_ROOT_ROLES, _ZIT_MERGE_ROOT_ROLES),
+    required_root_roles=_ZIT_MERGE_ROOT_ROLES,
+    graph_validator="_hybrid_graph",
+    hit_validator="_hybrid_completion_hit",
+    finalization_validator="_hybrid_finalization_evidence",
+    finalization_uses_process=True,
+    descriptor_family="hybrid",
+    log_label="HYBRID",
+)
+_INSTANTID_HYBRID_COMPLETION = _CMKGenerationCompletionMode(
+    name="INSTANTID_HYBRID",
+    generation_mode="instantid_hybrid",
+    cache_family="hybrid",
+    runtime_family="sdxl",
+    historical_root_roles=_SDXL_MERGE_ROOT_ROLES,
+    root_ports=_root_ports(_SDXL_MERGE_ROOT_ROLES, _SDXL_MERGE_ROOT_ROLES),
+    required_root_roles=_SDXL_MERGE_ROOT_ROLES,
+    graph_validator="_instantid_hybrid_graph",
+    hit_validator="_instantid_hybrid_completion_hit",
+    finalization_validator="_instantid_hybrid_finalization_evidence",
+    finalization_uses_process=True,
+    descriptor_family="sdxl",
+    log_label="INSTANTID-HYBRID",
+)
+_INSTANTID_ZERO_PASS_COMPLETION = _CMKGenerationCompletionMode(
+    name="INSTANTID_ZERO_PASS",
+    generation_mode="instantid_zero_pass",
+    cache_family="hybrid",
+    runtime_family="sdxl",
+    historical_root_roles=_SDXL_MERGE_ROOT_ROLES,
+    root_ports=_root_ports(_SDXL_MERGE_ROOT_ROLES, _SDXL_MERGE_ROOT_ROLES),
+    required_root_roles=_SDXL_MERGE_ROOT_ROLES,
+    graph_validator="_instantid_zero_pass_graph",
+    hit_validator="_instantid_zero_pass_completion_hit",
+    finalization_validator="_instantid_zero_pass_finalization_evidence",
+    finalization_uses_process=True,
+    descriptor_family="sdxl",
+    log_label="INSTANTID-ZERO-PASS",
+)
+
+
+def _completion_prompt_node(prompt, node_id):
+    if not isinstance(prompt, dict):
+        return None
+    node = prompt.get(node_id)
+    if not isinstance(node, dict):
+        node = prompt.get(str(node_id))
+    return node if isinstance(node, dict) else None
+
+
+def _completion_prompt_link(prompt, value):
+    return (
+        isinstance(value, (list, tuple))
+        and len(value) == 2
+        and isinstance(value[1], int)
+        and _completion_prompt_node(prompt, value[0]) is not None
+    )
+
+
+def _completion_mode_roots(prompt, current_inputs, contract):
+    roots = {}
+    for role in contract.historical_root_roles:
+        link = None
+        for port_name in contract.root_ports[role]:
+            candidate = current_inputs.get(port_name)
+            if _completion_prompt_link(prompt, candidate):
+                link = candidate
+                break
+        if link is not None:
+            roots[role] = link
+        elif role in contract.required_root_roles:
+            return None, f"required {contract.name} generation root {role!r} is unavailable"
+    return roots, "generation roots complete"
+
+
+def _completion_key_for_graph(prompt, graph, contract):
+    if not isinstance(graph, dict) or not isinstance(graph.get("roots"), dict):
+        return None, f"{contract.name} completion graph is unavailable"
+    return build_completion_key(
+        prompt,
+        graph["roots"],
+        model_family=contract.cache_family,
+        generation_mode=contract.generation_mode,
+    )
+
+
+def _completion_graph(owner, contract, prompt, unique_id):
+    validator = getattr(owner, contract.graph_validator)
+    return validator(prompt, unique_id)
+
+
+def _completion_preflight(owner, contract, prompt, unique_id, graph=None, detail=None):
+    if graph is None:
+        graph, detail = _completion_graph(owner, contract, prompt, unique_id)
+    if graph is None:
+        return {
+            "contract": contract,
+            "graph": None,
+            "key": None,
+            "detail": detail,
+            "cached": None,
+        }
+    cache_key, key_detail = _completion_key_for_graph(prompt, graph, contract)
+    hit_validator = getattr(owner, contract.hit_validator)
+    return {
+        "contract": contract,
+        "graph": graph,
+        "key": cache_key,
+        "detail": key_detail if cache_key else key_detail or detail,
+        "cached": hit_validator(cache_key),
+    }
+
+
+def _completion_active_contract(contracts, prompt, unique_id):
+    """Select the contract from the authoritative START source configuration."""
+    current = _completion_prompt_node(prompt, unique_id)
+    if not isinstance(current, dict):
+        return None, "completion owner is unavailable in the expanded prompt"
+
+    pending = [
+        value[0]
+        for value in (current.get("inputs", {}) or {}).values()
+        if _completion_prompt_link(prompt, value)
+    ]
+    visited = set()
+    sources = {}
+    while pending:
+        node_id = pending.pop()
+        node_key = str(node_id)
+        if node_key in visited:
+            continue
+        visited.add(node_key)
+        node = _completion_prompt_node(prompt, node_id)
+        if not isinstance(node, dict):
+            continue
+        if str(node.get("class_type", "")) == "CMKPipeCreateImage":
+            sources[node_key] = node
+            continue
+        for value in (node.get("inputs", {}) or {}).values():
+            if _completion_prompt_link(prompt, value):
+                pending.append(value[0])
+
+    if len(sources) != 1:
+        return None, "expanded graph does not identify exactly one active generation source"
+
+    source_inputs = next(iter(sources.values())).get("inputs", {}) or {}
+    raw_family = str(source_inputs.get("model_family", "")).strip().lower()
+    if raw_family == "hybrid":
+        contract_name = "SDXL_ZIT_HYBRID"
+    elif raw_family in {"z-image turbo", "z image turbo", "z_image_turbo"}:
+        contract_name = "Z_IMAGE_TURBO"
+    elif raw_family == "sdxl":
+        if source_inputs.get("instantid_enabled") is True:
+            instantid_mode = str(
+                source_inputs.get("instantid_mode", "")
+            ).strip().upper()
+            if instantid_mode == "HYBRID":
+                contract_name = "INSTANTID_HYBRID"
+            elif instantid_mode == "ZERO-PASS":
+                contract_name = "INSTANTID_ZERO_PASS"
+            else:
+                return None, "active source selects an unsupported InstantID mode"
+        else:
+            contract_name = "SDXL"
+    else:
+        return None, "active source selects an unknown generation family"
+
+    matches = [contract for contract in contracts if contract.name == contract_name]
+    if len(matches) != 1:
+        return None, f"active source selects unavailable contract {contract_name}"
+    return matches[0], f"active source selects {contract_name}"
+
+
+def _resolve_completion_preflight(owner, contracts, prompt, unique_id):
+    contract, selection_detail = _completion_active_contract(
+        contracts, prompt, unique_id
+    )
+    if contract is None:
+        return {
+            "contract": None,
+            "graph": None,
+            "key": None,
+            "detail": selection_detail,
+            "cached": None,
+        }
+    graph, detail = _completion_graph(owner, contract, prompt, unique_id)
+    if graph is None:
+        return {
+            "contract": None,
+            "graph": None,
+            "key": None,
+            "detail": f"{selection_detail}; {contract.name}: {detail}",
+            "cached": None,
+        }
+    return _completion_preflight(owner, contract, prompt, unique_id, graph, detail)
+
+
+def _completion_finalization_evidence(owner, preflight, prompt, unique_id, process):
+    contract = preflight["contract"]
+    if contract.finalization_validator is None:
+        return {}, "existing SDXL completion contract"
+    validator = getattr(owner, contract.finalization_validator)
+    if contract.finalization_uses_process:
+        return validator(prompt, unique_id, process)
+    return validator(prompt, unique_id)
+
+
+def _completion_released_descriptor(contract, model, completion_metadata, evidence):
+    if contract.descriptor_family == "hybrid":
+        descriptor = evidence.get("model_descriptor") if isinstance(evidence, dict) else None
+        try:
+            released = _released_generation_model_descriptor(descriptor)
+        except (TypeError, ValueError):
+            return None
+        return released if released is not None and released["model_family"] == "z_image_turbo" else None
+    descriptor = _released_generation_model_descriptor(model)
+    if descriptor is not None:
+        return descriptor if descriptor["model_family"] == contract.descriptor_family else None
+    if completion_metadata.get("generation_unload") != "UNLOADED":
+        return None
+    if contract.descriptor_family == "sdxl":
+        model_identity = str(model.get("ckpt_name", "")).strip()
+        vae_identity = str(
+            model.get("vae_selection_name") or model.get("vae_name") or ""
+        ).strip()
+    else:
+        model_identity = str(model.get("diffusion_model_name", "")).strip()
+        vae_identity = str(model.get("vae_name", "")).strip()
+    if not model_identity or not vae_identity:
+        return None
+    return make_released_generation_model_descriptor(
+        contract.descriptor_family,
+        model_identity,
+        vae_identity,
+        "unloaded",
+    )
+
+
+def _store_completion_result(preflight, *, image, process, log, visual, metadata, descriptor):
+    contract = preflight["contract"]
+    store_completion(
+        preflight["key"],
+        image=image,
+        process=process,
+        log=log,
+        visual=visual,
+        model_family=contract.cache_family,
+        generation_mode=contract.generation_mode,
+        fingerprint=preflight["key"],
+        metadata=metadata,
+        model_descriptor=descriptor,
+    )
+
+
+def _pending_connected_input(name, prompt, unique_id, inputs):
+    current = prompt.get(str(unique_id), {}) if isinstance(prompt, dict) else {}
+    connected = name in ((current.get("inputs") or {}) if isinstance(current, dict) else {})
+    return [name] if connected and inputs.get(name) is None else []
 
 
 def _module_gate_diagnostic(value):
@@ -46,6 +616,114 @@ def _module_gate_diagnostic(value):
         "images": [],
         "stages": [],
     }
+
+
+_FACEPROCESS_RESULT_PHASE = "faceprocess.final"
+_FACEPROCESS_RESULT_SCHEMA = "cmk_postprocess_faceprocess_result_v1"
+
+
+def _prompt_node(prompt, node_id):
+    if not isinstance(prompt, dict):
+        return None
+    node = prompt.get(node_id)
+    if node is None:
+        node = prompt.get(str(node_id))
+    if isinstance(node, dict):
+        return node
+    node_text = str(node_id) if node_id is not None else ""
+    if not node_text:
+        return None
+    matches = [
+        candidate
+        for key, candidate in prompt.items()
+        if isinstance(candidate, dict)
+        and (
+            str(key).endswith(f":{node_text}")
+            or str(key).endswith(f"/{node_text}")
+            or str(key).endswith(f".{node_text}")
+        )
+    ]
+    return matches[0] if len(matches) == 1 else None
+
+
+def _faceprocess_result_gate(prompt, unique_id):
+    current = _prompt_node(prompt, unique_id)
+    if current is None or current.get("class_type") != "CMKModuleBypassGate":
+        return False
+    current_inputs = current.get("inputs", {}) or {}
+    boundary_ids = set()
+    for name in ("MODEL ACTIVE", "IMAGE ACTIVE", "LOG ACTIVE"):
+        link = current_inputs.get(name)
+        if not isinstance(link, (list, tuple)) or len(link) != 2:
+            return False
+        boundary = _prompt_node(prompt, link[0])
+        if boundary is None or boundary.get("class_type") != "CMKFaceBoundaryCache":
+            return False
+        boundary_ids.add(str(link[0]))
+    return len(boundary_ids) == 1
+
+
+def _faceprocess_state_key(prompt, unique_id):
+    if not _faceprocess_result_gate(prompt, unique_id):
+        return None
+    fingerprint, _ = build_node_fingerprint(
+        prompt,
+        unique_id,
+        ("CMKModuleBypassGate",),
+        _FACEPROCESS_RESULT_SCHEMA,
+        include_node_identity=True,
+    )
+    if not fingerprint:
+        return None
+    try:
+        return make_key(
+            node_id=unique_id,
+            model_family="postprocess",
+            phase=_FACEPROCESS_RESULT_PHASE,
+            fingerprint=fingerprint,
+            schema_version=_FACEPROCESS_RESULT_SCHEMA,
+        )
+    except PromptStateUnavailableError:
+        return None
+
+
+def _faceprocess_hit(state_key):
+    if state_key is None:
+        return None
+    result = get_result(state_key)
+    if (
+        result is MISSING
+        or not isinstance(result, dict)
+        or result.get("schema_version") != _FACEPROCESS_RESULT_SCHEMA
+    ):
+        return None
+    resources = get_resource(state_key)
+    if (
+        resources is MISSING
+        or not isinstance(resources, dict)
+        or "model" not in resources
+    ):
+        return None
+    return resources["model"], result
+
+
+def _publish_faceprocess(state_key, model, image, log, diagnostic, visual):
+    if state_key is None or any(
+        value is None for value in (model, image, log, diagnostic)
+    ):
+        return
+    result = {
+        "schema_version": _FACEPROCESS_RESULT_SCHEMA,
+        "image": image,
+        "log": log,
+        "visual": visual,
+        "diagnostic": diagnostic,
+    }
+    try:
+        store_resource(state_key, {"model": model})
+        publish_result(state_key, result)
+    except (IncompleteResultError, UnsafeSnapshotTypeError) as exc:
+        print(f"[CMK FaceProcess Result-State] NOT PUBLISHED: {exc}", flush=True)
 
 
 class CMKImageCompareEnableGate:
@@ -101,17 +779,25 @@ class CMKModuleBypassGate:
                 "IMAGE ACTIVE": (CMK_FINISH_INPUT, {"lazy": True}),
                 "LOG ACTIVE": (CMK_FINISH_INPUT, {"lazy": True}),
                 "DIAGNOSTIC ACTIVE": ("CMK_DIAGNOSTIC", {"lazy": True}),
+                "VISUAL BYPASS": ("CMK_VISUAL_PIPE", {"lazy": True}),
+                "VISUAL ACTIVE": ("CMK_VISUAL_PIPE", {"lazy": True}),
+                "PROCESS BYPASS": (CMK_FINISH_INPUT, {"lazy": True}),
+                "PROCESS ACTIVE": (CMK_FINISH_INPUT, {"lazy": True}),
             },
             "hidden": {"prompt": "PROMPT", "unique_id": "UNIQUE_ID"},
         }
 
-    RETURN_TYPES = ("CMK_MODEL_PIPE", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
-    RETURN_NAMES = ("MODEL", "IMAGE", "LOG", "diagnostic")
+    RETURN_TYPES = ("CMK_MODEL_PIPE", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC", "CMK_VISUAL_PIPE", CMK_FINISH_INPUT)
+    RETURN_NAMES = ("MODEL", "IMAGE", "LOG", "diagnostic", "VISUAL", "PROCESS")
     FUNCTION = "gate"
     CATEGORY = "CMK/Developer/Boundary & Cache"
     DEV_ONLY = True
 
     def check_lazy_status(self, ENABLE=False, prompt=None, unique_id=None, **inputs):
+        if bool(ENABLE):
+            state_key = _faceprocess_state_key(prompt, unique_id)
+            if _faceprocess_hit(state_key) is not None:
+                return []
         prefix = "ACTIVE" if bool(ENABLE) else "BYPASS"
         current = prompt.get(str(unique_id), {}) if isinstance(prompt, dict) else {}
         connected = (current.get("inputs", {}) or {})
@@ -120,10 +806,30 @@ class CMKModuleBypassGate:
                 return [name]
         if bool(ENABLE) and "DIAGNOSTIC ACTIVE" in connected and inputs.get("DIAGNOSTIC ACTIVE") is None:
             return ["DIAGNOSTIC ACTIVE"]
+        visual_name = f"VISUAL {prefix}"
+        if visual_name in connected and inputs.get(visual_name) is None:
+            return [visual_name]
+        process_name = f"PROCESS {prefix}"
+        if process_name in connected and inputs.get(process_name) is None:
+            return [process_name]
         return []
 
     @staticmethod
-    def gate(ENABLE=False, **inputs):
+    def gate(ENABLE=False, prompt=None, unique_id=None, **inputs):
+        state_key = None
+        if bool(ENABLE):
+            state_key = _faceprocess_state_key(prompt, unique_id)
+            hit = _faceprocess_hit(state_key)
+            if hit is not None:
+                model, result = hit
+                return (
+                    model,
+                    result["image"],
+                    result["log"],
+                    result["diagnostic"],
+                    result["visual"],
+                    inputs.get("PROCESS ACTIVE"),
+                )
         prefix = "ACTIVE" if bool(ENABLE) else "BYPASS"
         values = tuple(inputs.get(f"{name} {prefix}") for name in ("MODEL", "IMAGE", "LOG"))
         if values[1] is None or values[2] is None:
@@ -133,7 +839,22 @@ class CMKModuleBypassGate:
             if bool(ENABLE)
             else ExecutionBlocker(None)
         )
-        return (*values, diagnostic)
+        result = (
+            *values,
+            diagnostic,
+            inputs.get(f"VISUAL {prefix}"),
+            inputs.get(f"PROCESS {prefix}"),
+        )
+        if bool(ENABLE):
+            _publish_faceprocess(
+                state_key,
+                result[0],
+                result[1],
+                result[2],
+                result[3],
+                result[4],
+            )
+        return result
 
 
 class CMKControlNetBypassGate:
@@ -293,6 +1014,103 @@ class CMKCombinedControlNetBypassGate:
         return (*values, diagnostic)
 
 
+_INSTANTID_RESULT_PHASE = "instantid.final"
+_INSTANTID_RESULT_SCHEMA = "cmk_instantid_result_v1"
+_INSTANTID_SAMPLED_RESOURCE_FIELDS = {
+    "model",
+    "model_base",
+    "model_identity",
+    "model_patched",
+    "clip",
+    "clip_base",
+    "clip_patched",
+    "vae",
+    "control_net",
+    "conditioning_pos",
+    "conditioning_neg",
+    "conditioning_identity_pos",
+    "conditioning_identity_neg",
+    "lora_stack",
+}
+
+
+def _instantid_state_key(prompt, unique_id):
+    fingerprint, _ = build_node_fingerprint(
+        prompt,
+        unique_id,
+        ("CMKSamplerBypassGate",),
+        _INSTANTID_RESULT_SCHEMA,
+        include_node_identity=True,
+        extra_identity={"content_guard": content_guard_prompt_token(prompt)},
+    )
+    if not fingerprint:
+        return None
+    try:
+        return make_key(
+            node_id=unique_id,
+            model_family="sdxl",
+            phase=_INSTANTID_RESULT_PHASE,
+            fingerprint=fingerprint,
+            schema_version=_INSTANTID_RESULT_SCHEMA,
+        )
+    except PromptStateUnavailableError:
+        return None
+
+
+def _partition_instantid_sampled(sampled):
+    result_fields = {
+        name: value
+        for name, value in sampled.items()
+        if name not in _INSTANTID_SAMPLED_RESOURCE_FIELDS
+    }
+    resource_fields = {
+        name: value
+        for name, value in sampled.items()
+        if name in _INSTANTID_SAMPLED_RESOURCE_FIELDS
+    }
+    return result_fields, resource_fields
+
+
+def _instantid_hit(state_key):
+    if state_key is None:
+        return None
+    result = get_result(state_key)
+    if (
+        result is MISSING
+        or result.get("schema_version") != _INSTANTID_RESULT_SCHEMA
+    ):
+        return None
+    resources = get_resource(state_key)
+    if resources is MISSING:
+        return None
+    sampled = dict(result["sampled"])
+    sampled.update(resources["sampled"])
+    return resources["model"], sampled, result
+
+
+def _publish_instantid(state_key, model, sampled, log, diagnostic, visual):
+    if state_key is None or any(
+        value is None for value in (model, sampled, log, diagnostic)
+    ) or not isinstance(sampled, dict):
+        return
+    result_sampled, resource_sampled = _partition_instantid_sampled(sampled)
+    result = {
+        "schema_version": _INSTANTID_RESULT_SCHEMA,
+        "sampled": result_sampled,
+        "log": log,
+        "diagnostic": diagnostic,
+        "visual": visual,
+    }
+    try:
+        store_resource(
+            state_key,
+            {"model": model, "sampled": resource_sampled},
+        )
+        publish_result(state_key, result)
+    except (IncompleteResultError, UnsafeSnapshotTypeError) as exc:
+        print(f"[CMK InstantID Result-State] NOT PUBLISHED: {exc}", flush=True)
+
+
 class CMKSamplerBypassGate:
     """Select an InstantID sampler result or its unchanged sampled input."""
 
@@ -308,26 +1126,47 @@ class CMKSamplerBypassGate:
                 "SAMPLED ACTIVE": ("CMK_SAMPLED_PIPE", {"lazy": True}),
                 "LOG ACTIVE": ("CMK_LOG_PIPE", {"lazy": True}),
                 "DIAGNOSTIC ACTIVE": ("CMK_DIAGNOSTIC", {"lazy": True}),
+                "VISUAL BYPASS": ("CMK_VISUAL_PIPE", {"lazy": True}),
+                "VISUAL ACTIVE": ("CMK_VISUAL_PIPE", {"lazy": True}),
             },
+            "hidden": {"prompt": "PROMPT", "unique_id": "UNIQUE_ID"},
         }
 
-    RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_SAMPLED_PIPE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
-    RETURN_NAMES = ("MODEL", "SAMPLED", "LOG", "diagnostic")
+    RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_SAMPLED_PIPE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC", "CMK_VISUAL_PIPE")
+    RETURN_NAMES = ("MODEL", "SAMPLED", "LOG", "diagnostic", "VISUAL")
     FUNCTION = "gate"
     CATEGORY = "CMK/Developer/Boundary & Cache"
     DEV_ONLY = True
 
-    def check_lazy_status(self, ENABLE=False, **inputs):
+    def check_lazy_status(self, ENABLE=False, prompt=None, unique_id=None, **inputs):
+        if bool(ENABLE):
+            state_key = _instantid_state_key(prompt, unique_id)
+            if _instantid_hit(state_key) is not None:
+                return []
         prefix = "ACTIVE" if bool(ENABLE) else "BYPASS"
         for name in (f"MODEL {prefix}", f"SAMPLED {prefix}", f"LOG {prefix}"):
             if inputs.get(name) is None:
                 return [name]
         if bool(ENABLE) and inputs.get("DIAGNOSTIC ACTIVE") is None:
             return ["DIAGNOSTIC ACTIVE"]
-        return []
+        return _pending_connected_input(
+            f"VISUAL {prefix}", prompt, unique_id, inputs
+        )
 
     @staticmethod
-    def gate(ENABLE=False, **inputs):
+    def gate(ENABLE=False, prompt=None, unique_id=None, **inputs):
+        if bool(ENABLE):
+            state_key = _instantid_state_key(prompt, unique_id)
+            hit = _instantid_hit(state_key)
+            if hit is not None:
+                model, sampled, result = hit
+                return (
+                    model,
+                    sampled,
+                    result["log"],
+                    result["diagnostic"],
+                    result["visual"],
+                )
         prefix = "ACTIVE" if bool(ENABLE) else "BYPASS"
         values = tuple(inputs.get(f"{name} {prefix}") for name in ("MODEL", "SAMPLED", "LOG"))
         if any(value is None for value in values):
@@ -335,7 +1174,17 @@ class CMKSamplerBypassGate:
         diagnostic = inputs.get("DIAGNOSTIC ACTIVE") if bool(ENABLE) else ExecutionBlocker(None)
         if bool(ENABLE) and diagnostic is None:
             raise ValueError("CMK Sampler Bypass Gate is missing the active diagnostic")
-        return (*values, diagnostic)
+        visual = inputs.get(f"VISUAL {prefix}")
+        if bool(ENABLE):
+            _publish_instantid(
+                state_key,
+                values[0],
+                values[1],
+                values[2],
+                diagnostic,
+                visual,
+            )
+        return (*values, diagnostic, visual)
 
 
 class CMKProcessEnableFlag:
@@ -363,6 +1212,98 @@ class CMKProcessEnableFlag:
         return (bool(PROCESS.get(str(flag), False)),)
 
 
+class CMKZImageProcessEnableFlag(CMKProcessEnableFlag):
+    """Expose a Boolean module switch stored in a Z-Image PROCESS pipe."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "PROCESS": ("CMK_PROCESS_Z_IMAGE",),
+                "flag": ("STRING", {"default": "controlnet_enabled"}),
+            },
+        }
+
+
+_ZIT_FINAL_PHASE = "z_image_turbo.final"
+_ZIT_FINAL_RESULT_SCHEMA = "cmk_z_image_turbo_final_result_v1"
+
+
+def _zit_final_state_key(prompt, unique_id):
+    fingerprint, _ = build_node_fingerprint(
+        prompt,
+        unique_id,
+        ("CMKFamilyBranchGateZImage",),
+        _ZIT_FINAL_RESULT_SCHEMA,
+        include_node_identity=True,
+    )
+    if not fingerprint:
+        return None
+    try:
+        return make_key(
+            node_id=unique_id,
+            model_family="z_image_turbo",
+            phase=_ZIT_FINAL_PHASE,
+            fingerprint=fingerprint,
+            schema_version=_ZIT_FINAL_RESULT_SCHEMA,
+        )
+    except PromptStateUnavailableError:
+        return None
+
+
+def _released_zit_descriptor(model, diagnostic):
+    metadata = diagnostic.get("metadata", {}) if isinstance(diagnostic, dict) else {}
+    release_status = str(metadata.get("zit_model_status", "")).strip()
+    if release_status.lower() not in _GENERATION_RESOURCE_RELEASE_STATUSES:
+        return None
+    model_identity = str(model.get("diffusion_model_name", "")).strip()
+    vae_identity = str(model.get("vae_name", "")).strip()
+    if not model_identity or not vae_identity:
+        return None
+    return make_released_generation_model_descriptor(
+        "z_image_turbo", model_identity, vae_identity, release_status
+    )
+
+
+def _zit_final_hit(state_key):
+    if state_key is None:
+        return None
+    result = get_result(state_key)
+    if result is MISSING:
+        return None
+    resources = get_resource(state_key)
+    if resources is not MISSING:
+        return resources["model"], result
+    descriptor = _released_generation_model_descriptor(
+        result.get("released_model_descriptor")
+    )
+    if descriptor is None:
+        return None
+    return descriptor, result
+
+
+def _publish_zit_final(state_key, model, image, log, visual, diagnostic):
+    if state_key is None or any(
+        value is None for value in (model, image, log, visual, diagnostic)
+    ):
+        return
+    descriptor = _released_zit_descriptor(model, diagnostic)
+    result = {
+        "image": image,
+        "log": log,
+        "visual": visual,
+        "diagnostic": diagnostic,
+        "released_model_descriptor": descriptor,
+    }
+    try:
+        publish_result(state_key, result)
+    except (IncompleteResultError, UnsafeSnapshotTypeError) as exc:
+        print(f"[CMK ZIT Result-State] NOT PUBLISHED: {exc}", flush=True)
+        return
+    if descriptor is None:
+        store_resource(state_key, {"model": model})
+
+
 class _CMKFamilyBranchGate:
     """Keep an inactive global subgraph from evaluating its implementation.
 
@@ -382,21 +1323,26 @@ class _CMKFamilyBranchGate:
                 "PROCESS": (cls.PROCESS_TYPE, {"lazy": True}),
                 "IMAGE": ("IMAGE", {"lazy": True}),
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
+                "VISUAL": ("CMK_VISUAL_PIPE", {"lazy": True}),
+                "diagnostic": ("CMK_DIAGNOSTIC", {"lazy": True}),
             },
+            "hidden": {"prompt": "PROMPT", "unique_id": "UNIQUE_ID"},
         }
 
     RETURN_TYPES = (
         "CMK_MODEL_PIPE",
         "IMAGE",
         "CMK_LOG_PIPE",
+        "CMK_VISUAL_PIPE",
+        "CMK_DIAGNOSTIC",
     )
-    RETURN_NAMES = ("MODEL", "IMAGE", "LOG")
+    RETURN_NAMES = ("MODEL", "IMAGE", "LOG", "VISUAL", "diagnostic")
     FUNCTION = "gate"
     CATEGORY = "CMK/Developer/Boundary & Cache"
     DEV_ONLY = True
 
     @cmk_timed_call("LAZY FAMILY BRANCH GATE")
-    def check_lazy_status(self, PROCESS=None, **inputs):
+    def check_lazy_status(self, PROCESS=None, prompt=None, unique_id=None, **inputs):
         if PROCESS is None:
             return ["PROCESS"]
         if isinstance(PROCESS, dict) and not PROCESS.get("family_active", True):
@@ -407,6 +1353,10 @@ class _CMKFamilyBranchGate:
         for name in ("MODEL", "IMAGE", "LOG"):
             if inputs.get(name) is None:
                 return [name]
+        for name in ("VISUAL", "diagnostic"):
+            pending = _pending_connected_input(name, prompt, unique_id, inputs)
+            if pending:
+                return pending
         return []
 
     def gate(self, PROCESS=None, **inputs):
@@ -414,7 +1364,7 @@ class _CMKFamilyBranchGate:
             isinstance(PROCESS, dict) and not PROCESS.get("family_active", True)
         ):
             blocked = ExecutionBlocker(None)
-            return (blocked, blocked, blocked)
+            return (blocked, blocked, blocked, blocked, blocked)
         if not isinstance(PROCESS, dict):
             raise TypeError("CMK Family Branch Gate requires a CMK process pipe")
         actual = str(PROCESS.get("model_family", self.FAMILY)).strip().lower()
@@ -432,32 +1382,287 @@ class _CMKFamilyBranchGate:
             inputs["MODEL"],
             inputs["IMAGE"],
             inputs["LOG"],
+            inputs.get("VISUAL"),
+            inputs.get("diagnostic"),
         )
 
 
+_REFINER_RESULT_PHASE = "refiner.final"
+_REFINER_RESULT_SCHEMA = "cmk_sdxl_refiner_result_v1"
+
+
+def _refiner_state_key(prompt, unique_id):
+    fingerprint, _ = build_node_fingerprint(
+        prompt,
+        unique_id,
+        ("CMKFamilyBranchGateSDXL",),
+        _REFINER_RESULT_SCHEMA,
+        include_node_identity=True,
+    )
+    if not fingerprint:
+        return None
+    try:
+        return make_key(
+            node_id=unique_id,
+            model_family="sdxl",
+            phase=_REFINER_RESULT_PHASE,
+            fingerprint=fingerprint,
+            schema_version=_REFINER_RESULT_SCHEMA,
+        )
+    except PromptStateUnavailableError:
+        return None
+
+
+def _refiner_hit(state_key):
+    if state_key is None:
+        return None
+    result = get_result(state_key)
+    if (
+        result is MISSING
+        or result.get("schema_version") != _REFINER_RESULT_SCHEMA
+    ):
+        return None
+    resources = get_resource(state_key)
+    if resources is MISSING:
+        return None
+    return resources["model"], result
+
+
+def _publish_refiner(state_key, model, image, log, visual, diagnostic):
+    if state_key is None or any(
+        value is None for value in (model, image, log, visual, diagnostic)
+    ):
+        return
+    result = {
+        "schema_version": _REFINER_RESULT_SCHEMA,
+        "image": image,
+        "log": log,
+        "visual": visual,
+        "diagnostic": diagnostic,
+    }
+    try:
+        store_resource(state_key, {"model": model})
+        publish_result(state_key, result)
+    except (IncompleteResultError, UnsafeSnapshotTypeError) as exc:
+        print(f"[CMK Refiner Result-State] NOT PUBLISHED: {exc}", flush=True)
+
+
 class CMKFamilyBranchGateSDXL(_CMKFamilyBranchGate):
-    pass
+    @cmk_timed_call("LAZY REFINER FINAL GATE")
+    def check_lazy_status(self, PROCESS=None, prompt=None, unique_id=None, **inputs):
+        if PROCESS is None:
+            return ["PROCESS"]
+        if isinstance(PROCESS, dict) and not PROCESS.get("family_active", True):
+            return []
+        state_key = _refiner_state_key(prompt, unique_id)
+        if _refiner_hit(state_key) is not None:
+            return []
+        return super().check_lazy_status(
+            PROCESS=PROCESS,
+            prompt=prompt,
+            unique_id=unique_id,
+            **inputs,
+        )
+
+    def gate(self, PROCESS=None, prompt=None, unique_id=None, **inputs):
+        if PROCESS is None or (
+            isinstance(PROCESS, dict) and not PROCESS.get("family_active", True)
+        ):
+            return super().gate(PROCESS=PROCESS, **inputs)
+        if not isinstance(PROCESS, dict):
+            return super().gate(PROCESS=PROCESS, **inputs)
+        actual = str(PROCESS.get("model_family", self.FAMILY)).strip().lower()
+        if actual != self.FAMILY:
+            return super().gate(PROCESS=PROCESS, **inputs)
+        state_key = _refiner_state_key(prompt, unique_id)
+        hit = _refiner_hit(state_key)
+        if hit is not None:
+            model, result = hit
+            return (
+                model,
+                result["image"],
+                result["log"],
+                result["visual"],
+                result["diagnostic"],
+            )
+        values = super().gate(PROCESS=PROCESS, **inputs)
+        _publish_refiner(
+            state_key,
+            values[0],
+            values[1],
+            values[2],
+            values[3],
+            values[4],
+        )
+        return values
 
 
 class CMKFamilyBranchGateZImage(_CMKFamilyBranchGate):
     PROCESS_TYPE = "CMK_PROCESS_Z_IMAGE"
     FAMILY = "z_image_turbo"
-    RETURN_TYPES = (
-        "CMK_MODEL_PIPE",
-        "IMAGE",
-        "CMK_LOG_PIPE",
-    )
+
+    @cmk_timed_call("LAZY ZIT FINAL GATE")
+    def check_lazy_status(self, PROCESS=None, prompt=None, unique_id=None, **inputs):
+        if PROCESS is None:
+            return ["PROCESS"]
+        if isinstance(PROCESS, dict) and not PROCESS.get("family_active", True):
+            return []
+        state_key = _zit_final_state_key(prompt, unique_id)
+        if _zit_final_hit(state_key) is not None:
+            return []
+        return super().check_lazy_status(
+            PROCESS=PROCESS,
+            prompt=prompt,
+            unique_id=unique_id,
+            **inputs,
+        )
+
+    def gate(self, PROCESS=None, prompt=None, unique_id=None, **inputs):
+        if PROCESS is None or (
+            isinstance(PROCESS, dict) and not PROCESS.get("family_active", True)
+        ):
+            return super().gate(PROCESS=PROCESS, **inputs)
+        if not isinstance(PROCESS, dict):
+            raise TypeError("CMK Family Branch Gate requires a CMK process pipe")
+        actual = str(PROCESS.get("model_family", self.FAMILY)).strip().lower()
+        if actual != self.FAMILY:
+            raise ValueError("CMK Family Branch Gate received the wrong model family")
+        state_key = _zit_final_state_key(prompt, unique_id)
+        hit = _zit_final_hit(state_key)
+        if hit is not None:
+            model, result = hit
+            return (
+                model,
+                result["image"],
+                result["log"],
+                result["visual"],
+                result["diagnostic"],
+            )
+        values = super().gate(PROCESS=PROCESS, **inputs)
+        _publish_zit_final(
+            state_key,
+            values[0],
+            values[1],
+            values[2],
+            values[3],
+            values[4],
+        )
+        return values
 
 
-_SDXL_SAMPLED_BOUNDARY_CACHE = {}
-_SDXL_SAMPLED_BOUNDARY_MAX = 8
 _FIRST_PASS_STAGE_KEY = "sdxl.first_pass"
+_FIRST_PASS_RESULT_SCHEMA = "cmk_sdxl_first_pass_result_v1"
+_FIRST_PASS_RESOURCE_FIELDS = {
+    "model",
+    "model_base",
+    "model_identity",
+    "model_patched",
+    "clip",
+    "clip_base",
+    "clip_patched",
+    "vae",
+    "control_net",
+    "conditioning_pos",
+    "conditioning_neg",
+    "conditioning_identity_pos",
+    "conditioning_identity_neg",
+    "lora_stack",
+}
 
 
 def clear_sdxl_sampled_boundary_cache():
-    count = len(_SDXL_SAMPLED_BOUNDARY_CACHE)
-    _SDXL_SAMPLED_BOUNDARY_CACHE.clear()
-    return count
+    try:
+        return release_resources(model_family="sdxl", phase="first_pass")
+    except PromptStateUnavailableError:
+        return 0
+
+
+def _sdxl_first_pass_state_key(cache_key, unique_id):
+    if not cache_key or unique_id is None:
+        return None
+    try:
+        return make_key(
+            node_id=unique_id,
+            model_family="sdxl",
+            phase="first_pass",
+            fingerprint=cache_key,
+            schema_version=_FIRST_PASS_RESULT_SCHEMA,
+        )
+    except PromptStateUnavailableError:
+        return None
+
+
+def _partition_sdxl_sampled(sampled):
+    result_fields = {
+        name: value
+        for name, value in sampled.items()
+        if name not in _FIRST_PASS_RESOURCE_FIELDS
+    }
+    resource_fields = {
+        name: value
+        for name, value in sampled.items()
+        if name in _FIRST_PASS_RESOURCE_FIELDS
+    }
+    return result_fields, resource_fields
+
+
+def _released_sdxl_descriptor(model, sampled):
+    release_status = str(sampled.get("generation_model_status", "")).strip()
+    if release_status.lower() not in _GENERATION_RESOURCE_RELEASE_STATUSES:
+        return None
+    model_identity = str(
+        model.get("ckpt_name")
+        or sampled.get("checkpoint_name")
+        or ""
+    ).strip()
+    vae_identity = str(
+        model.get("vae_selection_name")
+        or model.get("vae_name")
+        or sampled.get("vae_name")
+        or ""
+    ).strip()
+    if not model_identity or not vae_identity:
+        return None
+    return make_released_generation_model_descriptor(
+        "sdxl", model_identity, vae_identity, release_status
+    )
+
+
+def _sdxl_first_pass_hit(state_key):
+    if state_key is None:
+        return None
+    result = get_result(state_key)
+    if result is MISSING:
+        return None
+    resources = get_resource(state_key)
+    if resources is not MISSING:
+        sampled = dict(result["sampled"])
+        sampled.update(resources["sampled"])
+        return resources["model"], sampled, result
+    descriptor = result.get("released_model_descriptor")
+    if descriptor is None:
+        return None
+    return descriptor, dict(result["sampled"]), result
+
+
+def _publish_sdxl_first_pass(state_key, model, sampled, log, image, visual, diagnostic):
+    if state_key is None:
+        return
+    result_sampled, resource_sampled = _partition_sdxl_sampled(sampled)
+    result = {
+        "sampled": result_sampled,
+        "log": log,
+        "image": image,
+        "visual": visual,
+        "diagnostic": diagnostic,
+        "released_model_descriptor": _released_sdxl_descriptor(model, sampled),
+    }
+    resources = {"model": model, "sampled": resource_sampled}
+    try:
+        store_resource(state_key, resources)
+        publish_result(state_key, result)
+    except (IncompleteResultError, UnsafeSnapshotTypeError) as exc:
+        print(f"[CMK SDXL Result-State] NOT PUBLISHED: {exc}", flush=True)
 
 
 def _materialize_first_pass_image(sampled):
@@ -487,7 +1692,7 @@ def _materialize_first_pass_image(sampled):
     return result, image
 
 
-def _sampled_boundary_key(prompt, unique_id):
+def _sampled_boundary_key(prompt, unique_id, *, include_content_guard=False):
     if not isinstance(prompt, dict):
         return None
     from .cmk_refiner_boundary_cache import (
@@ -509,6 +1714,8 @@ def _sampled_boundary_key(prompt, unique_id):
         "sampled": _canonical_node(prompt, sampled_link[0], {}, set()),
         "output": int(sampled_link[1]),
     }
+    if include_content_guard:
+        payload["content_guard"] = content_guard_prompt_token(prompt)
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(encoded).hexdigest()
 
@@ -522,6 +1729,8 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
                 "PROCESS": (cls.PROCESS_TYPE, {"lazy": True}),
                 "SAMPLED": ("CMK_SAMPLED_PIPE", {"lazy": True}),
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
+                "VISUAL": ("CMK_VISUAL_PIPE", {"lazy": True}),
+                "diagnostic": ("CMK_DIAGNOSTIC", {"lazy": True}),
             },
             "hidden": {
                 "prompt": "PROMPT",
@@ -535,42 +1744,71 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
         "CMK_LOG_PIPE",
         "CMK_PROCESS_SDXL",
         "IMAGE",
+        "CMK_VISUAL_PIPE",
+        "CMK_DIAGNOSTIC",
     )
-    RETURN_NAMES = ("MODEL", "SAMPLED", "LOG", "PROCESS", "IMAGE")
+    RETURN_NAMES = ("MODEL", "SAMPLED", "LOG", "PROCESS", "IMAGE", "VISUAL", "diagnostic")
 
     @cmk_timed_call("LAZY SDXL SAMPLED GATE")
     def check_lazy_status(self, PROCESS=None, prompt=None, unique_id=None, **inputs):
+        context = _detailer_diag_context(unique_id)
+        print(f"[CMK DIAG DETAILER] SDXL_GATE LAZY_ENTER {context}")
         if PROCESS is None:
+            print(f"[CMK DIAG DETAILER] SDXL_GATE REQUEST input=PROCESS {context}")
             return ["PROCESS"]
         if isinstance(PROCESS, dict) and not PROCESS.get("family_active", True):
+            print(f"[CMK DIAG DETAILER] SDXL_GATE INACTIVE no_request {context}")
             return []
         cache_key = _sampled_boundary_key(prompt, unique_id)
-        if cache_key in _SDXL_SAMPLED_BOUNDARY_CACHE:
+        state_key = _sdxl_first_pass_state_key(cache_key, unique_id)
+        state = _detailer_diag_sdxl_state(state_key)
+        hit = _sdxl_first_pass_hit(state_key) is not None
+        print(
+            "[CMK DIAG DETAILER] SDXL_GATE STATE "
+            f"result_state={'YES' if state['result'] else 'NO'} "
+            f"resource_state={'YES' if state['resource'] else 'NO'} "
+            f"released_model_descriptor={'YES' if state['descriptor'] else 'NO'} "
+            f"result_hit={'YES' if hit else 'NO'} reason={state['reason']} {context}"
+        )
+        if hit:
+            print(f"[CMK DIAG DETAILER] SDXL_GATE HIT no_request {context}")
             return []
         # Resolve converging branches one at a time. Requesting MODEL and
         # SAMPLED together lets ComfyUI open the shared sampler preparation
         # through two lazy paths after a process restart, executing module 10
         # twice. MODEL is cheap; SAMPLED is the expensive authoritative stage.
         if inputs.get("MODEL") is None:
+            print(f"[CMK DIAG DETAILER] SDXL_GATE REQUEST input=MODEL {context}")
             return ["MODEL"]
         if inputs.get("SAMPLED") is None:
+            print(f"[CMK DIAG DETAILER] SDXL_GATE REQUEST input=SAMPLED {context}")
             return ["SAMPLED"]
         if inputs.get("LOG") is None:
+            print(f"[CMK DIAG DETAILER] SDXL_GATE REQUEST input=LOG {context}")
             return ["LOG"]
+        for name in ("VISUAL", "diagnostic"):
+            pending = _pending_connected_input(name, prompt, unique_id, inputs)
+            if pending:
+                print(f"[CMK DIAG DETAILER] SDXL_GATE REQUEST input={pending[0]} {context}")
+                return pending
+        print(f"[CMK DIAG DETAILER] SDXL_GATE READY no_request {context}")
         return []
 
     def gate(self, PROCESS=None, prompt=None, unique_id=None, **inputs):
+        context = _detailer_diag_context(unique_id)
+        print(f"[CMK DIAG DETAILER] SDXL_GATE EXECUTE {context}")
         if PROCESS is None or (
             isinstance(PROCESS, dict) and not PROCESS.get("family_active", True)
         ):
             blocked = ExecutionBlocker(None)
-            return (blocked, blocked, blocked, blocked, blocked)
+            return (blocked, blocked, blocked, blocked, blocked, blocked, blocked)
         if not isinstance(PROCESS, dict):
             raise TypeError("CMK SDXL Sampler Branch Gate requires a CMK process pipe")
         actual = str(PROCESS.get("model_family", "sdxl")).strip().lower()
         if actual != "sdxl":
             raise ValueError("CMK SDXL Sampler Branch Gate received the wrong model family")
         cache_key = _sampled_boundary_key(prompt, unique_id)
+        state_key = _sdxl_first_pass_state_key(cache_key, unique_id)
         result_process = (
             stamp_artifact(PROCESS, _FIRST_PASS_STAGE_KEY, cache_key)
             if cache_key
@@ -583,27 +1821,51 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
             result_process = dict(result_process)
             result_process["family_active"] = False
             result_process["hybrid_prepass_complete"] = True
-        if cache_key in _SDXL_SAMPLED_BOUNDARY_CACHE and any(
-            inputs.get(name) is None for name in ("MODEL", "SAMPLED", "LOG")
-        ):
-            model, sampled, log = _SDXL_SAMPLED_BOUNDARY_CACHE[cache_key]
-            sampled, image = _materialize_first_pass_image(sampled)
-            return (model, sampled, log, result_process, image)
+        hit = _sdxl_first_pass_hit(state_key)
+        if hit is not None:
+            print(f"[CMK DIAG DETAILER] SDXL_GATE EXECUTE_HIT {context}")
+            model, sampled, result = hit
+            return (
+                model,
+                sampled,
+                result["log"],
+                result_process,
+                result["image"],
+                result["visual"],
+                result["diagnostic"],
+            )
         missing = [
             name for name in ("MODEL", "SAMPLED", "LOG")
             if inputs.get(name) is None
         ]
         if missing:
+            print(
+                "[CMK DIAG DETAILER] SDXL_GATE EXECUTE_MISS "
+                f"missing={','.join(missing)} {context}"
+            )
             raise ValueError(
                 "CMK SDXL Sampler Branch Gate is missing " + ", ".join(missing)
             )
         sampled, image = _materialize_first_pass_image(inputs["SAMPLED"])
-        result = (inputs["MODEL"], sampled, inputs["LOG"])
-        if cache_key:
-            _SDXL_SAMPLED_BOUNDARY_CACHE[cache_key] = result
-            while len(_SDXL_SAMPLED_BOUNDARY_CACHE) > _SDXL_SAMPLED_BOUNDARY_MAX:
-                _SDXL_SAMPLED_BOUNDARY_CACHE.pop(next(iter(_SDXL_SAMPLED_BOUNDARY_CACHE)))
-        return (*result, result_process, image)
+        print(f"[CMK DIAG DETAILER] SDXL_GATE EXECUTE_MISS publish=YES {context}")
+        _publish_sdxl_first_pass(
+            state_key,
+            inputs["MODEL"],
+            sampled,
+            inputs["LOG"],
+            image,
+            inputs.get("VISUAL"),
+            inputs.get("diagnostic"),
+        )
+        return (
+            inputs["MODEL"],
+            sampled,
+            inputs["LOG"],
+            result_process,
+            image,
+            inputs.get("VISUAL"),
+            inputs.get("diagnostic"),
+        )
 
 
 class CMKSDXLResultBridgePipe:
@@ -635,6 +1897,47 @@ class CMKSDXLResultBridgePipe:
         result["result_contract"] = "family_neutral"
         result["source_model_family"] = "sdxl"
         return (result,)
+
+
+def _release_completed_generation_resources(family, model, process):
+    """Release generation resources without changing the completed result."""
+    from .loaders.checkpoint_vae_loader import unload_model_pipe
+
+    if not isinstance(model, dict) or not isinstance(process, dict):
+        raise TypeError("CMK Generation Completion requires valid MODEL and PROCESS pipes")
+    actual = str(process.get("model_family", family)).strip().lower()
+    if actual != family:
+        raise ValueError("CMK Generation Completion received a PROCESS from the wrong family")
+
+    released_descriptor = _released_generation_model_descriptor(model)
+    if released_descriptor is not None and released_descriptor["model_family"] != family:
+        raise ValueError("CMK Generation Completion received a MODEL descriptor from the wrong family")
+    unload_requested = bool(process.get("unload_models_after_use", True))
+    if released_descriptor is not None:
+        generation_unload = (
+            "ALREADY RELEASED ("
+            + released_descriptor["resource_release_status"]
+            + ")"
+        )
+    else:
+        generation_unload = (
+            unload_model_pipe(model) if unload_requested else "KEPT LOADED"
+        )
+    cleared_generation_entries = (
+        clear_sdxl_sampled_boundary_cache() if unload_requested else 0
+    )
+    if unload_requested:
+        try:
+            from .instantid.cmk_instantid_sampler import clear_instantid_boundary_cache
+
+            cleared_generation_entries += clear_instantid_boundary_cache()
+        except Exception:
+            pass
+    return {
+        "generation_unload": generation_unload,
+        "unload_requested": unload_requested,
+        "cleared_generation_entries": int(cleared_generation_entries),
+    }, released_descriptor
 
 
 class _CMKPostProcessBoundaryBase:
@@ -671,39 +1974,54 @@ class _CMKPostProcessBoundaryBase:
         }
 
     @staticmethod
-    def _finish(family, model, process, image, log, visual, checkpoint, vae, checkpoint_vae):
+    def _finish(
+        family,
+        model,
+        process,
+        image,
+        log,
+        visual,
+        checkpoint,
+        vae,
+        checkpoint_vae,
+        completion_metadata=None,
+    ):
         from .cmk_log_pipe import cmk_add_block
         from .loaders.checkpoint_vae_loader import (
             is_postprocess_model_disabled,
             make_postprocess_model_spec,
-            unload_model_pipe,
         )
 
         if not isinstance(model, dict) or not isinstance(process, dict) or not isinstance(log, dict):
             raise TypeError("CMK PostProcess Boundary requires valid MODEL, PROCESS and LOG pipes")
         if image is None:
             raise ValueError("CMK PostProcess Boundary requires the completed generation IMAGE")
-        actual = str(process.get("model_family", family)).strip().lower()
-        if actual != family:
-            raise ValueError("CMK PostProcess Boundary received a PROCESS from the wrong family")
-
+        release_metadata, released_descriptor = _release_completed_generation_resources(
+            family, model, process
+        )
         generation_family = "hybrid" if bool(process.get("hybrid_mode", False)) else family
-        unload_requested = bool(process.get("unload_models_after_use", True))
-        generation_unload = (
-            unload_model_pipe(model) if unload_requested else "KEPT LOADED"
-        )
-        cleared_generation_entries = (
-            clear_sdxl_sampled_boundary_cache() if unload_requested else 0
-        )
-        if unload_requested:
-            try:
-                from .instantid.cmk_instantid_sampler import clear_instantid_boundary_cache
-
-                cleared_generation_entries += clear_instantid_boundary_cache()
-            except Exception:
-                pass
+        generation_unload = release_metadata["generation_unload"]
+        unload_requested = release_metadata["unload_requested"]
+        cleared_generation_entries = release_metadata["cleared_generation_entries"]
+        if completion_metadata is not None:
+            if not isinstance(completion_metadata, dict):
+                raise TypeError("CMK PostProcess Boundary completion metadata must be a dictionary")
+            completion_metadata.update(release_metadata)
         model_spec = make_postprocess_model_spec(checkpoint, vae, checkpoint_vae)
         postprocess_disabled = is_postprocess_model_disabled(model_spec)
+        try:
+            prompt_id = active_prompt_id()
+        except Exception:
+            prompt_id = None
+        print(
+            "[CMK DIAG DETAILER] POSTPROCESS_SETUP FINISH "
+            f"prompt_id={prompt_id if prompt_id is not None else 'UNAVAILABLE'} "
+            f"family={family} "
+            f"input_model={'RELEASED_DESCRIPTOR' if released_descriptor is not None else 'MATERIALIZED_PIPE'} "
+            f"generation_unload={generation_unload} "
+            f"cleared_generation_entries={cleared_generation_entries} "
+            "output_model=NEW_POSTPROCESS_SPEC"
+        )
         checkpoint_label = "NONE" if postprocess_disabled else str(checkpoint)
         vae_label = (
             "NOT USED"
@@ -748,6 +2066,31 @@ class _CMKPostProcessBoundaryBase:
             visual = empty_visual()
         return model_spec, result, image, log, visual
 
+    def _restore_completion(
+        self,
+        preflight,
+        postprocess_checkpoint,
+        postprocess_vae,
+        use_checkpoint_vae,
+    ):
+        contract = preflight["contract"]
+        cached = preflight["cached"]
+        print(
+            f"[CMK Generation Completion / {contract.log_label}] RESTORE "
+            f"{preflight['key'][:12]} ({preflight['detail']})"
+        )
+        return self._finish(
+            contract.runtime_family,
+            cached["model_descriptor"],
+            cached["process"],
+            cached["image"],
+            cached["log"],
+            cached["visual"],
+            postprocess_checkpoint,
+            postprocess_vae,
+            use_checkpoint_vae,
+        )
+
     RETURN_TYPES = (
         "CMK_MODEL_PIPE",
         "CMK_RESULT_PROCESS",
@@ -755,12 +2098,32 @@ class _CMKPostProcessBoundaryBase:
         "CMK_LOG_PIPE",
         "CMK_VISUAL_PIPE",
     )
-    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "VISUAL")
+    RETURN_NAMES = ("MODEL", "PROCESS P", "IMAGE", "LOG", "VISUAL")
     CATEGORY = "CMK/Flow/Finish"
 
 
-class CMKFamilyResultMergePipe(_CMKPostProcessBoundaryBase):
+class _CMKFamilyResultMergePipe(_CMKPostProcessBoundaryBase):
     """Lazily select SDXL/ZIT and establish the Combined PostProcess boundary."""
+
+    _HYBRID_COMPLETION_MODE = "sdxl_zit_hybrid"
+    _INSTANTID_HYBRID_COMPLETION_MODE = "instantid_hybrid"
+    _INSTANTID_ZERO_PASS_COMPLETION_MODE = "instantid_zero_pass"
+    _HYBRID_ROOTS = _ZIT_MERGE_ROOT_ROLES
+    _INSTANTID_HYBRID_ROOTS = _SDXL_MERGE_ROOT_ROLES
+    _COMPLETION_CONTRACTS = (
+        _SDXL_ZIT_HYBRID_COMPLETION,
+        _INSTANTID_HYBRID_COMPLETION,
+        _INSTANTID_ZERO_PASS_COMPLETION,
+    )
+    _HYBRID_HANDOFF_INPUTS = (
+        "SAMPLED SDXL",
+        "LOG SDXL",
+        "VISUAL SDXL",
+    )
+    _HYBRID_EXCLUDED_CLASSES = {
+        "CMKInstantIDBoundary",
+        "CMKSamplerBypassGate",
+    }
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -768,12 +2131,18 @@ class CMKFamilyResultMergePipe(_CMKPostProcessBoundaryBase):
             "required": cls._model_widgets(),
             "optional": {
                 "MODEL ZIT": ("CMK_MODEL_PIPE", {"lazy": True}),
-                "PROCESS ZIT": ("CMK_PROCESS_Z_IMAGE", {"lazy": True}),
+                "PROCESS ZIT": (
+                    "CMK_PROCESS_Z_IMAGE",
+                    {"lazy": True, "label": "PROCESS G"},
+                ),
                 "IMAGE ZIT": ("IMAGE", {"lazy": True}),
                 "LOG ZIT": ("CMK_LOG_PIPE", {"lazy": True}),
                 "VISUAL ZIT": ("CMK_VISUAL_PIPE", {"lazy": True}),
                 "MODEL SDXL": ("CMK_MODEL_PIPE", {"lazy": True}),
-                "PROCESS SDXL": ("CMK_PROCESS_SDXL", {"lazy": True}),
+                "PROCESS SDXL": (
+                    "CMK_PROCESS_SDXL",
+                    {"lazy": True, "label": "PROCESS G"},
+                ),
                 "IMAGE SDXL": ("IMAGE", {"lazy": True}),
                 "LOG SDXL": ("CMK_LOG_PIPE", {"lazy": True}),
                 "VISUAL SDXL": ("CMK_VISUAL_PIPE", {"lazy": True}),
@@ -782,6 +2151,581 @@ class CMKFamilyResultMergePipe(_CMKPostProcessBoundaryBase):
         }
 
     FUNCTION = "merge"
+
+    @staticmethod
+    def _prompt_node(prompt, node_id):
+        return _completion_prompt_node(prompt, node_id)
+
+    @classmethod
+    def _prompt_link(cls, prompt, value):
+        return _completion_prompt_link(prompt, value)
+
+    @classmethod
+    def _hybrid_graph(cls, prompt, unique_id):
+        if not isinstance(prompt, dict):
+            return None, "PROMPT is unavailable"
+        current = cls._prompt_node(prompt, unique_id)
+        if not isinstance(current, dict) or current.get("class_type") != cls.__name__:
+            return None, "Family Result Merge is unavailable in the expanded prompt"
+
+        current_inputs = current.get("inputs", {}) or {}
+        roots, detail = _completion_mode_roots(
+            prompt,
+            current_inputs,
+            _SDXL_ZIT_HYBRID_COMPLETION,
+        )
+        if roots is None:
+            return None, detail
+
+        pending = [link[0] for link in roots.values()]
+        visited = set()
+        gate_ids = []
+        handoff_ids = []
+        source_nodes = []
+        found_finalizer = False
+        found_sdxl_sampled_gate = False
+        while pending:
+            node_id = pending.pop()
+            node_key = str(node_id)
+            if node_key in visited:
+                continue
+            visited.add(node_key)
+            node = cls._prompt_node(prompt, node_id)
+            if not isinstance(node, dict):
+                continue
+            class_type = str(node.get("class_type", ""))
+            if (
+                class_type in cls._HYBRID_EXCLUDED_CLASSES
+                or class_type.startswith("CMKInstantID")
+            ):
+                return None, f"{class_type} is outside the Hybrid completion contract"
+            if class_type == "CMKFamilyBranchGateZImage":
+                gate_ids.append(node_id)
+            elif class_type == "CMKHybridZITInputPipe":
+                handoff_ids.append(node_id)
+                node_inputs = node.get("inputs", {}) or {}
+                missing = [
+                    name
+                    for name in cls._HYBRID_HANDOFF_INPUTS
+                    if not cls._prompt_link(prompt, node_inputs.get(name))
+                ]
+                if missing:
+                    return None, (
+                        "Hybrid handoff is incomplete: " + ", ".join(missing)
+                    )
+            elif class_type == "CMKZImageTurboFinalizePipe":
+                found_finalizer = True
+            elif class_type == "CMKFamilyBranchGateSDXLSampled":
+                found_sdxl_sampled_gate = True
+            elif class_type == "CMKPipeCreateImage":
+                source_nodes.append(node)
+            for value in (node.get("inputs", {}) or {}).values():
+                if cls._prompt_link(prompt, value):
+                    pending.append(value[0])
+
+        if (
+            len(gate_ids) != 1
+            or len(handoff_ids) != 1
+            or not found_finalizer
+            or not found_sdxl_sampled_gate
+            or len(source_nodes) != 1
+        ):
+            return None, "expanded graph does not prove the current Hybrid contract"
+        source_inputs = source_nodes[0].get("inputs", {}) or {}
+        if str(source_inputs.get("model_family", "")).strip().lower() != "hybrid":
+            return None, "active source does not select SDXL/ZIT Hybrid"
+        return {
+            "roots": roots,
+            "zit_gate_id": gate_ids[0],
+            "handoff_id": handoff_ids[0],
+        }, "expanded SDXL/ZIT Hybrid graph complete"
+
+    @classmethod
+    def _hybrid_completion_key(cls, prompt, unique_id):
+        graph, detail = cls._hybrid_graph(prompt, unique_id)
+        if graph is None:
+            return None, detail
+        return _completion_key_for_graph(prompt, graph, _SDXL_ZIT_HYBRID_COMPLETION)
+
+    @classmethod
+    def _instantid_graph(cls, prompt, unique_id, expected_mode):
+        expected_mode = str(expected_mode or "").strip().upper()
+        if expected_mode not in {"HYBRID", "ZERO-PASS"}:
+            return None, "unsupported InstantID completion mode"
+        mode_label = (
+            "InstantID-Hybrid"
+            if expected_mode == "HYBRID"
+            else "InstantID Zero-Pass"
+        )
+        if not isinstance(prompt, dict):
+            return None, "PROMPT is unavailable"
+        current = cls._prompt_node(prompt, unique_id)
+        if not isinstance(current, dict) or current.get("class_type") != cls.__name__:
+            return None, "Family Result Merge is unavailable in the expanded prompt"
+
+        current_inputs = current.get("inputs", {}) or {}
+        contract = (
+            _INSTANTID_HYBRID_COMPLETION
+            if expected_mode == "HYBRID"
+            else _INSTANTID_ZERO_PASS_COMPLETION
+        )
+        roots, detail = _completion_mode_roots(prompt, current_inputs, contract)
+        if roots is None:
+            return None, detail
+
+        pending = [link[0] for link in roots.values()]
+        visited = set()
+        instantid_gate_ids = []
+        instantid_boundary_ids = []
+        instantid_sampler_ids = []
+        refiner_gate_ids = []
+        source_nodes = []
+        found_sdxl_sampled_gate = False
+        found_refiner = False
+        while pending:
+            node_id = pending.pop()
+            node_key = str(node_id)
+            if node_key in visited:
+                continue
+            visited.add(node_key)
+            node = cls._prompt_node(prompt, node_id)
+            if not isinstance(node, dict):
+                continue
+            class_type = str(node.get("class_type", ""))
+            if class_type in {
+                "CMKFamilyBranchGateZImage",
+                "CMKHybridZITInputPipe",
+                "CMKZImageTurboFinalizePipe",
+            }:
+                return None, f"{class_type} is outside the InstantID-Hybrid completion contract"
+            if class_type == "CMKSamplerBypassGate":
+                instantid_gate_ids.append(node_id)
+            elif class_type == "CMKInstantIDBoundary":
+                instantid_boundary_ids.append(node_id)
+            elif class_type == "CMKInstantIDSamplerSDXLPipe":
+                instantid_sampler_ids.append(node_id)
+            elif class_type == "CMKInstantIDRegionalAdvancedSDXLPipe":
+                if expected_mode != "HYBRID":
+                    return None, (
+                        "CMKInstantIDRegionalAdvancedSDXLPipe requires "
+                        "InstantID-Hybrid preliminary-layout sampling"
+                    )
+                instantid_sampler_ids.append(node_id)
+            elif class_type == "CMKFamilyBranchGateSDXL":
+                refiner_gate_ids.append(node_id)
+            elif class_type == "CMKFamilyBranchGateSDXLSampled":
+                found_sdxl_sampled_gate = True
+            elif class_type == "CMKRefinerPipe":
+                found_refiner = True
+            elif class_type == "CMKPipeCreateImage":
+                source_nodes.append(node)
+            for value in (node.get("inputs", {}) or {}).values():
+                if cls._prompt_link(prompt, value):
+                    pending.append(value[0])
+
+        if (
+            len(instantid_gate_ids) != 1
+            or len(instantid_boundary_ids) != 1
+            or len(instantid_sampler_ids) != 1
+            or len(refiner_gate_ids) != 1
+            or len(source_nodes) != 1
+            or not found_sdxl_sampled_gate
+            or not found_refiner
+        ):
+            return None, "expanded graph does not prove the current InstantID-Hybrid contract"
+
+        source_inputs = source_nodes[0].get("inputs", {}) or {}
+        source_family = str(source_inputs.get("model_family", "")).strip().lower()
+        instantid_mode = str(source_inputs.get("instantid_mode", "")).strip().upper()
+        if (
+            source_family != "sdxl"
+            or source_inputs.get("instantid_enabled") is not True
+            or instantid_mode != expected_mode
+        ):
+            return None, "active source does not select SDXL " + mode_label
+
+        return {
+            "roots": roots,
+            "instantid_gate_id": instantid_gate_ids[0],
+            "refiner_gate_id": refiner_gate_ids[0],
+        }, f"expanded SDXL {mode_label} graph complete"
+
+    @classmethod
+    def _instantid_hybrid_graph(cls, prompt, unique_id):
+        return cls._instantid_graph(prompt, unique_id, "HYBRID")
+
+    @classmethod
+    def _instantid_zero_pass_graph(cls, prompt, unique_id):
+        return cls._instantid_graph(prompt, unique_id, "ZERO-PASS")
+
+    @classmethod
+    def _instantid_hybrid_completion_key(cls, prompt, unique_id):
+        graph, detail = cls._instantid_hybrid_graph(prompt, unique_id)
+        if graph is None:
+            return None, detail
+        return _completion_key_for_graph(prompt, graph, _INSTANTID_HYBRID_COMPLETION)
+
+    @classmethod
+    def _instantid_zero_pass_completion_key(cls, prompt, unique_id):
+        graph, detail = cls._instantid_zero_pass_graph(prompt, unique_id)
+        if graph is None:
+            return None, detail
+        return _completion_key_for_graph(prompt, graph, _INSTANTID_ZERO_PASS_COMPLETION)
+
+    @classmethod
+    def _instantid_hybrid_finalization_evidence(cls, prompt, unique_id, process):
+        graph, detail = cls._instantid_hybrid_graph(prompt, unique_id)
+        if graph is None:
+            return None, detail
+        if not isinstance(process, dict):
+            return None, "active PROCESS is unavailable"
+        if (
+            str(process.get("model_family", "sdxl")).strip().lower() != "sdxl"
+            or not bool(process.get("instantid_enabled", False))
+            or str(process.get("instantid_mode", "")).strip().upper() != "HYBRID"
+            or bool(process.get("hybrid_mode", False))
+        ):
+            return None, "active PROCESS does not identify SDXL InstantID-Hybrid"
+
+        instantid_key = _instantid_state_key(prompt, graph["instantid_gate_id"])
+        if instantid_key is None:
+            return None, "InstantID Final Gate result state is unavailable"
+        try:
+            instantid_result = get_result(instantid_key)
+        except PromptStateUnavailableError:
+            return None, "InstantID Final Gate result state is unavailable"
+        if not isinstance(instantid_result, dict):
+            return None, "InstantID Final Gate has no completed result"
+        instantid_sampled = instantid_result.get("sampled")
+        instantid_diagnostic = instantid_result.get("diagnostic")
+        instantid_metadata = (
+            instantid_diagnostic.get("metadata", {})
+            if isinstance(instantid_diagnostic, dict)
+            else {}
+        )
+        instantid_workflow = str(
+            instantid_sampled.get("instantid_workflow", "")
+            if isinstance(instantid_sampled, dict)
+            else ""
+        ).strip()
+        instantid_complete = (
+            instantid_result.get("schema_version") == _INSTANTID_RESULT_SCHEMA
+            and isinstance(instantid_sampled, dict)
+            and instantid_sampled.get("identity_applied") is True
+            and instantid_sampled.get("instantid_zero_pass") is False
+            and instantid_workflow.upper().startswith("HYBRID")
+            and isinstance(instantid_result.get("log"), dict)
+            and isinstance(instantid_result.get("visual"), dict)
+            and isinstance(instantid_diagnostic, dict)
+            and instantid_metadata.get("identity_applied") is True
+            and str(instantid_metadata.get("workflow", "")).strip().upper().startswith("HYBRID")
+        )
+        if not instantid_complete:
+            return None, "InstantID-Hybrid result or diagnostic is incomplete"
+
+        refiner_key = _refiner_state_key(prompt, graph["refiner_gate_id"])
+        if refiner_key is None:
+            return None, "Refiner Final Gate result state is unavailable"
+        try:
+            refiner_result = get_result(refiner_key)
+        except PromptStateUnavailableError:
+            return None, "Refiner Final Gate result state is unavailable"
+        refiner_complete = (
+            isinstance(refiner_result, dict)
+            and refiner_result.get("schema_version") == _REFINER_RESULT_SCHEMA
+            and refiner_result.get("image") is not None
+            and isinstance(refiner_result.get("log"), dict)
+            and isinstance(refiner_result.get("visual"), dict)
+            and isinstance(refiner_result.get("diagnostic"), dict)
+        )
+        if not refiner_complete:
+            return None, "Refiner Final Gate has no completed result"
+
+        return {
+            "instantid_workflow": instantid_workflow,
+            "instantid_result_schema": _INSTANTID_RESULT_SCHEMA,
+            "refiner_result_schema": _REFINER_RESULT_SCHEMA,
+            "refiner_complete": True,
+        }, "InstantID-Hybrid and Refiner Final Gates complete"
+
+    @classmethod
+    def _instantid_hybrid_completion_hit(cls, cache_key):
+        if not cache_key:
+            return None
+        result = lookup_completion(cache_key)
+        if result is None:
+            return None
+        process = result.get("process")
+        metadata = result.get("metadata")
+        descriptor = result.get("model_descriptor")
+        valid = (
+            result.get("model_family") == "hybrid"
+            and result.get("generation_mode") == cls._INSTANTID_HYBRID_COMPLETION_MODE
+            and isinstance(process, dict)
+            and str(process.get("model_family", "sdxl")).strip().lower() == "sdxl"
+            and bool(process.get("instantid_enabled", False))
+            and str(process.get("instantid_mode", "")).strip().upper() == "HYBRID"
+            and not bool(process.get("hybrid_mode", False))
+            and process.get("family_active", True) is not False
+            and result.get("image") is not None
+            and isinstance(result.get("log"), dict)
+            and isinstance(result.get("visual"), dict)
+            and isinstance(metadata, dict)
+            and str(metadata.get("instantid_workflow", "")).strip().upper().startswith("HYBRID")
+            and metadata.get("instantid_result_schema") == _INSTANTID_RESULT_SCHEMA
+            and metadata.get("refiner_result_schema") == _REFINER_RESULT_SCHEMA
+            and metadata.get("refiner_complete") is True
+        )
+        try:
+            released = _released_generation_model_descriptor(descriptor)
+            valid = (
+                valid
+                and released is not None
+                and released["model_family"] == "sdxl"
+            )
+        except (TypeError, ValueError):
+            valid = False
+        if not valid:
+            invalidate_completion(cache_key)
+            return None
+        return result
+
+    @classmethod
+    def _instantid_zero_pass_finalization_evidence(cls, prompt, unique_id, process):
+        graph, detail = cls._instantid_zero_pass_graph(prompt, unique_id)
+        if graph is None:
+            return None, detail
+        if not isinstance(process, dict):
+            return None, "active PROCESS is unavailable"
+        if (
+            str(process.get("model_family", "sdxl")).strip().lower() != "sdxl"
+            or not bool(process.get("instantid_enabled", False))
+            or str(process.get("instantid_mode", "")).strip().upper() != "ZERO-PASS"
+            or bool(process.get("hybrid_mode", False))
+        ):
+            return None, "active PROCESS does not identify SDXL InstantID Zero-Pass"
+
+        instantid_key = _instantid_state_key(prompt, graph["instantid_gate_id"])
+        if instantid_key is None:
+            return None, "InstantID Final Gate result state is unavailable"
+        try:
+            instantid_result = get_result(instantid_key)
+        except PromptStateUnavailableError:
+            return None, "InstantID Final Gate result state is unavailable"
+        if not isinstance(instantid_result, dict):
+            return None, "InstantID Final Gate has no completed result"
+        instantid_sampled = instantid_result.get("sampled")
+        instantid_diagnostic = instantid_result.get("diagnostic")
+        instantid_metadata = (
+            instantid_diagnostic.get("metadata", {})
+            if isinstance(instantid_diagnostic, dict)
+            else {}
+        )
+        instantid_workflow = str(
+            instantid_sampled.get("instantid_workflow", "")
+            if isinstance(instantid_sampled, dict)
+            else ""
+        ).strip()
+        instantid_complete = (
+            instantid_result.get("schema_version") == _INSTANTID_RESULT_SCHEMA
+            and isinstance(instantid_sampled, dict)
+            and instantid_sampled.get("identity_applied") is True
+            and instantid_sampled.get("instantid_zero_pass") is True
+            and instantid_workflow.upper().startswith("ZERO-PASS")
+            and isinstance(instantid_result.get("log"), dict)
+            and isinstance(instantid_result.get("visual"), dict)
+            and isinstance(instantid_diagnostic, dict)
+            and instantid_metadata.get("identity_applied") is True
+            and str(instantid_metadata.get("workflow", "")).strip().upper().startswith("ZERO-PASS")
+        )
+        if not instantid_complete:
+            return None, "InstantID Zero-Pass result or diagnostic is incomplete"
+
+        refiner_key = _refiner_state_key(prompt, graph["refiner_gate_id"])
+        if refiner_key is None:
+            return None, "Refiner Final Gate result state is unavailable"
+        try:
+            refiner_result = get_result(refiner_key)
+        except PromptStateUnavailableError:
+            return None, "Refiner Final Gate result state is unavailable"
+        refiner_complete = (
+            isinstance(refiner_result, dict)
+            and refiner_result.get("schema_version") == _REFINER_RESULT_SCHEMA
+            and refiner_result.get("image") is not None
+            and isinstance(refiner_result.get("log"), dict)
+            and isinstance(refiner_result.get("visual"), dict)
+            and isinstance(refiner_result.get("diagnostic"), dict)
+        )
+        if not refiner_complete:
+            return None, "Refiner Final Gate has no completed result"
+
+        return {
+            "instantid_workflow": instantid_workflow,
+            "instantid_result_schema": _INSTANTID_RESULT_SCHEMA,
+            "refiner_result_schema": _REFINER_RESULT_SCHEMA,
+            "refiner_complete": True,
+        }, "InstantID Zero-Pass and Refiner Final Gates complete"
+
+    @classmethod
+    def _instantid_zero_pass_completion_hit(cls, cache_key):
+        if not cache_key:
+            return None
+        result = lookup_completion(cache_key)
+        if result is None:
+            return None
+        process = result.get("process")
+        metadata = result.get("metadata")
+        descriptor = result.get("model_descriptor")
+        valid = (
+            result.get("model_family") == "hybrid"
+            and result.get("generation_mode") == cls._INSTANTID_ZERO_PASS_COMPLETION_MODE
+            and isinstance(process, dict)
+            and str(process.get("model_family", "sdxl")).strip().lower() == "sdxl"
+            and bool(process.get("instantid_enabled", False))
+            and str(process.get("instantid_mode", "")).strip().upper() == "ZERO-PASS"
+            and not bool(process.get("hybrid_mode", False))
+            and process.get("family_active", True) is not False
+            and result.get("image") is not None
+            and isinstance(result.get("log"), dict)
+            and isinstance(result.get("visual"), dict)
+            and isinstance(metadata, dict)
+            and str(metadata.get("instantid_workflow", "")).strip().upper().startswith("ZERO-PASS")
+            and metadata.get("instantid_result_schema") == _INSTANTID_RESULT_SCHEMA
+            and metadata.get("refiner_result_schema") == _REFINER_RESULT_SCHEMA
+            and metadata.get("refiner_complete") is True
+        )
+        try:
+            released = _released_generation_model_descriptor(descriptor)
+            valid = (
+                valid
+                and released is not None
+                and released["model_family"] == "sdxl"
+            )
+        except (TypeError, ValueError):
+            valid = False
+        if not valid:
+            invalidate_completion(cache_key)
+            return None
+        return result
+
+    @classmethod
+    def _hybrid_finalization_evidence(cls, prompt, unique_id, process):
+        graph, detail = cls._hybrid_graph(prompt, unique_id)
+        if graph is None:
+            return None, detail
+        if not isinstance(process, dict) or not bool(process.get("hybrid_mode", False)):
+            return None, "active PROCESS does not identify Hybrid mode"
+
+        try:
+            from .cmk_hybrid_bridge import _hybrid_handoff_state_key
+        except ImportError:
+            from pipe.cmk_hybrid_bridge import _hybrid_handoff_state_key
+
+        handoff_key = _hybrid_handoff_state_key(prompt, graph["handoff_id"])
+        if handoff_key is None:
+            return None, "Hybrid handoff result state is unavailable"
+        try:
+            handoff = get_result(handoff_key)
+        except PromptStateUnavailableError:
+            return None, "Hybrid handoff result state is unavailable"
+        if not isinstance(handoff, dict):
+            return None, "Hybrid handoff has no completed result"
+        handoff_metadata = handoff.get("metadata")
+        handoff_complete = (
+            handoff.get("image") is not None
+            and isinstance(handoff.get("log"), dict)
+            and isinstance(handoff.get("visual"), dict)
+            and isinstance(handoff_metadata, dict)
+            and handoff_metadata.get("handoff_percent")
+            == int(process.get("hybrid_sdxl_handoff", 90))
+            and float(handoff_metadata.get("zit_denoise", -1.0))
+            == float(process.get("hybrid_zit_denoise", 0.20))
+            and handoff_metadata.get("hybrid_inpaint_mode")
+            is bool(process.get("hybrid_inpaint_mode", False))
+        )
+        if not handoff_complete:
+            return None, "Hybrid handoff result or metadata is incomplete"
+
+        zit_state_key = _zit_final_state_key(prompt, graph["zit_gate_id"])
+        if zit_state_key is None:
+            return None, "Hybrid ZIT Final Gate result state is unavailable"
+        try:
+            zit_result = get_result(zit_state_key)
+        except PromptStateUnavailableError:
+            return None, "Hybrid ZIT Final Gate result state is unavailable"
+        if not isinstance(zit_result, dict):
+            return None, "Hybrid ZIT Final Gate has no completed result"
+        diagnostic = zit_result.get("diagnostic")
+        diagnostic_metadata = (
+            diagnostic.get("metadata", {}) if isinstance(diagnostic, dict) else {}
+        )
+        zit_descriptor = zit_result.get("released_model_descriptor")
+        try:
+            released = _released_generation_model_descriptor(zit_descriptor)
+        except (TypeError, ValueError):
+            released = None
+        zit_complete = (
+            zit_result.get("image") is not None
+            and isinstance(zit_result.get("log"), dict)
+            and isinstance(zit_result.get("visual"), dict)
+            and isinstance(diagnostic, dict)
+            and str(diagnostic_metadata.get("model_family", "")).strip().lower()
+            == "z_image_turbo"
+            and str(diagnostic_metadata.get("zit_model_status", "")).strip()
+            == "UNLOADED"
+            and released is not None
+            and released["model_family"] == "z_image_turbo"
+        )
+        if not zit_complete:
+            return None, "Hybrid ZIT finalization or global model release is incomplete"
+        return {
+            "handoff_percent": int(handoff_metadata["handoff_percent"]),
+            "zit_denoise": float(handoff_metadata["zit_denoise"]),
+            "hybrid_inpaint_mode": bool(handoff_metadata["hybrid_inpaint_mode"]),
+            "zit_model_status": "UNLOADED",
+            "model_descriptor": released,
+        }, "Hybrid handoff, ZIT finalization and global model release complete"
+
+    @classmethod
+    def _hybrid_completion_hit(cls, cache_key):
+        if not cache_key:
+            return None
+        result = lookup_completion(cache_key)
+        if result is None:
+            return None
+        process = result.get("process")
+        metadata = result.get("metadata")
+        descriptor = result.get("model_descriptor")
+        valid = (
+            result.get("model_family") == "hybrid"
+            and result.get("generation_mode") == cls._HYBRID_COMPLETION_MODE
+            and isinstance(process, dict)
+            and str(process.get("model_family", "")).strip().lower()
+            == "z_image_turbo"
+            and bool(process.get("hybrid_mode", False))
+            and process.get("family_active", True) is not False
+            and isinstance(result.get("log"), dict)
+            and isinstance(result.get("visual"), dict)
+            and isinstance(metadata, dict)
+            and metadata.get("zit_model_status") == "UNLOADED"
+            and isinstance(metadata.get("handoff_percent"), int)
+            and isinstance(metadata.get("zit_denoise"), float)
+            and isinstance(metadata.get("hybrid_inpaint_mode"), bool)
+            and result.get("image") is not None
+        )
+        try:
+            released = _released_generation_model_descriptor(descriptor)
+            valid = (
+                valid
+                and released is not None
+                and released["model_family"] == "z_image_turbo"
+            )
+        except (TypeError, ValueError):
+            valid = False
+        if not valid:
+            invalidate_completion(cache_key)
+            return None
+        return result
 
     @staticmethod
     def _pending_visual(suffix, inputs):
@@ -793,32 +2737,64 @@ class CMKFamilyResultMergePipe(_CMKPostProcessBoundaryBase):
 
     @cmk_timed_call("LAZY FAMILY RESULT MERGE")
     def check_lazy_status(self, **inputs):
-        process_sdxl = inputs.get("PROCESS SDXL")
-        process_z = inputs.get("PROCESS ZIT")
-        # Probe ZIT first. In a ZIT run the inactive global SDXL subgraph ends
-        # in an ExecutionBlocker; requesting it first prevents ComfyUI from
-        # ever returning here to resolve the active ZIT branch.
-        if process_z is None:
-            return ["PROCESS ZIT"]
-        active_z = isinstance(process_z, dict) and process_z.get("family_active", True)
-        if active_z:
-            for name in ("MODEL", "IMAGE", "LOG"):
-                input_name = f"{name} ZIT"
-                if inputs.get(input_name) is None:
-                    return [input_name]
-            return self._pending_visual("ZIT", inputs)
-        if process_sdxl is None:
-            return ["PROCESS SDXL"]
-        active_sdxl = isinstance(process_sdxl, dict) and process_sdxl.get("family_active", True)
-        if not active_sdxl and not active_z:
+        preflight = _resolve_completion_preflight(
+            type(self),
+            self._COMPLETION_CONTRACTS,
+            inputs.get("prompt"),
+            inputs.get("unique_id"),
+        )
+        if preflight["cached"] is not None:
+            contract = preflight["contract"]
+            print(
+                f"[CMK Generation Completion / {contract.log_label}] "
+                "HIT before lazy inputs "
+                f"{preflight['key'][:12]} ({preflight['detail']})"
+            )
             return []
+        contract = preflight["contract"]
+        if contract is None:
+            raise RuntimeError(
+                "CMK PostProcess Setup cannot resolve the active generation mode: "
+                + str(preflight["detail"])
+            )
+        suffix = "SDXL" if contract.runtime_family == "sdxl" else "ZIT"
+        process_name = f"PROCESS {suffix}"
+        process = inputs.get(process_name)
+        if process is None:
+            return [process_name]
+        if not isinstance(process, dict) or process.get("family_active", True) is False:
+            raise RuntimeError(
+                f"CMK PostProcess Setup resolved {contract.name}, but {process_name} "
+                "does not provide an active generation contract"
+            )
         for name in ("MODEL", "IMAGE", "LOG"):
-            input_name = f"{name} SDXL"
+            input_name = f"{name} {suffix}"
             if inputs.get(input_name) is None:
                 return [input_name]
-        return self._pending_visual("SDXL", inputs)
+        return self._pending_visual(suffix, inputs)
 
     def merge(self, postprocess_checkpoint, postprocess_vae, use_checkpoint_vae, **inputs):
+        preflight = _resolve_completion_preflight(
+            type(self),
+            self._COMPLETION_CONTRACTS,
+            inputs.get("prompt"),
+            inputs.get("unique_id"),
+        )
+        if preflight["cached"] is not None:
+            return self._restore_completion(
+                preflight,
+                postprocess_checkpoint,
+                postprocess_vae,
+                use_checkpoint_vae,
+            )
+
+        contract = preflight["contract"]
+        if contract is None or not preflight["key"]:
+            raise RuntimeError(
+                "CMK PostProcess Setup cannot resolve a safe generation completion "
+                "contract: " + str(preflight["detail"])
+            )
+
         process_sdxl = inputs.get("PROCESS SDXL")
         process_z = inputs.get("PROCESS ZIT")
         active_sdxl = isinstance(process_sdxl, dict) and process_sdxl.get("family_active", True)
@@ -828,6 +2804,11 @@ class CMKFamilyResultMergePipe(_CMKPostProcessBoundaryBase):
         if not active_sdxl and not active_z:
             raise ValueError("CMK Active Family Result received no active PROCESS path")
         family = "sdxl" if active_sdxl else "z_image_turbo"
+        if family != contract.runtime_family:
+            raise ValueError(
+                f"CMK PostProcess Setup resolved {contract.name}, but the active "
+                f"PROCESS family is {family}"
+            )
         suffix = "SDXL" if family == "sdxl" else "ZIT"
         model = inputs.get(f"MODEL {suffix}")
         process = inputs.get(f"PROCESS {suffix}")
@@ -845,10 +2826,69 @@ class CMKFamilyResultMergePipe(_CMKPostProcessBoundaryBase):
                 + " is not connected."
             )
         visual = inputs.get(f"VISUAL {suffix}")
-        return self._finish(
+        completion_metadata = {}
+        result = self._finish(
             family, model, process, image, log, visual,
             postprocess_checkpoint, postprocess_vae, use_checkpoint_vae,
+            completion_metadata,
         )
+
+        evidence, evidence_detail = _completion_finalization_evidence(
+            type(self),
+            preflight,
+            inputs.get("prompt"),
+            inputs.get("unique_id"),
+            process,
+        )
+        if evidence is None:
+            print(
+                f"[CMK Generation Completion / {contract.log_label}] NOT STORED: "
+                + evidence_detail
+            )
+            return result
+        generation_unload = str(completion_metadata.get("generation_unload", ""))
+        if generation_unload != "UNLOADED" and not generation_unload.startswith(
+            "ALREADY RELEASED ("
+        ):
+            print(
+                f"[CMK Generation Completion / {contract.log_label}] NOT STORED: "
+                "Boundary 30 resource release was not proven"
+            )
+            return result
+        evidence = dict(evidence)
+        descriptor = _completion_released_descriptor(
+            contract,
+            model,
+            completion_metadata,
+            evidence,
+        )
+        if descriptor is None:
+            descriptor_label = (
+                "released SDXL MODEL descriptor is unavailable"
+                if contract.descriptor_family == "sdxl"
+                else "released ZIT MODEL descriptor is unavailable"
+            )
+            print(
+                f"[CMK Generation Completion / {contract.log_label}] NOT STORED: "
+                + descriptor_label
+            )
+            return result
+        evidence.pop("model_descriptor", None)
+        completion_metadata.update(evidence)
+        _store_completion_result(
+            preflight,
+            image=image,
+            process=process,
+            log=log,
+            visual=result[4],
+            metadata=completion_metadata,
+            descriptor=descriptor,
+        )
+        print(
+            f"[CMK Generation Completion / {contract.log_label}] STORED "
+            f"{preflight['key'][:12]} ({preflight['detail']})"
+        )
+        return result
 
 
 class _CMKSinglePostProcessBoundary(_CMKPostProcessBoundaryBase):
@@ -861,7 +2901,10 @@ class _CMKSinglePostProcessBoundary(_CMKPostProcessBoundaryBase):
             "required": cls._model_widgets(),
             "optional": {
                 "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
-                "PROCESS": (cls.PROCESS_TYPE, {"lazy": True}),
+                "PROCESS": (
+                    cls.PROCESS_TYPE,
+                    {"lazy": True, "label": "PROCESS G"},
+                ),
                 "IMAGE": ("IMAGE", {"lazy": True}),
                 "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
                 "VISUAL": ("CMK_VISUAL_PIPE", {"lazy": True}),
@@ -871,21 +2914,40 @@ class _CMKSinglePostProcessBoundary(_CMKPostProcessBoundaryBase):
     FUNCTION = "boundary"
 
     def check_lazy_status(self, **inputs):
+        context = _detailer_diag_context()
+        print(
+            "[CMK DIAG DETAILER] POSTPROCESS_SETUP LAZY_ENTER "
+            f"class={type(self).__name__} {context}"
+        )
         process = inputs.get("PROCESS")
         if process is None:
+            print(f"[CMK DIAG DETAILER] POSTPROCESS_SETUP REQUEST input=PROCESS {context}")
             return ["PROCESS"]
         # An inactive family must stop at the boundary. In particular, do not
         # resolve MODEL merely to discover later that this branch is blocked.
         if isinstance(process, dict) and not process.get("family_active", True):
+            print(f"[CMK DIAG DETAILER] POSTPROCESS_SETUP INACTIVE no_request {context}")
             return []
         for name in ("MODEL", "IMAGE", "LOG"):
             if inputs.get(name) is None:
+                print(
+                    "[CMK DIAG DETAILER] POSTPROCESS_SETUP REQUEST "
+                    f"input={name} upstream_generation_request=YES {context}"
+                )
                 return [name]
         if "VISUAL" in inputs and inputs.get("VISUAL") is None:
+            print(f"[CMK DIAG DETAILER] POSTPROCESS_SETUP REQUEST input=VISUAL {context}")
             return ["VISUAL"]
+        print(f"[CMK DIAG DETAILER] POSTPROCESS_SETUP READY no_request {context}")
         return []
 
     def boundary(self, postprocess_checkpoint, postprocess_vae, use_checkpoint_vae, **inputs):
+        context = _detailer_diag_context()
+        print(
+            "[CMK DIAG DETAILER] POSTPROCESS_SETUP EXECUTE "
+            f"class={type(self).__name__} "
+            f"input_model={'PRESENT' if inputs.get('MODEL') is not None else 'MISSING'} {context}"
+        )
         process = inputs.get("PROCESS")
         if isinstance(process, dict) and not process.get("family_active", True):
             blocked = ExecutionBlocker(None)
@@ -898,13 +2960,779 @@ class _CMKSinglePostProcessBoundary(_CMKPostProcessBoundaryBase):
         )
 
 
-class CMKPostProcessBoundarySDXLPipe(_CMKSinglePostProcessBoundary):
-    pass
+class _CMKPostProcessBoundarySDXLPipe(_CMKSinglePostProcessBoundary):
+    _COMPLETION_MODE = "sdxl"
+    _COMPLETION_ROOTS = ("MODEL", "PROCESS", "IMAGE", "LOG", "VISUAL")
+    _REQUIRED_COMPLETION_ROOTS = ("MODEL", "PROCESS", "IMAGE", "LOG")
+    _SDXL_EXCLUDED_UPSTREAM_CLASSES = {
+        "CMKFamilyBranchGateZImage",
+        "CMKHybridZITInputPipe",
+        "CMKInstantIDBoundary",
+        "CMKSamplerBypassGate",
+        "CMKZImageTurboFinalizePipe",
+    }
+    _COMPLETION_CONTRACT = _SDXL_COMPLETION
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        result = super().INPUT_TYPES()
+        result["hidden"] = {
+            "prompt": "PROMPT",
+            "unique_id": "UNIQUE_ID",
+        }
+        return result
+
+    @classmethod
+    def _sdxl_completion_graph(cls, prompt, unique_id):
+        if not isinstance(prompt, dict):
+            return None, "PROMPT is unavailable"
+        current = prompt.get(unique_id)
+        if not isinstance(current, dict):
+            current = prompt.get(str(unique_id))
+        if not isinstance(current, dict) or current.get("class_type") != cls.__name__:
+            return None, "SDXL PostProcess Boundary is unavailable in the expanded prompt"
+        current_inputs = current.get("inputs", {}) or {}
+        roots, detail = _completion_mode_roots(
+            prompt,
+            current_inputs,
+            _SDXL_COMPLETION,
+        )
+        if roots is None:
+            return None, detail
+
+        pending = [link[0] for link in roots.values()]
+        visited = set()
+        source_nodes = []
+        while pending:
+            node_id = pending.pop()
+            node_key = str(node_id)
+            if node_key in visited:
+                continue
+            visited.add(node_key)
+            node = prompt.get(node_id)
+            if not isinstance(node, dict):
+                node = prompt.get(node_key)
+            if not isinstance(node, dict):
+                continue
+            class_type = str(node.get("class_type", ""))
+            if class_type in cls._SDXL_EXCLUDED_UPSTREAM_CLASSES:
+                return None, f"{class_type} is outside the Phase-2 SDXL completion contract"
+            if class_type == "CMKPipeCreateImage":
+                source_nodes.append(node)
+            for value in (node.get("inputs", {}) or {}).values():
+                if (
+                    isinstance(value, (list, tuple))
+                    and len(value) == 2
+                    and isinstance(value[1], int)
+                    and (
+                        isinstance(prompt.get(value[0]), dict)
+                        or isinstance(prompt.get(str(value[0])), dict)
+                    )
+                ):
+                    pending.append(value[0])
+
+        if len(source_nodes) != 1:
+            return None, "expanded graph does not identify exactly one SDXL source"
+        source_inputs = source_nodes[0].get("inputs", {}) or {}
+        if (
+            str(source_inputs.get("model_family", "")).strip().lower() != "sdxl"
+            or source_inputs.get("instantid_enabled") is True
+        ):
+            return None, "active source does not select pure SDXL"
+
+        return {"roots": roots}, "expanded pure-SDXL graph complete"
+
+    @classmethod
+    def _completion_key(cls, prompt, unique_id):
+        graph, detail = cls._sdxl_completion_graph(prompt, unique_id)
+        if graph is None:
+            return None, detail
+        return _completion_key_for_graph(prompt, graph, _SDXL_COMPLETION)
+
+    @staticmethod
+    def _sdxl_completion_hit(cache_key):
+        if not cache_key:
+            return None
+        result = lookup_completion(cache_key)
+        if result is None:
+            return None
+        process = result.get("process")
+        descriptor = result.get("model_descriptor")
+        valid = (
+            result.get("model_family") == "sdxl"
+            and result.get("generation_mode") == "sdxl"
+            and isinstance(process, dict)
+            and str(process.get("model_family", "sdxl")).strip().lower() == "sdxl"
+            and not bool(process.get("hybrid_mode", False))
+            and process.get("family_active", True) is not False
+            and isinstance(result.get("log"), dict)
+            and isinstance(result.get("visual"), dict)
+            and result.get("image") is not None
+        )
+        try:
+            valid = valid and _released_generation_model_descriptor(descriptor) is not None
+        except (TypeError, ValueError):
+            valid = False
+        if not valid:
+            invalidate_completion(cache_key)
+            return None
+        return result
+
+    @staticmethod
+    def _released_descriptor_after_finish(model, completion_metadata):
+        return _completion_released_descriptor(
+            _SDXL_COMPLETION,
+            model,
+            completion_metadata,
+            {},
+        )
+
+    def check_lazy_status(self, **inputs):
+        preflight = _completion_preflight(
+            type(self),
+            self._COMPLETION_CONTRACT,
+            inputs.get("prompt"),
+            inputs.get("unique_id"),
+        )
+        if preflight["cached"] is not None:
+            print(
+                "[CMK Generation Completion / SDXL] HIT before lazy inputs "
+                f"{preflight['key'][:12]} ({preflight['detail']})"
+            )
+            return []
+        return super().check_lazy_status(**inputs)
+
+    def boundary(self, postprocess_checkpoint, postprocess_vae, use_checkpoint_vae, **inputs):
+        preflight = _completion_preflight(
+            type(self),
+            self._COMPLETION_CONTRACT,
+            inputs.get("prompt"),
+            inputs.get("unique_id"),
+        )
+        if preflight["cached"] is not None:
+            return self._restore_completion(
+                preflight,
+                postprocess_checkpoint,
+                postprocess_vae,
+                use_checkpoint_vae,
+            )
+
+        process = inputs.get("PROCESS")
+        if isinstance(process, dict) and not process.get("family_active", True):
+            return super().boundary(
+                postprocess_checkpoint,
+                postprocess_vae,
+                use_checkpoint_vae,
+                **inputs,
+            )
+        if not preflight["key"]:
+            raise RuntimeError(
+                "CMK SDXL Generation Completion Cache cannot build its key: "
+                + str(preflight["detail"])
+            )
+
+        completion_metadata = {}
+        result = self._finish(
+            self.FAMILY,
+            inputs.get("MODEL"),
+            process,
+            inputs.get("IMAGE"),
+            inputs.get("LOG"),
+            inputs.get("VISUAL"),
+            postprocess_checkpoint,
+            postprocess_vae,
+            use_checkpoint_vae,
+            completion_metadata,
+        )
+        descriptor = self._released_descriptor_after_finish(
+            inputs.get("MODEL"),
+            completion_metadata,
+        )
+        if descriptor is None:
+            print(
+                "[CMK Generation Completion / SDXL] NOT STORED: "
+                "generation resource release was not proven"
+            )
+            return result
+        _store_completion_result(
+            preflight,
+            image=inputs.get("IMAGE"),
+            process=process,
+            log=inputs.get("LOG"),
+            visual=result[4],
+            metadata=completion_metadata,
+            descriptor=descriptor,
+        )
+        print(
+            "[CMK Generation Completion / SDXL] STORED "
+            f"{preflight['key'][:12]} ({preflight['detail']})"
+        )
+        return result
 
 
-class CMKPostProcessBoundaryZITPipe(_CMKSinglePostProcessBoundary):
+class _CMKPostProcessBoundaryZITPipe(_CMKSinglePostProcessBoundary):
     PROCESS_TYPE = "CMK_PROCESS_Z_IMAGE"
     FAMILY = "z_image_turbo"
+    _COMPLETION_MODE = "z_image_turbo"
+    _COMPLETION_ROOTS = ("MODEL", "PROCESS", "IMAGE", "LOG", "VISUAL")
+    _REQUIRED_COMPLETION_ROOTS = ("MODEL", "PROCESS", "IMAGE", "LOG")
+    _HYBRID_INPUTS = ("SAMPLED SDXL", "LOG SDXL", "VISUAL SDXL")
+    _ZIT_EXCLUDED_UPSTREAM_CLASSES = {
+        "CMKFamilyBranchGateSDXL",
+        "CMKFamilyBranchGateSDXLSampled",
+        "CMKInstantIDBoundary",
+        "CMKSamplerBypassGate",
+    }
+    _COMPLETION_CONTRACT = _ZIT_COMPLETION
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        result = super().INPUT_TYPES()
+        result["hidden"] = {
+            "prompt": "PROMPT",
+            "unique_id": "UNIQUE_ID",
+        }
+        return result
+
+    @staticmethod
+    def _prompt_node(prompt, node_id):
+        return _completion_prompt_node(prompt, node_id)
+
+    @classmethod
+    def _prompt_link(cls, prompt, value):
+        return _completion_prompt_link(prompt, value)
+
+    @classmethod
+    def _zit_completion_graph(cls, prompt, unique_id):
+        if not isinstance(prompt, dict):
+            return None, "PROMPT is unavailable"
+        current = cls._prompt_node(prompt, unique_id)
+        if not isinstance(current, dict) or current.get("class_type") != cls.__name__:
+            return None, "ZIT PostProcess Boundary is unavailable in the expanded prompt"
+
+        current_inputs = current.get("inputs", {}) or {}
+        roots, detail = _completion_mode_roots(
+            prompt,
+            current_inputs,
+            _ZIT_COMPLETION,
+        )
+        if roots is None:
+            return None, detail
+
+        active_contract, active_detail = _completion_active_contract(
+            (_ZIT_COMPLETION,), prompt, unique_id
+        )
+        if active_contract is not _ZIT_COMPLETION:
+            return None, active_detail
+
+        pending = [link[0] for link in roots.values()]
+        visited = set()
+        found_zit_gate = False
+        found_zit_finalizer = False
+        found_zit_input = False
+        while pending:
+            node_id = pending.pop()
+            node_key = str(node_id)
+            if node_key in visited:
+                continue
+            visited.add(node_key)
+            node = cls._prompt_node(prompt, node_id)
+            if not isinstance(node, dict):
+                continue
+            class_type = str(node.get("class_type", ""))
+            if (
+                class_type in cls._ZIT_EXCLUDED_UPSTREAM_CLASSES
+                or class_type.startswith("CMKInstantID")
+            ):
+                return None, f"{class_type} is outside the pure-ZIT completion contract"
+            if class_type == "CMKFamilyBranchGateZImage":
+                found_zit_gate = True
+            elif class_type == "CMKZImageTurboFinalizePipe":
+                found_zit_finalizer = True
+            elif class_type == "CMKHybridZITInputPipe":
+                found_zit_input = True
+            for input_name, value in (node.get("inputs", {}) or {}).items():
+                if (
+                    class_type == "CMKHybridZITInputPipe"
+                    and input_name in cls._HYBRID_INPUTS
+                ):
+                    # The START source above proves pure ZIT. These sockets may
+                    # remain wired for Hybrid without making that handoff active.
+                    continue
+                if cls._prompt_link(prompt, value):
+                    pending.append(value[0])
+
+        if not (found_zit_gate and found_zit_finalizer and found_zit_input):
+            return None, "expanded graph does not prove the current pure-ZIT contract"
+
+        return {"roots": roots}, "expanded pure-ZIT graph complete"
+
+    @classmethod
+    def _completion_key(cls, prompt, unique_id):
+        graph, detail = cls._zit_completion_graph(prompt, unique_id)
+        if graph is None:
+            return None, detail
+        return _completion_key_for_graph(prompt, graph, _ZIT_COMPLETION)
+
+    @staticmethod
+    def _valid_finalizer_model_status(value):
+        status = str(value or "").strip()
+        return status in {"UNLOADED", "KEPT LOADED", "NOT AVAILABLE"} or status.startswith(
+            "UNLOAD FAILED:"
+        )
+
+    @classmethod
+    def _zit_finalization_evidence(cls, prompt, unique_id):
+        graph, detail = cls._zit_completion_graph(prompt, unique_id)
+        if graph is None:
+            return None, detail
+
+        pending = [link[0] for link in graph["roots"].values()]
+        visited = set()
+        gate_ids = []
+        while pending:
+            node_id = pending.pop()
+            node_key = str(node_id)
+            if node_key in visited:
+                continue
+            visited.add(node_key)
+            node = cls._prompt_node(prompt, node_id)
+            if not isinstance(node, dict):
+                continue
+            if node.get("class_type") == "CMKFamilyBranchGateZImage":
+                gate_ids.append(node_id)
+            for value in (node.get("inputs", {}) or {}).values():
+                if cls._prompt_link(prompt, value):
+                    pending.append(value[0])
+
+        if len(gate_ids) != 1:
+            return None, "expanded graph does not identify exactly one ZIT Final Gate"
+        state_key = _zit_final_state_key(prompt, gate_ids[0])
+        if state_key is None:
+            return None, "ZIT Final Gate result state is unavailable"
+        try:
+            final_result = get_result(state_key)
+        except PromptStateUnavailableError:
+            return None, "ZIT Final Gate result state is unavailable"
+        if not isinstance(final_result, dict):
+            return None, "ZIT Final Gate has no completed result"
+        diagnostic = final_result.get("diagnostic")
+        metadata = diagnostic.get("metadata", {}) if isinstance(diagnostic, dict) else {}
+        model_status = str(metadata.get("zit_model_status", "")).strip()
+        complete = (
+            final_result.get("image") is not None
+            and isinstance(final_result.get("log"), dict)
+            and isinstance(final_result.get("visual"), dict)
+            and isinstance(diagnostic, dict)
+            and str(metadata.get("model_family", "")).strip().lower()
+            == "z_image_turbo"
+            and cls._valid_finalizer_model_status(model_status)
+        )
+        if not complete:
+            return None, "ZIT Final Gate diagnostic does not prove completed finalization"
+        return {"zit_model_status": model_status}, "ZIT Final Gate result and diagnostic complete"
+
+    @classmethod
+    def _zit_completion_hit(cls, cache_key):
+        if not cache_key:
+            return None
+        result = lookup_completion(cache_key)
+        if result is None:
+            return None
+        process = result.get("process")
+        descriptor = result.get("model_descriptor")
+        metadata = result.get("metadata")
+        valid = (
+            result.get("model_family") == "z_image_turbo"
+            and result.get("generation_mode") == "z_image_turbo"
+            and isinstance(process, dict)
+            and str(process.get("model_family", "")).strip().lower()
+            == "z_image_turbo"
+            and not bool(process.get("hybrid_mode", False))
+            and process.get("family_active", True) is not False
+            and isinstance(result.get("log"), dict)
+            and isinstance(result.get("visual"), dict)
+            and isinstance(metadata, dict)
+            and cls._valid_finalizer_model_status(
+                metadata.get("zit_model_status")
+            )
+            and result.get("image") is not None
+        )
+        try:
+            released = _released_generation_model_descriptor(descriptor)
+            valid = (
+                valid
+                and released is not None
+                and released["model_family"] == "z_image_turbo"
+            )
+        except (TypeError, ValueError):
+            valid = False
+        if not valid:
+            invalidate_completion(cache_key)
+            return None
+        return result
+
+    @staticmethod
+    def _released_descriptor_after_finish(model, completion_metadata):
+        return _completion_released_descriptor(
+            _ZIT_COMPLETION,
+            model,
+            completion_metadata,
+            {},
+        )
+
+    def check_lazy_status(self, **inputs):
+        preflight = _completion_preflight(
+            type(self),
+            self._COMPLETION_CONTRACT,
+            inputs.get("prompt"),
+            inputs.get("unique_id"),
+        )
+        if preflight["cached"] is not None:
+            print(
+                "[CMK Generation Completion / ZIT] HIT before lazy inputs "
+                f"{preflight['key'][:12]} ({preflight['detail']})"
+            )
+            return []
+        return super().check_lazy_status(**inputs)
+
+    def boundary(self, postprocess_checkpoint, postprocess_vae, use_checkpoint_vae, **inputs):
+        preflight = _completion_preflight(
+            type(self),
+            self._COMPLETION_CONTRACT,
+            inputs.get("prompt"),
+            inputs.get("unique_id"),
+        )
+        if preflight["cached"] is not None:
+            return self._restore_completion(
+                preflight,
+                postprocess_checkpoint,
+                postprocess_vae,
+                use_checkpoint_vae,
+            )
+
+        process = inputs.get("PROCESS")
+        if (
+            not preflight["key"]
+            or (isinstance(process, dict) and not process.get("family_active", True))
+        ):
+            return super().boundary(
+                postprocess_checkpoint,
+                postprocess_vae,
+                use_checkpoint_vae,
+                **inputs,
+            )
+
+        completion_metadata = {}
+        result = self._finish(
+            self.FAMILY,
+            inputs.get("MODEL"),
+            process,
+            inputs.get("IMAGE"),
+            inputs.get("LOG"),
+            inputs.get("VISUAL"),
+            postprocess_checkpoint,
+            postprocess_vae,
+            use_checkpoint_vae,
+            completion_metadata,
+        )
+        finalization_evidence, finalization_detail = _completion_finalization_evidence(
+            type(self),
+            preflight,
+            inputs.get("prompt"),
+            inputs.get("unique_id"),
+            process,
+        )
+        if finalization_evidence is None:
+            print(
+                "[CMK Generation Completion / ZIT] NOT STORED: "
+                "ZIT finalization is not proven ("
+                + finalization_detail
+                + ")"
+            )
+            return result
+        descriptor = self._released_descriptor_after_finish(
+            inputs.get("MODEL"),
+            completion_metadata,
+        )
+        if descriptor is None:
+            print(
+                "[CMK Generation Completion / ZIT] NOT STORED: "
+                "generation resource release was not proven"
+            )
+            return result
+        completion_metadata.update(finalization_evidence)
+        _store_completion_result(
+            preflight,
+            image=inputs.get("IMAGE"),
+            process=process,
+            log=inputs.get("LOG"),
+            visual=result[4],
+            metadata=completion_metadata,
+            descriptor=descriptor,
+        )
+        print(
+            "[CMK Generation Completion / ZIT] STORED "
+            f"{preflight['key'][:12]} ({preflight['detail']})"
+        )
+        return result
+
+
+class CMKPostProcessSetupPipe(
+    _CMKFamilyResultMergePipe,
+    _CMKPostProcessBoundarySDXLPipe,
+    _CMKPostProcessBoundaryZITPipe,
+):
+    """Complete any supported generation family at the PostProcess boundary."""
+
+    _COMPLETION_CONTRACTS = (
+        _SDXL_COMPLETION,
+        _ZIT_COMPLETION,
+        _SDXL_ZIT_HYBRID_COMPLETION,
+        _INSTANTID_HYBRID_COMPLETION,
+        _INSTANTID_ZERO_PASS_COMPLETION,
+    )
+    RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "VISUAL")
+
+
+_VISUALIZER_COMMON_INPUTS = {
+    "MODEL": "MODEL (opt)",
+    "PROCESS": "PROCESS",
+    "IMAGE": "IMAGE",
+    "LOG": "LOG",
+    "VISUAL": "VISUAL",
+}
+_VISUALIZER_FAMILY_SUFFIXES = ("ZIT", "SDXL")
+_POSTPROCESS_COMPLETION_NODES = {
+    "CMKPostProcessSetupPipe",
+    "CMKPostProcessBoundarySDXLPipe",
+    "CMKPostProcessBoundaryZITPipe",
+    "CMKFamilyResultMergePipe",
+}
+
+
+def _visualizer_upstream_contains_postprocess(prompt, current_inputs):
+    pending = []
+    for input_name in _VISUALIZER_COMMON_INPUTS.values():
+        value = current_inputs.get(input_name)
+        if _completion_prompt_link(prompt, value):
+            pending.append(value[0])
+    visited = set()
+    while pending:
+        node_id = pending.pop()
+        node_key = str(node_id)
+        if node_key in visited:
+            continue
+        visited.add(node_key)
+        node = _completion_prompt_node(prompt, node_id)
+        if not isinstance(node, dict):
+            continue
+        if str(node.get("class_type", "")) in _POSTPROCESS_COMPLETION_NODES:
+            return True
+        for value in (node.get("inputs", {}) or {}).values():
+            if _completion_prompt_link(prompt, value):
+                pending.append(value[0])
+    return False
+
+
+def _visualizer_completion_prompt(prompt, unique_id):
+    """Adapt the Visualizer's generic roots to the existing mode contracts."""
+    if not isinstance(prompt, dict):
+        return None, "PROMPT is unavailable"
+    current = _completion_prompt_node(prompt, unique_id)
+    if not isinstance(current, dict) or current.get("class_type") != "CMKVisualizer":
+        return None, "Visualizer is unavailable in the expanded prompt"
+    current_inputs = dict(current.get("inputs", {}) or {})
+    if _visualizer_upstream_contains_postprocess(prompt, current_inputs):
+        return None, "PostProcess Setup already owns generation completion"
+
+    adapted_inputs = dict(current_inputs)
+    family_connected = any(
+        _completion_prompt_link(prompt, current_inputs.get(f"{role} {suffix}"))
+        for suffix in _VISUALIZER_FAMILY_SUFFIXES
+        for role in _VISUALIZER_COMMON_INPUTS
+    )
+    if not family_connected:
+        for role, input_name in _VISUALIZER_COMMON_INPUTS.items():
+            value = current_inputs.get(input_name)
+            if value is not None:
+                adapted_inputs.setdefault(role, value)
+        for suffix in _VISUALIZER_FAMILY_SUFFIXES:
+            for role, input_name in _VISUALIZER_COMMON_INPUTS.items():
+                value = current_inputs.get(input_name)
+                if value is not None:
+                    adapted_inputs.setdefault(f"{role} {suffix}", value)
+    adapted_current = dict(current)
+    adapted_current["class_type"] = "CMKPostProcessSetupPipe"
+    adapted_current["inputs"] = adapted_inputs
+    adapted_prompt = dict(prompt)
+    prompt_key = unique_id if unique_id in prompt else str(unique_id)
+    adapted_prompt[prompt_key] = adapted_current
+    return adapted_prompt, "direct generation roots adapted"
+
+
+def _visualizer_completion_input_group(preflight, current_inputs):
+    contract = preflight.get("contract")
+    graph = preflight.get("graph")
+    roots = graph.get("roots") if isinstance(graph, dict) else None
+    if contract is None or not isinstance(roots, dict):
+        return None
+    preferred = (
+        "ZIT"
+        if contract in (_ZIT_COMPLETION, _SDXL_ZIT_HYBRID_COMPLETION)
+        else "SDXL"
+    )
+
+    def base_role(role):
+        text = str(role)
+        for suffix in _VISUALIZER_FAMILY_SUFFIXES:
+            marker = f" {suffix}"
+            if text.endswith(marker):
+                return text[:-len(marker)]
+        return text
+
+    def matches(group):
+        for role, link in roots.items():
+            base = base_role(role)
+            input_name = (
+                _VISUALIZER_COMMON_INPUTS.get(base)
+                if group == "COMMON"
+                else f"{base} {group}"
+            )
+            if input_name is None or current_inputs.get(input_name) != link:
+                return False
+        return True
+
+    for group in (preferred, "COMMON"):
+        if matches(group):
+            return group
+    return None
+
+
+def visualizer_completion_preflight(prompt, unique_id):
+    adapted_prompt, detail = _visualizer_completion_prompt(prompt, unique_id)
+    if adapted_prompt is None:
+        return {
+            "contract": None,
+            "graph": None,
+            "key": None,
+            "detail": detail,
+            "cached": None,
+            "completion_prompt": None,
+            "input_group": "COMMON",
+            "path_kind": "postprocess" if "already owns" in detail else "common",
+        }
+    preflight = _resolve_completion_preflight(
+        CMKPostProcessSetupPipe,
+        CMKPostProcessSetupPipe._COMPLETION_CONTRACTS,
+        adapted_prompt,
+        unique_id,
+    )
+    preflight["completion_prompt"] = adapted_prompt
+    current = _completion_prompt_node(prompt, unique_id) or {}
+    current_inputs = current.get("inputs", {}) or {}
+    input_group = _visualizer_completion_input_group(preflight, current_inputs)
+    family_connected = any(
+        _completion_prompt_link(prompt, current_inputs.get(f"{role} {suffix}"))
+        for suffix in _VISUALIZER_FAMILY_SUFFIXES
+        for role in _VISUALIZER_COMMON_INPUTS
+    )
+    preflight["input_group"] = input_group or "COMMON"
+    preflight["path_kind"] = (
+        "direct"
+        if preflight["contract"] is not None and input_group is not None
+        else ("invalid" if family_connected else "common")
+    )
+    if preflight["contract"] is not None and input_group is None:
+        preflight["cached"] = None
+        preflight["detail"] = "completion roots mix incompatible Visualizer input groups"
+    return preflight
+
+
+def restore_visualizer_completion(preflight):
+    cached = preflight.get("cached") if isinstance(preflight, dict) else None
+    if not isinstance(cached, dict):
+        raise ValueError("CMK Visualizer Completion restore requires a valid cache hit")
+    contract = preflight["contract"]
+    print(
+        f"[CMK Generation Completion / {contract.log_label}] RESTORE at Visualizer "
+        f"{preflight['key'][:12]} ({preflight['detail']})"
+    )
+    return (
+        cached["model_descriptor"],
+        cached["process"],
+        cached["image"],
+        cached["log"],
+        cached["visual"],
+    )
+
+
+def complete_generation_at_visualizer(
+    preflight, *, model, process, image, log, visual, unique_id
+):
+    """Release and persist a proven direct-generation result at the Visualizer."""
+    contract = preflight.get("contract") if isinstance(preflight, dict) else None
+    if contract is None or not preflight.get("key"):
+        return model, process, image, log, visual
+    if not isinstance(model, dict) or not isinstance(process, dict) or not isinstance(log, dict):
+        raise TypeError("CMK Visualizer Completion requires valid MODEL, PROCESS and LOG pipes")
+    if image is None:
+        raise ValueError("CMK Visualizer Completion requires the completed generation IMAGE")
+    actual = str(process.get("model_family", contract.runtime_family)).strip().lower()
+    if actual != contract.runtime_family:
+        raise ValueError("CMK Visualizer Completion received a PROCESS from the wrong family")
+
+    evidence, evidence_detail = _completion_finalization_evidence(
+        CMKPostProcessSetupPipe,
+        preflight,
+        preflight.get("completion_prompt"),
+        unique_id,
+        process,
+    )
+    release_metadata, _released = _release_completed_generation_resources(
+        contract.runtime_family, model, process
+    )
+    if evidence is None:
+        print(
+            f"[CMK Generation Completion / {contract.log_label}] NOT STORED at Visualizer: "
+            + evidence_detail
+        )
+        return model, process, image, log, visual
+    generation_unload = str(release_metadata.get("generation_unload", ""))
+    if generation_unload != "UNLOADED" and not generation_unload.startswith(
+        "ALREADY RELEASED ("
+    ):
+        print(
+            f"[CMK Generation Completion / {contract.log_label}] NOT STORED at Visualizer: "
+            "generation resource release was not proven"
+        )
+        return model, process, image, log, visual
+    evidence = dict(evidence)
+    descriptor = _completion_released_descriptor(
+        contract, model, release_metadata, evidence
+    )
+    if descriptor is None:
+        print(
+            f"[CMK Generation Completion / {contract.log_label}] NOT STORED at Visualizer: "
+            "released generation MODEL descriptor is unavailable"
+        )
+        return model, process, image, log, visual
+    evidence.pop("model_descriptor", None)
+    release_metadata.update(evidence)
+    _store_completion_result(
+        preflight,
+        image=image,
+        process=process,
+        log=log,
+        visual=visual,
+        metadata=release_metadata,
+        descriptor=descriptor,
+    )
+    print(
+        f"[CMK Generation Completion / {contract.log_label}] STORED at Visualizer "
+        f"{preflight['key'][:12]} ({preflight['detail']})"
+    )
+    return descriptor, process, image, log, visual
 
 
 class CMKResultProcessForwardPipe:

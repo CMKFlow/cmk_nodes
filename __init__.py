@@ -18,8 +18,16 @@ from .utils.cmk_execution_cache import (
     public_status as _execution_cache_status,
     save_mode as _save_execution_cache_mode,
 )
+from .utils.cmk_persistent_cache_control import (
+    PersistentCacheBusyError as _PersistentCacheBusyError,
+    PersistentCacheClearError as _PersistentCacheClearError,
+    clear_persistent_cmk_cache as _clear_persistent_cmk_cache,
+)
+from .utils.cmk_statistics import collect_statistics as _collect_statistics
+from .pipe.cmk_prompt_result_state import register_prompt_result_provider
 
 _EXECUTION_CACHE_BOOT_STATUS = _apply_execution_cache_config()
+_PROMPT_RESULT_PROVIDER = register_prompt_result_provider()
 
 from .cmk_mappings import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
 from .utils.cmk_translation import (
@@ -35,6 +43,7 @@ _SHOWCASE_METADATA = _SHOWCASE_WORKFLOWS / "metadata"
 _REFERENCE_ASSETS = Path(__file__).resolve().parent / "assets" / "references"
 _REFERENCE_FILENAMES = (
     "black.png",
+    "clipspace-mask-1792499379891.png",
     "controlnet_reference.png",
     "controlnet_reference4.png",
     "detailer_reference.png",
@@ -555,6 +564,52 @@ async def cmk_translation_status(request):
 @PromptServer.instance.routes.get("/cmk/execution-cache")
 async def cmk_execution_cache_status(request):
     return web.json_response(await asyncio.to_thread(_execution_cache_status))
+
+
+@PromptServer.instance.routes.get("/cmk/statistics")
+async def cmk_statistics(request):
+    try:
+        result = await asyncio.to_thread(
+            _collect_statistics,
+            NODE_CLASS_MAPPINGS,
+        )
+    except Exception as error:
+        return web.json_response({
+            "ok": False,
+            "error_code": "statistics_unavailable",
+            "message": str(error),
+        }, status=500)
+    return web.json_response({"ok": True, **result})
+
+
+@PromptServer.instance.routes.post("/cmk/persistent-cache/clear")
+async def cmk_clear_persistent_cache(request):
+    try:
+        result = await asyncio.to_thread(
+            _clear_persistent_cmk_cache,
+            PromptServer.instance.prompt_queue,
+        )
+    except _PersistentCacheBusyError as error:
+        return web.json_response({
+            "ok": False,
+            "error_code": "generation_active",
+            "message": str(error),
+        }, status=409)
+    except _PersistentCacheClearError as error:
+        return web.json_response({
+            "ok": False,
+            "error_code": "persistent_cache_clear_failed",
+            "message": str(error),
+            "phase": error.phase,
+        }, status=500)
+    except Exception as error:
+        return web.json_response({
+            "ok": False,
+            "error_code": "persistent_cache_clear_failed",
+            "message": str(error),
+            "phase": "backend",
+        }, status=500)
+    return web.json_response(result)
 
 
 @PromptServer.instance.routes.get("/cmk/process-memory")

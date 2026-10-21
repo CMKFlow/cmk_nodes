@@ -23,7 +23,7 @@ angeboten. Der Video-Referenzworkflow bleibt
 
 Der Menüeintrag `CMK Flow → Flow Browser öffnen` ist der zentrale Einstieg in die veröffentlichten Flow-Module. Der Browser liest ComfyUIs globale Subgraph-Registry, zeigt ausschließlich Einträge aus `custom_nodes.cmk_nodes` mit freigegebenen `CMKFlow`-Metadaten und fügt den ausgewählten Blueprint in den aktuell geöffneten Graphen ein. Zusätzlich erkennt er echte Python-Nodes automatisch, wenn deren Kategorie mit `CMK/Flow/` beginnt. Kategorien unter `CMK/Toolbox/` und `CMK/Developer/` bleiben dadurch ausgeschlossen.
 
-Eine Ablaufnummer ist ausschließlich kuratierten Modulen der geführten Flow-Reihenfolge vorbehalten. Eigenständige, nur grundsätzlich kompatible Bausteine erhalten keine Nummer. Mit `area: "toolbox"` und `published: false` vorbereitete Subgraphen bleiben aus dem Flow-Katalog ausgeschlossen und können später dem Baukasten zugeordnet werden.
+Eine Ablaufnummer ist ausschließlich kuratierten Modulen der geführten Flow-Reihenfolge vorbehalten. Eigenständige, nur grundsätzlich kompatible Bausteine erhalten keine Nummer. Historisch mit `area: "toolbox"` und `published: false` markierte Subgraphen bleiben aus dem Flow-Katalog ausgeschlossen; die Kennzeichnung veröffentlicht sie nicht in einem separaten Browserbereich.
 
 Die Registrierung liegt direkt in der jeweiligen Datei unter `extra.CMKFlow`:
 
@@ -60,7 +60,7 @@ So wird ein neuer Flow veröffentlicht:
 
 Für Entwürfe kann der Metadatenblock bereits vorhanden sein, während `published` auf `false` steht. Neue Flows benötigen keine Änderung an der JavaScript-Erweiterung.
 
-Eine einzelne Python-Node wird für den Flow Browser freigegeben, indem ihre `CATEGORY` gezielt unter `CMK/Flow/Input`, `CMK/Flow/Process` oder `CMK/Flow/Finish` eingeordnet wird. Diese Freigabe sollte nur für kuratierte, anwenderorientierte Nodes erfolgen; Baukasten-Nodes verbleiben unter `CMK/Toolbox/`.
+Eine einzelne Python-Node wird für den Flow Browser freigegeben, indem ihre `CATEGORY` gezielt unter `CMK/Flow/Input`, `CMK/Flow/Process` oder `CMK/Flow/Finish` eingeordnet wird. Diese Freigabe sollte nur für kuratierte, anwenderorientierte Nodes erfolgen; Nodes unter `CMK/Toolbox/` verbleiben ausschließlich in der regulären ComfyUI-Node-Suche.
 
 Reale Vorschaubilder liegen unter `web/assets/previews/`. Kuratierte Python-Nodes ordnen ihre Bilder in `web/flow_node_metadata.json` über ein `previews`-Array dem internen Node-Typ zu. Subgraphen registrieren dasselbe Array direkt unter `extra.CMKFlow.previews`. Ein Eintrag besteht aus `src` und einer kurzen Schaltflächenbeschriftung wie `Node`, `Modul` oder `Aufbau`. Mehrere Bilder erscheinen als umschaltbare Galerie. `placementNote` erklärt in Alltagssprache, wo der Baustein in den Flow gehört. Die optionalen Felder `recommendedBefore`, `recommendedAfter` und `dependencyNote` nennen passende Nachbarn und notwendige Verbindungen. Einstellbare Werte der Bedienoberfläche werden nicht nochmals beschrieben; dafür dient die reale Vorschau. Fehlt ein Bild, zeigt der Browser ausdrücklich einen Platzhalter und erzeugt keine schematische Node-Darstellung.
 
@@ -127,7 +127,7 @@ Weitere Subgraphs kapseln Inpaint-, Conditioning-, Masken-, Video-, Dateinamen- 
 
 Subgraphs werden in Workflows über UUIDs referenziert. Um bestehende Workflows kompatibel zu halten, müssen beim Aktualisieren die versionierten JSON-Dateien verwendet werden; ein manuelles Neuerstellen gleichnamiger Subgraphs ist nicht gleichwertig.
 
-`CMK Toolbox · FaceSwap Image` ist eine eigenständig verwendbare Variante und gehört nicht zur geführten Flow-Reihenfolge. Ihm fehlen die vollständigen Boundaries und Weitergaben, die ein frei kombinierbares Flow-Modul benötigt. Es darf deshalb nicht als Alternative zu `CMK Flow · FaceSwap` in den Flow-Hauptweg eingesetzt werden. Die in `CMK Flow · FaceSwap` verwendete Execute-Node bleibt davon unberührt. Auch die offene Node `CMK FaceSwap Image` ohne `-Pipe-` gehört zum Baukasten. Der frühere Subgraphname `SwapFace` wurde entfernt.
+`CMK Toolbox · FaceSwap Image` ist eine historisch benannte, unveröffentlichte Variante und gehört nicht zur geführten Flow-Reihenfolge. Ihm fehlen die vollständigen Boundaries und Weitergaben, die ein frei kombinierbares Flow-Modul benötigt. Es darf deshalb nicht als Alternative zu `CMK Flow · FaceSwap` in den Flow-Hauptweg eingesetzt werden. Die in `CMK Flow · FaceSwap` verwendete Execute-Node bleibt davon unberührt. Die einzelne Node `CMK FaceSwap Image` ohne `-Pipe-` bleibt über die reguläre ComfyUI-Node-Suche verfügbar. Der frühere Subgraphname `SwapFace` wurde entfernt.
 
 Für alle Flow-Module gilt: Daten laufen ausschließlich von den Eingängen zu den Ausgängen und anschließend weiter zum nächsten Modul. Ein Modul darf keine Rückkopplung zu einem vorgeschalteten Modul und keine versteckte Abhängigkeit von dessen internem Aufbau besitzen. Die Reihenfolge ist eine Empfehlung; die korrekten Ein- und Ausgänge sind der Vertrag.
 

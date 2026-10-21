@@ -79,9 +79,9 @@ allein die Verkabelung des Workflows. MaskDetailer ist der terminale interaktive
 Bearbeitungsschritt. Visualizer ist die terminale Visualisierungs- und
 Output-Stufe, aber kein Bild-Finalizer.
 
-### 2.3 Offener Experimentierkasten
+### 2.3 Einzelne CMK-Nodes in ComfyUI
 
-Alle übrigen CMK-Nodes bilden den offenen Experimentierkasten.
+Alle übrigen CMK-Nodes bleiben über die reguläre ComfyUI-Node-Suche verfügbar.
 
 Sie dürfen:
 
@@ -90,13 +90,11 @@ Sie dürfen:
 - manuelle Verkabelung und alternative Reihenfolgen erlauben;
 - Flexibilität über Schutzmechanismen stellen.
 
-Die offene Toolbox darf das geschlossene `-Pipe-`-Ökosystem ergänzen, aber dessen Schutz- und Bedienkonzept nicht aufweichen.
-
-Der Baukasten ist ein eigenständiger Produktbereich und kein Ablageort für veraltete Flow-Bausteine. Er benötigt eigene, aktuelle Beispiele, dokumentierte Abhängigkeiten und regelmäßige Funktionstests. Eine Funktion kann im Baukasten bewusst mehr Eingriffe erlauben als im Apple-like Flow-Frontend, muss aber weiterhin einen klar benannten und gepflegten Einsatzzweck besitzen.
+Einzelne Nodes dürfen das geschlossene `-Pipe-`-Ökosystem ergänzen, aber dessen Schutz- und Bedienkonzept nicht aufweichen. Sie bilden keinen eigenständigen Produkt- oder Browserbereich. Eine solche Funktion kann bewusst mehr Eingriffe erlauben als das Apple-like Flow-Frontend, muss aber weiterhin einen klar benannten und gepflegten Einsatzzweck besitzen.
 
 `CMK FaceSwap Image -Pipe-` gehört zum geschlossenen Flow. Im Referenzworkflow wird seine Execute-Node innerhalb von `CMK SwapFace -Pipe-` gemeinsam mit Source-Loader und verpflichtender Boundary komponiert. Der eigenständig gespeicherte Subgraph bleibt eine alternative Flow-Oberfläche desselben vollständig funktionsfähigen Moduls. Geplante Anpassungen an dieser Oberfläche ändern seine Produktzuordnung nicht.
 
-Zum offenen Baukasten gehört dagegen `CMK FaceSwap Image` **ohne** `-Pipe-`. Diese Variante stellt zusätzliche manuelle Auswahl- und Experimentierschnittstellen bereit.
+Als einzelne ComfyUI-Node steht dagegen `CMK FaceSwap Image` **ohne** `-Pipe-` zur Verfügung. Diese Variante stellt zusätzliche manuelle Auswahl- und Experimentierschnittstellen bereit.
 
 ## 3. Die fünf sichtbaren Transportrollen
 
@@ -271,7 +269,7 @@ Der erste verbindliche End-to-End-Slice verläuft über die Module 10 und 20:
 CMK Visualizer
 ```
 
-Modul `15 InstantID-Sampler SDXL` erweitert diese Kette um den Provider
+Modul `15S InstantID Regional SDXL` erweitert diese Kette um den Provider
 `Identity` an Position 15. Seine Sampler-Frames werden live dargestellt. Nach
 bestandener finaler ContentGuard-Prüfung entsteht ein separater Visual-Decode,
 der ausschließlich als `Identity.result` in die VISUAL-Pipe eingeht; der
@@ -1138,16 +1136,27 @@ gleichartiger Module ohne Positionsannahme oder Sonderregel.
 
 ### 6.4 Cache-Speicherung
 
-Cache-Dateien liegen ausschließlich unter:
+Die persistenten Generation-Completion-Ergebnisse liegen paketlokal unter
+`cmk-flow/cache/generation_completion/`. Sie bleiben über einen vollständigen
+ComfyUI-Neustart erhalten, bis sie durch die Begrenzung des Caches, eine gezielte
+Invalidierung oder die manuelle Bereinigung im Flow Browser entfernt werden.
 
-```text
-ComfyUI/temp/cmk/
-```
+Branch- und Boundary-Caches liegen dagegen unter `ComfyUI/temp/cmk/`. Sie werden
+promptübergreifend innerhalb der laufenden Instanz wiederverwendet, gehören aber
+zum temporären ComfyUI-Dateisystem und sind daher nicht verlässlich
+neustartpersistent.
+
+Die manuelle Aktion `Clear Persistent Cache` erfasst ausschließlich diese
+paketlokalen Generation-Completion-Dateien und die ausdrücklich registrierten
+CMK-Scopes unter `ComfyUI/temp/cmk/`. In-Memory-Ergebnisse, ComfyUIs normaler
+Execution Cache einschließlich RAM-Pressure-Modus sowie allgemeine Modell- und
+Ressourcencaches sind nicht Bestandteil dieser Bereinigung.
 
 Aktuelle Implementierung:
 
 | Ebene | gespeicherte Nutzdaten | Format | zusätzliche Laufzeitdaten |
 |---|---|---|---|
+| Generation Completion | fertiges IMAGE, ressourcenfreier PROCESS, LOG, VISUAL, Metadaten und freigegebener Modelldeskriptor | paketlokales `safetensors` + JSON | keine Modell- oder Samplerreferenzen |
 | Refiner Boundary | First-Pass-Bild, Refiner-Bild, LOG | `safetensors` + JSON | `MODEL` und `PROCESS` im aktuellen ComfyUI-Prozess |
 | Smart-Detailer-Branch | SEGS, optionales Bild, Diagnostic, LOG BLOCK | lokales Pickle-Bundle + Revisionsmarker | keine öffentliche API |
 | FaceProcess-Branch | Bild/SEGS, Status, lokaler Diagnostic-/Logbeitrag | lokales Pickle-Bundle + Revisionsmarker | aktueller vollständiger LOG-/diagnostic-Transport wird nach dem Cache-Lesen ergänzt |

@@ -1,0 +1,599 @@
+.comfyignore
+.gitignore
+ARCHITECTURE.md
+CHANGELOG.md
+CMK_FLOW_COMPATIBILITY.md
+CONTENT_GUARD.md
+LICENSE
+README.en.md
+README.md
+WORKFLOWS.md
+__init__.py
+assets/references/black.png
+assets/references/clipspace-mask-1792499379891.png
+assets/references/controlnet_reference.png
+assets/references/controlnet_reference4.png
+assets/references/detailer_reference.png
+assets/references/face_identity_reference.png
+assets/references/face_reference.png
+assets/references/face_reference2.png
+assets/references/faceswap_reference.png
+assets/references/inpaint_reference.png
+assets/references/inpaint_reference2.png
+assets/references/inpaint_reference3.png
+assets/references/manifest.json
+assets/references/mask_detailer_reference.png
+assets/references/portrait_reference_00002.png
+assets/references/remove_refrence.png
+cmk_common.py
+cmk_mappings.py
+engine/__init__.py
+engine/content_guard.py
+engine/context_reference.py
+engine/detailer_limits.py
+engine/detector_engine.py
+engine/enhance_backends.py
+engine/fooocus_inpaint.py
+engine/instantid_face_rebuild.py
+engine/native_detailer.py
+engine/native_face_restore.py
+engine/pasteback.py
+engine/swap_backends.py
+engine/swap_engine.py
+engine/swap_model_adapters.py
+engine/swap_selected_engine.py
+engine/validation.py
+engine/video_swap_engine.py
+loader/__init__.py
+loader/checkpoint_vae_loader.py
+loader/cmk_lora_text_loader.py
+models/__init__.py
+models/model_manager.py
+nodes/__init__.py
+nodes/controlnet/__init__.py
+nodes/controlnet/controlnet.py
+nodes/image/__init__.py
+nodes/image/empty_image_mask.py
+nodes/image/image_mask_switch.py
+nodes/image/image_metrics.py
+nodes/image/image_resize.py
+nodes/image/mask_detailer.py
+nodes/image/segs_concate.py
+nodes/image/smart_detailer.py
+nodes/image/smart_outpaint_pad.py
+nodes/image/smart_upscale.py
+nodes/instantid_face_detailer.py
+nodes/instantid_face_rebuild.py
+nodes/instantid_face_rebuild_advanced.py
+nodes/io/__init__.py
+nodes/io/filename_tools.py
+nodes/io/save_project_image.py
+nodes/io/save_project_text.py
+nodes/io/save_project_video.py
+nodes/io/source_path_info.py
+nodes/swap/__init__.py
+nodes/swap/detect_faces.py
+nodes/swap/face_mask.py
+nodes/swap/face_match.py
+nodes/swap/face_process.py
+nodes/swap/face_restore.py
+nodes/swap/face_select.py
+nodes/swap/face_set_info.py
+nodes/swap/face_swap.py
+nodes/utils/__init__.py
+nodes/utils/diagnostic_concat.py
+nodes/utils/face_crop.py
+nodes/utils/native_flow_helpers.py
+nodes/utils/preview_board.py
+nodes/utils/preview_render.py
+nodes/utils/summary.py
+nodes/video/__init__.py
+nodes/video/face_swap_video.py
+nodes/video/face_swap_video_loader.py
+nodes/video/merge_and_save_video.py
+nodes/video/split_video_segments.py
+nodes/video/video_compare.py
+nodes/video/video_metrics.py
+pipe/__init__.py
+pipe/cmk_detailer_finalize.py
+pipe/cmk_detailer_prepare.py
+pipe/cmk_faceprocess.py
+pipe/cmk_faceprocess_prepare.py
+pipe/cmk_family_result.py
+pipe/cmk_final_preview.py
+pipe/cmk_get_pipe.py
+pipe/cmk_hybrid_bridge.py
+pipe/cmk_image_forward.py
+pipe/cmk_log_pipe.py
+pipe/cmk_lora_pipe.py
+pipe/cmk_model_forward.py
+pipe/cmk_module_boundary_cache.py
+pipe/cmk_module_cache_contract.py
+pipe/cmk_persistent_cache.py
+pipe/cmk_pipe.py
+pipe/cmk_pipe_debug.py
+pipe/cmk_pipe_image.py
+pipe/cmk_pipe_process.py
+pipe/cmk_pipe_refiner.py
+pipe/cmk_pipe_sampler.py
+pipe/cmk_process_forward.py
+pipe/cmk_refiner.py
+pipe/cmk_refiner_boundary_cache.py
+pipe/cmk_refiner_prepare.py
+pipe/cmk_regional_conditioning.py
+pipe/cmk_sampler_prepare.py
+pipe/cmk_smart_pipe.py
+pipe/cmk_visual.py
+pipe/cmk_z_image_turbo.py
+pipe/controlnet/__init__.py
+pipe/controlnet/cmk_combined_controlnet_prepare.py
+pipe/controlnet/cmk_controlnet_prepare.py
+pipe/controlnet/cmk_zit_controlnet_prepare.py
+pipe/instantid/__init__.py
+pipe/instantid/cmk_instantid_sampler.py
+pipe/instantid/upstream/CrossAttentionPatch.py
+pipe/instantid/upstream/InstantID.py
+pipe/instantid/upstream/LICENSE
+pipe/instantid/upstream/NOTICE
+pipe/instantid/upstream/__init__.py
+pipe/instantid/upstream/resampler.py
+pipe/instantid/upstream/utils.py
+pipe/loaders/__init__.py
+pipe/loaders/checkpoint_vae_loader.py
+pipe/loaders/cmk_image_load_resize.py
+pipe/loaders/cmk_load_image.py
+pipe/loaders/cmk_swap_image_loader.py
+pipe/loaders/z_image_turbo_loader.py
+pyproject.toml
+release_manifest.json
+requirements.txt
+scripts/check_cmk_resources.py
+scripts/install_cmk_requirements.py
+scripts/validate_release_artifact.py
+subgraphs/CMK - => Kontext Reference Latent Mask (only Inpaint-Mode).json
+subgraphs/CMK - Conditioning Builder - SDXL -.json
+subgraphs/CMK - Conditioning Builder - SDXL-Refiner -.json
+subgraphs/CMK - Create Caption and Foldername.json
+subgraphs/CMK - Create Video, Caption and Foldername.json
+subgraphs/CMK - Fooocus Inpaint Apply.json
+subgraphs/CMK - Mask Finalize.json
+subgraphs/CMK - Pipe In (Inpaint_1st-Pass).json
+subgraphs/CMK - Pipe In v2 - 2nd Pass.json
+subgraphs/CMK - Pipe In v2.json
+subgraphs/CMK - Pipe In.json
+subgraphs/CMK - Pipe Out - 2nd Pass.json
+subgraphs/CMK - Pipe Out v2.json
+subgraphs/CMK - Pipe Out.json
+subgraphs/CMK - Smart Image Prepare.json
+subgraphs/CMK - Split Video into Segments.json
+subgraphs/CMK - VAE Encode Dummy-Switch.json
+subgraphs/CMK Flow · 05 ControlNet Combined.json
+subgraphs/CMK Flow · 05 ControlNet SDXL.json
+subgraphs/CMK Flow · 05 ControlNet ZIT.json
+subgraphs/CMK Flow · 10 KSampler SDXL 1st Pass.json
+subgraphs/CMK Flow · 10 KSampler Z-Image Turbo.json
+subgraphs/CMK Flow · 15 InstantID-Sampler SDXL.json
+subgraphs/CMK Flow · 20 Refiner SDXL.json
+subgraphs/CMK Flow · Detailer SDXL · Advanced.json
+subgraphs/CMK Flow · Detailer SDXL.json
+subgraphs/CMK Flow · FaceProcess SDXL · Advanced.json
+subgraphs/CMK Flow · FaceProcess SDXL.json
+subgraphs/CMK Flow · FaceRebuild SDXL · Advanced.json
+subgraphs/CMK Flow · FaceRebuild SDXL.json
+subgraphs/CMK Flow · FaceSwap · Advanced.json
+subgraphs/CMK Flow · FaceSwap.json
+subgraphs/CMK Flow · MaskDetailer SDXL.json
+subgraphs/CMK Flow · Upscale & Save.json
+subgraphs/CMK Toolbox · FaceSwap Image.json
+subgraphs/LoRA Stack · SDXL.json
+subgraphs/LoRA Stack · ZIT.json
+subgraphs/LoRA Stack · combined.json
+subgraphs/Model and Conditioning Switch.json
+utils/__init__.py
+utils/cmk_diagnostic.py
+utils/cmk_execution_cache.py
+utils/cmk_sampling_warnings.py
+utils/cmk_save_path.py
+utils/cmk_timing.py
+utils/cmk_translation.py
+utils/comfy_preview_output.py
+utils/face_set_utils.py
+utils/migrate_native_segs_preview.mjs
+utils/migrate_remove_optional_sound.mjs
+utils/migrate_subgraph_image_compare.mjs
+utils/preview_payload.py
+utils/preview_utils.py
+utils/restore_subgraph_catalog_metadata.mjs
+utils/segs_branch_merge.py
+utils/stable_segs.py
+utils/tensor_utils.py
+web/assets/brand/cmk-logo.png
+web/assets/previews/CMK FaceSwap Image Input.png
+web/assets/previews/CMK Flow · 01 START HERE · Create Image.png
+web/assets/previews/CMK Flow · 02 Regional Conditioning SDXL - Advanced Settings.png
+web/assets/previews/CMK Flow · 02 Regional Conditioning SDXL.png
+web/assets/previews/CMK Flow · 05 ControlNet Combined - Aufbau.png
+web/assets/previews/CMK Flow · 05 ControlNet Combined - Modul.png
+web/assets/previews/CMK Flow · 05 ControlNet Combined.png
+web/assets/previews/CMK Flow · 05 ControlNet SDXL - Aufbau.png
+web/assets/previews/CMK Flow · 05 ControlNet SDXL - Modul.png
+web/assets/previews/CMK Flow · 05 ControlNet SDXL.png
+web/assets/previews/CMK Flow · 05 ControlNet ZIT - Aufbau.png
+web/assets/previews/CMK Flow · 05 ControlNet ZIT - Modul.png
+web/assets/previews/CMK Flow · 05 ControlNet ZIT.png
+web/assets/previews/CMK Flow · 10 KSampler SDXL 1st Pass - Aufbau.png
+web/assets/previews/CMK Flow · 10 KSampler SDXL 1st Pass - Modul.png
+web/assets/previews/CMK Flow · 10 KSampler Z-Image Turbo - Aufbau.png
+web/assets/previews/CMK Flow · 10 KSampler Z-Image Turbo - Modul.png
+web/assets/previews/CMK Flow · 15 InstantID-Sampler SDXL - Aufbau.png
+web/assets/previews/CMK Flow · 15 InstantID-Sampler SDXL - Modul.png
+web/assets/previews/CMK Flow · 20 Refiner SDXL - Aufbau.png
+web/assets/previews/CMK Flow · 20 Refiner SDXL - Modul.png
+web/assets/previews/CMK Flow · Checkpoint & VAE.png
+web/assets/previews/CMK Flow · Detailer SDXL - Aufbau.png
+web/assets/previews/CMK Flow · Detailer SDXL - Modul.png
+web/assets/previews/CMK Flow · Detailer SDXL · Advanced - Aufbau.png
+web/assets/previews/CMK Flow · Detailer SDXL · Advanced - Modul.png
+web/assets/previews/CMK Flow · FaceProcess SDXL - Aufbau.png
+web/assets/previews/CMK Flow · FaceProcess SDXL - Modul.png
+web/assets/previews/CMK Flow · FaceProcess SDXL · Advanced - Aufbau.png
+web/assets/previews/CMK Flow · FaceProcess SDXL · Advanced - Modul.png
+web/assets/previews/CMK Flow · FaceRebuild SDXL - Aufbau.png
+web/assets/previews/CMK Flow · FaceRebuild SDXL - Modul.png
+web/assets/previews/CMK Flow · FaceRebuild SDXL · Advanced - Aufbau.png
+web/assets/previews/CMK Flow · FaceRebuild SDXL · Advanced - Modul.png
+web/assets/previews/CMK Flow · FaceSwap - Aufbau.png
+web/assets/previews/CMK Flow · FaceSwap - Modul.png
+web/assets/previews/CMK Flow · FaceSwap · Advanced - Aufbau.png
+web/assets/previews/CMK Flow · FaceSwap · Advanced - Modul.png
+web/assets/previews/CMK Flow · Image Input.png
+web/assets/previews/CMK Flow · Image Resize.png
+web/assets/previews/CMK Flow · Load Image.png
+web/assets/previews/CMK Flow · MaskDetailer SDXL - Aufbau.png
+web/assets/previews/CMK Flow · MaskDetailer SDXL - Modul.png
+web/assets/previews/CMK Flow · PostProcess Boundary Combined.png
+web/assets/previews/CMK Flow · PostProcess Boundary SDXL.png
+web/assets/previews/CMK Flow · PostProcess Boundary ZIT.png
+web/assets/previews/CMK Flow · Upscale & Save - Aufbau.png
+web/assets/previews/CMK Flow · Upscale & Save - Modul.png
+web/assets/previews/CMK Flow · Visualizer.png
+web/assets/previews/CMK Image File Loader.png
+web/assets/previews/CMK Load Image.png
+web/assets/previews/LoRA Stack · Combined - Aufbau.png
+web/assets/previews/LoRA Stack · Combined - Modul.png
+web/assets/previews/LoRA Stack · SDXL - Aufbau.png
+web/assets/previews/LoRA Stack · SDXL - Modul.png
+web/assets/previews/LoRA Stack · ZIT - Aufbau.png
+web/assets/previews/LoRA Stack · ZIT - Modul.png
+web/assets/previews/SDXL LoRA Stack - Aufbau.png
+web/assets/previews/SDXL LoRA Stack - Modul.png
+web/assets/previews/active-family-result.png
+web/assets/previews/checkpoint-vae-v2.png
+web/assets/previews/checkpoint-vae.png
+web/assets/previews/controlnet-sdxl-inner.png
+web/assets/previews/controlnet-sdxl-outer.png
+web/assets/previews/controlnet-sdxl.png
+web/assets/previews/controlnet-zit-inner.png
+web/assets/previews/controlnet-zit-outer.png
+web/assets/previews/controlnet-zit.png
+web/assets/previews/controlnet.png
+web/assets/previews/create-image-inpaint-20260725.png
+web/assets/previews/create-image-sdxl-inpaint.png
+web/assets/previews/create-image-sdxl-text2image.png
+web/assets/previews/create-image-text2image-20260725.png
+web/assets/previews/create-image-zit-text2image.png
+web/assets/previews/detailer-advanced-inner.png
+web/assets/previews/detailer-advanced-outer.png
+web/assets/previews/detailer-inner.png
+web/assets/previews/detailer-outer.png
+web/assets/previews/detailer-standard-inner.png
+web/assets/previews/detailer-standard-outer.png
+web/assets/previews/faceprocess-advanced-inner.png
+web/assets/previews/faceprocess-advanced-outer.png
+web/assets/previews/faceprocess-inner.png
+web/assets/previews/faceprocess-outer.png
+web/assets/previews/faceprocess-standard-detail-inner.png
+web/assets/previews/faceprocess-standard-inner.png
+web/assets/previews/faceprocess-standard-outer.png
+web/assets/previews/faceprocess-standard-restore-inner.png
+web/assets/previews/facerebuild-advanced-inner.png
+web/assets/previews/facerebuild-advanced-module.png
+web/assets/previews/facerebuild-standard-inner.png
+web/assets/previews/facerebuild-standard-module.png
+web/assets/previews/faceswap-advanced-inner.png
+web/assets/previews/faceswap-advanced-outer.png
+web/assets/previews/faceswap-image-inner.png
+web/assets/previews/faceswap-image-input.png
+web/assets/previews/faceswap-image-outer.png
+web/assets/previews/faceswap-inner.png
+web/assets/previews/faceswap-outer.png
+web/assets/previews/faceswap-standard-inner.png
+web/assets/previews/faceswap-standard-outer.png
+web/assets/previews/flow-checkpoint-vae.png
+web/assets/previews/flow-controlnet-combined-advanced.png
+web/assets/previews/flow-controlnet-combined-effect.png
+web/assets/previews/flow-controlnet-combined-standard.png
+web/assets/previews/flow-controlnet-sdxl-advanced.png
+web/assets/previews/flow-controlnet-sdxl-effect.png
+web/assets/previews/flow-controlnet-sdxl-standard.png
+web/assets/previews/flow-controlnet-zit-advanced.png
+web/assets/previews/flow-controlnet-zit-effect.png
+web/assets/previews/flow-controlnet-zit-standard.png
+web/assets/previews/flow-create-image-standard.png
+web/assets/previews/flow-image-input.png
+web/assets/previews/flow-load-image.png
+web/assets/previews/image-input.png
+web/assets/previews/instantid-sampler-inner.png
+web/assets/previews/instantid-sampler-outer.png
+web/assets/previews/ksampler-inner.png
+web/assets/previews/ksampler-outer.png
+web/assets/previews/ksampler-sdxl-inner.png
+web/assets/previews/ksampler-sdxl-outer.png
+web/assets/previews/ksampler-zit-inner.png
+web/assets/previews/ksampler-zit-outer.png
+web/assets/previews/load-image.png
+web/assets/previews/lora-stack-inner.png
+web/assets/previews/lora-stack-outer.png
+web/assets/previews/refiner-inner.png
+web/assets/previews/refiner-outer.png
+web/assets/previews/save-project-image.png
+web/assets/previews/upscale-save-inner.png
+web/assets/previews/upscale-save-outer.png
+web/assets/previews/visualizer.png
+web/assets/showcase/COMPARISONS/FaceSwap vs FaceRebuild/FaceSwap vs FaceRebuild.png
+web/assets/showcase/COMPARISONS/Identity Processing Matrix/Identity Processing Matrix.png
+web/assets/showcase/LEGACY/CMK FaceSwap Video/CMK FaceSwap Video.png
+web/assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.5 · InOutPaint/CMK 2.5 · InOutPaint.png
+web/assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.5 · Text2Image Identity 1/CMK 2.5 · Text2Image Identity 1 - 1 Identity.png
+web/assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.5 · Text2Image Identity 1/CMK 2.5 · Text2Image Identity 1 - 2 FaceRebuild.png
+web/assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.5 · Text2Image Identity 1/CMK 2.5 · Text2Image Identity 1 - 2 FaceSwap.png
+web/assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.5 · Text2Image Identity 3/CMK 2.5 · Text2Image Identity 3 - 1 Identity.png
+web/assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.5 · Text2Image Identity 3/CMK 2.5 · Text2Image Identity 3 - 2 FaceRebuild.png
+web/assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.5 · Text2Image Identity 3/CMK 2.5 · Text2Image Identity 3 - 2 FaceSwap.png
+web/assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.5 · Text2Image/CMK 2.5 · Text2Image - 1 ControlNet.png
+web/assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.5 · Text2Image/CMK 2.5 · Text2Image - 2 1st-Pass SDXL.png
+web/assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.5 · Text2Image/CMK 2.5 · Text2Image - 3 2nd-Pass ZIT.png
+web/assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.5 · Text2Image/CMK 2.5 · Text2Image - 4 Detailer.png
+web/assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceProcess · Modul/CMK 2.5 · FaceProcess · Modul - Aufbau.png
+web/assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceProcess · Modul/CMK 2.5 · FaceProcess · Modul.png
+web/assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceProcess/CMK 2.5 · FaceProcess - Detailer.png
+web/assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceProcess/CMK 2.5 · FaceProcess - Restore.png
+web/assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceRebuild · Modul/CMK 2.5 · FaceRebuild · Modul - Aufbau.png
+web/assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceRebuild · Modul/CMK 2.5 · FaceRebuild · Modul.png
+web/assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceRebuild · Modul/portrait_reference_00003.png
+web/assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceRebuild/CMK 2.5 · FaceRebuild.png
+web/assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceSwap · Modul/CMK 2.5 · FaceSwap · Modul - Aufbau.png
+web/assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceSwap · Modul/CMK 2.5 · FaceSwap · Modul.png
+web/assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceSwap · Modul/portrait_reference_00003.png
+web/assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceSwap/CMK 2.5 · FaceSwap.png
+web/assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · MaskDetailer /CMK 2.5 · MaskDetailer.png
+web/assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · MaskDetailer · Modul/CMK 2.5 · MaskDetailer · Modul - Aufbau.png
+web/assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · MaskDetailer · Modul/CMK 2.5 · MaskDetailer · Modul.png
+web/assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · SmartDetailer · Modul/CMK 2.5 · SmartDetailer · Modul - Aufbau.png
+web/assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · SmartDetailer · Modul/CMK 2.5 · SmartDetailer · Modul.png
+web/assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · SmartDetailer/CMK 2.5 · SmartDetailer.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint HYBRID/CMK 2.5 · Flow · InOutpaint HYBRID - 1 InOutpaint 1 Preparation.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint HYBRID/CMK 2.5 · Flow · InOutpaint HYBRID - 1 InOutpaint 2 1st-Pass SDXL.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint HYBRID/CMK 2.5 · Flow · InOutpaint HYBRID - 1 InOutpaint 3 2nd-Pass ZIT.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint HYBRID/CMK 2.5 · Flow · InOutpaint HYBRID - 2 Remove 1 Preparation.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint HYBRID/CMK 2.5 · Flow · InOutpaint HYBRID - 2 Remove 2 1st-Pass SDXL.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint HYBRID/CMK 2.5 · Flow · InOutpaint HYBRID - 2 Remove 3 2nd-Pass ZIT.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint HYBRID/CMK 2.5 · Flow · InOutpaint HYBRID - 3 Extend 1 Preparation.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint HYBRID/CMK 2.5 · Flow · InOutpaint HYBRID - 3 Extend 2 1st-Pass SDXL.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint HYBRID/CMK 2.5 · Flow · InOutpaint HYBRID - 3 Extend 3 2nd-Pass ZIT.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint SDXL · HYBRID · ZIT/CMK 2.5 · Flow · InOutpaint SDXL · HYBRID · ZIT - 1 SDXL.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint SDXL · HYBRID · ZIT/CMK 2.5 · Flow · InOutpaint SDXL · HYBRID · ZIT - 2 HYBRID.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint SDXL · HYBRID · ZIT/CMK 2.5 · Flow · InOutpaint SDXL · HYBRID · ZIT - 3  ZIT.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint SDXL/CMK 2.5 · Flow · InOutpaint SDXL - 1 InOutpaint 1 Preparation.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint SDXL/CMK 2.5 · Flow · InOutpaint SDXL - 1 InOutpaint 2 1st-Pass.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint SDXL/CMK 2.5 · Flow · InOutpaint SDXL - 1 InOutpaint 3 2nd-Pass.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint SDXL/CMK 2.5 · Flow · InOutpaint SDXL - 2 Remove 1 Preparation.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint SDXL/CMK 2.5 · Flow · InOutpaint SDXL - 2 Remove 2 1st-Pass.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint SDXL/CMK 2.5 · Flow · InOutpaint SDXL - 2 Remove 3 2nd-Pass.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint SDXL/CMK 2.5 · Flow · InOutpaint SDXL - 3 Extend 1 Preparation.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint SDXL/CMK 2.5 · Flow · InOutpaint SDXL - 3 Extend 2 1st-Pass.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InOutpaint SDXL/CMK 2.5 · Flow · InOutpaint SDXL - 3 Extend 3 2nd-Pass.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID/CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID - 1 Preparation.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID/CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID - 2 1st-Pass SDXL.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID/CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID - 3 2nd-Pass ZIT.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID/CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID - 4 FaceRebuild.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID/portrait_reference_00003.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Inpaint Z-Image Turbo/CMK 2.5 · Flow · Inpaint Z-Image Turbo - 1 Preparation.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Inpaint Z-Image Turbo/CMK 2.5 · Flow · Inpaint Z-Image Turbo - 2 ZIT-Sampling.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL/CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL - 1 Preparation.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL/CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL - 2 1st-Passn SDXL.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL/CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL - 3 Identity.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL/CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL - 4 2nd-Pass SDXL.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL/portrait_reference_00003.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 1 SDXL-HYBRID 1 1st-Pass SDXL.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 1 SDXL-HYBRID 2 Identity.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 1 SDXL-HYBRID 3 2nd-Pass SDXL.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 1 SDXL-HYBRID 4 FaceRebuild.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 2 SDXL-Zero-Pass 1 Identity.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 2 SDXL-Zero-Pass 2 2nd-Pass SDXL.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 2 SDXL-Zero-Pass 3 FaceRebuild.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 3 HYBRID 1 1st-Pass SDXL.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 3 HYBRID 2 2nd-Pass ZIT.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 3 HYBRID 3 FaceRebuild.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 4 ZIT 1 Sampling ZIT.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - 4 ZIT 2 FaceRebuild.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/portrait_reference_00003.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - Regional Conditioning SDXL/CMK 2.5 · Flow · Text2Image - Regional Conditioning SDXL.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image - Regional Conditioning/CMK 2.5 · Flow · Text2Image - Regional Conditioning HYBRID.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image ControlNet HYBRID/CMK 2.5 · Flow · Text2Image ControlNet HYBRID - 1 ControlNet.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image ControlNet HYBRID/CMK 2.5 · Flow · Text2Image ControlNet HYBRID - 2 1st-Pass SDXL.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image ControlNet HYBRID/CMK 2.5 · Flow · Text2Image ControlNet HYBRID - 3 2nd-Pass ZIT.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT/CMK 2.5 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT - 1 SDXL.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT/CMK 2.5 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT - 2 HYBRID.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT/CMK 2.5 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT - 3 ZIT.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image ControlNet Z-Image Turbo/CMK 2.5 · Flow · Text2Image ControlNet Z-Image Turbo - 1 ControlNet.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image ControlNet Z-Image Turbo/CMK 2.5 · Flow · Text2Image ControlNet Z-Image Turbo - 2 ZIT.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image HYBRID/CMK 2.5 · Flow · Text2Image HYBRID - 1 1st-Pass SDXL.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image HYBRID/CMK 2.5 · Flow · Text2Image HYBRID - 2 2nd-Pass ZIT.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image SDXL · HYBRID · ZIT/CMK 2.5 · Flow · Text2Image SDXL · HYBRID · ZIT - 1 SDXL.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image SDXL · HYBRID · ZIT/CMK 2.5 · Flow · Text2Image SDXL · HYBRID · ZIT - 2 HYBRID.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image SDXL · HYBRID · ZIT/CMK 2.5 · Flow · Text2Image SDXL · HYBRID · ZIT - 3 ZIT.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image SDXL/CMK 2.5 · Flow · Text2Image SDXL.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image ZIT /CMK 2.5 · Flow · Text2Image ZIT .png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image-ControlNet SDXL/CMK 2.5 · Flow · Text2Image-ControlNet SDXL - 1 ControlNet.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image-ControlNet SDXL/CMK 2.5 · Flow · Text2Image-ControlNet SDXL - 2 SDXL.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image-FaceRebuild HYBRID/CMK 2.5 · Flow · Text2Image-FaceRebuild HYBRID - 1 1st-Pass SDXL.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image-FaceRebuild HYBRID/CMK 2.5 · Flow · Text2Image-FaceRebuild HYBRID - 2 2nd-Pass ZIT.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image-FaceRebuild HYBRID/CMK 2.5 · Flow · Text2Image-FaceRebuild HYBRID - 3 FaceRebuild.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image-FaceRebuild HYBRID/portrait_reference_00003.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image-FaceRebuild Z-Image Turbo/CMK 2.5 · Flow · Text2Image-FaceRebuild Z-Image Turbo - 1 Sampling.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image-FaceRebuild Z-Image Turbo/CMK 2.5 · Flow · Text2Image-FaceRebuild Z-Image Turbo - 2 FaceRebuild.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image-FaceRebuild Z-Image Turbo/portrait_reference_00003.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image-InstantID/CMK 2.5 · Flow · Text2Image-InstantID SDXL - HYBRID - 1 1st-Pass SDXL.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image-InstantID/CMK 2.5 · Flow · Text2Image-InstantID SDXL - HYBRID - 2 Refined.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image-InstantID/CMK 2.5 · Flow · Text2Image-InstantID SDXL - Zero-Pass - Refined.png
+web/assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Text2Image-InstantID/portrait_reference_00003.png
+web/assets/showcase/SYSTEM WORKFLOW/CMK 2.5 · Full Flow /CMK 2.5 · Full Flow .png
+web/browser_content_en.json
+web/flow_node_metadata.json
+web/js/cmk_clean_view_prototype.js
+web/js/cmk_color_menu.js
+web/js/cmk_compact_subgraph_layout_v1.js
+web/js/cmk_compact_subgraph_layout_v2.js
+web/js/cmk_compact_subgraph_layout_v3.js
+web/js/cmk_compact_subgraph_layout_v4.js
+web/js/cmk_compact_subgraph_layout_v5.js
+web/js/cmk_compact_subgraph_layout_v6.js
+web/js/cmk_compact_subgraph_layout_v7.js
+web/js/cmk_controlnet_prepare_preview.js
+web/js/cmk_detailer_finalize_dynamic.js
+web/js/cmk_detailer_prepare_labels.js
+web/js/cmk_face_process_rebuild_ui.js.off
+web/js/cmk_face_swap_video_loader_v1.js
+web/js/cmk_faceprocess_pipe_ui_v6.js
+web/js/cmk_faceprocess_prepare_labels.js
+web/js/cmk_faceswap_quality_profile_ui.js
+web/js/cmk_family_merge_layout.js
+web/js/cmk_flow_browser.js
+web/js/cmk_flow_start_guidance_v34.js.off
+web/js/cmk_flow_start_guidance_v35.js.off
+web/js/cmk_flow_start_guidance_v36.js.off
+web/js/cmk_flow_start_guidance_v37.js.off
+web/js/cmk_flow_start_guidance_v38.js.off
+web/js/cmk_flow_start_guidance_v39.js.off
+web/js/cmk_flow_start_guidance_v40.js.off
+web/js/cmk_flow_start_guidance_v41.js.off
+web/js/cmk_flow_start_guidance_v42.js.off
+web/js/cmk_flow_start_guidance_v43.js.off
+web/js/cmk_flow_start_guidance_v44.js.off
+web/js/cmk_flow_start_guidance_v45.js.off
+web/js/cmk_flow_start_guidance_v46.js.off
+web/js/cmk_flow_start_guidance_v47.js.off
+web/js/cmk_flow_start_guidance_v48.js.off
+web/js/cmk_flow_start_guidance_v49.js.off
+web/js/cmk_flow_start_guidance_v50.js.off
+web/js/cmk_flow_start_guidance_v51.js
+web/js/cmk_image_compare_hold.js
+web/js/cmk_image_quickmetrics.js
+web/js/cmk_image_resize_ui.js
+web/js/cmk_instantid_face_rebuild_advanced_ui.js
+web/js/cmk_instantid_face_rebuild_prepare_ui.js
+web/js/cmk_instantid_sampler_ui.js
+web/js/cmk_live_preview_requirement.js
+web/js/cmk_log_concat_dynamic.js
+web/js/cmk_mask_detailer_intake.js
+web/js/cmk_node_dimensions.js
+web/js/cmk_packaged_faceswap_reference.js
+web/js/cmk_preview_board_dynamic.js
+web/js/cmk_refiner_prepare_labels.js
+web/js/cmk_regional_conditioning_layout.js
+web/js/cmk_regional_conditioning_ui.js
+web/js/cmk_sampler_prepare_advanced.js
+web/js/cmk_segs_concate_dynamic.js
+web/js/cmk_smart_detailer_labels.js
+web/js/cmk_smart_upscaler_pipe_labels.js
+web/js/cmk_source_target_slider.js
+web/js/cmk_swap_image_loader_pair_v1.js
+web/js/cmk_video_compare_players_v1.js
+web/js/cmk_video_inline_players_v1.js
+web/js/cmk_video_quickmetrics.js
+web/js/cmk_video_source_input_v1.js
+web/js/cmk_visualizer.js
+web/js/cmk_vue_nodes_requirement.js
+web/js/cmk_z_image_preview_cleanup.js.disabled
+web/js/cmk_z_image_preview_cleanup.js.off
+workflows/reference/CMK_FaceSwap_Video_Project_Template.json
+workflows/reference/CMK_FaceSwap_Video_Reference_v2.2.json
+workflows/reference/README.md
+workflows/showcase/CMK 2.5 · FaceProcess · Modul.json
+workflows/showcase/CMK 2.5 · FaceProcess.json
+workflows/showcase/CMK 2.5 · FaceRebuild · Modul.json
+workflows/showcase/CMK 2.5 · FaceRebuild.json
+workflows/showcase/CMK 2.5 · FaceSwap · Modul.json
+workflows/showcase/CMK 2.5 · FaceSwap.json
+workflows/showcase/CMK 2.5 · Flow · InOutpaint HYBRID.json
+workflows/showcase/CMK 2.5 · Flow · InOutpaint SDXL · HYBRID · ZIT.json
+workflows/showcase/CMK 2.5 · Flow · InOutpaint SDXL.json
+workflows/showcase/CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID.json
+workflows/showcase/CMK 2.5 · Flow · Inpaint Z-Image Turbo.json
+workflows/showcase/CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL.json
+workflows/showcase/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT.json
+workflows/showcase/CMK 2.5 · Flow · Text2Image - Regional Conditioning HYBRID.json
+workflows/showcase/CMK 2.5 · Flow · Text2Image - Regional Conditioning SDXL.json
+workflows/showcase/CMK 2.5 · Flow · Text2Image ControlNet HYBRID.json
+workflows/showcase/CMK 2.5 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT.json
+workflows/showcase/CMK 2.5 · Flow · Text2Image ControlNet Z-Image Turbo.json
+workflows/showcase/CMK 2.5 · Flow · Text2Image HYBRID.json
+workflows/showcase/CMK 2.5 · Flow · Text2Image SDXL · HYBRID · ZIT.json
+workflows/showcase/CMK 2.5 · Flow · Text2Image SDXL.json
+workflows/showcase/CMK 2.5 · Flow · Text2Image Z-Image Turbo.json
+workflows/showcase/CMK 2.5 · Flow · Text2Image-ControlNet SDXL.json
+workflows/showcase/CMK 2.5 · Flow · Text2Image-FaceRebuild HYBRID.json
+workflows/showcase/CMK 2.5 · Flow · Text2Image-FaceRebuild Z-Image Turbo.json
+workflows/showcase/CMK 2.5 · Flow · Text2Image-InstantID SDXL.json
+workflows/showcase/CMK 2.5 · Full Flow .json
+workflows/showcase/CMK 2.5 · InOutPaint.json
+workflows/showcase/CMK 2.5 · MaskDetailer .json
+workflows/showcase/CMK 2.5 · MaskDetailer · Modul.json
+workflows/showcase/CMK 2.5 · SmartDetailer · Modul.json
+workflows/showcase/CMK 2.5 · SmartDetailer.json
+workflows/showcase/CMK 2.5 · Text2Image Identity 1.json
+workflows/showcase/CMK 2.5 · Text2Image Identity 3.json
+workflows/showcase/CMK 2.5 · Text2Image.json
+workflows/showcase/CMK FaceSwap Video.json
+workflows/showcase/FaceSwap vs FaceRebuild.json
+workflows/showcase/Identity Processing Matrix.json
+workflows/showcase/README.md
+workflows/showcase/metadata/CMK 2.5 · FaceProcess · Modul.json
+workflows/showcase/metadata/CMK 2.5 · FaceProcess.json
+workflows/showcase/metadata/CMK 2.5 · FaceRebuild · Modul.json
+workflows/showcase/metadata/CMK 2.5 · FaceRebuild.json
+workflows/showcase/metadata/CMK 2.5 · FaceSwap · Modul.json
+workflows/showcase/metadata/CMK 2.5 · FaceSwap.json
+workflows/showcase/metadata/CMK 2.5 · Flow · InOutpaint HYBRID.json
+workflows/showcase/metadata/CMK 2.5 · Flow · InOutpaint SDXL · HYBRID · ZIT.json
+workflows/showcase/metadata/CMK 2.5 · Flow · InOutpaint SDXL.json
+workflows/showcase/metadata/CMK 2.5 · Flow · Inpaint - FaceRebuild HYBRID.json
+workflows/showcase/metadata/CMK 2.5 · Flow · Inpaint Z-Image Turbo.json
+workflows/showcase/metadata/CMK 2.5 · Flow · InstantID · Hybrid Inpaint SDXL.json
+workflows/showcase/metadata/CMK 2.5 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT.json
+workflows/showcase/metadata/CMK 2.5 · Flow · Text2Image - Regional Conditioning HYBRID.json
+workflows/showcase/metadata/CMK 2.5 · Flow · Text2Image - Regional Conditioning SDXL.json
+workflows/showcase/metadata/CMK 2.5 · Flow · Text2Image ControlNet HYBRID.json
+workflows/showcase/metadata/CMK 2.5 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT.json
+workflows/showcase/metadata/CMK 2.5 · Flow · Text2Image ControlNet Z-Image Turbo.json
+workflows/showcase/metadata/CMK 2.5 · Flow · Text2Image HYBRID.json
+workflows/showcase/metadata/CMK 2.5 · Flow · Text2Image SDXL · HYBRID · ZIT.json
+workflows/showcase/metadata/CMK 2.5 · Flow · Text2Image SDXL.json
+workflows/showcase/metadata/CMK 2.5 · Flow · Text2Image Z-Image Turbo.json
+workflows/showcase/metadata/CMK 2.5 · Flow · Text2Image-ControlNet SDXL.json
+workflows/showcase/metadata/CMK 2.5 · Flow · Text2Image-FaceRebuild HYBRID.json
+workflows/showcase/metadata/CMK 2.5 · Flow · Text2Image-FaceRebuild Z-Image Turbo.json
+workflows/showcase/metadata/CMK 2.5 · Flow · Text2Image-InstantID SDXL.json
+workflows/showcase/metadata/CMK 2.5 · Full Flow .json
+workflows/showcase/metadata/CMK 2.5 · InOutPaint.json
+workflows/showcase/metadata/CMK 2.5 · MaskDetailer .json
+workflows/showcase/metadata/CMK 2.5 · MaskDetailer · Modul.json
+workflows/showcase/metadata/CMK 2.5 · SmartDetailer · Modul.json
+workflows/showcase/metadata/CMK 2.5 · SmartDetailer.json
+workflows/showcase/metadata/CMK 2.5 · Text2Image Identity 1.json
+workflows/showcase/metadata/CMK 2.5 · Text2Image Identity 3.json
+workflows/showcase/metadata/CMK 2.5 · Text2Image.json
+workflows/showcase/metadata/CMK FaceSwap Video.json
+workflows/showcase/metadata/FaceSwap vs FaceRebuild.json
+workflows/showcase/metadata/Identity Processing Matrix.json

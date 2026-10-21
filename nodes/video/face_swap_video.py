@@ -7,8 +7,19 @@ import numpy as np
 import comfy.model_management as model_management
 from comfy.utils import ProgressBar
 
+from ...cmk_distribution import (
+    CONTENT_GUARD_PROCESS_KEY,
+    content_guard_state_token,
+    effective_content_guard_enabled,
+    content_guard_prompt_state,
+    content_guard_prompt_token,
+)
 from ...engine.video_swap_engine import CMKVideoSwapEngine
-from ...engine.content_guard import ContentGuardBlocked, GUARD_VERSION
+from ...engine.content_guard import (
+    ContentGuardBlocked,
+    GUARD_VERSION,
+    cleanup_content_guard_abort,
+)
 from ...engine.swap_selected_engine import SelectedSwapSettings
 from ...engine.enhance_backends import get_available_enhancer_modes, validate_enhancer_mode
 from ...models.model_manager import list_detector_models, list_swap_models, resolve_swap_model
@@ -20,6 +31,18 @@ from .split_video_segments import _executable, _output_root, _probe_video
 _SELECTION_MODES=["Largest","Leftmost","Rightmost","Topmost","Bottommost","Center"]
 _SEGMENT_MODES=["Full Path (Batch)","Randomize","Last Used Segment"]
 _SCHEMA="cmk.video.face_swap.v1"; _ENGINE_VERSION=7
+
+def _content_guard_enabled(segments, prompt=None, unique_id=None):
+    if isinstance(segments, dict) and CONTENT_GUARD_PROCESS_KEY in segments:
+        return effective_content_guard_enabled(segments)
+    return content_guard_prompt_state(prompt, unique_id)
+
+
+def _content_guard_token(segments, prompt=None, unique_id=None):
+    if isinstance(segments, dict) and CONTENT_GUARD_PROCESS_KEY in segments:
+        return content_guard_state_token(segments)
+    return content_guard_prompt_token(prompt, unique_id)
+
 
 def _hash_json(v): return hashlib.sha256(json.dumps(v,sort_keys=True,separators=(",",":"),default=str).encode()).hexdigest()
 def _atomic_json(path,payload):
@@ -66,7 +89,9 @@ class CMKFaceSwapVideo:
         mode=str(kw.get("SEGMENT SELECTION",""))
         if mode=="Randomize":
             return float("nan")
-        return None
+        return _content_guard_token(
+            kw.get("SEGMENTS"), kw.get("prompt"), kw.get("unique_id"),
+        )
     CATEGORY="CMK/Toolbox/Video"; RETURN_TYPES=("CMK_VIDEO_SEGMENTS","CMK_LOG_PIPE","CMK_DIAGNOSTIC"); RETURN_NAMES=("SEGMENTS","LOG","diagnostic"); FUNCTION="run"
     @classmethod
     def INPUT_TYPES(cls):
@@ -84,12 +109,25 @@ class CMKFaceSwapVideo:
             "max_missing_frames":("INT",{"default":12,"min":0,"max":300,"step":1,"advanced":True}),
             "tracking_iou_threshold":("FLOAT",{"default":0.08,"min":0.0,"max":1.0,"step":0.01,"advanced":True}),
             "tracking_embedding_threshold":("FLOAT",{"default":0.35,"min":-1.0,"max":1.0,"step":0.01,"advanced":True}),
-        }}
+        }, "hidden": {"prompt":"PROMPT","unique_id":"UNIQUE_ID"}}
     def run(self, **kw):
+        try:
+            return self._run(**kw)
+        except ContentGuardBlocked as exc:
+            cleanup_content_guard_abort(exc, label="FaceSwap Video")
+            kw.clear()
+            raise exc.with_traceback(None) from None
+
+    def _run(self, **kw):
         segs=kw["SEGMENTS"]; log=kw["LOG"]
         if not isinstance(segs,dict) or segs.get("type")!="CMK_VIDEO_SEGMENTS": raise TypeError("CMK FaceSwap Video: SEGMENTS is not CMK_VIDEO_SEGMENTS")
         if not isinstance(log,dict): raise TypeError("CMK FaceSwap Video: LOG is not CMK_LOG_PIPE")
         enabled=bool(kw.get("FACE SWAP", True))
+        # The standalone loader is authoritative. Legacy/integrated transports
+        # without the field fall back to module 01's upstream prompt state.
+        content_guard_enabled=_content_guard_enabled(
+            segs, kw.get("prompt"), kw.get("unique_id"),
+        )
         source_rgb=tensor_to_uint8_rgb(kw["IMAGE SOURCE"][0]); detector_model=str(kw["DETECT MODEL"]); swap_model=str(kw["SWAP MODEL"])
         if not enabled:
             all_segments=list(segs.get("segments") or [])
@@ -100,10 +138,13 @@ class CMKFaceSwapVideo:
             return (segs,log_out,diagnostic)
         kw["FACE ENHANCER"]=validate_enhancer_mode(str(kw["FACE ENHANCER"]))
         kw["crop_factor"]=min(3.0,max(1.0,float(kw["crop_factor"])))
-        engine=CMKVideoSwapEngine(detector_model); source_face=engine.select_source(source_rgb,str(kw["SOURCE FACE"]),int(kw["drop_size"]))
+        engine=CMKVideoSwapEngine(
+            detector_model,
+            content_guard_enabled=content_guard_enabled,
+        ); source_face=engine.select_source(source_rgb,str(kw["SOURCE FACE"]),int(kw["drop_size"]))
         model_path=resolve_swap_model(swap_model)
         settings={k:kw[k] for k in ["SWAP MODEL","DETECT MODEL","FACE ENHANCER","TARGET FACE","SOURCE FACE","BLEND","bbox_dilation","crop_factor","drop_size","feather","max_missing_frames","tracking_iou_threshold","tracking_embedding_threshold"]}
-        base_sig=_hash_json({"schema":_SCHEMA,"engine":_ENGINE_VERSION,"content_guard":GUARD_VERSION,"source_manifest":_file_id(segs["manifest_path"]),"source_image":_image_hash(source_rgb),"swap_model":_file_id(model_path),"settings":settings})
+        base_sig=_hash_json({"schema":_SCHEMA,"engine":_ENGINE_VERSION,"content_guard":{"version":GUARD_VERSION,"state":_content_guard_token(segs,kw.get("prompt"),kw.get("unique_id"))},"source_manifest":_file_id(segs["manifest_path"]),"source_image":_image_hash(source_rgb),"swap_model":_file_id(model_path),"settings":settings})
         root=_output_root()/"video"/"face_swap"/(Path(segs.get("source_path","video")).stem or "video")/base_sig[:20]; root.mkdir(parents=True,exist_ok=True)
         manifest_path=root/"swap.json"; manifest={"type":"CMK_VIDEO_FACE_SWAP_MANIFEST","version":1,"schema":_SCHEMA,"engine_version":_ENGINE_VERSION,"source_segments_manifest":segs["manifest_path"],"source_image_name":str(segs.get("source_image_name","") or ""),"swap_signature":base_sig,"settings":settings,"segments":{}}
         if manifest_path.exists():
@@ -163,7 +204,8 @@ class CMKFaceSwapVideo:
                         if len(raw)!=frame_bytes: raise RuntimeError(f"short decoded frame at frame {local_frames}")
                         frame=np.frombuffer(raw,dtype=np.uint8).reshape(h,w,3).copy()
                         model_management.throw_exception_if_processing_interrupted()
-                        engine.inspect_target_content(frame)
+                        if content_guard_enabled:
+                            engine.inspect_target_content(frame)
                         faces=engine.detect_filtered(frame,int(kw["drop_size"]))
                         target,state=engine.select_target(frame,faces,str(kw["TARGET FACE"]),state,int(kw["max_missing_frames"]),float(kw["tracking_iou_threshold"]),float(kw["tracking_embedding_threshold"]))
                         result=frame
@@ -197,6 +239,16 @@ class CMKFaceSwapVideo:
                                 except subprocess.TimeoutExpired:
                                     proc.kill()
                                     proc.wait(timeout=2.0)
+                        except Exception:
+                            pass
+                    for stream in (
+                        getattr(dec, "stdin", None), getattr(dec, "stdout", None),
+                        getattr(dec, "stderr", None), getattr(enc, "stdin", None),
+                        getattr(enc, "stdout", None), getattr(enc, "stderr", None),
+                    ):
+                        try:
+                            if stream is not None and not stream.closed:
+                                stream.close()
                         except Exception:
                             pass
                     for p in (tmp_video,tmp_out): p.unlink(missing_ok=True)
@@ -249,7 +301,7 @@ class CMKFaceSwapVideo:
         if mode != "Full Path (Batch)":
             compare_source_path=str(Path(selected[0]["path"]).resolve())
         out_payload.update({"output_directory":str(root),"manifest_path":str(manifest_path),"segment_paths":tuple(x["path"] for x in out_segments),"segments":tuple(out_segments),"parent_manifest_path":segs.get("manifest_path"),"processing_type":"face_swap","processing_signature":base_sig,"compare_source_path":compare_source_path,"segment_selection":mode})
-        log_out=cmk_add_block(log,"FaceSwap Video",70,[f"FACE SWAP         : ON",f"SEGMENT SELECTION : {mode}",f"SEGMENTS TOTAL     : {len(all_segments)}",f"SEGMENTS OUTPUT    : {len(out_segments)}",f"SELECTED SEGMENT   : {selected_display}",f"PROCESSED          : {processed}",f"REUSED             : {reused}",f"INVALIDATED        : {invalidated}",f"FAILED             : {failed}",f"FRAMES PROCESSED   : {frames}",f"WITHOUT TARGET     : {missing}",f"SWAP MODEL         : {swap_model}",f"DETECT MODEL       : {detector_model}",f"FACE ENHANCER      : {kw['FACE ENHANCER']}",f"OUTPUT DIRECTORY   : {root}",f"SWAP MANIFEST      : {manifest_path}"])
+        log_out=cmk_add_block(log,"FaceSwap Video",70,[f"FACE SWAP         : ON",f"CONTENT GUARD     : {'PASS · SOURCE + TARGET FRAMES' if content_guard_enabled else 'BYPASS · BASELINE'}",f"SEGMENT SELECTION : {mode}",f"SEGMENTS TOTAL     : {len(all_segments)}",f"SEGMENTS OUTPUT    : {len(out_segments)}",f"SELECTED SEGMENT   : {selected_display}",f"PROCESSED          : {processed}",f"REUSED             : {reused}",f"INVALIDATED        : {invalidated}",f"FAILED             : {failed}",f"FRAMES PROCESSED   : {frames}",f"WITHOUT TARGET     : {missing}",f"SWAP MODEL         : {swap_model}",f"DETECT MODEL       : {detector_model}",f"FACE ENHANCER      : {kw['FACE ENHANCER']}",f"OUTPUT DIRECTORY   : {root}",f"SWAP MANIFEST      : {manifest_path}"])
         summary="\n".join(["Face Swap: ON",f"Selection: {mode}",f"Selected segment: {selected_display}",f"Source segments: {len(all_segments)}",f"Output segments: {len(out_segments)}",f"Processed: {processed}",f"Reused: {reused}",f"Invalidated: {invalidated}",f"Failed: {failed}",*lines])
         diagnostic=make_diagnostic_payload(title="FaceSwap Video",node="CMK FaceSwap Video",previews=[],stages=[],summary=summary,details=summary,mode="Video",metadata={"selection":mode,"processed":processed,"reused":reused,"invalidated":invalidated,"failed":failed,"manifest":str(manifest_path)})
         return (out_payload,log_out,diagnostic)

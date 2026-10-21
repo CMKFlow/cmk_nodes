@@ -10,6 +10,21 @@ import threading
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from ..cmk_distribution import CONTENT_GUARD_WIDGET
+
+
+PERSISTENT_DISK_SCOPES = (
+    "detailer_branch",
+    "faceprocess_branch",
+    "detailer_boundary",
+    "face_rebuild_boundary",
+    "z_image_boundary",
+    "faceprocess_boundary",
+    "faceswap_boundary",
+    "upscale_save_boundary",
+    "refiner_boundary",
+)
+
 
 def _lookup_node(prompt: dict, node_id: Any):
     if not isinstance(prompt, dict):
@@ -99,10 +114,16 @@ def _canonical_node(
 
     stack.add(key)
     inputs = {}
+    class_type = str(node.get("class_type", ""))
     for input_name, value in sorted(
         (node.get("inputs", {}) or {}).items(),
         key=lambda pair: str(pair[0]),
     ):
+        # ContentGuard is a downstream policy setting.  It must not invalidate
+        # generation/refiner materializations that do not consume it; the
+        # affected module boundaries add its effective state explicitly.
+        if class_type == "CMKPipeCreateImage" and str(input_name) == CONTENT_GUARD_WIDGET:
+            continue
         if _is_link(prompt, value):
             inputs[str(input_name)] = {
                 "link": {
@@ -119,7 +140,7 @@ def _canonical_node(
             inputs[str(input_name)] = _canonical_scalar(value)
 
     payload = {
-        "class_type": str(node.get("class_type", "")),
+        "class_type": class_type,
         "inputs": inputs,
     }
     stack.remove(key)
@@ -154,6 +175,7 @@ def _fingerprint_memo_key(
     schema,
     exclude_inputs,
     include_node_identity,
+    extra_identity,
 ):
     return (
         str(unique_id),
@@ -161,6 +183,7 @@ def _fingerprint_memo_key(
         str(schema),
         tuple(sorted(str(value) for value in exclude_inputs)),
         bool(include_node_identity),
+        json.dumps(_canonical_scalar(extra_identity), sort_keys=True, default=str),
     )
 
 
@@ -171,6 +194,7 @@ def build_node_fingerprint(
     schema: str,
     exclude_inputs: Iterable[str] = (),
     include_node_identity: bool = False,
+    extra_identity: Mapping[str, Any] | None = None,
 ) -> tuple[str | None, str]:
     if not isinstance(prompt, dict):
         return None, "PROMPT is unavailable"
@@ -183,6 +207,7 @@ def build_node_fingerprint(
         schema,
         excluded_tuple,
         include_node_identity,
+        extra_identity,
     )
 
     global _FINGERPRINT_MEMO_PROMPT_ID, _FINGERPRINT_MEMO
@@ -241,6 +266,8 @@ def build_node_fingerprint(
         "class_type": str(current.get("class_type", "")),
         "inputs": canonical_inputs,
     }
+    if extra_identity:
+        payload["extra_identity"] = _canonical_scalar(extra_identity)
     if include_node_identity:
         payload["node_id"] = str(resolved_id)
 
@@ -270,6 +297,119 @@ def cache_directory(scope: str) -> Path:
     )
     directory.mkdir(parents=True, exist_ok=True)
     return directory
+
+
+def _persistent_cache_root(temp_root: Path | str | None = None) -> Path:
+    if temp_root is None:
+        import folder_paths  # type: ignore
+
+        temp_root = folder_paths.get_temp_directory()
+    return Path(temp_root) / "cmk"
+
+
+def validate_persistent_disk_scopes(temp_root: Path | str | None = None) -> Path:
+    """Validate every fixed CMK disk-cache scope before any deletion starts."""
+    root = _persistent_cache_root(temp_root)
+    if root.is_symlink():
+        raise OSError(f"refusing symbolic-link CMK cache root: {root}")
+    if root.exists() and not root.is_dir():
+        raise OSError(f"CMK cache root is not a directory: {root}")
+    for scope in PERSISTENT_DISK_SCOPES:
+        path = root / scope
+        if path.is_symlink():
+            raise OSError(f"refusing symbolic-link CMK cache scope: {path}")
+        if path.exists() and not path.is_dir():
+            raise OSError(f"CMK cache scope is not a directory: {path}")
+    return root
+
+
+def _entry_identity(path: Path) -> str | None:
+    if path.name in {"last_status.json", "latest_by_node.json"} or path.name.endswith(".tmp"):
+        return None
+    for suffix in (
+        ".diagnostic.safetensors",
+        ".diagnostic.json",
+        ".safetensors",
+        ".json",
+        ".deps",
+        ".pkl",
+        ".rev",
+    ):
+        if path.name.endswith(suffix):
+            return path.name[:-len(suffix)]
+    return path.name
+
+
+def _scope_inventory(path: Path) -> dict[str, int]:
+    files = []
+    entries = set()
+    def visit(directory: Path) -> None:
+        for entry in os.scandir(directory):
+            candidate = Path(entry.path)
+            if entry.is_symlink() or not entry.is_dir(follow_symlinks=False):
+                files.append(candidate)
+                identity = _entry_identity(candidate)
+                if identity:
+                    entries.add(identity)
+            else:
+                visit(candidate)
+
+    if path.exists():
+        visit(path)
+    return {
+        "entries": len(entries),
+        "files": len(files),
+        "bytes": sum(candidate.lstat().st_size for candidate in files),
+    }
+
+
+def persistent_disk_scope_inventory(
+    temp_root: Path | str | None = None,
+) -> dict[str, dict[str, int]]:
+    """Inventory the clearable CMK disk scopes without creating or changing them."""
+    root = validate_persistent_disk_scopes(temp_root)
+    return {
+        scope: _scope_inventory(root / scope)
+        for scope in PERSISTENT_DISK_SCOPES
+    }
+
+
+def _remove_scope_contents(path: Path) -> None:
+    """Remove contents without following symbolic links."""
+    if not path.exists():
+        return
+    for entry in os.scandir(path):
+        candidate = Path(entry.path)
+        if entry.is_symlink() or not entry.is_dir(follow_symlinks=False):
+            candidate.unlink()
+        else:
+            _remove_scope_contents(candidate)
+            candidate.rmdir()
+
+
+def clear_persistent_disk_scopes(temp_root: Path | str | None = None) -> dict[str, dict[str, int]]:
+    """Clear only the explicitly registered CMK temp-cache scopes."""
+    root = validate_persistent_disk_scopes(temp_root)
+    root.mkdir(parents=True, exist_ok=True)
+    inventories = {
+        scope: _scope_inventory(root / scope)
+        for scope in PERSISTENT_DISK_SCOPES
+    }
+    for scope in PERSISTENT_DISK_SCOPES:
+        path = root / scope
+        path.mkdir(parents=True, exist_ok=True)
+        _remove_scope_contents(path)
+    return inventories
+
+
+def reset_persistent_fingerprint_memo() -> int:
+    """Drop prompt-scoped fingerprint results coupled to persistent caches."""
+    global _FINGERPRINT_MEMO_PROMPT_ID, _FINGERPRINT_MEMO
+    with _FINGERPRINT_MEMO_LOCK:
+        count = len(_FINGERPRINT_MEMO)
+        _FINGERPRINT_MEMO_PROMPT_ID = None
+        _FINGERPRINT_MEMO = {}
+        return count
 
 
 def write_status(scope: str, status: str, **fields) -> None:

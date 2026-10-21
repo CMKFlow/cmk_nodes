@@ -2,7 +2,7 @@
   "published": true,
   "displayName": "FaceSwap vs FaceRebuild",
   "kind": "comparison",
-  "order": 301,
+  "order": 501,
   "category": "COMPARISONS",
   "category_en": "COMPARISONS",
   "description": "Vergleicht FaceSwap und FaceRebuild am selben Ziel- und Referenzbild und stellt ihre unterschiedlichen Ergebnisse direkt gegenüber.",
@@ -12,8 +12,8 @@
   "previews": [
     {
       "src": "assets/showcase/COMPARISONS/FaceSwap vs FaceRebuild/FaceSwap vs FaceRebuild.png",
-      "label": "Vorschau",
-      "label_en": "Vorschau"
+      "label": "Workflow",
+      "label_en": "Workflow"
     }
   ]
 }

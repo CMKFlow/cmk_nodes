@@ -90,8 +90,8 @@
       ],
       "placementNote": "Place between Create Image and the ZIT KSampler. Omit it when no image guidance is needed."
     },
-    "CMKFamilyResultMergePipe": {
-      "previewAlt": "CMK Flow PostProcess Boundary Combined",
+    "CMKPostProcessSetupPipe": {
+      "previewAlt": "CMK Flow · 30 PostProcess Setup",
       "description": "Ends the active SDXL, ZIT, or HYBRID generation path and provides an independent working context for downstream PostProcess modules.",
       "features": [
         "Accept only the active generation branch",
@@ -210,27 +210,7 @@
       "placementNote": "Use as a standalone loader before the model and sampling section when combining one or more SDXL LoRAs into a stack."
     },
     "0edf7a0d-3271-4b2e-8344-72d3506bb628": {
-      "previewAlt": "CMK Flow · 05 ControlNet Combined preview",
-      "description": "Guides image generation with a reference image, transferring its spatial or structural cues to the new image.",
-      "features": [
-        "Transfer the structure and composition of a reference image to the generation",
-        "Set the strength and duration of the reference guidance",
-        "Show the processed ControlNet reference in the Visualizer"
-      ],
-      "info": "The reference dimensions determine the output resolution."
-    },
-    "96aabb3d-a0c9-4539-86c0-2b2a7abb0712": {
-      "previewAlt": "05 ControlNet SDXL preview",
-      "description": "Guides image generation with a reference image, transferring its spatial or structural cues to the new image.",
-      "features": [
-        "Transfer the structure and composition of a reference image to the generation",
-        "Set the strength and duration of the reference guidance",
-        "Show the processed ControlNet reference in the Visualizer"
-      ],
-      "info": "The reference dimensions determine the output resolution."
-    },
-    "aeec8af2-85bf-4969-8743-9b39bb5483ef": {
-      "previewAlt": "CMK Flow · 05 ControlNet ZIT preview",
+      "previewAlt": "CMK Flow · 05 ControlNet preview",
       "description": "Guides image generation with a reference image, transferring its spatial or structural cues to the new image.",
       "features": [
         "Transfer the structure and composition of a reference image to the generation",
@@ -359,15 +339,15 @@
       "info": "Upscaling is optional.",
       "placementNote": "Place once at the end of the common image-processing chain, directly before the mandatory Visualizer."
     },
-    "1c91adfd-df9f-4729-90a1-35dc53915ca6": {
-      "previewAlt": "15 InstantID-Sampler SDXL preview",
-      "description": "Transfers the identity of a reference face to the generated person and continues the existing SDXL image build with identity guidance.",
+    "eca2b55f-5a34-47e4-a91e-fef59d4b0cb2": {
+      "previewAlt": "15S InstantID Regional SDXL preview",
+      "description": "Transfers one reference identity to a selected person in the preliminary SDXL prompt layout.",
       "features": [
-        "Use a reference face as the identity guide",
-        "Adjust identity and pose weights separately",
-        "Continue the existing SDXL image build with InstantID"
+        "Apply one reference identity regionally",
+        "Select the target person in the preliminary prompt layout",
+        "Adjust identity and pose weights separately"
       ],
-      "info": "InstantID requires a reference face.",
+      "info": "The target region is derived automatically from the preliminary x0 layout.",
       "placementNote": "Place after 10 KSampler SDXL 1st Pass and before 20 Refiner SDXL.",
       "recommendedBefore": [
         "10 KSampler SDXL 1st Pass"
@@ -435,61 +415,5 @@
       ],
       "placementNote": "Place in the preprocess section and connect both LoRA outputs to the corresponding inputs of module 01."
     }
-  },
-  "toolbox": {
-    "CMKMaskDetailerPrepare": "Prepares the model, painted image mask, optional LoRA, and prompt addition for the standalone CMK Mask Detailer.",
-    "CMKMaskDetailerProcess": "Refines only the regions masked in CMK Load Image and forwards MODEL, image, LOG, and VISUAL to the Visualizer.",
-    "CMKDetailerPreparePipe": "Prepares the model, image regions, and settings for an SDXL detailer pass.",
-    "CMKFaceProcessPreparePipe": "Detects and selects target faces and prepares them for a FaceProcess branch.",
-    "CMKFaceProcessPipe": "Runs the configured face processing and returns processed image regions and log data.",
-    "CMKFaceSwapImagePipe": "Replaces a selected face in the target image with the identity from a source image and returns the processed regions.",
-    "CMKKSamplerPipe": "Runs the prepared SDXL sampling job and passes on the latent, preview image, and sampling data.",
-    "CMKRefinerPrepareSDXLPipe": "Prepares the model, prompt inheritance, and sampling parameters for an SDXL refiner pass.",
-    "CMKRefinerPipe": "Runs the prepared SDXL refiner pass and decodes both the first-pass and refined results.",
-    "CMKSamplerPrepareSDXLPipe": "Builds the complete first-pass SDXL sampling job from the model, PROCESS, and conditioning.",
-    "CMKSamplerPrepareZImageTurboPipe": "Prepares conditioning, latent data, and sampling parameters for Z-Image Turbo.",
-    "CMKZImageTurboLoaderPipe": "Loads the components of a Z-Image Turbo model for the subsequent sampling setup.",
-    "CMKZImageTurboFinalizePipe": "Decodes the Z-Image Turbo result and returns the image, PROCESS, and log to the shared result path.",
-    "CMK_SmartDetailerPipe": "Runs CMK Smart Detailer inside a connectable PROCESS branch.",
-    "CMK_SmartUpscalerPipe": "Upscales an image inside a connectable PROCESS branch using CMK Smart Upscaler settings.",
-    "CMKSwapImageLoaderPipe": "Loads the target and source images for the standalone CMK FaceSwap Video workflow. This node belongs in the Toolbox because it cannot be inserted into the canonical CMK Flow wiring.",
-    "CMKDiagnosticConcat": "Appends up to 32 complete CMK diagnostics in input order for Preview Render, Summary, or Preview Board.",
-    "CMKPreviewBoard": "Combines up to 32 CMK diagnostics into one visual overview and places multiple processing stages directly beside each other.",
-    "CMKPreviewRender": "Turns one CMK diagnostic into a complete visual process view with intermediate images, captions, and the decisive settings.",
-    "CMKSummary": "Condenses a CMK diagnostic into a clear summary of the processing performed, its settings, and its result.",
-    "CMKLogCreate": "Creates an empty CMK log pipe for structured workflow messages.",
-    "CMKLogSetBlock": "Adds a named and sortable text block to a CMK log pipe.",
-    "CMKLogConcat": "Combines up to 32 log blocks in an existing CMK log pipe.",
-    "CMKLogExportText": "Sorts a CMK log pipe and exports its complete content as readable text.",
-    "CMK_ImageMetrics": "Reads image dimensions, batch size, and channels and also provides them as a CMK diagnostic.",
-    "CMK_ImageQuickMetrics": "Shows key image and tensor values directly in the node and passes the image through unchanged.",
-    "CMKCheckpointVAELoader": "Loads an SDXL checkpoint together with CLIP and VAE for standalone workflows outside the canonical CMK pipe flow.",
-    "CMKControlNetPrepare": "Loads a ControlNet model, prepares the guidance image, and builds conditioning for a standalone ControlNet step.",
-    "CMK_EmptyImageMask": "Creates an empty image and matching mask at a selectable size as a starting point for image and mask workflows.",
-    "CMKFaceCrop": "Crops detected face regions from an image and returns them separately for targeted processing.",
-    "CMKFaceMask": "Creates a mask from detected face regions for local face processing and pasteback.",
-    "CMKFaceRestore": "Restores detected faces with the selected restoration model and composites them back into the image.",
-    "CMKFaceSelect": "Selects target persons from detected faces by position or sequence.",
-    "CMK_FaceProcess": "Combines selection, masking, and restoration of detected faces into a standalone FaceProcess step.",
-    "CMKFaceSwapImage": "Transfers the identity of a source face to selected faces in a single target image.",
-    "CMKFaceSwapVideo": "Transfers the identity of a source face to selected faces across a video frame sequence.",
-    "CMKFaceSwapVideoLoader": "Loads a video as a frame sequence and provides the video data required by the standalone FaceSwap Video workflow.",
-    "CMK_FilenameBase": "Builds a consistent base filename from project and file information for downstream save nodes.",
-    "CMK_ImageMaskSwitch": "Switches image and mask together between two input paths and keeps both data streams synchronized.",
-    "CMKLoRAStackBuilder": "Builds a stack from multiple selectable LoRAs with separate model and CLIP strengths.",
-    "CMKLoRATextLoader": "Reads a text-based LoRA list and provides it for building a LoRA stack.",
-    "CMKMergeAndSaveVideo": "Merges processed video segments and saves the finished video with the selected output settings.",
-    "CMKStringDual": "Provides two separate text values, typically positive and negative prompts for standalone workflows.",
-    "CMK_SEGSConcate": "Combines multiple detected-region collections into one SEGS structure for further detail processing.",
-    "CMK_SaveProjectText": "Saves text content under a project-based, consistently constructed filename.",
-    "CMK_SaveProjectVideo": "Saves a video with project-based naming and the available metadata.",
-    "CMK_SmartDetailer": "Detects selected image regions and improves them using configurable inpaint sampling and masked compositing.",
-    "CMK_SmartOutpaintPad": "Expands an image canvas and creates the matching mask for subsequent outpainting.",
-    "CMK_SmartUpscaler": "Upscales images with a selectable model and controlled target size for final output.",
-    "CMK_SourcePathInfo": "Splits a source path into reusable directory, file, and name components.",
-    "CMKSplitVideoIntoSegments": "Splits a video into separately processable sections and frame sequences using the selected segmentation settings.",
-    "CMK_VideoMetrics": "Reads technical video properties and provides them for diagnostics and logging.",
-    "CMK_VideoQuickMetrics": "Shows the most important technical video values directly in the node.",
-    "CMKVideoCompare": "Compares video or segment data and prepares the detected differences for diagnostics and logging."
   }
 }

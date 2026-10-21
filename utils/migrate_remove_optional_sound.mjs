@@ -3,7 +3,6 @@
 import fs from "node:fs";
 
 const workflowPaths = [
-  "workflows/examples/CMK Swap Video.json",
   "workflows/showcase/CMK FaceSwap Video.json",
 ];
 

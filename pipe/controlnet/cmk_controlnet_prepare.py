@@ -56,20 +56,25 @@ class CMKControlNetPreparePipe:
             "required": {
                 "PROCESS": ("CMK_PROCESS_SDXL",),
                 "IMAGE": ("IMAGE",),
-                "ENABLE": ("BOOLEAN", {"default": False}),
-                "CONTROLNET MODEL": (controlnet_models,),
+                "ENABLE": ("BOOLEAN", {"default": False, "forceInput": True}),
+                "CONTROLNET MODEL": (controlnet_models, {"advanced": True}),
                 "IMAGE SOURCE": (CONTROLNET_IMAGE_SOURCES, {"default": "Reference Image"}),
                 "REFERENCE IMAGE": (
                     input_files,
                 ),
                 "APPLY MASK": ("BOOLEAN", {"default": False}),
-                "PREPROCESSOR": _controlnet_preprocessor_input(),
+                "PREPROCESSOR": (
+                    _controlnet_preprocessor_input()[0],
+                    {
+                        **_controlnet_preprocessor_input()[1],
+                        "advanced": True,
+                    },
+                ),
                 "STRENGTH": ("FLOAT", {
                     "default": 1.50, "min": 0.0, "max": 2.0, "step": 0.05
                 }),
                 "resolution": ("INT", {
-                    "default": 768, "min": 64, "max": 8192, "step": 8,
-                    "advanced": True
+                    "default": 768, "min": 64, "max": 8192, "step": 8
                 }),
                 "controlnet_start_percent": ("FLOAT", {
                     "default": 0.00, "min": 0.0, "max": 100.0, "step": 1.0,

@@ -73,6 +73,16 @@ def project_version(pyproject_text: str):
     return version.group(1)
 
 
+def distribution_mode(config_text: str):
+    match = re.search(
+        r'(?m)^DISTRIBUTION_MODE\s*=\s*(BASELINE|RELEASE)\s*$',
+        config_text,
+    )
+    if not match:
+        raise ValidationError("cmk_distribution.py has no valid distribution mode")
+    return match.group(1)
+
+
 def expected_source_files(source: Path):
     patterns = []
     ignore_file = source / ".comfyignore"
@@ -104,7 +114,13 @@ def expected_source_files(source: Path):
     }
 
 
-def validate(reader: ContentReader, manifest: dict, source: Path | None = None):
+def validate(
+    reader: ContentReader,
+    manifest: dict,
+    source: Path | None = None,
+    *,
+    require_release_mode: bool = False,
+):
     errors = []
     required = list(manifest.get("requiredFiles", []))
     for feature in manifest.get("releaseFeatures", []):
@@ -158,6 +174,16 @@ def validate(reader: ContentReader, manifest: dict, source: Path | None = None):
             except ValidationError as exc:
                 errors.append(str(exc))
 
+    try:
+        mode = distribution_mode(reader.read_text("cmk_distribution.py"))
+        if require_release_mode and mode != "RELEASE":
+            errors.append(
+                "release packaging requires DISTRIBUTION_MODE = RELEASE "
+                f"(found {mode})"
+            )
+    except ValidationError as exc:
+        errors.append(str(exc))
+
     if source is not None:
         expected = expected_source_files(source)
         artifact_names = set(names)
@@ -196,6 +222,11 @@ def main(argv=None):
     parser.add_argument("target", type=Path, help="source directory or packed .zip artifact")
     parser.add_argument("--source", type=Path, help="source tree used to build an artifact")
     parser.add_argument("--require-clean", action="store_true")
+    parser.add_argument(
+        "--require-release-mode",
+        action="store_true",
+        help="refuse Baseline artifacts and require server-side RELEASE enforcement",
+    )
     args = parser.parse_args(argv)
 
     target = args.target.resolve()
@@ -218,7 +249,10 @@ def main(argv=None):
     reader = ContentReader(target)
     try:
         version, files, required = validate(
-            reader, manifest, source if target.is_file() else None
+            reader,
+            manifest,
+            source if target.is_file() else None,
+            require_release_mode=args.require_release_mode,
         )
     finally:
         reader.close()

@@ -2,7 +2,7 @@
   "published": true,
   "displayName": "Identity Processing Matrix",
   "kind": "comparison",
-  "order": 302,
+  "order": 502,
   "category": "COMPARISONS",
   "category_en": "COMPARISONS",
   "description": "Vergleicht Original, InstantID HYBRID und InstantID ZERO-PASS über Basissampling, FaceSwap und FaceRebuild.",
@@ -12,8 +12,8 @@
   "previews": [
     {
       "src": "assets/showcase/COMPARISONS/Identity Processing Matrix/Identity Processing Matrix.png",
-      "label": "Vorschau",
-      "label_en": "Vorschau"
+      "label": "Workflow",
+      "label_en": "Workflow"
     }
   ]
 }

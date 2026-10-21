@@ -1,0 +1,77 @@
+{
+  "published": true,
+  "displayName": "CMK 2.6 · Flow · InOutpaint HYBRID",
+  "kind": "task",
+  "order": 214,
+  "category": "TASK WORKFLOWS",
+  "category_en": "TASK WORKFLOWS",
+  "description": "Zeigt InOutpaint, Remove und Extend im HYBRID-Modus – jeweils von der Vorbereitung über den SDXL 1st-Pass bis zum abschließenden ZIT-Pass.",
+  "description_en": "Shows InOutpaint, Remove, and Extend in HYBRID mode – from preparation through the SDXL 1st pass to the final ZIT pass.",
+  "cmkHighlight": "Die unterschiedlichen Inpaint-Aufgaben werden zentral in 01 START HERE vorbereitet und anschließend durch denselben HYBRID-Prozess geführt.",
+  "cmkHighlight_en": "The different inpainting tasks are prepared centrally in 01 START HERE and then run through the same HYBRID process.",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint HYBRID/CMK 2.6 · Flow · InOutpaint HYBRID - InOutpaint - Preparation.png",
+      "group": "InOutpaint",
+      "group_en": "InOutpaint",
+      "label": "Preparation",
+      "label_en": "Preparation"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint HYBRID/CMK 2.6 · Flow · InOutpaint HYBRID - InOutpaint - 1st-Pass SDXL.png",
+      "group": "InOutpaint",
+      "group_en": "InOutpaint",
+      "label": "1st-Pass SDXL",
+      "label_en": "1st-Pass SDXL"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint HYBRID/CMK 2.6 · Flow · InOutpaint HYBRID - InOutpaint - 2ndPass ZIT.png",
+      "group": "InOutpaint",
+      "group_en": "InOutpaint",
+      "label": "2ndPass ZIT",
+      "label_en": "2ndPass ZIT"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint HYBRID/CMK 2.6 · Flow · InOutpaint HYBRID - Remove - Preparation.png",
+      "group": "Remove",
+      "group_en": "Remove",
+      "label": "Preparation",
+      "label_en": "Preparation"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint HYBRID/CMK 2.6 · Flow · InOutpaint HYBRID - Remove - 1st-Pass SDXL.png",
+      "group": "Remove",
+      "group_en": "Remove",
+      "label": "1st-Pass SDXL",
+      "label_en": "1st-Pass SDXL"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint HYBRID/CMK 2.6 · Flow · InOutpaint HYBRID - Remove - 2nd-Pass ZIT.png",
+      "group": "Remove",
+      "group_en": "Remove",
+      "label": "2nd-Pass ZIT",
+      "label_en": "2nd-Pass ZIT"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint HYBRID/CMK 2.6 · Flow · InOutpaint HYBRID - Extent - Preparation.png",
+      "group": "Extent",
+      "group_en": "Extent",
+      "label": "Preparation",
+      "label_en": "Preparation"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint HYBRID/CMK 2.6 · Flow · InOutpaint HYBRID - Extent - 1st-Pass SDXL.png",
+      "group": "Extent",
+      "group_en": "Extent",
+      "label": "1st-Pass SDXL",
+      "label_en": "1st-Pass SDXL"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint HYBRID/CMK 2.6 · Flow · InOutpaint HYBRID - Extent - 2nd-Pass ZIT.png",
+      "group": "Extent",
+      "group_en": "Extent",
+      "label": "2nd-Pass ZIT",
+      "label_en": "2nd-Pass ZIT"
+    }
+  ]
+}

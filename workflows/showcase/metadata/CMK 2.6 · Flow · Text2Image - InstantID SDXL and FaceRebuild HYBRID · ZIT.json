@@ -1,0 +1,103 @@
+{
+  "published": true,
+  "displayName": "CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT",
+  "kind": "task",
+  "order": 219,
+  "category": "TASK WORKFLOWS",
+  "category_en": "TASK WORKFLOWS",
+  "description": "Vergleicht vier Text2Image-Pfade bis zur abschließenden Gesichtsrekonstruktion: SDXL mit InstantID im HYBRID- oder ZERO-PASS-Modus, HYBRID sowie Z-Image Turbo.",
+  "description_en": "Compares four Text2Image paths through final facial reconstruction: SDXL with InstantID in HYBRID or ZERO-PASS mode, HYBRID, and Z-Image Turbo.",
+  "cmkHighlight": "InstantID kann im SDXL-Pfad wahlweise nach dem 1st-Pass oder als ZERO-PASS eingesetzt werden; FaceRebuild rekonstruiert anschließend in allen vier Pfaden das Gesicht unabhängig vom jeweiligen Generationspfad.",
+  "cmkHighlight_en": "InstantID can be used in the SDXL path either after the 1st pass or as a ZERO-PASS; FaceRebuild then reconstructs the face across all four paths, independently of the generation path used.",
+  "previews": [
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - InstandID HYBRID - SDXL HYBRID - 1st-Pass SDXL.png",
+      "group": "InstantID HYBRID · SDXL HYBRID",
+      "group_en": "InstantID HYBRID · SDXL HYBRID",
+      "label": "1st-Pass SDXL",
+      "label_en": "1st-Pass SDXL"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - InstandID HYBRID - SDXL HYBRID - Identity.png",
+      "group": "InstantID HYBRID · SDXL HYBRID",
+      "group_en": "InstantID HYBRID · SDXL HYBRID",
+      "label": "Identity",
+      "label_en": "Identity"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - InstandID HYBRID - SDXL HYBRID - 2nd-Pass SDXL.png",
+      "group": "InstantID HYBRID · SDXL HYBRID",
+      "group_en": "InstantID HYBRID · SDXL HYBRID",
+      "label": "2nd-Pass SDXL",
+      "label_en": "2nd-Pass SDXL"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - InstandID HYBRID - SDXL HYBRID - FaceRebuild.png",
+      "group": "InstantID HYBRID · SDXL HYBRID",
+      "group_en": "InstantID HYBRID · SDXL HYBRID",
+      "label": "FaceRebuild",
+      "label_en": "FaceRebuild"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - InstandID HYBRID - ZERO-PASS - Identity.png",
+      "group": "InstantID HYBRID · ZERO-PASS",
+      "group_en": "InstantID HYBRID · ZERO-PASS",
+      "label": "Identity",
+      "label_en": "Identity"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - InstandID HYBRID - ZERO-PASS - 2nd-Pass SDXL.png",
+      "group": "InstantID HYBRID · ZERO-PASS",
+      "group_en": "InstantID HYBRID · ZERO-PASS",
+      "label": "2nd-Pass SDXL",
+      "label_en": "2nd-Pass SDXL"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - InstandID HYBRID - ZERO-PASS - FaceRebuild.png",
+      "group": "InstantID HYBRID · ZERO-PASS",
+      "group_en": "InstantID HYBRID · ZERO-PASS",
+      "label": "FaceRebuild",
+      "label_en": "FaceRebuild"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - HYBRID - 1st-Pass SDXL.png",
+      "group": "HYBRID",
+      "group_en": "HYBRID",
+      "label": "1st-Pass SDXL",
+      "label_en": "1st-Pass SDXL"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - HYBRID - 2nd-Pass ZIT.png",
+      "group": "HYBRID",
+      "group_en": "HYBRID",
+      "label": "2nd-Pass ZIT",
+      "label_en": "2nd-Pass ZIT"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - HYBRID - FaceRebuild.png",
+      "group": "HYBRID",
+      "group_en": "HYBRID",
+      "label": "FaceRebuild",
+      "label_en": "FaceRebuild"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - ZIT - Sampling ZIT.png",
+      "group": "ZIT",
+      "group_en": "ZIT",
+      "label": "Sampling ZIT",
+      "label_en": "Sampling ZIT"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT - ZIT - FaceRebuild.png",
+      "group": "ZIT",
+      "group_en": "ZIT",
+      "label": "FaceRebuild",
+      "label_en": "FaceRebuild"
+    },
+    {
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT/portrait_reference_00003.png",
+      "label": "Source",
+      "label_en": "Source"
+    }
+  ]
+}

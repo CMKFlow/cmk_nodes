@@ -50,9 +50,9 @@ solution that can be freely combined with other CMK Flow modules.
 
 ## 2. Two integration levels
 
-### 2.1 CMK Toolbox Integration
+### 2.1 Individual CMK Node Integration
 
-A Toolbox integration is an individual node for experienced users. It may use
+An individual CMK node integration is intended for experienced users. It may use
 native ComfyUI types, expose technical controls, and allow alternative wiring.
 
 It must still provide:
@@ -64,12 +64,12 @@ It must still provide:
 - explicit optional dependencies;
 - actionable runtime errors instead of breaking unrelated nodes.
 
-Toolbox integration does **not** imply CMK Flow module compatibility.
+Individual node integration does **not** imply CMK Flow module compatibility.
 
 ### 2.2 CMK Flow Module Compatibility
 
 A Flow-compatible integration is a guided module intended for the curated Flow
-area. In addition to the Toolbox requirements, it must comply with all rules in
+area. In addition to the individual-node requirements, it must comply with all rules in
 the following sections.
 
 The preferred visible outer workflow remains:

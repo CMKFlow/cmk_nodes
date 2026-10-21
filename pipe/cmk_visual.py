@@ -216,7 +216,11 @@ class CMKVisualProvider:
     ):
         if not bool(enable):
             return []
-        current = prompt.get(str(unique_id), {}) if isinstance(prompt, dict) else {}
+        current = (
+            prompt.get(unique_id) or prompt.get(str(unique_id), {})
+            if isinstance(prompt, dict)
+            else {}
+        )
         connected = (current.get("inputs", {}) or {})
         for name in ("IMAGE", "SOURCE", "BEFORE", "AFTER"):
             if name in connected and inputs.get(name) is None:
@@ -271,6 +275,12 @@ class CMKVisualProvider:
 class CMKVisualizer:
     OUTPUT_NODE = True
 
+    _INPUT_GROUPS = {
+        "ZIT": ("MODEL ZIT", "PROCESS ZIT", "IMAGE ZIT", "LOG ZIT", "VISUAL ZIT"),
+        "SDXL": ("MODEL SDXL", "PROCESS SDXL", "IMAGE SDXL", "LOG SDXL", "VISUAL SDXL"),
+        "COMMON": ("MODEL (opt)", "PROCESS", "IMAGE", "LOG", "VISUAL"),
+    }
+
     @classmethod
     def INPUT_TYPES(cls):
         try:
@@ -283,11 +293,21 @@ class CMKVisualizer:
         advanced = {"advanced": True}
         return {
             "optional": {
-                "MODEL (opt)": (CMK_FINISH_INPUT,),
-                "PROCESS": (CMK_FINISH_INPUT,),
-                "IMAGE": (CMK_FINISH_INPUT,),
-                "LOG": (CMK_FINISH_INPUT,),
-                "VISUAL": (VISUAL_TYPE,),
+                "MODEL ZIT": ("CMK_MODEL_PIPE", {"lazy": True}),
+                "PROCESS ZIT": ("CMK_PROCESS_Z_IMAGE", {"lazy": True}),
+                "IMAGE ZIT": ("IMAGE", {"lazy": True}),
+                "LOG ZIT": ("CMK_LOG_PIPE", {"lazy": True}),
+                "VISUAL ZIT": (VISUAL_TYPE, {"lazy": True}),
+                "MODEL SDXL": ("CMK_MODEL_PIPE", {"lazy": True}),
+                "PROCESS SDXL": ("CMK_PROCESS_SDXL", {"lazy": True}),
+                "IMAGE SDXL": ("IMAGE", {"lazy": True}),
+                "LOG SDXL": ("CMK_LOG_PIPE", {"lazy": True}),
+                "VISUAL SDXL": (VISUAL_TYPE, {"lazy": True}),
+                "MODEL (opt)": (CMK_FINISH_INPUT, {"lazy": True}),
+                "PROCESS": (CMK_FINISH_INPUT, {"lazy": True}),
+                "IMAGE": (CMK_FINISH_INPUT, {"lazy": True}),
+                "LOG": (CMK_FINISH_INPUT, {"lazy": True}),
+                "VISUAL": (VISUAL_TYPE, {"lazy": True}),
                 "SAVE ENABLED": ("BOOLEAN", {"default": True}),
                 "filename prefix": ("STRING", {"default": "image"}),
                 "output folder": ("STRING", {"default": "", **advanced}),
@@ -298,7 +318,7 @@ class CMKVisualizer:
                 "model 4x": (models, {"default": default_4x, **advanced}),
                 "model 2x": (models, {"default": default_2x, **advanced}),
             },
-            "hidden": {"unique_id": "UNIQUE_ID"},
+            "hidden": {"prompt": "PROMPT", "unique_id": "UNIQUE_ID"},
         }
 
     RETURN_TYPES = ()
@@ -310,16 +330,91 @@ class CMKVisualizer:
         return float("nan")
 
     @staticmethod
+    def check_lazy_status(VISUAL=None, prompt=None, unique_id=None, **kwargs):
+        from .cmk_family_result import visualizer_completion_preflight
+
+        preflight = visualizer_completion_preflight(prompt, unique_id)
+        if preflight["cached"] is not None:
+            contract = preflight["contract"]
+            print(
+                f"[CMK Generation Completion / {contract.log_label}] "
+                "HIT before Visualizer lazy inputs "
+                f"{preflight['key'][:12]} ({preflight['detail']})"
+            )
+            return []
+
+        if preflight.get("path_kind") == "invalid":
+            raise RuntimeError(
+                "CMK Visualizer cannot resolve one active generation contract: "
+                + str(preflight.get("detail", "unknown completion contract"))
+            )
+
+        current = (
+            prompt.get(unique_id) or prompt.get(str(unique_id), {})
+            if isinstance(prompt, dict)
+            else {}
+        )
+        connected = (current.get("inputs", {}) or {}) if isinstance(current, dict) else {}
+        inputs = dict(kwargs)
+        inputs["VISUAL"] = VISUAL
+        ports = CMKVisualizer._INPUT_GROUPS[
+            preflight.get("input_group", "COMMON")
+        ]
+        process = inputs.get(ports[1])
+        model_required = (
+            preflight.get("contract") is not None
+            or (
+                isinstance(process, dict)
+                and process.get("type") == "CMK_MASK_DETAILER_PROCESS"
+            )
+        )
+        ordered = [ports[1]]
+        if model_required:
+            ordered.append(ports[0])
+        ordered.extend((ports[2], ports[3], ports[4]))
+        for name in ordered:
+            if name in connected and inputs.get(name) is None:
+                return [name]
+        return []
+
+    @staticmethod
     def show(VISUAL=None, unique_id=None, **kwargs):
         from ..utils.comfy_preview_output import save_preview_png
         from ..utils.preview_payload import _as_rgb_uint8
+        from .cmk_family_result import (
+            complete_generation_at_visualizer,
+            restore_visualizer_completion,
+            visualizer_completion_preflight,
+        )
 
-        visual = normalize_visual(VISUAL)
+        preflight = visualizer_completion_preflight(kwargs.get("prompt"), unique_id)
+        if preflight.get("path_kind") == "invalid":
+            raise RuntimeError(
+                "CMK Visualizer cannot resolve one active generation contract: "
+                + str(preflight.get("detail", "unknown completion contract"))
+            )
+        inputs = dict(kwargs)
+        inputs["VISUAL"] = VISUAL
+        ports = CMKVisualizer._INPUT_GROUPS[
+            preflight.get("input_group", "COMMON")
+        ]
+        model, process, image, log, VISUAL = (
+            inputs.get(name) for name in ports
+        )
         save_text = None
-        image = kwargs.get("IMAGE")
-        process = kwargs.get("PROCESS")
-        log = kwargs.get("LOG")
-        model = kwargs.get("MODEL (opt)")
+        if preflight["cached"] is not None:
+            model, process, image, log, VISUAL = restore_visualizer_completion(preflight)
+        visual = normalize_visual(VISUAL)
+        if preflight["contract"] is not None and preflight["cached"] is None:
+            model, process, image, log, visual = complete_generation_at_visualizer(
+                preflight,
+                model=model,
+                process=process,
+                image=image,
+                log=log,
+                visual=visual,
+                unique_id=unique_id,
+            )
         save_enabled = bool(kwargs.get("SAVE ENABLED", True))
         upscale_enabled = bool(kwargs.get("enable upscale", False))
 

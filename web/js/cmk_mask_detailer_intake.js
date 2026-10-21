@@ -1,6 +1,8 @@
 import { app } from "../../../scripts/app.js";
+import { api } from "../../../scripts/api.js";
 
 const NODE_CLASS = "CMKMaskDetailerIntake";
+const UNLOCKED_IMAGE = "None";
 
 function findWidget(node, name) {
   return node?.widgets?.find((widget) => widget?.name === name);
@@ -29,6 +31,52 @@ function isPendingSnapshot(value) {
   return /(^|\/)incoming-[^/]+\.png$/i.test(String(value || ""));
 }
 
+function snapshotCandidates(value) {
+  const normalized = String(value || "")
+    .trim()
+    .replace(/\s+\[(?:input|output|temp)\]$/i, "");
+  if (!normalized) return [];
+  const slash = normalized.lastIndexOf("/");
+  const folder = slash >= 0 ? normalized.slice(0, slash) : "";
+  const filename = slash >= 0 ? normalized.slice(slash + 1) : normalized;
+  const prefix = "clipspace-painted-masked-";
+  const candidates = [];
+  if (filename.startsWith(prefix)) {
+    candidates.push(`${folder ? `${folder}/` : ""}clipspace-mask-${filename.slice(prefix.length)}`);
+  }
+  candidates.push(normalized);
+  return [...new Set(candidates)];
+}
+
+function viewPath(value) {
+  const slash = value.lastIndexOf("/");
+  const params = new URLSearchParams({
+    filename: slash >= 0 ? value.slice(slash + 1) : value,
+    type: "input",
+  });
+  if (slash >= 0) params.set("subfolder", value.slice(0, slash));
+  return `/view?${params.toString()}`;
+}
+
+async function snapshotValidity(value) {
+  const candidates = snapshotCandidates(value);
+  if (!candidates.length) return "invalid";
+  for (const candidate of candidates) {
+    let response;
+    try {
+      response = await api.fetchApi(viewPath(candidate), {
+        method: "HEAD",
+        cache: "no-store",
+      });
+    } catch {
+      return "unknown";
+    }
+    if (response.ok) return "valid";
+    if (response.status !== 404) return "unknown";
+  }
+  return "invalid";
+}
+
 function ensureImageOption(node, value) {
   const image = findWidget(node, "image");
   const selected = String(value || "").trim();
@@ -46,6 +94,38 @@ function configuredImageValue(node, configuration = null) {
     || configuration?.widgets_values?.[1]
     || node?.properties?.image
     || findWidget(node, "image")?.value;
+}
+
+function unlockInvalidSnapshot(node, expectedValue) {
+  const image = findWidget(node, "image");
+  if (!image || String(image.value || "") !== expectedValue) return;
+  image.value = UNLOCKED_IMAGE;
+  node.properties ||= {};
+  node.properties.image = UNLOCKED_IMAGE;
+  image.callback?.(UNLOCKED_IMAGE);
+  const state = node.__cmkMaskIntakeState;
+  if (state) {
+    state.capture.value = false;
+    state.status.value = "UNLOCKED";
+    setButtonLocked(state.button, false);
+  }
+  node.setDirtyCanvas?.(true, true);
+  node.graph?.setDirtyCanvas?.(true, true);
+  app.graph?.setDirtyCanvas?.(true, true);
+}
+
+function validateConfiguredSnapshot(node, value) {
+  const expectedValue = String(value || "").trim();
+  if (!hasSnapshot(expectedValue) || isPendingSnapshot(expectedValue)) return;
+  if (node.__cmkMaskValidationValue === expectedValue) return;
+  node.__cmkMaskValidationValue = expectedValue;
+  const generation = (node.__cmkMaskValidationGeneration || 0) + 1;
+  node.__cmkMaskValidationGeneration = generation;
+  void snapshotValidity(expectedValue).then((validity) => {
+    if (validity !== "invalid") return;
+    if (node.__cmkMaskValidationGeneration !== generation) return;
+    unlockInvalidSnapshot(node, expectedValue);
+  });
 }
 
 
@@ -85,6 +165,8 @@ function setup(node) {
   });
   button.serialize = false;
   setButtonLocked(button, initiallyLocked);
+  node.__cmkMaskIntakeState = { capture, image, status, button };
+  validateConfiguredSnapshot(node, image.value);
 
   const originalExecuted = node.onExecuted;
   node.onExecuted = function(message) {
@@ -93,6 +175,8 @@ function setup(node) {
     const state = message?.cmk_mask_status?.[0];
     const lock = message?.cmk_mask_lock?.[0];
     if (filename) {
+      this.__cmkMaskValidationGeneration = (this.__cmkMaskValidationGeneration || 0) + 1;
+      this.__cmkMaskValidationValue = null;
       ensureImageOption(this, filename);
       image.callback?.(filename);
     }
@@ -117,10 +201,13 @@ app.registerExtension({
     const configured = nodeType.prototype.onConfigure;
     nodeType.prototype.onConfigure = function(configuration) {
       const result = configured?.apply(this, arguments);
-      ensureImageOption(this, configuredImageValue(this, configuration));
+      const configuredValue = configuredImageValue(this, configuration);
+      ensureImageOption(this, configuredValue);
       setTimeout(() => {
-        ensureImageOption(this, configuredImageValue(this, configuration));
+        const restoredValue = configuredImageValue(this, configuration);
+        ensureImageOption(this, restoredValue);
         setup(this);
+        validateConfiguredSnapshot(this, restoredValue);
       }, 0);
       return result;
     };
@@ -132,8 +219,10 @@ app.registerExtension({
     if (node?.comfyClass !== NODE_CLASS && node?.type !== NODE_CLASS) return;
     for (const delay of [0, 50, 250]) {
       setTimeout(() => {
-        ensureImageOption(node, configuredImageValue(node));
+        const configuredValue = configuredImageValue(node);
+        ensureImageOption(node, configuredValue);
         setup(node);
+        validateConfiguredSnapshot(node, configuredValue);
       }, delay);
     }
   },

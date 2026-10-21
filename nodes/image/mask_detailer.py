@@ -19,10 +19,12 @@ from ...pipe.cmk_log_pipe import cmk_add_block
 from ...pipe.cmk_pipe_image import fill_mask_holes as fill_mask_holes_fn
 from ...pipe.cmk_visual import empty_visual, register_provider
 from ...pipe.loaders.checkpoint_vae_loader import resolve_postprocess_model
+from ...utils.cmk_diagnostic import make_diagnostic_payload
 
 
 MASK_DETAILER_PROCESS = "CMK_MASK_DETAILER_PROCESS"
 MASK_DETAILER_SOURCE = "CMK_MASK_DETAILER_SOURCE"
+SOLID_MASK_THRESHOLD = 0.01
 
 
 class _CMKAnyType(str):
@@ -69,6 +71,10 @@ def _mask_bhw(mask, image):
             "CMK Mask Detailer: the selected mask is empty. Paint the locked Intake image first."
         )
     return value
+
+
+def _normalize_solid_mask(mask):
+    return (mask > SOLID_MASK_THRESHOLD).to(dtype=mask.dtype)
 
 
 def _grow(mask, pixels):
@@ -350,6 +356,8 @@ class CMKMaskDetailerIntake:
                 snapshot_value.lower() not in ("", "none")
                 and not is_pending_snapshot
             )
+            if has_locked_image and not _snapshot_path(snapshot_value).is_file():
+                has_locked_image = False
             if not has_locked_image or current_fingerprint != locked_fingerprint:
                 _write_image(incoming_path, current_image)
                 incoming_metadata = {
@@ -546,18 +554,7 @@ class CMKMaskDetailerFlowGate:
             inputs["PROCESS BYPASS"], image,
             "disabled" if not bool(enabled) else "snapshot not ready",
         )
-        reason = "disabled" if not bool(enabled) else "snapshot not ready"
-        visual = register_provider(
-            inputs.get("VISUAL BYPASS") or empty_visual(),
-            module_instance_id=unique_id or "mask-detailer-bypass",
-            module_type="CMKMaskDetailer",
-            module_label="Mask Detailer",
-            sequence=95,
-            channels={"before": image, "after": image},
-            status="disabled" if not bool(enabled) else "waiting",
-            branch="mask-detailer",
-            stage_key="mask-detailer.bypass",
-        )
+        visual = inputs.get("VISUAL BYPASS") or empty_visual()
         return (
             inputs["MODEL BYPASS"], process, image,
             inputs["LOG BYPASS"], visual,
@@ -580,6 +577,12 @@ class CMKMaskDetailerPrepare:
                 "lora_strength": ("FLOAT", {"default": 1.0, "min": -20.0, "max": 20.0, "step": 0.05}),
                 "prompt_pos": ("STRING", {"default": "", "multiline": False}),
                 "fill_mask_holes": ("BOOLEAN", {"default": False}),
+                "solid_mask": ("BOOLEAN", {
+                    "default": False,
+                    "label": "SOLID MASK",
+                    "label_on": "ON",
+                    "label_off": "OFF",
+                }),
             },
             "optional": {
                 "MASK DETAILER SOURCE": (MASK_DETAILER_SOURCE,),
@@ -590,13 +593,16 @@ class CMKMaskDetailerPrepare:
             },
         }
 
-    RETURN_TYPES = ("CMK_MODEL_PIPE", MASK_DETAILER_PROCESS, "CMK_LOG_PIPE", "CMK_VISUAL_PIPE")
-    RETURN_NAMES = ("MODEL", "MASK DETAILER PROCESS", "LOG", "VISUAL")
+    RETURN_TYPES = (
+        "CMK_MODEL_PIPE", MASK_DETAILER_PROCESS, "CMK_LOG_PIPE", "CMK_VISUAL_PIPE",
+        "CMK_DIAGNOSTIC",
+    )
+    RETURN_NAMES = ("MODEL", "MASK DETAILER PROCESS", "LOG", "VISUAL", "diagnostic")
     FUNCTION = "prepare"
     CATEGORY = "CMK/Toolbox/Image"
 
     @staticmethod
-    def prepare(MODEL, lora_name, lora_strength, prompt_pos, fill_mask_holes=False, LOG=None, VISUAL=None, **kwargs):
+    def prepare(MODEL, lora_name, lora_strength, prompt_pos, fill_mask_holes=False, solid_mask=False, LOG=None, VISUAL=None, **kwargs):
         terminal_source = kwargs.get("MASK DETAILER SOURCE")
         source = terminal_source if isinstance(terminal_source, dict) else kwargs.get(
             "PROCESS", kwargs.get("PROCESS SDXL")
@@ -620,6 +626,8 @@ class CMKMaskDetailerPrepare:
         mask = _mask_bhw(source.get("mask"), IMAGE)
         if bool(fill_mask_holes):
             mask = fill_mask_holes_fn(mask)
+        if bool(solid_mask):
+            mask = _normalize_solid_mask(mask)
         lora = str(lora_name or "None")
         loaded_loras = ""
         if lora.lower() != "none":
@@ -663,7 +671,45 @@ class CMKMaskDetailerPrepare:
             f"LORA             : {loaded_loras or 'None'}",
             f"PROMPT ADDITION  : {own_prompt or 'None'}",
         ], True)
-        return (MODEL, process, log, empty_visual() if VISUAL is None else VISUAL)
+        mask_float = mask.detach().float()
+        mask_min = float(mask_float.min().cpu())
+        mask_max = float(mask_float.max().cpu())
+        mask_mean = float(mask_float.mean().cpu())
+        mask_active = int((mask_float > SOLID_MASK_THRESHOLD).sum().cpu())
+        mask_total = int(mask_float.numel())
+        mask_preview = mask.unsqueeze(-1).expand(-1, -1, -1, 3)
+        diagnostic_summary = "\n".join([
+            "Status          : Prepared",
+            f"Image           : {int(IMAGE.shape[2])} x {int(IMAGE.shape[1])}",
+            f"Mask range      : {mask_min:.6f} .. {mask_max:.6f}",
+            f"Mask mean       : {mask_mean:.6f}",
+            f"Active pixels   : {mask_active} / {mask_total}",
+            f"Fill mask holes : {'ON' if bool(fill_mask_holes) else 'OFF'}",
+            f"Solid mask      : {'ON' if bool(solid_mask) else 'OFF'}",
+        ])
+        diagnostic = make_diagnostic_payload(
+            title="CMK Mask Detailer · Prepare",
+            node="CMKMaskDetailerPrepare",
+            previews=[IMAGE, mask_preview],
+            stages=[
+                {"title": "01 Source", "image": IMAGE},
+                {"title": "02 Effective Mask", "image": mask_preview},
+            ],
+            summary=diagnostic_summary,
+            details=diagnostic_summary,
+            mode="Prepare",
+            metadata={
+                "fill_mask_holes": bool(fill_mask_holes),
+                "solid_mask": bool(solid_mask),
+                "mask_min": mask_min,
+                "mask_max": mask_max,
+                "mask_mean": mask_mean,
+                "mask_active_pixels": mask_active,
+                "mask_total_pixels": mask_total,
+            },
+            metrics={"mask_coverage": mask_active / mask_total if mask_total else 0.0},
+        )
+        return (MODEL, process, log, empty_visual() if VISUAL is None else VISUAL, diagnostic)
 
 
 class CMKMaskDetailerProcess:
@@ -689,8 +735,11 @@ class CMKMaskDetailerProcess:
             "hidden": {"unique_id": "UNIQUE_ID"},
         }
 
-    RETURN_TYPES = ("CMK_MODEL_PIPE", MASK_DETAILER_PROCESS, "IMAGE", "CMK_LOG_PIPE", "CMK_VISUAL_PIPE")
-    RETURN_NAMES = ("MODEL", "MASK DETAILER PROCESS", "IMAGE", "LOG", "VISUAL")
+    RETURN_TYPES = (
+        "CMK_MODEL_PIPE", MASK_DETAILER_PROCESS, "IMAGE", "CMK_LOG_PIPE", "CMK_VISUAL_PIPE",
+        "CMK_DIAGNOSTIC",
+    )
+    RETURN_NAMES = ("MODEL", "MASK DETAILER PROCESS", "IMAGE", "LOG", "VISUAL", "diagnostic")
     FUNCTION = "process"
     CATEGORY = "CMK/Toolbox/Image"
 
@@ -752,4 +801,44 @@ class CMKMaskDetailerProcess:
             branch="mask-detailer",
             stage_key="mask-detailer.result",
         )
-        return (MODEL, result_pipe, after, log, visual)
+        mask_float = mask.detach().float()
+        mask_active = int((mask_float > SOLID_MASK_THRESHOLD).sum().cpu())
+        mask_total = int(mask_float.numel())
+        mask_preview = mask.unsqueeze(-1).expand(-1, -1, -1, 3)
+        diagnostic_summary = "\n".join([
+            "Status          : Completed",
+            f"Segments        : {len(segs[1])}",
+            f"Steps / CFG      : {int(steps)} / {float(cfg):g}",
+            f"Sampler          : {sampler_name} / {scheduler}",
+            f"Denoise          : {float(denoise):g}",
+            f"Mask expand      : {int(mask_expand)} px",
+            f"Mask feather     : {int(mask_feather)} px",
+            f"Active pixels    : {mask_active} / {mask_total}",
+        ])
+        diagnostic = make_diagnostic_payload(
+            title="CMK Mask Detailer · Process",
+            node="CMKMaskDetailerProcess",
+            previews=[before, mask_preview, after],
+            stages=[
+                {"title": "01 Source", "image": before},
+                {"title": "02 Sampling Mask", "image": mask_preview},
+                {"title": "03 Result", "image": after},
+            ],
+            summary=diagnostic_summary,
+            details=diagnostic_summary,
+            mode="Process",
+            metadata={
+                "segments": len(segs[1]),
+                "steps": int(steps),
+                "cfg": float(cfg),
+                "sampler_name": str(sampler_name),
+                "scheduler": str(scheduler),
+                "denoise": float(denoise),
+                "mask_expand": int(mask_expand),
+                "mask_feather": int(mask_feather),
+                "mask_active_pixels": mask_active,
+                "mask_total_pixels": mask_total,
+            },
+            metrics={"mask_coverage": mask_active / mask_total if mask_total else 0.0},
+        )
+        return (MODEL, result_pipe, after, log, visual, diagnostic)

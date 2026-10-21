@@ -26,6 +26,7 @@ CROP_POSITIONS = ["center", "top", "bottom", "left", "right"]
 CMK_PACKAGED_REFERENCES = {
     f"CMK Package · {filename}": filename
     for filename in (
+        "clipspace-mask-1792499379891.png",
         "face_reference.png",
         "controlnet_reference.png",
         "detailer_reference.png",
@@ -36,7 +37,6 @@ CMK_PACKAGED_REFERENCES = {
         "inpaint_reference2.png",
         "inpaint_reference3.png",
         "mask_detailer_reference.png",
-        "instantid_reference.png",
         "portrait_reference_00002.png",
         "remove_refrence.png",
     )

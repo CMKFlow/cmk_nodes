@@ -7,6 +7,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
+from ..cmk_distribution import CONTENT_GUARD_WIDGET
 from ..utils.cmk_timing import cmk_timed_call
 
 
@@ -24,6 +25,20 @@ _SESSION_STATE: dict[str, Any] = {}
 _FINGERPRINT_MEMO_LOCK = threading.RLock()
 _FINGERPRINT_MEMO_PROMPT_ID = None
 _FINGERPRINT_MEMO: dict[str, tuple[str | None, str]] = {}
+
+
+def reset_refiner_boundary_cache_state() -> dict[str, int]:
+    """Release runtime state paired with Refiner boundary files."""
+    global _FINGERPRINT_MEMO_PROMPT_ID, _FINGERPRINT_MEMO
+    with _FINGERPRINT_MEMO_LOCK:
+        result = {
+            "refiner_session": len(_SESSION_STATE),
+            "refiner_fingerprint_memo": len(_FINGERPRINT_MEMO),
+        }
+        _SESSION_STATE.clear()
+        _FINGERPRINT_MEMO_PROMPT_ID = None
+        _FINGERPRINT_MEMO = {}
+        return result
 
 
 def _lookup_node(prompt: dict, node_id: Any):
@@ -103,10 +118,13 @@ def _canonical_node(prompt: dict, node_id: Any, memo: dict, stack: set):
 
     stack.add(key)
     canonical_inputs = {}
+    class_type = str(node.get("class_type", ""))
     for input_name, value in sorted(
         (node.get("inputs", {}) or {}).items(),
         key=lambda pair: str(pair[0]),
     ):
+        if class_type == "CMKPipeCreateImage" and str(input_name) == CONTENT_GUARD_WIDGET:
+            continue
         if _is_link(prompt, value):
             canonical_inputs[str(input_name)] = {
                 "link": {
@@ -123,7 +141,7 @@ def _canonical_node(prompt: dict, node_id: Any, memo: dict, stack: set):
             canonical_inputs[str(input_name)] = _canonical_scalar(value)
 
     payload = {
-        "class_type": str(node.get("class_type", "")),
+        "class_type": class_type,
         "inputs": canonical_inputs,
     }
     stack.remove(key)

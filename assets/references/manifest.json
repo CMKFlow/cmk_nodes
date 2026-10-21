@@ -2,6 +2,11 @@
   "schema": "cmk.reference-assets.v1",
   "assets": [
     {
+      "package_file": "clipspace-mask-1792499379891.png",
+      "original_file": "clipspace-mask-1792499379891.png",
+      "sha256": "55f064628e2e0c8efbaab2fc20ea8f24dca524e9852fd9a09ddb649fb93094fb"
+    },
+    {
       "package_file": "controlnet_reference.png",
       "original_file": "controlnet_reference3.png",
       "sha256": "aa3ceb0fa01fc7651abc89e4a3fba076907d87d749816c9780d51a1759617b8c"
@@ -42,9 +47,19 @@
       "sha256": "c3ad98c617e8d8dab652a63e413b603d1cc6f4d0fa6ecc0eb5ee6a09da0da7c9"
     },
     {
+      "package_file": "inpaint_reference3.png",
+      "original_file": "inpaint_reference3.png",
+      "sha256": "eeefb3ca44dcfa965c04eb3ec59c54abab68086945a459dfda8957112740ad44"
+    },
+    {
       "package_file": "mask_detailer_reference.png",
       "original_file": "mask_detailer_reference.png",
       "sha256": "14444bcfa3b24eb144949957f91811a8eb7ef26efe637a440b4b489674c42bdd"
+    },
+    {
+      "package_file": "portrait_reference_00002.png",
+      "original_file": "portrait_reference_00002.png",
+      "sha256": "45270ae18ee473f9697681caa7ef02de1a0c3e5232c7fac451d3ae7b8abdcc94"
     },
     {
       "package_file": "remove_refrence.png",

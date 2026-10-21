@@ -1,11 +1,99 @@
 from __future__ import annotations
 
 import gc
+import hashlib
+import json
 
 from comfy_execution.graph_utils import ExecutionBlocker
 
 from .cmk_log_pipe import cmk_add_block
+from .cmk_prompt_result_state import (
+    IncompleteResultError,
+    MISSING,
+    PromptStateUnavailableError,
+    UnsafeSnapshotTypeError,
+    get_result,
+    make_key,
+    publish_result,
+)
+from .cmk_refiner_boundary_cache import _canonical_node, _is_link, _resolve_current_node
 from .cmk_visual import empty_visual
+
+
+_HYBRID_HANDOFF_PHASE = "hybrid.handoff"
+_HYBRID_HANDOFF_SCHEMA = "cmk_hybrid_handoff_result_v1"
+_HYBRID_HANDOFF_INPUTS = (
+    "PROCESS ZIT",
+    "SAMPLED SDXL",
+    "LOG SDXL",
+    "VISUAL SDXL",
+)
+
+
+def _hybrid_handoff_state_key(prompt, unique_id):
+    if not isinstance(prompt, dict) or unique_id is None:
+        return None
+    _, current = _resolve_current_node(prompt, unique_id)
+    if not isinstance(current, dict):
+        return None
+    current_inputs = current.get("inputs", {}) or {}
+    memo = {}
+    roots = {}
+    for name in _HYBRID_HANDOFF_INPUTS:
+        link = current_inputs.get(name)
+        if not _is_link(prompt, link):
+            return None
+        roots[name] = {
+            "node": _canonical_node(prompt, link[0], memo, set()),
+            "output": int(link[1]),
+        }
+    payload = {
+        "schema": _HYBRID_HANDOFF_SCHEMA,
+        "inputs": roots,
+    }
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    fingerprint = hashlib.sha256(encoded).hexdigest()
+    try:
+        return make_key(
+            node_id=unique_id,
+            model_family="hybrid",
+            phase=_HYBRID_HANDOFF_PHASE,
+            fingerprint=fingerprint,
+            schema_version=_HYBRID_HANDOFF_SCHEMA,
+        )
+    except PromptStateUnavailableError:
+        return None
+
+
+def _hybrid_handoff_hit(state_key):
+    if state_key is None:
+        return None
+    result = get_result(state_key)
+    return None if result is MISSING else result
+
+
+def _publish_hybrid_handoff(state_key, image, log, visual, process):
+    if state_key is None:
+        return
+    result = {
+        "image": image,
+        "log": log,
+        "visual": visual,
+        "metadata": {
+            "handoff_percent": int(process.get("hybrid_sdxl_handoff", 90)),
+            "zit_denoise": float(process.get("hybrid_zit_denoise", 0.20)),
+            "hybrid_inpaint_mode": bool(process.get("hybrid_inpaint_mode", False)),
+        },
+    }
+    try:
+        publish_result(state_key, result)
+    except (IncompleteResultError, UnsafeSnapshotTypeError) as exc:
+        print(f"[CMK Hybrid Handoff Result-State] NOT PUBLISHED: {exc}", flush=True)
 
 
 def _release_completed_sdxl_patch(patcher):
@@ -51,6 +139,10 @@ class CMKHybridZITInputPipe:
                 "LOG SDXL": ("CMK_LOG_PIPE", {"lazy": True}),
                 "VISUAL SDXL": ("CMK_VISUAL_PIPE", {"lazy": True}),
             },
+            "hidden": {
+                "prompt": "PROMPT",
+                "unique_id": "UNIQUE_ID",
+            },
         }
 
     RETURN_TYPES = ("IMAGE", "CMK_LOG_PIPE", "CMK_VISUAL_PIPE")
@@ -66,6 +158,11 @@ class CMKHybridZITInputPipe:
         if isinstance(process, dict) and not process.get("family_active", True):
             return []
         if bool(process.get("hybrid_mode", False)):
+            state_key = _hybrid_handoff_state_key(
+                inputs.get("prompt"), inputs.get("unique_id")
+            )
+            if _hybrid_handoff_hit(state_key) is not None:
+                return []
             for name in ("SAMPLED SDXL", "LOG SDXL", "VISUAL SDXL"):
                 if inputs.get(name) is None:
                     return [name]
@@ -95,6 +192,13 @@ class CMKHybridZITInputPipe:
                 inputs.get("LOG SOURCE"),
                 inputs.get("VISUAL SOURCE") or empty_visual(),
             )
+
+        state_key = _hybrid_handoff_state_key(
+            inputs.get("prompt"), inputs.get("unique_id")
+        )
+        hit = _hybrid_handoff_hit(state_key)
+        if hit is not None:
+            return (hit["image"], hit["log"], hit["visual"])
 
         sampled = inputs.get("SAMPLED SDXL")
         if not isinstance(sampled, dict):
@@ -138,4 +242,6 @@ class CMKHybridZITInputPipe:
             ],
             True,
         )
-        return (image, log, inputs.get("VISUAL SDXL") or empty_visual())
+        visual = inputs.get("VISUAL SDXL") or empty_visual()
+        _publish_hybrid_handoff(state_key, image, log, visual, process)
+        return (image, log, visual)

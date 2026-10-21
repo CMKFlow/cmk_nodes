@@ -12,6 +12,8 @@ from .cmk_persistent_cache import (
     prune,
     write_status,
 )
+from .cmk_prompt_result_state import active_prompt_id
+from ..cmk_distribution import content_guard_prompt_token
 from ..utils.cmk_timing import cmk_timed_call
 
 
@@ -32,6 +34,31 @@ _FACEPROCESS_BRANCH_SPECS = {
         "cmk_faceprocess_branch_v4",
     ),
 }
+
+
+def reset_module_boundary_cache_state() -> dict[str, int]:
+    """Release only in-memory state paired with persistent boundary entries."""
+    states = {
+        "detailer_session": _DETAILER_SESSION,
+        "z_image_session": _Z_IMAGE_SESSION,
+        "face_rebuild_session": _FACE_REBUILD_SESSION,
+    }
+    counts = {name: len(state) for name, state in states.items()}
+    for state in states.values():
+        state.clear()
+    return counts
+
+
+def _detailer_diag_context(unique_id=None):
+    """Return prompt/node context for temporary Detailer diagnostics."""
+    try:
+        prompt_id = active_prompt_id()
+    except Exception:
+        prompt_id = None
+    return (
+        f"prompt_id={prompt_id if prompt_id is not None else 'UNAVAILABLE'} "
+        f"node_id={unique_id if unique_id is not None else 'UNAVAILABLE'}"
+    )
 
 
 
@@ -906,6 +933,7 @@ class CMKFaceRebuildBoundaryCache:
             ("CMKFaceRebuildBoundaryCache",),
             self._SCHEMA,
             include_node_identity=True,
+            extra_identity={"content_guard": content_guard_prompt_token(prompt)},
         )
 
     def _ready(self, key):
@@ -918,12 +946,13 @@ class CMKFaceRebuildBoundaryCache:
     ):
         disabled, detail = _face_rebuild_disabled_state(prompt, unique_id)
         if disabled:
-            write_status(self._SCOPE, "DISABLED_PASSTHROUGH_READY", detail=detail, unique_id=unique_id)
-            return [
-                name for name, value in (
-                    ("MODEL", MODEL), ("IMAGE", IMAGE), ("LOG", LOG), ("diagnostic", diagnostic),
-                ) if value is None
-            ]
+            write_status(
+                self._SCOPE,
+                "DISABLED_ACTIVE_BRANCH_BLOCKED",
+                detail=detail,
+                unique_id=unique_id,
+            )
+            return []
 
         key, detail = self._cache_key(prompt, unique_id)
         if self._ready(key):
@@ -946,21 +975,15 @@ class CMKFaceRebuildBoundaryCache:
     ):
         disabled, disabled_detail = _face_rebuild_disabled_state(prompt, unique_id)
         if disabled:
-            missing = [
-                name for name, value in (
-                    ("MODEL", MODEL), ("IMAGE", IMAGE), ("LOG", LOG), ("diagnostic", diagnostic),
-                ) if value is None
-            ]
-            if missing:
-                raise RuntimeError(
-                    "CMK Boundary Cache / FaceRebuild: disabled passthrough requires "
-                    + ", ".join(missing)
-                )
             write_status(
-                self._SCOPE, "DISABLED_PASSTHROUGH", detail=disabled_detail, unique_id=unique_id,
+                self._SCOPE,
+                "DISABLED_ACTIVE_BRANCH_BLOCKED",
+                detail=disabled_detail,
+                unique_id=unique_id,
             )
-            print("[CMK Boundary Cache / FaceRebuild] DISABLED PASSTHROUGH -> CACHE SKIPPED")
-            return MODEL, IMAGE, LOG, diagnostic
+            print("[CMK Boundary Cache / FaceRebuild] DISABLED -> ACTIVE BRANCH BLOCKED")
+            blocked = ExecutionBlocker(None)
+            return blocked, blocked, blocked, blocked
 
         key, detail = self._cache_key(prompt, unique_id)
         if self._ready(key):
@@ -1173,25 +1196,26 @@ class CMKFaceBoundaryCache:
         prompt=None,
         unique_id=None,
     ):
+        context = _detailer_diag_context(unique_id)
+        print(
+            "[CMK DIAG DETAILER] FACE_BOUNDARY LAZY_ENTER "
+            f"model={'PRESENT' if MODEL is not None else 'MISSING'} "
+            f"image={'PRESENT' if IMAGE is not None else 'MISSING'} "
+            f"log={'PRESENT' if LOG is not None else 'MISSING'} {context}"
+        )
         module_disabled, disabled_detail = _faceprocess_disabled_state(
             prompt,
             unique_id,
         )
         if module_disabled:
+            print(f"[CMK DIAG DETAILER] FACE_BOUNDARY DISABLED no_request {context}")
             write_status(
                 self._SCOPE,
-                "DISABLED_PASSTHROUGH_READY",
+                "DISABLED_ACTIVE_BRANCH_BLOCKED",
                 detail=disabled_detail,
                 unique_id=unique_id,
             )
-            needed = []
-            if MODEL is None:
-                needed.append("MODEL")
-            if IMAGE is None:
-                needed.append("IMAGE")
-            if LOG is None:
-                needed.append("LOG")
-            return needed
+            return []
 
         (
             cache_key,
@@ -1211,6 +1235,12 @@ class CMKFaceBoundaryCache:
             needed = []
             if MODEL is None:
                 needed.append("MODEL")
+            print(
+                "[CMK DIAG DETAILER] FACE_BOUNDARY HIT "
+                f"request={','.join(needed) if needed else 'NONE'} "
+                f"model_after_cached_result={'YES' if MODEL is None else 'NO'} "
+                f"cache_key={cache_key[:12] if cache_key else 'UNAVAILABLE'} {context}"
+            )
             return needed
 
         if cache_key and _disk_available(self._SCOPE, cache_key):
@@ -1229,6 +1259,12 @@ class CMKFaceBoundaryCache:
             needed.append("IMAGE")
         if LOG is None:
             needed.append("LOG")
+        print(
+            "[CMK DIAG DETAILER] FACE_BOUNDARY MISS "
+            f"request={','.join(needed) if needed else 'NONE'} "
+            f"model_after_image_log={'YES' if MODEL is None and IMAGE is not None and LOG is not None else 'NO'} "
+            f"cache_key={cache_key[:12] if cache_key else 'UNAVAILABLE'} {context}"
+        )
         return needed
 
     def boundary(
@@ -1239,39 +1275,31 @@ class CMKFaceBoundaryCache:
         prompt=None,
         unique_id=None,
     ):
+        context = _detailer_diag_context(unique_id)
+        print(
+            "[CMK DIAG DETAILER] FACE_BOUNDARY EXECUTE "
+            f"model={'PRESENT' if MODEL is not None else 'MISSING'} "
+            f"image={'PRESENT' if IMAGE is not None else 'MISSING'} "
+            f"log={'PRESENT' if LOG is not None else 'MISSING'} {context}"
+        )
         module_disabled, disabled_detail = _faceprocess_disabled_state(
             prompt,
             unique_id,
         )
         if module_disabled:
-            missing = [
-                name
-                for name, value in (
-                    ("MODEL", MODEL),
-                    ("IMAGE", IMAGE),
-                    ("LOG", LOG),
-                )
-                if value is None
-            ]
-            if missing:
-                raise RuntimeError(
-                    "CMK Boundary Cache / FaceProcess: disabled passthrough "
-                    "requires " + ", ".join(missing)
-                )
-            if not isinstance(LOG, dict):
-                raise TypeError("LOG is not a CMK log pipe")
-
+            print(f"[CMK DIAG DETAILER] FACE_BOUNDARY EXECUTE_DISABLED {context}")
             write_status(
                 self._SCOPE,
-                "DISABLED_PASSTHROUGH",
+                "DISABLED_ACTIVE_BRANCH_BLOCKED",
                 detail=disabled_detail,
                 unique_id=unique_id,
             )
             print(
                 "[CMK Boundary Cache / FaceProcess] "
-                "DISABLED PASSTHROUGH -> CACHE SKIPPED"
+                "DISABLED -> ACTIVE BRANCH BLOCKED"
             )
-            return MODEL, IMAGE, LOG
+            blocked = ExecutionBlocker(None)
+            return blocked, blocked, blocked
 
         cache_key, detail = self._cache_key(prompt, unique_id)
         dependencies, dependency_detail = self._dependencies(
@@ -1298,6 +1326,10 @@ class CMKFaceBoundaryCache:
                 print(
                     "[CMK Boundary Cache / FaceProcess] HIT "
                     f"{cache_key[:12]}"
+                )
+                print(
+                    "[CMK DIAG DETAILER] FACE_BOUNDARY EXECUTE_HIT "
+                    f"cache_key={cache_key[:12]} returns_model_reference={'YES' if MODEL is not None else 'NO'} {context}"
                 )
                 return MODEL, cached_image, cached_log
             except Exception as exc:
@@ -1350,6 +1382,10 @@ class CMKFaceBoundaryCache:
                     "[CMK Boundary Cache / FaceProcess] MISS "
                     f"{cache_key[:12]} -> STORED"
                 )
+                print(
+                    "[CMK DIAG DETAILER] FACE_BOUNDARY EXECUTE_MISS "
+                    f"stored=YES cache_key={cache_key[:12]} {context}"
+                )
             except Exception as exc:
                 write_status(
                     self._SCOPE,
@@ -1362,7 +1398,12 @@ class CMKFaceBoundaryCache:
                     "[CMK Boundary Cache / FaceProcess] STORE FAILED: "
                     f"{exc}"
                 )
+                print(
+                    "[CMK DIAG DETAILER] FACE_BOUNDARY EXECUTE_MISS "
+                    f"stored=NO reason=STORE_FAILED {context}"
+                )
 
+        print(f"[CMK DIAG DETAILER] FACE_BOUNDARY RETURN live_result=YES {context}")
         return MODEL, IMAGE, LOG
 
 
@@ -1433,6 +1474,7 @@ class CMKFaceSwapBoundaryCache:
             (self._NODE_TYPE,),
             self._SCHEMA,
             include_node_identity=True,
+            extra_identity={"content_guard": content_guard_prompt_token(prompt)},
         )
 
     @cmk_timed_call("LAZY 40 FACESWAP BOUNDARY")

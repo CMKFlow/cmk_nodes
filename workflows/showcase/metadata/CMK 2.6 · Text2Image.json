@@ -1,0 +1,27 @@
+{
+  "published": true,
+  "displayName": "CMK 2.6 · Text2Image",
+  "kind": "real-world",
+  "order": 101,
+  "category": "REAL-WORLD WORKFLOWS",
+  "category_en": "REAL-WORLD WORKFLOWS",
+  "description": "Demonstriert einen vollständigen Text2Image-Workflow im HYBRID-Modus. SDXL erzeugt die Ausgangskomposition, die anschließend durch Z-Image Turbo in einem zweiten Sampling-Pass verfeinert wird. Die einzelnen Verarbeitungsschritte lassen sich im Visualizer direkt vergleichen. Optionales Upscaling ermöglicht eine zusätzliche Ausgabe in höherer Auflösung.",
+  "cmkHighlight": "Zwei unterschiedliche Generierungsmodelle arbeiten innerhalb eines durchgängigen Workflows zusammen. SDXL übernimmt die Bildkomposition, während Z-Image Turbo mit nur zwei zusätzlichen Sampling-Steps sichtbare Detailverbesserungen und anatomische Korrekturen erzielt. Der direkte Vergleich zeigt die Ergebnisse beider Stufen – ohne zusätzliche Face Restoration oder Detailer-Verarbeitung.",
+  "previews": [
+    {
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.6 · Text2Image/1 - CMK 2.6 · Text2Image - Workflow.png",
+      "label": "Workflow",
+      "label_en": "Workflow"
+    },
+    {
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.6 · Text2Image/2 - CMK 2.6 · Text2Image - SDXL vs. Hybrid.png",
+      "label": "SDXL vs. Hybrid",
+      "label_en": "SDXL vs. Hybrid"
+    },
+    {
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.6 · Text2Image/3 - CMK 2.6 · Text2Image - Eye Detail.png",
+      "label": "Eye Detail",
+      "label_en": "Eye Detail"
+    }
+  ]
+}

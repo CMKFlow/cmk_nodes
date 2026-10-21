@@ -1,3 +1,20 @@
+# CMK 2.6.0 — 2026-10-21
+
+- Ergänzt Generation Completion mit persistentem Cache, manueller
+  Cache-Bereinigung und einer ausschließlich lesenden CMK-Statistik im Flow
+  Browser.
+- Aktualisiert die Statistikoberfläche mit Paket-, Workflow-, Galerie-, Cache-
+  und Laufzeitinformationen sowie deutscher und englischer Darstellung.
+- Korrigiert den InstantID-Advanced-Hybrid-Vertrag und erhält die bestehenden
+  Standard-, Hybrid- und Zero-Pass-Abläufe.
+- Aktualisiert den Flow-Browser-Referenzbestand auf 37 Workflows, 37 Galerien
+  und 104 eindeutige Screenshots; 35 Workflows sind sichtbar und 2 experimentelle
+  Referenzen bleiben vorübergehend ausgeblendet.
+- Aktualisiert Subgraphen, Referenzworkflows, Galerien und paketierte
+  Referenzbilder einschließlich der korrigierten InOutPaint-Ressource.
+- Ergänzt die bestätigten Flow-Browser-Aktionen für Statistik und manuelle
+  Cache-Verwaltung mit deutscher und englischer Lokalisierung.
+
 # CMK 2.5.7 — 2026-10-08
 
 - Ergänzt den modellfreien PostProcess-Node `CMK Flow · Image Resize` mit

@@ -2,6 +2,12 @@
 .github/
 tests/
 _cmk_backups/
+cache/
+workflows/.migration-backups/
+__pycache__/
+*.py[cod]
+.DS_Store
+**/.DS_Store
 CMK_Design_Guidelines.md
 NEXT_SESSION.md
 RELEASE_AUDIT_CMK_2_5.md

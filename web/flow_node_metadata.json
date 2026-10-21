@@ -37,14 +37,6 @@
           "targetId": "CMKRegionalConditioningSDXL"
         },
         {
-          "label": "05 ControlNet SDXL (optional)",
-          "targetId": "96aabb3d-a0c9-4539-86c0-2b2a7abb0712"
-        },
-        {
-          "label": "05 ControlNet ZIT (optional)",
-          "targetId": "aeec8af2-85bf-4969-8743-9b39bb5483ef"
-        },
-        {
           "label": "10 KSampler SDXL 1st Pass",
           "targetId": "e371220c-caba-4cfd-ae2b-81e59664d525"
         },
@@ -86,10 +78,6 @@
         }
       ],
       "recommendedAfter": [
-        {
-          "label": "05 ControlNet SDXL (optional)",
-          "targetId": "96aabb3d-a0c9-4539-86c0-2b2a7abb0712"
-        },
         {
           "label": "10 KSampler SDXL 1st Pass",
           "targetId": "e371220c-caba-4cfd-ae2b-81e59664d525"
@@ -202,7 +190,7 @@
       "browserOrder": 20,
       "flowPublished": true,
       "variantLabel": "For Detailing",
-      "category": "Toolbox",
+      "category": "Input",
       "domain": "Stand-Alone Image Input",
       "compatibility": [
         "Image",
@@ -443,8 +431,8 @@
           "targetId": "e371220c-caba-4cfd-ae2b-81e59664d525"
         },
         {
-          "label": "15 InstantID-Sampler SDXL",
-          "targetId": "1c91adfd-df9f-4729-90a1-35dc53915ca6"
+          "label": "15S InstantID Regional SDXL",
+          "targetId": "eca2b55f-5a34-47e4-a91e-fef59d4b0cb2"
         }
       ],
       "dependencyNote": "Benötigt ein installiertes InsightFace-Analysemodell; antelopev2 wird empfohlen.",
@@ -470,8 +458,8 @@
       "placementNote": "Direkt hinter dem dekodierten Ergebnis von Modul 15 platzieren und TARGET IMAGE, PASTEBACK MASK sowie REBUILD CONTEXT aus Prepare verbinden.",
       "recommendedBefore": [
         {
-          "label": "15 InstantID-Sampler SDXL",
-          "targetId": "1c91adfd-df9f-4729-90a1-35dc53915ca6"
+          "label": "15S InstantID Regional SDXL",
+          "targetId": "eca2b55f-5a34-47e4-a91e-fef59d4b0cb2"
         }
       ],
       "recommendedAfter": [
@@ -534,8 +522,8 @@
       "placementNote": "Nach dem dekodierten InstantID-Ergebnis einschleifen; anschließend mit Refiner, Nachbearbeitung oder Save fortfahren.",
       "recommendedBefore": [
         {
-          "label": "15 InstantID-Sampler SDXL",
-          "targetId": "1c91adfd-df9f-4729-90a1-35dc53915ca6"
+          "label": "15S InstantID Regional SDXL",
+          "targetId": "eca2b55f-5a34-47e4-a91e-fef59d4b0cb2"
         }
       ],
       "recommendedAfter": [
@@ -584,8 +572,9 @@
       "dependencyNote": "Benötigt antelopev2, das InstantID-Modell und das zugehörige SDXL-ControlNet.",
       "previewAlt": "CMK InstantID Face Detailer SDXL"
     },
-    "CMKFamilyResultMergePipe": {
+    "CMKPostProcessSetupPipe": {
       "browserOrder": 100,
+      "displayName": "30 PostProcess Setup",
       "category": "Process",
       "domain": "Generation / PostProcess Boundary",
       "compatibility": [
@@ -640,15 +629,12 @@
       ],
       "previews": [
         {
-          "src": "assets/previews/CMK Flow · PostProcess Boundary Combined.png",
+          "src": "assets/previews/CMK Flow · 30 PostProcess Setup.png",
           "label": "Vorschau"
         }
       ],
-      "previewAlt": "CMK Flow PostProcess Boundary Combined",
-      "catalogGroup": "postprocess",
-      "variantOf": "CMKPostProcessBoundarySDXLPipe",
-      "variantLabel": "Combined",
-      "variantOrder": 30
+      "previewAlt": "CMK Flow · 30 PostProcess Setup",
+      "catalogGroup": "postprocess"
     },
     "CMKPostProcessBoundarySDXLPipe": {
       "browserOrder": 100,
