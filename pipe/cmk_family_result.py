@@ -3000,9 +3000,35 @@ class _CMKPostProcessBoundarySDXLPipe(_CMKSinglePostProcessBoundary):
         if roots is None:
             return None, detail
 
+        def process_source_nodes(process_link):
+            pending_process = (
+                [process_link[0]]
+                if _completion_prompt_link(prompt, process_link)
+                else []
+            )
+            visited_process = set()
+            sources = {}
+            while pending_process:
+                process_node_id = pending_process.pop()
+                process_node_key = str(process_node_id)
+                if process_node_key in visited_process:
+                    continue
+                visited_process.add(process_node_key)
+                process_node = _completion_prompt_node(prompt, process_node_id)
+                if not isinstance(process_node, dict):
+                    continue
+                if str(process_node.get("class_type", "")) == "CMKPipeCreateImage":
+                    sources[process_node_key] = process_node
+                    continue
+                for value in (process_node.get("inputs", {}) or {}).values():
+                    if _completion_prompt_link(prompt, value):
+                        pending_process.append(value[0])
+            return sources
+
         pending = [link[0] for link in roots.values()]
         visited = set()
-        source_nodes = []
+        source_nodes = {}
+        off_gate_source_id = None
         while pending:
             node_id = pending.pop()
             node_key = str(node_id)
@@ -3015,10 +3041,61 @@ class _CMKPostProcessBoundarySDXLPipe(_CMKSinglePostProcessBoundary):
             if not isinstance(node, dict):
                 continue
             class_type = str(node.get("class_type", ""))
+            if class_type == "CMKSamplerBypassGate":
+                if off_gate_source_id is not None:
+                    return None, "multiple InstantID bypass gates are ambiguous"
+                node_inputs = node.get("inputs", {}) or {}
+                enable_link = node_inputs.get("ENABLE")
+                if not _completion_prompt_link(prompt, enable_link):
+                    return None, "InstantID bypass gate ENABLE is unavailable"
+                enable_node = _completion_prompt_node(prompt, enable_link[0])
+                if str((enable_node or {}).get("class_type", "")) != "CMKProcessEnableFlag":
+                    return None, (
+                        "InstantID bypass gate ENABLE does not originate from "
+                        "CMKProcessEnableFlag"
+                    )
+                enable_inputs = enable_node.get("inputs", {}) or {}
+                if enable_inputs.get("flag") != "instantid_enabled":
+                    return None, (
+                        "InstantID bypass gate ENABLE does not read "
+                        "instantid_enabled"
+                    )
+                enable_sources = process_source_nodes(enable_inputs.get("PROCESS"))
+                if len(enable_sources) != 1:
+                    return None, (
+                        "InstantID bypass gate PROCESS does not identify exactly "
+                        "one authoritative source"
+                    )
+                gate_source_id, gate_source = next(iter(enable_sources.items()))
+                gate_source_inputs = gate_source.get("inputs", {}) or {}
+                if gate_source_inputs.get("instantid_enabled") is not False:
+                    return None, (
+                        "InstantID bypass gate source does not explicitly disable "
+                        "InstantID"
+                    )
+                bypass_inputs = (
+                    "MODEL BYPASS",
+                    "SAMPLED BYPASS",
+                    "LOG BYPASS",
+                    "VISUAL BYPASS",
+                )
+                missing_bypass = [
+                    name
+                    for name in bypass_inputs
+                    if not _completion_prompt_link(prompt, node_inputs.get(name))
+                ]
+                if missing_bypass:
+                    return None, (
+                        "InstantID bypass gate is missing required OFF inputs: "
+                        + ", ".join(missing_bypass)
+                    )
+                off_gate_source_id = gate_source_id
+                pending.extend(node_inputs[name][0] for name in bypass_inputs)
+                continue
             if class_type in cls._SDXL_EXCLUDED_UPSTREAM_CLASSES:
                 return None, f"{class_type} is outside the Phase-2 SDXL completion contract"
             if class_type == "CMKPipeCreateImage":
-                source_nodes.append(node)
+                source_nodes[node_key] = node
             for value in (node.get("inputs", {}) or {}).values():
                 if (
                     isinstance(value, (list, tuple))
@@ -3033,7 +3110,13 @@ class _CMKPostProcessBoundarySDXLPipe(_CMKSinglePostProcessBoundary):
 
         if len(source_nodes) != 1:
             return None, "expanded graph does not identify exactly one SDXL source"
-        source_inputs = source_nodes[0].get("inputs", {}) or {}
+        source_id, source_node = next(iter(source_nodes.items()))
+        if off_gate_source_id is not None and off_gate_source_id != source_id:
+            return None, (
+                "InstantID bypass gate PROCESS does not originate from the active "
+                "SDXL source"
+            )
+        source_inputs = source_node.get("inputs", {}) or {}
         if (
             str(source_inputs.get("model_family", "")).strip().lower() != "sdxl"
             or source_inputs.get("instantid_enabled") is True

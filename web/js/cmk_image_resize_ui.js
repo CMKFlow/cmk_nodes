@@ -50,13 +50,19 @@ function installStableSerialization(node) {
     node._cmkImageResizeSerialization = true;
 }
 
-function moveModelInputFirst(node) {
-    if (!Array.isArray(node.inputs)) return;
-    const index = node.inputs.findIndex((input) => input?.name === "MODEL (opt)");
-    if (index > 0) {
-        const [modelInput] = node.inputs.splice(index, 1);
-        node.inputs.unshift(modelInput);
-    }
+function registerModelInputFirst(nodeData) {
+    const required = nodeData?.input?.required;
+    const optional = nodeData?.input?.optional;
+    const modelInput = optional?.["MODEL (opt)"];
+    if (!required || !modelInput) return;
+
+    const [type, options = {}] = modelInput;
+    nodeData.input.required = {
+        "MODEL (opt)": [type, { ...options, isOptional: true }],
+        ...required,
+    };
+    delete optional["MODEL (opt)"];
+    delete nodeData.input_order;
 }
 
 function refresh(node, force = false) {
@@ -85,7 +91,6 @@ function refresh(node, force = false) {
 
 function install(node) {
     if (!isTarget(node) || !Array.isArray(node.widgets)) return;
-    moveModelInputFirst(node);
     installStableSerialization(node);
     const state = rememberWidgets(node);
     const selector = state.byName.get(METHOD_WIDGET);
@@ -110,6 +115,7 @@ app.registerExtension({
     name: "cmk.image_resize.ui.v1",
     beforeRegisterNodeDef(nodeType, nodeData) {
         if (nodeData?.name !== NODE_CLASS) return;
+        registerModelInputFirst(nodeData);
         for (const hook of ["onNodeCreated", "onConfigure", "onAdded"]) {
             const original = nodeType.prototype[hook];
             nodeType.prototype[hook] = function() {
