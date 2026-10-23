@@ -155,7 +155,7 @@ class CMKSamplerPrepareZImageTurboPipe:
     RETURN_TYPES = ("CMK_SAMPLER_PIPE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
     RETURN_NAMES = ("SAMPLER", "LOG", "diagnostic")
     FUNCTION = "prepare"
-    CATEGORY = "CMK/Developer/Pipe/Prepare"
+    CATEGORY = "CMK/Flow/Sampling"
 
     def check_lazy_status(self, PROCESS=None, IMAGE=None, **kwargs):
         if PROCESS is None:
@@ -553,7 +553,7 @@ class CMKZImageTurboFinalizePipe:
     )
     RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "diagnostic")
     FUNCTION = "finalize"
-    CATEGORY = "CMK/Developer/Pipe/Finalize"
+    CATEGORY = "CMK/Flow/Sampling"
 
     def check_lazy_status(self, MODEL=None, PROCESS=None, SAMPLED=None, LOG=None):
         if PROCESS is None:

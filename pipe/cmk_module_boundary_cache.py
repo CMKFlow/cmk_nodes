@@ -649,7 +649,7 @@ class CMKDetailerBoundaryCache:
         "LOG",
     )
     FUNCTION = "boundary"
-    CATEGORY = "CMK/Developer/Boundary & Cache"
+    CATEGORY = "CMK/Internal/Boundary & Cache"
     DEV_ONLY = True
 
     def _cache_key(self, prompt, unique_id):
@@ -923,7 +923,7 @@ class CMKFaceRebuildBoundaryCache:
     )
     RETURN_NAMES = ("MODEL", "IMAGE", "LOG", "diagnostic")
     FUNCTION = "boundary"
-    CATEGORY = "CMK/Developer/Boundary & Cache"
+    CATEGORY = "CMK/Internal/Boundary & Cache"
     DEV_ONLY = True
 
     def _cache_key(self, prompt, unique_id):
@@ -1051,7 +1051,7 @@ class CMKZImageBoundaryCache:
     RETURN_TYPES = ("CMK_MODEL_PIPE", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
     RETURN_NAMES = ("MODEL", "IMAGE", "LOG", "diagnostic")
     FUNCTION = "boundary"
-    CATEGORY = "CMK/Developer/Boundary & Cache"
+    CATEGORY = "CMK/Internal/Boundary & Cache"
     DEV_ONLY = True
 
     def _cache_key(self, prompt, unique_id):
@@ -1125,7 +1125,7 @@ class CMKFaceBoundaryCache:
     )
     RETURN_NAMES = ("MODEL", "IMAGE", "LOG")
     FUNCTION = "boundary"
-    CATEGORY = "CMK/Developer/Boundary & Cache"
+    CATEGORY = "CMK/Internal/Boundary & Cache"
     DEV_ONLY = True
 
     def __init__(self):
@@ -1464,7 +1464,7 @@ class CMKFaceSwapBoundaryCache:
         "diagnostic",
     )
     FUNCTION = "boundary"
-    CATEGORY = "CMK/Developer/Boundary & Cache"
+    CATEGORY = "CMK/Internal/Boundary & Cache"
     DEV_ONLY = True
 
     def _cache_key(self, prompt, unique_id):

@@ -11,27 +11,27 @@
   "cmkHighlight_en": "InstantID is integrated into the active SDXL process and provides identity guidance between the 1st and 2nd passes.",
   "previews": [
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InstantID · Hybrid Inpaint SDXL/CMK 2.6 · Flow · InstantID · Hybrid Inpaint SDXL - Preparation.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InstantID · Hybrid Inpaint SDXL/CMK 2.6 · Flow · InstantID · Hybrid Inpaint SDXL - Preparation.webp",
       "label": "Preparation",
       "label_en": "Preparation"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InstantID · Hybrid Inpaint SDXL/CMK 2.6 · Flow · InstantID · Hybrid Inpaint SDXL - 1st-Pass SDXL.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InstantID · Hybrid Inpaint SDXL/CMK 2.6 · Flow · InstantID · Hybrid Inpaint SDXL - 1st-Pass SDXL.webp",
       "label": "1st-Pass SDXL",
       "label_en": "1st-Pass SDXL"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InstantID · Hybrid Inpaint SDXL/CMK 2.6 · Flow · InstantID · Hybrid Inpaint SDXL - Identity.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InstantID · Hybrid Inpaint SDXL/CMK 2.6 · Flow · InstantID · Hybrid Inpaint SDXL - Identity.webp",
       "label": "Identity",
       "label_en": "Identity"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InstantID · Hybrid Inpaint SDXL/CMK 2.6 · Flow · InstantID · Hybrid Inpaint SDXL - 2nd-Pass SDXL.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InstantID · Hybrid Inpaint SDXL/CMK 2.6 · Flow · InstantID · Hybrid Inpaint SDXL - 2nd-Pass SDXL.webp",
       "label": "2nd-Pass SDXL",
       "label_en": "2nd-Pass SDXL"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InstantID · Hybrid Inpaint SDXL/portrait_reference_00003.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image-InstantID/portrait_reference_00003.png",
       "label": "Source",
       "label_en": "Source"
     }

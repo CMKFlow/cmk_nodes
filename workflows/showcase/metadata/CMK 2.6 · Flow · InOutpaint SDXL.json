@@ -11,63 +11,63 @@
   "cmkHighlight_en": "The different inpainting tasks are prepared centrally in `01 START HERE` and then run through the same SDXL process.",
   "previews": [
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint SDXL/CMK 2.6 · Flow · InOutpaint SDXL - InOutpaint - Preparation.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint SDXL/CMK 2.6 · Flow · InOutpaint SDXL - InOutpaint - Preparation.webp",
       "group": "InOutpaint",
       "group_en": "InOutpaint",
       "label": "Preparation",
       "label_en": "Preparation"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint SDXL/CMK 2.6 · Flow · InOutpaint SDXL - InOutpaint - 1st-Pass.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint SDXL/CMK 2.6 · Flow · InOutpaint SDXL - InOutpaint - 1st-Pass.webp",
       "group": "InOutpaint",
       "group_en": "InOutpaint",
       "label": "1st-Pass",
       "label_en": "1st-Pass"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint SDXL/CMK 2.6 · Flow · InOutpaint SDXL - InOutpaint - 2nd-Pass.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint SDXL/CMK 2.6 · Flow · InOutpaint SDXL - InOutpaint - 2nd-Pass.webp",
       "group": "InOutpaint",
       "group_en": "InOutpaint",
       "label": "2nd-Pass",
       "label_en": "2nd-Pass"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint SDXL/CMK 2.6 · Flow · InOutpaint SDXL - Remove - Preparation.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint SDXL/CMK 2.6 · Flow · InOutpaint SDXL - Remove - Preparation.webp",
       "group": "Remove",
       "group_en": "Remove",
       "label": "Preparation",
       "label_en": "Preparation"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint SDXL/CMK 2.6 · Flow · InOutpaint SDXL - Remove - 1st-Pass.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint SDXL/CMK 2.6 · Flow · InOutpaint SDXL - Remove - 1st-Pass.webp",
       "group": "Remove",
       "group_en": "Remove",
       "label": "1st-Pass",
       "label_en": "1st-Pass"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint SDXL/CMK 2.6 · Flow · InOutpaint SDXL - Remove - 2nd-Pass.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint SDXL/CMK 2.6 · Flow · InOutpaint SDXL - Remove - 2nd-Pass.webp",
       "group": "Remove",
       "group_en": "Remove",
       "label": "2nd-Pass",
       "label_en": "2nd-Pass"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint SDXL/CMK 2.6 · Flow · InOutpaint SDXL - Extend - Preparation.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint SDXL/CMK 2.6 · Flow · InOutpaint SDXL - Extend - Preparation.webp",
       "group": "Extend",
       "group_en": "Extend",
       "label": "Preparation",
       "label_en": "Preparation"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint SDXL/CMK 2.6 · Flow · InOutpaint SDXL - Extend - 1st-Pass.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint SDXL/CMK 2.6 · Flow · InOutpaint SDXL - Extend - 1st-Pass.webp",
       "group": "Extend",
       "group_en": "Extend",
       "label": "1st-Pass",
       "label_en": "1st-Pass"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint SDXL/CMK 2.6 · Flow · InOutpaint SDXL - Extend - 2nd-Pass.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · InOutpaint SDXL/CMK 2.6 · Flow · InOutpaint SDXL - Extend - 2nd-Pass.webp",
       "group": "Extend",
       "group_en": "Extend",
       "label": "2nd-Pass",

@@ -6,7 +6,9 @@
 
 Modular custom-node package for ComfyUI.
 
-**Current release: CMK 2.6.0 · CMK Flow**
+**Development baseline: CMK 2.6.1 · CMK Flow Baseline**
+
+**Current public release: CMK 2.6.0**
 
 [Deutsch](README.md) · **English**
 
@@ -80,8 +82,6 @@ keys, and UUIDs.
 - parallel Smart Detailer and FaceProcess instances;
 - dynamic `SEGS`, `LOG BLOCK`, and `DIAGNOSTIC` inputs;
 - persistent branch caches for unchanged parallel instances;
-- persistent generation-completion detection with manual cache cleanup and
-  read-only CMK statistics in the Flow Browser;
 - mandatory module boundaries before comparers, downstream modules, and public outputs;
 - a central `VISUAL` chain for processing stages registered with the Visualizer;
 - standalone post-processing modules as either discrete workflows or packaged subgraphs;
@@ -90,9 +90,7 @@ keys, and UUIDs.
 - local FaceSwap image/video paths with mandatory ContentGuard;
 - a Flow Browser reference catalog organized into Task Workflows, Module
   Workflows, Comparisons, Real-World Workflows, System Workflow, and Legacy,
-  containing 37 reference workflows, of which 35 are visible and 2 are
-  temporarily hidden, including 19 task workflows ordered by increasing
-  functional complexity;
+  including 20 task workflows ordered by increasing functional complexity;
 - dedicated Z-Image Turbo loader, sampler, and optional ControlNet modules.
 
 ZIT-Inpaint is explicitly marked `EXPERIMENTAL` and temporarily frozen because
@@ -243,8 +241,8 @@ files in `subgraphs/` remain part of the node pack; additional copies under
 
 > **Validated release target**
 >
-> CMK Flow 2.6.0 was validated with **ComfyUI 0.42.1** and its corresponding
-> ComfyUI frontend. This includes Flow Browser navigation,
+> CMK 2.5.7 was fully validated with **ComfyUI 0.38.2** and
+> **comfyui-frontend-package 1.53.6**. This includes Flow Browser navigation,
 > packaged subgraphs and reference workflows, embedded previews, cache paths,
 > and the serialized link, socket, UUID, and topology contracts.
 

@@ -441,7 +441,7 @@ class CMKSamplerPrepareSDXLPipe:
     RETURN_TYPES = ("CMK_SAMPLER_PIPE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
     RETURN_NAMES = ("SAMPLER", "LOG", "diagnostic")
     FUNCTION = "prepare"
-    CATEGORY = "CMK/Developer/Pipe/Prepare"
+    CATEGORY = "CMK/Flow/Sampling"
 
 
     def _clip_set_last_layer(self, clip, stop_at_clip_layer: int):

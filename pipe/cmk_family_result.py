@@ -742,7 +742,7 @@ class CMKImageCompareEnableGate:
     RETURN_TYPES = ("IMAGE", "IMAGE")
     RETURN_NAMES = ("IMAGE A", "IMAGE B")
     FUNCTION = "gate"
-    CATEGORY = "CMK/Developer/Boundary & Cache"
+    CATEGORY = "CMK/Developer/Legacy Gates"
     DEV_ONLY = True
 
     def check_lazy_status(self, ENABLE=True, **inputs):
@@ -790,7 +790,7 @@ class CMKModuleBypassGate:
     RETURN_TYPES = ("CMK_MODEL_PIPE", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC", "CMK_VISUAL_PIPE", CMK_FINISH_INPUT)
     RETURN_NAMES = ("MODEL", "IMAGE", "LOG", "diagnostic", "VISUAL", "PROCESS")
     FUNCTION = "gate"
-    CATEGORY = "CMK/Developer/Boundary & Cache"
+    CATEGORY = "CMK/Internal/Gates"
     DEV_ONLY = True
 
     def check_lazy_status(self, ENABLE=False, prompt=None, unique_id=None, **inputs):
@@ -878,7 +878,7 @@ class CMKControlNetBypassGate:
     RETURN_TYPES = ("CMK_PROCESS_SDXL", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
     RETURN_NAMES = ("PROCESS", "IMAGE", "LOG", "diagnostic")
     FUNCTION = "gate"
-    CATEGORY = "CMK/Developer/Boundary & Cache"
+    CATEGORY = "CMK/Developer/Legacy Gates"
     DEV_ONLY = True
 
     def check_lazy_status(self, ENABLE=False, **inputs):
@@ -943,7 +943,7 @@ class CMKCombinedControlNetBypassGate:
     )
     RETURN_NAMES = ("PROCESS SDXL", "PROCESS ZIT", "IMAGE", "LOG", "diagnostic")
     FUNCTION = "gate"
-    CATEGORY = "CMK/Developer/Boundary & Cache"
+    CATEGORY = "CMK/Internal/Gates"
     DEV_ONLY = True
 
     @staticmethod
@@ -1135,7 +1135,7 @@ class CMKSamplerBypassGate:
     RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_SAMPLED_PIPE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC", "CMK_VISUAL_PIPE")
     RETURN_NAMES = ("MODEL", "SAMPLED", "LOG", "diagnostic", "VISUAL")
     FUNCTION = "gate"
-    CATEGORY = "CMK/Developer/Boundary & Cache"
+    CATEGORY = "CMK/Internal/Gates"
     DEV_ONLY = True
 
     def check_lazy_status(self, ENABLE=False, prompt=None, unique_id=None, **inputs):
@@ -1202,7 +1202,7 @@ class CMKProcessEnableFlag:
     RETURN_TYPES = ("BOOLEAN",)
     RETURN_NAMES = ("ENABLE",)
     FUNCTION = "read"
-    CATEGORY = "CMK/Developer/Pipe/Forward"
+    CATEGORY = "CMK/Internal/Gates"
     DEV_ONLY = True
 
     @staticmethod
@@ -1214,6 +1214,8 @@ class CMKProcessEnableFlag:
 
 class CMKZImageProcessEnableFlag(CMKProcessEnableFlag):
     """Expose a Boolean module switch stored in a Z-Image PROCESS pipe."""
+
+    CATEGORY = "CMK/Developer/Legacy Gates"
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -1338,7 +1340,7 @@ class _CMKFamilyBranchGate:
     )
     RETURN_NAMES = ("MODEL", "IMAGE", "LOG", "VISUAL", "diagnostic")
     FUNCTION = "gate"
-    CATEGORY = "CMK/Developer/Boundary & Cache"
+    CATEGORY = "CMK/Internal/Gates"
     DEV_ONLY = True
 
     @cmk_timed_call("LAZY FAMILY BRANCH GATE")
@@ -1883,7 +1885,7 @@ class CMKSDXLResultBridgePipe:
     RETURN_TYPES = ("CMK_PIPE",)
     RETURN_NAMES = ("PROCESS",)
     FUNCTION = "bridge"
-    CATEGORY = "CMK/Developer/Boundary & Cache"
+    CATEGORY = "CMK/Developer/Legacy Bridge"
     DEV_ONLY = True
 
     @staticmethod
@@ -3828,7 +3830,7 @@ class CMKResultProcessForwardPipe:
     RETURN_TYPES = ("CMK_RESULT_PROCESS",)
     RETURN_NAMES = ("PROCESS",)
     FUNCTION = "forward"
-    CATEGORY = "CMK/Developer/Pipe/Forward"
+    CATEGORY = "CMK/Internal/Forward"
     DEV_ONLY = True
 
     @staticmethod
@@ -3846,7 +3848,7 @@ class CMKZImageProcessForwardPipe:
     RETURN_TYPES = ("CMK_PROCESS_Z_IMAGE",)
     RETURN_NAMES = ("PROCESS",)
     FUNCTION = "forward"
-    CATEGORY = "CMK/Developer/Pipe"
+    CATEGORY = "CMK/Internal/Forward"
     DEV_ONLY = True
 
     def check_lazy_status(self, PROCESS=None, **inputs):
@@ -3876,7 +3878,7 @@ class CMKResultToLegacyBridgePipe:
     RETURN_TYPES = ("CMK_PIPE",)
     RETURN_NAMES = ("PROCESS",)
     FUNCTION = "bridge"
-    CATEGORY = "CMK/Developer/Boundary & Cache"
+    CATEGORY = "CMK/Developer/Legacy Bridge"
     DEV_ONLY = True
 
     @staticmethod
@@ -3907,7 +3909,7 @@ class CMKResultUnpackPipe:
     RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_PIPE", "IMAGE", "CMK_LOG_PIPE")
     RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG")
     FUNCTION = "unpack"
-    CATEGORY = "CMK/Developer/Boundary & Cache"
+    CATEGORY = "CMK/Internal/Result"
     DEV_ONLY = True
 
     @staticmethod
@@ -3994,7 +3996,7 @@ class CMKResultPackPipe:
     )
     RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG")
     FUNCTION = "pack"
-    CATEGORY = "CMK/Developer/Boundary & Cache"
+    CATEGORY = "CMK/Internal/Result"
     DEV_ONLY = True
 
     @staticmethod

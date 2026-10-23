@@ -13,17 +13,17 @@
   "info_en": "The dimensions of the ControlNet reference image determine the output resolution and can therefore override the image size selected in `01 START HERE`.",
   "previews": [
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT/CMK 2.6 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT - SDXL.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT/CMK 2.6 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT - SDXL.webp",
       "label": "SDXL",
       "label_en": "SDXL"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT/CMK 2.6 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT - HYBRID.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT/CMK 2.6 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT - HYBRID.webp",
       "label": "HYBRID",
       "label_en": "HYBRID"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT/CMK 2.6 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT - ZIT.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT/CMK 2.6 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT - ZIT.webp",
       "label": "ZIT",
       "label_en": "ZIT"
     }

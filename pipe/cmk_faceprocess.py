@@ -126,7 +126,7 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
         "diagnostic",
     )
     FUNCTION = "run_pipe"
-    CATEGORY = "CMK/Developer/Pipe/Execute"
+    CATEGORY = "CMK/Flow/PostProcess"
 
     _CACHE_SCOPE = "faceprocess_branch"
     _CACHE_SCHEMA = "cmk_faceprocess_branch_v8"

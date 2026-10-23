@@ -11,6 +11,12 @@ from PIL import Image, ImageOps, ImageSequence
 
 import folder_paths
 
+from ...cmk_distribution import (
+    CONTENT_GUARD_PROCESS_KEY,
+    content_guard_control_visible,
+    content_guard_state_token,
+    effective_content_guard_enabled,
+)
 from ..cmk_log_pipe import cmk_add_block
 from ..cmk_pipe_image import (
     RESOLUTION_PRESETS,
@@ -150,36 +156,49 @@ class CMKSwapImageLoaderPipe:
 
     @classmethod
     def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "RESOLUTION": (RESOLUTION_PRESETS, {"default": "SDXL 1152x832"}),
-                "SWAP DIMENSIONS": ("BOOLEAN", {"default": False}),
-                "RESIZE METHOD": (UPSCALE_METHODS, {"default": "lanczos"}),
-                "CROP": (
-                    "BOOLEAN",
-                    {
-                        "default": False,
-                        "label_on": "ON",
-                        "label_off": "OFF",
-                        "advanced": True,
-                    },
-                ),
-                "CROP POSITION": (
-                    CROP_POSITIONS,
-                    {
-                        "default": "center",
-                        "advanced": True,
-                    },
-                ),
-                "IMAGE PAIR": (
-                    "STRING",
-                    {
-                        "default": _IMAGE_PAIR_DEFAULT,
-                        "multiline": False,
-                    },
-                ),
-            }
+        required = {
+            "RESOLUTION": (RESOLUTION_PRESETS, {"default": "SDXL 1152x832"}),
+            "SWAP DIMENSIONS": ("BOOLEAN", {"default": False}),
+            "RESIZE METHOD": (UPSCALE_METHODS, {"default": "lanczos"}),
+            "CROP": (
+                "BOOLEAN",
+                {
+                    "default": False,
+                    "label_on": "ON",
+                    "label_off": "OFF",
+                    "advanced": True,
+                },
+            ),
+            "CROP POSITION": (
+                CROP_POSITIONS,
+                {
+                    "default": "center",
+                    "advanced": True,
+                },
+            ),
+            "IMAGE PAIR": (
+                "STRING",
+                {
+                    "default": _IMAGE_PAIR_DEFAULT,
+                    "multiline": False,
+                },
+            ),
         }
+        if content_guard_control_visible():
+            # Appended to preserve positional values in every existing image
+            # workflow. Public RELEASE builds omit the control entirely.
+            required[CONTENT_GUARD_PROCESS_KEY] = (
+                "BOOLEAN",
+                {
+                    "default": True,
+                    "label": "CONTENT GUARD",
+                    "tooltip": (
+                        "Baseline only. Enables source and target ContentGuard "
+                        "checks in CMK FaceSwap Image."
+                    ),
+                },
+            )
+        return {"required": required}
 
     RETURN_TYPES = (
         "CMK_RESULT_PROCESS",
@@ -199,7 +218,7 @@ class CMKSwapImageLoaderPipe:
     # This remains a standalone image-source building block, but its PROCESS
     # metadata satisfies the family-neutral result contract and may therefore
     # feed model-backed standalone post-processing such as FaceRebuild.
-    CATEGORY = "CMK/Toolbox/I-O"
+    CATEGORY = "CMK/Flow/Input"
 
     def load_swap_images(self, **inputs):
         target_name, source_name = _parse_image_pair(inputs.get("IMAGE PAIR"))
@@ -249,6 +268,9 @@ class CMKSwapImageLoaderPipe:
         crop_height = max(0, crop_bottom - crop_top)
         target_frames = int(target_image.shape[0])
         source_frames = int(source_image.shape[0])
+        content_guard_enabled = effective_content_guard_enabled({
+            CONTENT_GUARD_PROCESS_KEY: inputs.get(CONTENT_GUARD_PROCESS_KEY, True),
+        })
 
         process = {
             "width": int(target_width),
@@ -285,6 +307,7 @@ class CMKSwapImageLoaderPipe:
             # while remaining outside the generation-family chain.
             "result_contract": "family_neutral",
             "source_model_family": "image",
+            CONTENT_GUARD_PROCESS_KEY: content_guard_enabled,
         }
 
         log_lines = [
@@ -313,6 +336,11 @@ class CMKSwapImageLoaderPipe:
                 f"SOURCE FORMAT   : {source_format}",
                 "SOURCE RESIZE   : NONE",
                 "SOURCE CROP     : NONE",
+                (
+                    "CONTENT GUARD  : ON"
+                    if content_guard_enabled
+                    else "CONTENT GUARD  : OFF · BASELINE"
+                ),
             ]
         )
 
@@ -375,6 +403,7 @@ class CMKSwapImageLoaderPipe:
                 "source_format": source_format,
                 "source_resized": False,
                 "source_cropped": False,
+                CONTENT_GUARD_PROCESS_KEY: content_guard_enabled,
             },
         )
 
@@ -388,6 +417,10 @@ class CMKSwapImageLoaderPipe:
             digest.update(_file_digest(target_name).encode("ascii"))
             digest.update(b"\0")
             digest.update(_file_digest(source_name).encode("ascii"))
+            digest.update(b"\0")
+            digest.update(content_guard_state_token({
+                CONTENT_GUARD_PROCESS_KEY: inputs.get(CONTENT_GUARD_PROCESS_KEY, True),
+            }).encode("ascii"))
             return digest.hexdigest()
         except Exception:
             return float("nan")

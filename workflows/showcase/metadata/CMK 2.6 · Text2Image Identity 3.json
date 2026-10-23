@@ -11,22 +11,22 @@
   "cmkHighlight_en": "Three identities can be processed independently within the same workflow. The Advanced modules support up to three separate FaceRebuild or FaceSwap assignments in a single run.",
   "previews": [
     {
-      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.6 · Text2Image Identity 3/CMK 2.6 · Text2Image Identity 3 - 1 - 1st-Pass SDXL.png",
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.6 · Text2Image Identity 3/CMK 2.6 · Text2Image Identity 3 - 1 - 1st-Pass SDXL.webp",
       "label": "1st-Pass SDXL",
       "label_en": "1st-Pass SDXL"
     },
     {
-      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.6 · Text2Image Identity 3/CMK 2.6 · Text2Image Identity 3 - 2 - Identity.png",
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.6 · Text2Image Identity 3/CMK 2.6 · Text2Image Identity 3 - 2 - Identity.webp",
       "label": "Identity",
       "label_en": "Identity"
     },
     {
-      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.6 · Text2Image Identity 3/CMK 2.6 · Text2Image Identity 3 - 3 - FaceRebuild.png",
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.6 · Text2Image Identity 3/CMK 2.6 · Text2Image Identity 3 - 3 - FaceRebuild.webp",
       "label": "FaceRebuild",
       "label_en": "FaceRebuild"
     },
     {
-      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.6 · Text2Image Identity 3/CMK 2.6 · Text2Image Identity 3 - 4 - FaceSwap.png",
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.6 · Text2Image Identity 3/CMK 2.6 · Text2Image Identity 3 - 4 - FaceSwap.webp",
       "label": "FaceSwap",
       "label_en": "FaceSwap"
     }

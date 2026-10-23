@@ -217,7 +217,7 @@ class CMKPipeSetSampler:
     RETURN_TYPES = ("CMK_PIPE",)
     RETURN_NAMES = ("pipe",)
     FUNCTION = "set_sampler"
-    CATEGORY = 'CMK/Developer/Pipe/Set'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     @staticmethod
     def _apply_controlnet_or_bypass(
@@ -348,7 +348,7 @@ class CMKPipePeekKSampler:
     RETURN_TYPES = ("MODEL", "CONDITIONING", "CONDITIONING", "LATENT", "INT", "INT", "FLOAT", SAMPLERS, SCHEDULERS)
     RETURN_NAMES = ("model_patched", "conditioning_pos", "conditioning_neg", "latent_image", "seed", "steps", "cfg", "sampler", "scheduler")
     FUNCTION = "peek_ksampler"
-    CATEGORY = 'CMK/Developer/Pipe/Peek'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     @classmethod
     def IS_CHANGED(cls, *args, **kwargs):
@@ -398,7 +398,7 @@ class CMKPipePeekKSamplerRefinerSource:
     RETURN_TYPES = ("LATENT", "INT", "INT", "STRING", "STRING", "STRING", "LORA_STACK")
     RETURN_NAMES = ("latent_image", "seed", "steps_1st_pass", "prompt_pos", "prompt_neg", "active_loras", "lora_stack")
     FUNCTION = "peek_ksampler_refiner_source"
-    CATEGORY = 'CMK/Developer/Pipe/Peek'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     def peek_ksampler_refiner_source(self, SAMPLED):
         if not isinstance(SAMPLED, dict):
@@ -427,7 +427,7 @@ class CMKPipeSetKSampler:
     RETURN_TYPES = ("CMK_PIPE",)
     RETURN_NAMES = ("pipe",)
     FUNCTION = "set_ksampler"
-    CATEGORY = 'CMK/Developer/Pipe/Set'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     @classmethod
     def IS_CHANGED(cls, *args, **kwargs):
@@ -461,7 +461,7 @@ class CMKKSamplerPipe:
     RETURN_TYPES = ("CMK_SAMPLED_PIPE", "CMK_VISUAL_PIPE")
     RETURN_NAMES = ("SAMPLED", "VISUAL")
     FUNCTION = "run"
-    CATEGORY = "CMK/Developer/Pipe/Execute"
+    CATEGORY = "CMK/Flow/Sampling"
 
     @staticmethod
     def _require(pipe, key, label=None):

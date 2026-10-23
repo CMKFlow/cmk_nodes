@@ -290,7 +290,7 @@ class CMKMaskDetailerIntake:
     RETURN_TYPES = (CMK_TERMINAL_INPUT, "IMAGE", "CMK_LOG_PIPE", MASK_DETAILER_SOURCE, "BOOLEAN")
     RETURN_NAMES = ("PROCESS", "IMAGE", "LOG", "MASK DETAILER SOURCE", "READY")
     FUNCTION = "intake"
-    CATEGORY = "CMK/Toolbox/Image"
+    CATEGORY = "CMK/Flow/Mask Detailer"
 
     def check_lazy_status(self, capture_current=False, PROCESS=None, IMAGE=None, LOG=None, **kwargs):
         if bool(capture_current):
@@ -474,7 +474,7 @@ class CMKMaskDetailerFlowGate:
     )
     RETURN_NAMES = ("MODEL", "MASK DETAILER PROCESS", "IMAGE", "LOG", "VISUAL")
     FUNCTION = "gate"
-    CATEGORY = "CMK/Developer/Internal"
+    CATEGORY = "CMK/Internal/Gates"
     DEV_ONLY = True
 
     @staticmethod
@@ -599,7 +599,7 @@ class CMKMaskDetailerPrepare:
     )
     RETURN_NAMES = ("MODEL", "MASK DETAILER PROCESS", "LOG", "VISUAL", "diagnostic")
     FUNCTION = "prepare"
-    CATEGORY = "CMK/Toolbox/Image"
+    CATEGORY = "CMK/Flow/Mask Detailer"
 
     @staticmethod
     def prepare(MODEL, lora_name, lora_strength, prompt_pos, fill_mask_holes=False, solid_mask=False, LOG=None, VISUAL=None, **kwargs):
@@ -741,7 +741,7 @@ class CMKMaskDetailerProcess:
     )
     RETURN_NAMES = ("MODEL", "MASK DETAILER PROCESS", "IMAGE", "LOG", "VISUAL", "diagnostic")
     FUNCTION = "process"
-    CATEGORY = "CMK/Toolbox/Image"
+    CATEGORY = "CMK/Flow/Mask Detailer"
 
     @staticmethod
     def process(MODEL, seed, steps, cfg, sampler_name, scheduler, denoise, mask_expand, mask_feather, LOG=None, VISUAL=None, unique_id=None, **kwargs):

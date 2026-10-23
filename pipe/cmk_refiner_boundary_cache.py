@@ -464,7 +464,7 @@ class CMKRefinerBoundaryCache:
         "LOG",
     )
     FUNCTION = "boundary"
-    CATEGORY = "CMK/Developer/Boundary & Cache"
+    CATEGORY = "CMK/Internal/Boundary & Cache"
     DEV_ONLY = True
 
     @cmk_timed_call("LAZY 20 REFINER BOUNDARY")

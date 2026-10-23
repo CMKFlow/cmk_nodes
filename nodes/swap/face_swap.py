@@ -464,7 +464,7 @@ class CMKFaceSwapImage:
 class CMKFaceSwapImagePipe:
     """Flow-safe FaceSwap execution without pass-through inputs or outputs."""
 
-    CATEGORY = "CMK/Developer/Pipe/Execute"
+    CATEGORY = "CMK/Flow/Face"
     RETURN_TYPES = ("IMAGE", "SEGS", "CMK_LOG_PIPE", "CMK_VISUAL_PIPE", "CMK_DIAGNOSTIC")
     RETURN_NAMES = ("IMAGE PROCEED", "SEGS PROCESSED", "LOG", "VISUAL", "diagnostic")
     FUNCTION = "run_pipe"

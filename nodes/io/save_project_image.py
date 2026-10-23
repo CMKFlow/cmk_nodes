@@ -61,7 +61,7 @@ class CMK_SaveProjectImage:
     RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "FULLPATH")
 
     FUNCTION = "run"
-    CATEGORY = "CMK/Toolbox/I-O"
+    CATEGORY = "CMK/Flow/Output"
     OUTPUT_NODE = True
 
     def run(

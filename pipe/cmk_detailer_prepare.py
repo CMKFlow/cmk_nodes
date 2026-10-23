@@ -130,7 +130,7 @@ class CMKDetailerPreparePipe:
     RETURN_TYPES = ("CMK_DETAILER_PIPE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
     RETURN_NAMES = ("DETAILER", "LOG", "diagnostic")
     FUNCTION = "prepare"
-    CATEGORY = "CMK/Developer/Pipe/Prepare"
+    CATEGORY = "CMK/Flow/PostProcess"
 
     def check_lazy_status(self, MODEL=None, PROCESS=None, IMAGE=None, LOG=None, detailer_global_enable=False, **kwargs):
         # Resolve the authoritative upstream result first. Requesting MODEL in

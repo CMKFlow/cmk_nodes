@@ -20,7 +20,7 @@ class CMKRefinerPipe:
     RETURN_TYPES = ("IMAGE", "IMAGE", "CMK_VISUAL_PIPE")
     RETURN_NAMES = ("IMAGE 1ST PASS", "IMAGE REFINED", "VISUAL")
     FUNCTION = "run"
-    CATEGORY = "CMK/Developer/Pipe/Execute"
+    CATEGORY = "CMK/Flow/PostProcess"
 
     @staticmethod
     def _required(refiner_pipe, key):

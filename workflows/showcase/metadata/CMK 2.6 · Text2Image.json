@@ -9,17 +9,17 @@
   "cmkHighlight": "Zwei unterschiedliche Generierungsmodelle arbeiten innerhalb eines durchgängigen Workflows zusammen. SDXL übernimmt die Bildkomposition, während Z-Image Turbo mit nur zwei zusätzlichen Sampling-Steps sichtbare Detailverbesserungen und anatomische Korrekturen erzielt. Der direkte Vergleich zeigt die Ergebnisse beider Stufen – ohne zusätzliche Face Restoration oder Detailer-Verarbeitung.",
   "previews": [
     {
-      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.6 · Text2Image/1 - CMK 2.6 · Text2Image - Workflow.png",
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.6 · Text2Image/1 - CMK 2.6 · Text2Image - Workflow.webp",
       "label": "Workflow",
       "label_en": "Workflow"
     },
     {
-      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.6 · Text2Image/2 - CMK 2.6 · Text2Image - SDXL vs. Hybrid.png",
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.6 · Text2Image/2 - CMK 2.6 · Text2Image - SDXL vs. Hybrid.webp",
       "label": "SDXL vs. Hybrid",
       "label_en": "SDXL vs. Hybrid"
     },
     {
-      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.6 · Text2Image/3 - CMK 2.6 · Text2Image - Eye Detail.png",
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.6 · Text2Image/3 - CMK 2.6 · Text2Image - Eye Detail.webp",
       "label": "Eye Detail",
       "label_en": "Eye Detail"
     }

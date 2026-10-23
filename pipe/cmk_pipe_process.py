@@ -78,7 +78,7 @@ class CMKPipeCreateDetailer:
     RETURN_TYPES = ("CMK_DETAILER_PIPE",)
     RETURN_NAMES = ("detailer_pipe",)
     FUNCTION = "create_detailer"
-    CATEGORY = 'CMK/Developer/Pipe/Create'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     def create_detailer(self, model, clip, vae, conditioning_pos, conditioning_neg, image, seed, detailer_enable, steps, cfg, sampler, scheduler, sam_model=None):
         seed = 0 if seed is None else int(seed)
@@ -125,7 +125,7 @@ class CMKPipeCreateFaceProcess:
     RETURN_TYPES = ("CMK_FACE_PIPE",)
     RETURN_NAMES = ("face_pipe",)
     FUNCTION = "create_face_process"
-    CATEGORY = 'CMK/Developer/Pipe/Create'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     def create_face_process(self, model, clip, vae, conditioning_pos, conditioning_neg, image, seed,
                             steps=20, cfg=8.0, sampler=None, scheduler=None, sam_model=None):
@@ -216,7 +216,7 @@ class CMKPipePeekPreprocessDetailer:
         "opt_lora_stack",
     )
     FUNCTION = "peek_preprocess_detailer"
-    CATEGORY = 'CMK/Developer/Pipe/Peek'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     def peek_preprocess_detailer(self, pipe):
         contract = {
@@ -267,7 +267,7 @@ class CMKPipePeekPreprocessFace:
         "opt_lora_stack",
     )
     FUNCTION = "peek_preprocess_face"
-    CATEGORY = 'CMK/Developer/Pipe/Peek'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     def peek_preprocess_face(self, pipe):
         contract = {
@@ -324,7 +324,7 @@ class CMKPipeSetDetailer:
     RETURN_TYPES = ("CMK_PIPE",)
     RETURN_NAMES = ("pipe",)
     FUNCTION = "set_detailer"
-    CATEGORY = 'CMK/Developer/Pipe/Set'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     def set_detailer(self, pipe, model, clip, conditioning_pos, conditioning_neg, detailer_enable, steps, cfg, sampler, scheduler, sam_model=None):
         new_pipe = dict(pipe)
@@ -496,7 +496,7 @@ class CMKPipePeekDetailer:
     RETURN_TYPES = ("BASIC_PIPE", "IMAGE", "INT", "INT", "FLOAT", SAMPLERS, SCHEDULERS, "BOOLEAN", "SAM_MODEL")
     RETURN_NAMES = ("basic_pipe", "image", "seed", "steps", "cfg", "sampler", "scheduler", "boolean_detailer_enable", "sam_model")
     FUNCTION = "peek_detailer"
-    CATEGORY = 'CMK/Developer/Pipe/Peek'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     def peek_detailer(self, detailer_pipe):
         basic_pipe = (
@@ -528,7 +528,7 @@ class CMKPipePeekFaceProcess:
     RETURN_TYPES = ("BASIC_PIPE", "IMAGE", "INT", "INT", "FLOAT", SAMPLERS, SCHEDULERS, "BOOLEAN", "SAM_MODEL")
     RETURN_NAMES = ("basic_pipe", "image", "seed", "steps", "cfg", "sampler", "scheduler", "boolean_face_enable", "sam_model")
     FUNCTION = "peek_face_process"
-    CATEGORY = 'CMK/Developer/Pipe/Peek'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     def peek_face_process(self, face_pipe):
         basic_pipe = (
@@ -565,7 +565,7 @@ class CMKPipeSetDetailerResult:
     RETURN_TYPES = ("CMK_PIPE",)
     RETURN_NAMES = ("pipe",)
     FUNCTION = "set_detailer_result"
-    CATEGORY = 'CMK/Developer/Pipe/Set'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     def set_detailer_result(self, pipe, image):
         new_pipe = dict(pipe)
@@ -589,7 +589,7 @@ class CMKPipeSetFaceResult:
     RETURN_TYPES = ("CMK_PIPE",)
     RETURN_NAMES = ("pipe",)
     FUNCTION = "set_face_result"
-    CATEGORY = 'CMK/Developer/Pipe/Set'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     def set_face_result(self, pipe, image):
         new_pipe = dict(pipe)
@@ -600,7 +600,7 @@ class CMKPipeSetFaceResult:
 
 class CMKPipeSetFaceProcessResult(CMKPipeSetFaceResult):
     FUNCTION = "set_face_process_result"
-    CATEGORY = 'CMK/Developer/Pipe/Set'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     def set_face_process_result(self, pipe, image):
         return self.set_face_result(pipe, image)

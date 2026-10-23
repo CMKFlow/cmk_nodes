@@ -148,7 +148,7 @@ class CMKHybridZITInputPipe:
     RETURN_TYPES = ("IMAGE", "CMK_LOG_PIPE", "CMK_VISUAL_PIPE")
     RETURN_NAMES = ("IMAGE", "LOG", "VISUAL")
     FUNCTION = "select"
-    CATEGORY = "CMK/Developer/Pipe/Bridge"
+    CATEGORY = "CMK/Flow/Bridge"
     DEV_ONLY = True
 
     def check_lazy_status(self, **inputs):

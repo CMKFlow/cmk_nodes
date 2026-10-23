@@ -11,35 +11,35 @@
   "cmkHighlight_en": "InstantID can either continue from an SDXL image already in progress or take over identity guidance directly as a ZERO-PASS; both variants remain within the same SDXL process.",
   "previews": [
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image-InstantID/CMK 2.6 · Flow · Text2Image-InstantID SDXL - HYBRID - 1st-Pass SDXL.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image-InstantID/CMK 2.6 · Flow · Text2Image-InstantID SDXL - HYBRID - 1st-Pass SDXL.webp",
       "group": "HYBRID",
       "group_en": "HYBRID",
       "label": "1st-Pass SDXL",
       "label_en": "1st-Pass SDXL"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image-InstantID/CMK 2.6 · Flow · Text2Image-InstantID SDXL - HYBRID - Identty.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image-InstantID/CMK 2.6 · Flow · Text2Image-InstantID SDXL - HYBRID - Identty.webp",
       "group": "HYBRID",
       "group_en": "HYBRID",
       "label": "Identity",
       "label_en": "Identity"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image-InstantID/CMK 2.6 · Flow · Text2Image-InstantID SDXL - HYBRID - Refiner.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image-InstantID/CMK 2.6 · Flow · Text2Image-InstantID SDXL - HYBRID - Refiner.webp",
       "group": "HYBRID",
       "group_en": "HYBRID",
       "label": "Refiner",
       "label_en": "Refiner"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image-InstantID/CMK 2.6 · Flow · Text2Image-InstantID SDXL - ZERO-PASS - Identity.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image-InstantID/CMK 2.6 · Flow · Text2Image-InstantID SDXL - ZERO-PASS - Identity.webp",
       "group": "ZERO-PASS",
       "group_en": "ZERO-PASS",
       "label": "Identity",
       "label_en": "Identity"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image-InstantID/CMK 2.6 · Flow · Text2Image-InstantID SDXL - ZERO-PASS - Refiner.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image-InstantID/CMK 2.6 · Flow · Text2Image-InstantID SDXL - ZERO-PASS - Refiner.webp",
       "group": "ZERO-PASS",
       "group_en": "ZERO-PASS",
       "label": "Refiner",

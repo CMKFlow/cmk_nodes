@@ -13,12 +13,12 @@
   "info_en": "The dimensions of the ControlNet reference image determine the output resolution and can therefore override the image size selected in `01 START HERE`.",
   "previews": [
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image ControlNet SDXL/CMK 2.6 · Flow · Text2Image ControlNet SDXL - ControlNet.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image ControlNet SDXL/CMK 2.6 · Flow · Text2Image ControlNet SDXL - ControlNet.webp",
       "label": "ControlNet",
       "label_en": "ControlNet"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image ControlNet SDXL/CMK 2.6 · Flow · Text2Image ControlNet SDXL - SDXL.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image ControlNet SDXL/CMK 2.6 · Flow · Text2Image ControlNet SDXL - SDXL.webp",
       "label": "SDXL",
       "label_en": "SDXL"
     }

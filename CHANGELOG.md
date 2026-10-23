@@ -1,19 +1,32 @@
-# CMK 2.6.0 — 2026-10-21
+# CMK Flow 2.6.1 — 2026-10-23
 
-- Ergänzt Generation Completion mit persistentem Cache, manueller
-  Cache-Bereinigung und einer ausschließlich lesenden CMK-Statistik im Flow
-  Browser.
-- Aktualisiert die Statistikoberfläche mit Paket-, Workflow-, Galerie-, Cache-
-  und Laufzeitinformationen sowie deutscher und englischer Darstellung.
-- Korrigiert den InstantID-Advanced-Hybrid-Vertrag und erhält die bestehenden
-  Standard-, Hybrid- und Zero-Pass-Abläufe.
-- Aktualisiert den Flow-Browser-Referenzbestand auf 37 Workflows, 37 Galerien
-  und 104 eindeutige Screenshots; 35 Workflows sind sichtbar und 2 experimentelle
-  Referenzen bleiben vorübergehend ausgeblendet.
-- Aktualisiert Subgraphen, Referenzworkflows, Galerien und paketierte
-  Referenzbilder einschließlich der korrigierten InOutPaint-Ressource.
-- Ergänzt die bestätigten Flow-Browser-Aktionen für Statistik und manuelle
-  Cache-Verwaltung mit deutscher und englischer Lokalisierung.
+Paketversion: **CMK 2.6.1**.
+
+# CMK Flow 2.6.0 – Baseline — 2026-10-08
+
+Paketversion: **CMK 2.6.0**. Dieser Eintrag beschreibt eine lokale
+Entwicklungsbaseline und keine Veröffentlichung.
+
+- Konsolidiert den seit dem öffentlichen Release 2.5.7 entstandenen
+  Entwicklungsstand als neue, ausdrücklich unveröffentlichte Baseline.
+- Ergänzt die zentrale ContentGuard-Steuerung über `01 START HERE`: in der
+  Baseline sichtbar und schaltbar, standardmäßig aktiv; im Release-Modus
+  unsichtbar und serverseitig verbindlich aktiv.
+- Führt den vollständigen ContentGuard-Bypass und die zustandsabhängige
+  Cache-Identität für InstantID, FaceRebuild Standard/Advanced, FaceSwap
+  Standard/Advanced und FaceSwap Video einschließlich Video Loader zusammen.
+- Bereinigt ContentGuard-Abbrüche geordnet: temporäre RGB-Cacheeinträge und
+  abgewickelte Traceback-Referenzen werden freigegeben, bekannte Modell-Patcher
+  folgen dem bestehenden Lifecycle-Schalter, und Video-Abbrüche schließen
+  Prozesse und Streams sowie unvollständige temporäre Ausgaben.
+- Erhält die bestätigten Cache-Grenzen: ContentGuard-Wechsel invalidieren nur
+  die tatsächlich abhängigen Identitätsmodule; vorgelagerte Sampler und Refiner
+  bleiben bei unveränderten Eingaben cachefähig.
+- Ordnet die FaceRebuild-Live-Vorschau dem bestehenden `VISUAL`-Pfad zu, ohne
+  eine zusätzliche Preview-Oberfläche im FaceRebuild-Node einzuführen.
+- Kennzeichnet die aktuellen Referenzworkflows konsistent als Generation
+  `CMK 2.6 ·`; technische IDs, Ports, Verbindungen, Widgetwerte und Layouts
+  bleiben unverändert.
 
 # CMK 2.5.7 — 2026-10-08
 

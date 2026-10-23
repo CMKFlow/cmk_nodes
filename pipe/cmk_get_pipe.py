@@ -14,7 +14,7 @@ class CMKGetPipe:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "get_pipe"
-    CATEGORY = 'CMK/Developer/Pipe/Get'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     def get_pipe(self, pipe, strict=True, debug=False):
         for key in (

@@ -48,7 +48,7 @@ def _result(value):
 class CMKInstantIDFaceDetailerSDXL:
     """Local InstantID Img2Img detailer; deliberately independent of module 15."""
 
-    CATEGORY = "CMK/Toolbox/Face"
+    CATEGORY = "CMK/Flow/Face"
     FUNCTION = "detail"
     RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_RESULT_PROCESS", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
     RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "diagnostic")

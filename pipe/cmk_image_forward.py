@@ -12,7 +12,7 @@ class CMKImageForward:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("IMAGE",)
     FUNCTION = "forward"
-    CATEGORY = "CMK/Developer/Pipe/Forward"
+    CATEGORY = "CMK/Toolbox/Image"
 
     @staticmethod
     def forward(IMAGE):
@@ -24,7 +24,7 @@ class CMKImageForward:
 class CMKImagePreviewForward(CMKImageForward):
     """Display the completed image while keeping it in the data path."""
 
-    CATEGORY = "CMK/Developer/Pipe/Preview"
+    CATEGORY = "CMK/Toolbox/Image"
     DEV_ONLY = True
 
     @staticmethod

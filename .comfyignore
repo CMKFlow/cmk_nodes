@@ -2,13 +2,22 @@
 .github/
 tests/
 _cmk_backups/
-cache/
-workflows/.migration-backups/
-__pycache__/
-*.py[cod]
-.DS_Store
-**/.DS_Store
 CMK_Design_Guidelines.md
 NEXT_SESSION.md
 RELEASE_AUDIT_CMK_2_5.md
 SUBGRAPH_AUDIT.md
+
+# Local runtime and macOS metadata.
+__pycache__/
+*.pyc
+*.ses
+.DS_Store
+.tracking
+
+# Retired frontend variants retained only in the development tree.
+web/js/*.off
+web/js/*.disabled
+
+# Historical workflow migration snapshots. Note: comfy-cli 1.5.3 force-includes
+# workflows via [tool.comfy].includes, so these files are also removed explicitly.
+workflows/.migration-backups/

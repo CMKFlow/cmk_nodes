@@ -14,7 +14,7 @@ class CMKPipeSetRefiner:
     RETURN_TYPES = ("CMK_PIPE",)
     RETURN_NAMES = ("pipe",)
     FUNCTION = "set_refiner"
-    CATEGORY = 'CMK/Developer/Pipe/Set'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     def set_refiner(self, pipe, image):
         new_pipe = dict(pipe)
@@ -30,7 +30,7 @@ class CMKPipePeekPreprocessRefiner:
     RETURN_TYPES = ("IMAGE", "LATENT", "VAE", "BOOLEAN", "BOOLEAN")
     RETURN_NAMES = ("image", "latent_image", "vae", "boolean_detailer_enable", "boolean_face_enable")
     FUNCTION = "peek_preprocess_refiner"
-    CATEGORY = 'CMK/Developer/Pipe/Peek'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     def peek_preprocess_refiner(self, pipe):
         return (
@@ -71,7 +71,7 @@ class CMKPipeCreateRefiner:
     RETURN_TYPES = ("CMK_REFINER_PIPE",)
     RETURN_NAMES = ("refiner_pipe",)
     FUNCTION = "create_refiner"
-    CATEGORY = 'CMK/Developer/Pipe/Create'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     def create_refiner(self, model=None, vae=None, conditioning_pos=None, conditioning_neg=None, latent_image=None, seed=None, steps_1st_pass=None, steps=None, cfg=None, sampler=None, scheduler=None, start_percent=None, prompt_pos=None, prompt_neg=None, active_loras=None, lora_stack=None, **kwargs):
         model = model if model is not None else kwargs.get("refiner_model")
@@ -123,7 +123,7 @@ class CMKPipePeekRefiner:
     RETURN_TYPES = ("MODEL", "CONDITIONING", "CONDITIONING", "LATENT", "VAE", "INT", "INT", "FLOAT", SAMPLERS, SCHEDULERS, "INT", "INT")
     RETURN_NAMES = ("model", "conditioning_pos", "conditioning_neg", "latent_image", "vae", "seed", "steps", "cfg", "sampler", "scheduler", "start_step", "end_step")
     FUNCTION = "peek_refiner"
-    CATEGORY = 'CMK/Developer/Pipe/Peek'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     def peek_refiner(self, refiner_pipe):
         refiner_steps = refiner_pipe.get("refiner_steps", 20)

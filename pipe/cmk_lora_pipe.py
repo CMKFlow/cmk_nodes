@@ -29,7 +29,7 @@ class _CMKLoRAPackBase:
         }
 
     FUNCTION = "pack"
-    CATEGORY = "CMK/Internal"
+    CATEGORY = "CMK/Internal/LoRA"
 
 
 class CMKLoRASDXLPackPipe(_CMKLoRAPackBase):

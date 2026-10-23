@@ -31,12 +31,11 @@ CMK_PACKAGED_REFERENCES = {
         "controlnet_reference.png",
         "detailer_reference.png",
         "face_identity_reference.png",
-        "face_reference2.png",
         "faceswap_reference.png",
         "inpaint_reference.png",
         "inpaint_reference2.png",
-        "inpaint_reference3.png",
         "mask_detailer_reference.png",
+        "instantid_reference.png",
         "portrait_reference_00002.png",
         "remove_refrence.png",
     )
@@ -187,7 +186,7 @@ class CMKImageLoadAndResizePipe:
     )
     RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "diagnostic", "MASK", "image_file")
     FUNCTION = "load_and_resize"
-    CATEGORY = "CMK/Toolbox/Image"
+    CATEGORY = "CMK/Flow/Input"
 
     @staticmethod
     def _resolve_image_path(image: str) -> str:

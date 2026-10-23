@@ -372,7 +372,7 @@ class CMKInstantIDSamplerSDXLPipe:
     )
     RETURN_NAMES = ("MODEL", "PROCESS", "SAMPLED", "LOG", "IDENTITY IMAGE", "VISUAL", "diagnostic")
     FUNCTION = "sample"
-    CATEGORY = "CMK/Toolbox/Face"
+    CATEGORY = "CMK/Flow/Face"
 
     @classmethod
     def IS_CHANGED(cls, PROCESS=None, **kwargs):
@@ -832,7 +832,7 @@ class CMKInstantIDBoundary:
     )
     RETURN_NAMES = ("MODEL", "PROCESS", "SAMPLED", "LOG", "diagnostic")
     FUNCTION = "materialize"
-    CATEGORY = "CMK/Developer/Boundary & Cache"
+    CATEGORY = "CMK/Internal/Boundary & Cache"
     DEV_ONLY = True
 
     def check_lazy_status(self, prompt=None, unique_id=None, dynprompt=None, **inputs):

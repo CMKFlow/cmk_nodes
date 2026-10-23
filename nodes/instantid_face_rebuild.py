@@ -278,7 +278,7 @@ def _append_log_block(log_pipe, block_value):
 class CMKInstantIDFaceRebuildPreparePipe:
     """Prepare an independent SDXL Face Rebuild detailer branch."""
 
-    CATEGORY = "CMK/Toolbox/Face"
+    CATEGORY = "CMK/Developer/Legacy Prepare"
 
     @classmethod
     def IS_CHANGED(cls, PROCESS=None, **_kwargs):
@@ -418,7 +418,7 @@ class CMKInstantIDFaceRebuildPreparePipe:
 class CMKInstantIDFaceRebuildPastebackPipe:
     """Rejoin a rebuilt ROI with the canonical CMK SDXL flow contract."""
 
-    CATEGORY = "CMK/Toolbox/Face"
+    CATEGORY = "CMK/Developer/Legacy Prepare"
     FUNCTION = "pasteback_pipe"
     RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_RESULT_PROCESS", "IMAGE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
     RETURN_NAMES = ("MODEL", "PROCESS", "IMAGE", "LOG", "diagnostic")

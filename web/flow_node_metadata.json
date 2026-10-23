@@ -47,7 +47,7 @@
       ],
       "previews": [
         {
-          "src": "assets/previews/CMK Flow · 01 START HERE · Create Image.png",
+          "src": "assets/previews/CMK Flow · 01 START HERE · Create Image.webp",
           "label": "Vorschau"
         }
       ],
@@ -86,7 +86,7 @@
       "previewAlt": "CMK Flow Regional Conditioning SDXL",
       "previews": [
         {
-          "src": "assets/previews/CMK Flow · 02 Regional Conditioning SDXL.png",
+          "src": "assets/previews/CMK Flow · 02 Regional Conditioning SDXL.webp",
           "label": "Vorschau"
         }
       ]
@@ -119,7 +119,7 @@
       ],
       "previews": [
         {
-          "src": "assets/previews/CMK Flow · Checkpoint & VAE.png",
+          "src": "assets/previews/CMK Flow · Checkpoint & VAE.webp",
           "label": "Vorschau"
         }
       ],
@@ -148,7 +148,7 @@
       "placementNote": "Auf dem familienneutralen Pfad nach der PostProcess Boundary und vor Upscale & Save oder dem Visualizer platzieren.",
       "previews": [
         {
-          "src": "assets/previews/CMK Flow · Image Resize.png",
+          "src": "assets/previews/CMK Flow · Image Resize.webp",
           "label": "Vorschau"
         }
       ],
@@ -178,7 +178,7 @@
       ],
       "previews": [
         {
-          "src": "assets/previews/CMK Flow · Load Image.png",
+          "src": "assets/previews/CMK Flow · Load Image.webp",
           "label": "Vorschau"
         }
       ],
@@ -231,7 +231,7 @@
       ],
       "previews": [
         {
-          "src": "assets/previews/CMK Load Image.png",
+          "src": "assets/previews/CMK Load Image.webp",
           "label": "Vorschau"
         }
       ],
@@ -256,7 +256,7 @@
       "recommendedAfter": [],
       "previews": [
         {
-          "src": "assets/previews/CMK FaceSwap Image Input.png",
+          "src": "assets/previews/CMK FaceSwap Image Input.webp",
           "label": "Vorschau"
         }
       ],
@@ -629,7 +629,7 @@
       ],
       "previews": [
         {
-          "src": "assets/previews/CMK Flow · 30 PostProcess Setup.png",
+          "src": "assets/previews/CMK Flow · 30 PostProcess Setup.webp",
           "label": "Vorschau"
         }
       ],
@@ -779,7 +779,7 @@
       "hideRecommendations": true,
       "previews": [
         {
-          "src": "assets/previews/CMK Flow · Visualizer.png",
+          "src": "assets/previews/CMK Flow · Visualizer.webp",
           "label": "Vorschau"
         }
       ],
@@ -827,7 +827,7 @@
       ],
       "previews": [
         {
-          "src": "assets/previews/CMK Image File Loader.png",
+          "src": "assets/previews/CMK Image File Loader.webp",
           "label": "Vorschau"
         }
       ],

@@ -11,7 +11,7 @@
   "cmkHighlight_en": "Automated generation and manual post-processing work together within the same workflow: after HYBRID inpainting, the result can be refined selectively with FaceProcess or MaskDetailer without rebuilding the flow.",
   "previews": [
     {
-      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.6 · InOutPaint/CMK 2.6 · InOutpaint SDXL.png",
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/CMK 2.6 · InOutPaint/CMK 2.6 · InOutpaint SDXL.webp",
       "label": "Workflow",
       "label_en": "Workflow"
     }

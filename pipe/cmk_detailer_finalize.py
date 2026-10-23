@@ -48,7 +48,7 @@ class CMKDetailerFinalizePipe:
     RETURN_TYPES = ("CMK_PIPE", "IMAGE", "IMAGE", "CMK_DIAGNOSTIC", "STRING")
     RETURN_NAMES = ("pipe", "image", "image_proceed", "diagnostic", "log_pipe")
     FUNCTION = "finalize"
-    CATEGORY = "CMK/Developer/Pipe/Finalize"
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     @staticmethod
     def _extract_image(value):

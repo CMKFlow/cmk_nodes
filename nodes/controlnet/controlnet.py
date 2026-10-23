@@ -592,7 +592,7 @@ class CMKPipeSetControlNet:
     RETURN_TYPES = ("CMK_PIPE",)
     RETURN_NAMES = ("pipe",)
     FUNCTION = "set_controlnet"
-    CATEGORY = 'CMK/Developer/Pipe/Set'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     def set_controlnet(self, pipe, control_net, image):
         new_pipe = dict(pipe)

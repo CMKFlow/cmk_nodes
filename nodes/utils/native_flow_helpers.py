@@ -26,7 +26,7 @@ class CMKImageCompare:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("image",)
     FUNCTION = "compare"
-    CATEGORY = "CMK/Internal"
+    CATEGORY = "CMK/Flow/Output"
     OUTPUT_NODE = True
 
     def compare(self, image_a=None, image_b=None):
@@ -69,7 +69,7 @@ class CMKSEGSPreview:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "preview"
-    CATEGORY = "CMK/Internal"
+    CATEGORY = "CMK/Toolbox/Mask & SEGS"
     OUTPUT_NODE = True
 
     def preview(self, segs, alpha_mode=True, min_alpha=0.2, fallback_image_opt=None):
@@ -156,7 +156,7 @@ class CMKPromptConcat:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("prompt",)
     FUNCTION = "concat"
-    CATEGORY = "CMK/Internal"
+    CATEGORY = "CMK/Toolbox/Text"
 
     def concat(self, prompt1="", prompt2="", separator=", "):
         values = [str(value).strip() for value in (prompt1, prompt2) if str(value).strip()]
@@ -180,7 +180,7 @@ class CMKTriggerWordsFilter:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("filtered_trigger_words",)
     FUNCTION = "filter"
-    CATEGORY = "CMK/Internal"
+    CATEGORY = "CMK/Developer/Compatibility"
 
     def filter(self, group_mode=True, default_active=True, allow_strength_adjustment=False, trigger_words=""):
         del group_mode, allow_strength_adjustment

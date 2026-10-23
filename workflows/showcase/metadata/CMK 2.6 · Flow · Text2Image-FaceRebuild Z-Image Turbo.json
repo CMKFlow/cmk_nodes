@@ -11,17 +11,17 @@
   "cmkHighlight_en": "After ZIT generation, the workflow switches to a separate PostProcess context for FaceRebuild, making facial reconstruction independent of the generation model used.",
   "previews": [
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image-FaceRebuild Z-Image Turbo/CMK 2.6 · Flow · Text2Image-FaceRebuild Z-Image Turbo - Sampling.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image-FaceRebuild Z-Image Turbo/CMK 2.6 · Flow · Text2Image-FaceRebuild Z-Image Turbo - Sampling.webp",
       "label": "Sampling",
       "label_en": "Sampling"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image-FaceRebuild Z-Image Turbo/CMK 2.6 · Flow · Text2Image-FaceRebuild Z-Image Turbo - FaceRebuild.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image-FaceRebuild Z-Image Turbo/CMK 2.6 · Flow · Text2Image-FaceRebuild Z-Image Turbo - FaceRebuild.webp",
       "label": "FaceRebuild",
       "label_en": "FaceRebuild"
     },
     {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image-FaceRebuild Z-Image Turbo/portrait_reference_00003.png",
+      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image-InstantID/portrait_reference_00003.png",
       "label": "Source",
       "label_en": "Source"
     }

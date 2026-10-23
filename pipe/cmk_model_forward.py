@@ -12,7 +12,7 @@ class CMKModelForwardPipe:
     RETURN_TYPES = ("CMK_MODEL_PIPE",)
     RETURN_NAMES = ("MODEL",)
     FUNCTION = "forward"
-    CATEGORY = "CMK/Developer/Pipe/Forward"
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     @staticmethod
     def forward(MODEL):

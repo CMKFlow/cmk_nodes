@@ -4,7 +4,7 @@
     {
       "package_file": "clipspace-mask-1792499379891.png",
       "original_file": "clipspace-mask-1792499379891.png",
-      "sha256": "55f064628e2e0c8efbaab2fc20ea8f24dca524e9852fd9a09ddb649fb93094fb"
+      "sha256": "2d6e2de3df2d0fa0f3e5d94d2d28aeec2ec09cb1061d05a0770a0c4f62c53472"
     },
     {
       "package_file": "controlnet_reference.png",
@@ -19,17 +19,17 @@
     {
       "package_file": "detailer_reference.png",
       "original_file": "image_00051 (1).png",
-      "sha256": "f277f834cbd62942adb811cd59e233f4f88a82d52b61e1c713e234b178dc9a02"
-    },
-    {
-      "package_file": "face_reference.png",
-      "original_file": "face_reference.png",
-      "sha256": "272542cf95f005b1a86e0e2da940c014b9e67bbd247e1fefccd2dbeab60f77f1"
+      "sha256": "ee75a396ec154d2304277364bd8be58e609118a6664f97ab65920888a44bde9f"
     },
     {
       "package_file": "face_identity_reference.png",
       "original_file": "portrait_reference_00003.png",
       "sha256": "916911957d8ce4805358a28ade90ddbc495aa649fce54dd94f8c896d46007f0a"
+    },
+    {
+      "package_file": "face_reference.png",
+      "original_file": "face_reference.png",
+      "sha256": "272542cf95f005b1a86e0e2da940c014b9e67bbd247e1fefccd2dbeab60f77f1"
     },
     {
       "package_file": "faceswap_reference.png",
@@ -47,14 +47,9 @@
       "sha256": "c3ad98c617e8d8dab652a63e413b603d1cc6f4d0fa6ecc0eb5ee6a09da0da7c9"
     },
     {
-      "package_file": "inpaint_reference3.png",
-      "original_file": "inpaint_reference3.png",
-      "sha256": "eeefb3ca44dcfa965c04eb3ec59c54abab68086945a459dfda8957112740ad44"
-    },
-    {
       "package_file": "mask_detailer_reference.png",
       "original_file": "mask_detailer_reference.png",
-      "sha256": "14444bcfa3b24eb144949957f91811a8eb7ef26efe637a440b4b489674c42bdd"
+      "sha256": "9878f5bb242f919c592692717e28d85b7fecf96a6f7419199981d1e3501c25f9"
     },
     {
       "package_file": "portrait_reference_00002.png",

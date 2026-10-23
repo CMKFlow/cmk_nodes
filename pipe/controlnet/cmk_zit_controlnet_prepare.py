@@ -116,7 +116,7 @@ class CMKZITControlNetPreparePipe:
         "Prepared ControlNet image for the visual provider.",
     )
     FUNCTION = "prepare"
-    CATEGORY = "CMK/Flow/Process/ZIT"
+    CATEGORY = "CMK/Flow/Process"
     OUTPUT_NODE = True
 
     def check_lazy_status(

@@ -683,7 +683,7 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
     RETURN_TYPES = ("SEGS", "SEGS", "IMAGE", "CMK_LOG_PIPE", "CMK_VISUAL_PIPE", "CMK_DIAGNOSTIC", "IMAGE")
     RETURN_NAMES = ("SEGS DETECTED", "SEGS PROCEED", "IMAGE PROCEED", "LOG", "VISUAL", "diagnostic", "DETAILER IMAGE")
     FUNCTION = "run_pipe"
-    CATEGORY = "CMK/Developer/Pipe/Execute"
+    CATEGORY = "CMK/Flow/PostProcess"
 
     _CACHE_SCOPE = "detailer_branch"
     _CACHE_SCHEMA = "cmk_detailer_branch_v7"

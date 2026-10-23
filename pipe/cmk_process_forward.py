@@ -12,7 +12,7 @@ class CMKProcessForwardPipe:
     RETURN_TYPES = ("CMK_PROCESS_SDXL",)
     RETURN_NAMES = ("PROCESS",)
     FUNCTION = "forward"
-    CATEGORY = "CMK/Developer/Pipe/Forward"
+    CATEGORY = "CMK/Internal/Forward"
 
     @staticmethod
     def forward(PROCESS):

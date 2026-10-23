@@ -210,7 +210,7 @@ class CMKZImageTurboLoaderPipe:
     RETURN_TYPES = ("CMK_MODEL_PIPE", "CMK_LOG_PIPE")
     RETURN_NAMES = ("MODEL", "LOG")
     FUNCTION = "load"
-    CATEGORY = "CMK/Developer/Pipe/Load"
+    CATEGORY = "CMK/Flow/Input"
 
     def load(
         self,

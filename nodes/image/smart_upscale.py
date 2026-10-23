@@ -329,7 +329,7 @@ class CMK_SmartUpscalerPipe(CMK_SmartUpscaler):
     RETURN_TYPES = ("IMAGE", "CMK_LOG_PIPE", "CMK_VISUAL_PIPE", "CMK_DIAGNOSTIC")
     RETURN_NAMES = ("IMAGE", "LOG", "VISUAL", "diagnostic")
     FUNCTION = "run_pipe"
-    CATEGORY = "CMK/Developer/Pipe/Execute"
+    CATEGORY = "CMK/Flow/PostProcess"
 
     def check_lazy_status(self, IMAGE=None, LOG=None, **kwargs):
         needed = []

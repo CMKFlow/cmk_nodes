@@ -128,7 +128,7 @@ class CMKFaceProcessPreparePipe:
     RETURN_TYPES = ("CMK_FACE_PIPE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
     RETURN_NAMES = ("FACE", "LOG", "diagnostic")
     FUNCTION = "prepare"
-    CATEGORY = "CMK/Developer/Pipe/Prepare"
+    CATEGORY = "CMK/Flow/PostProcess"
 
     def check_lazy_status(
         self,

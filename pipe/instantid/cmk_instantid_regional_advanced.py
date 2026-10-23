@@ -582,7 +582,7 @@ class CMKInstantIDRegionalAdvancedSDXLPipe:
     )
     RETURN_NAMES = ("MODEL", "PROCESS", "SAMPLED", "LOG", "IDENTITY IMAGE", "VISUAL", "diagnostic")
     FUNCTION = "sample"
-    CATEGORY = "CMK/Toolbox/Face"
+    CATEGORY = "CMK/Flow/Face"
 
     @classmethod
     def IS_CHANGED(cls, PROCESS=None, **kwargs):

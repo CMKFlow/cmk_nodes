@@ -3,6 +3,9 @@ import { api } from "../../../scripts/api.js";
 
 const NODE_CLASS = "CMKSwapImageLoaderPipe";
 const PAIR_WIDGET = "IMAGE PAIR";
+const CONTENT_GUARD_WIDGET = "content_guard_enabled";
+const CONTENT_GUARD_EXECUTION_INPUT = "_cmk_content_guard_enabled";
+const CONTENT_GUARD_CONSUMER = "CMKFaceSwapImagePipe";
 const DEFAULT_PAIR = { target: "", source: "" };
 
 function isTarget(node) {
@@ -412,8 +415,57 @@ function ensureInstalled(node) {
     }
 }
 
+function routeContentGuardAtExecution(output) {
+    if (!output || typeof output !== "object") return;
+    const adjacency = new Map();
+    for (const [targetId, node] of Object.entries(output)) {
+        for (const value of Object.values(node?.inputs ?? {})) {
+            if (!Array.isArray(value) || value.length !== 2) continue;
+            const sourceId = String(value[0]);
+            if (!adjacency.has(sourceId)) adjacency.set(sourceId, []);
+            adjacency.get(sourceId).push(String(targetId));
+        }
+    }
+
+    for (const [startId, startNode] of Object.entries(output)) {
+        if (startNode?.class_type !== NODE_CLASS) continue;
+        const requested = startNode.inputs?.[CONTENT_GUARD_WIDGET] !== false;
+        const pending = [...(adjacency.get(String(startId)) ?? [])];
+        const visited = new Set();
+        while (pending.length) {
+            const nodeId = pending.pop();
+            if (visited.has(nodeId)) continue;
+            visited.add(nodeId);
+            const node = output[nodeId];
+            if (!node) continue;
+            if (node.class_type === CONTENT_GUARD_CONSUMER
+                && node.inputs?.["GLOBAL ENABLE"] !== false
+                && node.inputs?.ENABLE !== false) {
+                node.inputs ??= {};
+                node.inputs[CONTENT_GUARD_EXECUTION_INPUT] = requested;
+            }
+            pending.push(...(adjacency.get(nodeId) ?? []));
+        }
+    }
+}
+
+function installContentGuardPromptRouting() {
+    if (app._cmkSwapImageContentGuardRouting || typeof app.graphToPrompt !== "function") return;
+    const original = app.graphToPrompt.bind(app);
+    app.graphToPrompt = async function () {
+        const result = await original(...arguments);
+        routeContentGuardAtExecution(result?.output);
+        return result;
+    };
+    app._cmkSwapImageContentGuardRouting = true;
+}
+
 app.registerExtension({
     name: "cmk.swap_image_loader.pair.v1",
+
+    setup() {
+        installContentGuardPromptRouting();
+    },
 
     beforeRegisterNodeDef(nodeType, nodeData) {
         if (nodeData.name !== NODE_CLASS) return;

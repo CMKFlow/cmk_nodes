@@ -152,6 +152,7 @@ from .nodes.utils.preview_render import CMKPreviewRender
 from .nodes.utils.preview_board import CMKPreviewBoard
 from .nodes.utils.diagnostic_concat import CMKDiagnosticConcat
 from .nodes.utils.summary import CMKSummary
+from .nodes.utils.trigger_words_concatenate import CMKTriggerWordsConcatenate
 from .nodes.utils.native_flow_helpers import (
     CMKImageCompare,
     CMKSEGSPreview,
@@ -321,6 +322,7 @@ NODE_CLASS_MAPPINGS = {
         "CMKPreviewBoard": CMKPreviewBoard,
         "CMKDiagnosticConcat": CMKDiagnosticConcat,
         "CMKSummary": CMKSummary,
+        "CMKTriggerWordsConcatenate": CMKTriggerWordsConcatenate,
         "CMKImageCompare": CMKImageCompare,
         "CMKSEGSPreview": CMKSEGSPreview,
         "CMKLoRAStackBuilder": CMKLoRAStackBuilder,
@@ -354,6 +356,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CMKPromptConcat": "CMK Prompt Concatenate",
     "CMKTriggerWordsFilter": "CMK Trigger Words Filter",
     "CMKStringDual": "CMK Positive / Negative Text",
+    "CMKTriggerWordsConcatenate": "CMK Flow · TriggerWords Concatenate",
 
     "CMKGetPipe": "CMK Pipe Get",
     "CMKPipeInspect": "CMK Pipe Inspect",

@@ -1506,7 +1506,7 @@ class CMKPipePeekPreprocessImage:
         "controlnet_image",
     )
     FUNCTION = "peek_preprocess_image"
-    CATEGORY = 'CMK/Developer/Pipe/Peek'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     def peek_preprocess_image(self, pipe):
         return (
@@ -1532,7 +1532,7 @@ class CMKPipePeekControlNetSource:
     RETURN_TYPES = ("IMAGE", "MASK")
     RETURN_NAMES = ("base_image", "mask")
     FUNCTION = "peek_controlnet_source"
-    CATEGORY = 'CMK/Developer/Pipe/Peek'
+    CATEGORY = "CMK/Developer/Legacy Pipe"
 
     def peek_controlnet_source(self, pipe):
         return (

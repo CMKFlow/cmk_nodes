@@ -45,7 +45,7 @@ def _append_structured_log_block(log_pipe, block_value, title_prefix=None):
 class CMKInstantIDFaceRebuildAdvancedSDXL:
     """One sequential executor for up to three independently configured faces."""
 
-    CATEGORY = "CMK/Toolbox/Face"
+    CATEGORY = "CMK/Flow/Face"
     DIAGNOSTIC_NAME = "CMK Flow · 42 FaceRebuild Advanced"
     LOG_LABEL = "FaceRebuild Advanced"
     FUNCTION = "rebuild"
@@ -294,7 +294,7 @@ class CMKInstantIDFaceRebuildAdvancedSDXL:
 class CMKInstantIDFaceRebuildSDXL:
     """Advanced FaceRebuild copied with face branches two and three removed."""
 
-    CATEGORY = "CMK/Toolbox/Face"
+    CATEGORY = "CMK/Flow/Face"
     DIAGNOSTIC_NAME = "CMK Flow · FaceRebuild SDXL"
     LOG_LABEL = "FaceRebuild"
     FUNCTION = "rebuild"

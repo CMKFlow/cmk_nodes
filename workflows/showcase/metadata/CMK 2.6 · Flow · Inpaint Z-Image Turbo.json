@@ -11,16 +11,5 @@
   "cmkHighlight_en": "",
   "info": "Z-Image-Turbo-Inpainting befindet sich weiterhin in Entwicklung.",
   "info_en": "Z-Image Turbo inpainting is still under development.",
-  "previews": [
-    {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Inpaint Z-Image Turbo/CMK 2.5 · Flow · Inpaint Z-Image Turbo - 1 Preparation.png",
-      "label": "Preparation",
-      "label_en": "Preparation"
-    },
-    {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.5 · Flow · Inpaint Z-Image Turbo/CMK 2.5 · Flow · Inpaint Z-Image Turbo - 2 ZIT-Sampling.png",
-      "label": "ZIT-Sampling",
-      "label_en": "ZIT-Sampling"
-    }
-  ]
+  "previews": []
 }
