@@ -256,15 +256,22 @@ python3 custom_nodes/cmk_nodes/scripts/install_cmk_requirements.py
 Ein manueller Git-Clone führt niemals automatisch `pip` aus. Deshalb gehört der
 zweite Befehl verbindlich zur Installation und zu jedem Update.
 
-### Erforderliche ComfyUI-Oberfläche
+### Kompatibilität und validierte Umgebung
 
-> **Bestätigte Zielversion**
->
-> CMK 2.5.7 wurde mit **ComfyUI 0.38.2** und
-> **comfyui-frontend-package 1.53.6** vollständig geprüft. Dazu gehören die
-> Flow-Browser-Navigation, paketierte Subgraphen und Referenzworkflows,
-> eingebettete Vorschauen, Cache-Pfade sowie die serialisierten Link-, Socket-,
-> UUID- und Topologieverträge.
+<!-- cmk-reference-environment:start -->
+| Komponente | Referenzwert |
+| --- | --- |
+| CMK Flow | `2.6.1` |
+| ComfyUI | `0.42.5` |
+| Python | `3.13.12` |
+| PyTorch | `2.12.1` |
+| Compute-Backend | `Apple MPS` |
+
+Diese Werte beschreiben die aktuelle validierte Referenzumgebung. Sie sind weder
+pauschale Mindestanforderungen noch eine vollständige Kompatibilitätsgarantie
+und implizieren keine vollständige Prüfung sämtlicher Workflows, Erweiterungen
+oder Hardwareplattformen.
+<!-- cmk-reference-environment:end -->
 
 CMK Flow benötigt die ComfyUI-Einstellung **Vue Nodes / Nodes 2.0**. Ohne sie
 fallen dynamische CMK-Nodes auf die alte LiteGraph-Darstellung zurück;

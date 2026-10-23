@@ -237,14 +237,22 @@ Do not leave historical individual files beside the current package. The JSON
 files in `subgraphs/` remain part of the node pack; additional copies under
 `user/default/subgraphs/` create duplicate blueprint entries.
 
-## Required ComfyUI frontend
+## Compatibility and Validated Environment
 
-> **Validated release target**
->
-> CMK 2.5.7 was fully validated with **ComfyUI 0.38.2** and
-> **comfyui-frontend-package 1.53.6**. This includes Flow Browser navigation,
-> packaged subgraphs and reference workflows, embedded previews, cache paths,
-> and the serialized link, socket, UUID, and topology contracts.
+<!-- cmk-reference-environment:start -->
+| Component | Reference value |
+| --- | --- |
+| CMK Flow | `2.6.1` |
+| ComfyUI | `0.42.5` |
+| Python | `3.13.12` |
+| PyTorch | `2.12.1` |
+| Compute backend | `Apple MPS` |
+
+These values describe the current validated reference environment. They are
+neither general minimum requirements nor a complete compatibility guarantee,
+and they do not imply complete testing of every workflow, extension, or
+hardware platform.
+<!-- cmk-reference-environment:end -->
 
 CMK Flow requires **Vue Nodes / Nodes 2.0** in the active ComfyUI user profile.
 Without it, dynamic CMK nodes fall back to legacy LiteGraph rendering and their
