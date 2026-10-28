@@ -134,14 +134,14 @@ class FaceSwapImageContentGuardTests(unittest.TestCase):
         self.assertNotEqual(on_first, off)
         self.assertEqual(on_first, on_again)
 
-    def test_frontend_routes_loader_state_to_faceswap_execution_boundary(self):
-        source = (
-            PACKAGE_ROOT / "web" / "js" / "cmk_swap_image_loader_pair_v1.js"
-        ).read_text(encoding="utf-8")
-        self.assertIn('const CONTENT_GUARD_CONSUMER = "CMKFaceSwapImagePipe";', source)
-        self.assertIn("function routeContentGuardAtExecution(output)", source)
-        self.assertIn("node.inputs[CONTENT_GUARD_EXECUTION_INPUT] = requested;", source)
-        self.assertNotIn("delete startNode.inputs[CONTENT_GUARD_WIDGET]", source)
+    def test_frontend_does_not_inject_functional_guard_inputs(self):
+        for relative in (
+            "web/js/cmk_swap_image_loader_pair_v1.js",
+            "web/js/cmk_flow_start_guidance_v51.js",
+        ):
+            source = (PACKAGE_ROOT / relative).read_text(encoding="utf-8")
+            self.assertNotIn("_cmk_content_guard_enabled", source)
+            self.assertNotIn("routeContentGuardAtExecution", source)
 
     def test_guard_block_aborts_before_swap_backend_can_return_an_image(self):
         guard = MagicMock(unsafe=True)

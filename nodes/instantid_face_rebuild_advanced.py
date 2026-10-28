@@ -11,7 +11,6 @@ from .instantid_face_rebuild import (
 from ..engine.detector_engine import CMKDetectorEngine, DetectorSettings
 from ..engine.content_guard import ContentGuardBlocked, cleanup_content_guard_abort
 from ..cmk_distribution import (
-    CONTENT_GUARD_EXECUTION_KEY,
     content_guard_state_token,
     effective_content_guard_enabled,
 )
@@ -71,9 +70,7 @@ class CMKInstantIDFaceRebuildAdvancedSDXL:
     def _advanced_sampling_key(self, values):
         return (
             ("content_guard_version", FACEREBUILD_GUARD_VERSION),
-            ("content_guard_state", content_guard_state_token(
-                values.get("PROCESS"), values.get(CONTENT_GUARD_EXECUTION_KEY),
-            )),
+            ("content_guard_state", content_guard_state_token(values.get("PROCESS"))),
         ) + tuple(
             (name, self._advanced_cache_token(value))
             for name, value in sorted(values.items())
@@ -121,7 +118,6 @@ class CMKInstantIDFaceRebuildAdvancedSDXL:
             "required": required,
             "optional": {
                 "VISUAL": ("CMK_VISUAL_PIPE",),
-                CONTENT_GUARD_EXECUTION_KEY: ("BOOLEAN", {"default": True, "advanced": True}),
             },
             "hidden": {"unique_id": "UNIQUE_ID"},
         }
@@ -130,7 +126,7 @@ class CMKInstantIDFaceRebuildAdvancedSDXL:
     def IS_CHANGED(cls, PROCESS=None, **kwargs):
         return (
             f"{FACEREBUILD_GUARD_VERSION}:"
-            f"{content_guard_state_token(PROCESS, kwargs.get(CONTENT_GUARD_EXECUTION_KEY))}"
+            f"{content_guard_state_token(PROCESS)}"
         )
 
     def rebuild(self, VISUAL=None, unique_id=None, **values):
@@ -154,9 +150,7 @@ class CMKInstantIDFaceRebuildAdvancedSDXL:
 
     def _rebuild(self, VISUAL=None, unique_id=None, **values):
         model, process, image, log = values["MODEL"], values["PROCESS"], values["IMAGE"], values["LOG"]
-        content_guard_enabled = effective_content_guard_enabled(
-            process, values.get(CONTENT_GUARD_EXECUTION_KEY),
-        )
+        content_guard_enabled = effective_content_guard_enabled(process)
         visual = empty_visual() if VISUAL is None else VISUAL
         active = [i for i in range(1, 4) if values[f"FACE {i} ENABLE"]]
         if not values["FACEREBUILD ENABLE"] or not active:
@@ -320,9 +314,7 @@ class CMKInstantIDFaceRebuildSDXL:
     def _sampling_key(self, values):
         return (
             ("content_guard_version", FACEREBUILD_GUARD_VERSION),
-            ("content_guard_state", content_guard_state_token(
-                values.get("PROCESS"), values.get(CONTENT_GUARD_EXECUTION_KEY),
-            )),
+            ("content_guard_state", content_guard_state_token(values.get("PROCESS"))),
         ) + tuple(
             (name, self._cache_token(value))
             for name, value in sorted(values.items())
@@ -356,7 +348,6 @@ class CMKInstantIDFaceRebuildSDXL:
             "required": required,
             "optional": {
                 "VISUAL": ("CMK_VISUAL_PIPE",),
-                CONTENT_GUARD_EXECUTION_KEY: ("BOOLEAN", {"default": True, "advanced": True}),
             },
             "hidden": {"unique_id": "UNIQUE_ID"},
         }
@@ -365,7 +356,7 @@ class CMKInstantIDFaceRebuildSDXL:
     def IS_CHANGED(cls, PROCESS=None, **kwargs):
         return (
             f"{FACEREBUILD_GUARD_VERSION}:"
-            f"{content_guard_state_token(PROCESS, kwargs.get(CONTENT_GUARD_EXECUTION_KEY))}"
+            f"{content_guard_state_token(PROCESS)}"
         )
 
     def rebuild(self, VISUAL=None, unique_id=None, **values):
@@ -389,9 +380,7 @@ class CMKInstantIDFaceRebuildSDXL:
 
     def _rebuild(self, VISUAL=None, unique_id=None, **values):
         model, process, image, log = values["MODEL"], values["PROCESS"], values["IMAGE"], values["LOG"]
-        content_guard_enabled = effective_content_guard_enabled(
-            process, values.get(CONTENT_GUARD_EXECUTION_KEY),
-        )
+        content_guard_enabled = effective_content_guard_enabled(process)
         visual = empty_visual() if VISUAL is None else VISUAL
         if not values["FACEREBUILD ENABLE"]:
             diagnostic = make_diagnostic_payload(

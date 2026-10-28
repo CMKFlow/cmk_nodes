@@ -4,10 +4,7 @@ import numpy as np
 import torch
 import folder_paths
 
-from ...cmk_distribution import (
-    CONTENT_GUARD_EXECUTION_KEY,
-    effective_content_guard_enabled,
-)
+from ...cmk_distribution import effective_content_guard_enabled
 from ...engine.detector_engine import CMKDetectorEngine, DetectorSettings
 from ...engine.swap_selected_engine import CMKSelectedSwapEngine, SelectedSwapSettings
 from ...engine.content_guard import ContentGuardBlocked, cleanup_content_guard_abort
@@ -501,9 +498,6 @@ class CMKFaceSwapImagePipe:
                 "opt_log": ("CMK_LOG_PIPE",),
                 "VISUAL": ("CMK_VISUAL_PIPE",),
                 "opt_diagnostic": ("CMK_DIAGNOSTIC",),
-                CONTENT_GUARD_EXECUTION_KEY: (
-                    "BOOLEAN", {"default": True, "advanced": True},
-                ),
             },
             "hidden": {"unique_id": "UNIQUE_ID"},
         }
@@ -596,9 +590,7 @@ class CMKFaceSwapImagePipe:
         restore_model = str(inputs.get("POST RESTORE MODEL", inputs.get("RESTORE MODEL", "none")) or "none")
         restore_visibility = _clamp_float(inputs.get("RESTORE VISIBILITY", 1.0), 0.0, 1.0, 1.0)
         process = inputs.get("PROCESS")
-        content_guard_enabled = effective_content_guard_enabled(
-            process, inputs.get(CONTENT_GUARD_EXECUTION_KEY),
-        )
+        content_guard_enabled = effective_content_guard_enabled(process)
         family = str(process.get("source_model_family", process.get("model_family", ""))).lower() if isinstance(process, dict) else ""
         effective_profile = quality_profile
         if quality_profile == "Automatic":

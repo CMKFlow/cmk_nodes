@@ -148,6 +148,17 @@ def validate(
             for marker in markers:
                 if marker not in content:
                     errors.append(f"{feature['name']}: marker missing in {relative}: {marker}")
+        for relative, markers in feature.get("forbiddenMarkers", {}).items():
+            try:
+                content = reader.read_text(relative)
+            except ValidationError as exc:
+                errors.append(str(exc))
+                continue
+            for marker in markers:
+                if marker in content:
+                    errors.append(
+                        f"{feature['name']}: forbidden marker in {relative}: {marker}"
+                    )
         for relative, dotted_key in feature.get("requiredJsonKeys", {}).items():
             try:
                 data = json.loads(reader.read_text(relative))
@@ -252,7 +263,9 @@ def main(argv=None):
             reader,
             manifest,
             source if target.is_file() else None,
-            require_release_mode=args.require_release_mode,
+            # A packed artifact is a release candidate by definition. Never
+            # allow a caller to forget the RELEASE-mode gate for archives.
+            require_release_mode=args.require_release_mode or target.is_file(),
         )
     finally:
         reader.close()

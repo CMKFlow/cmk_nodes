@@ -103,34 +103,9 @@ const USER_WIDGET_LABELS = {
     "live_preview_zit": "LIVE PREVIEW ZIT",
     "content_guard_enabled": "CONTENT GUARD",
 };
-const CONTENT_GUARD_WIDGET = "content_guard_enabled";
-const CONTENT_GUARD_EXECUTION_INPUT = "_cmk_content_guard_enabled";
 const INSTANTID_MODE_LABELS = Object.freeze({
     "ZERO-PASS": "ZERO-PASS · SINGLE PERSON ONLY",
 });
-const CONTENT_GUARD_EXECUTION_NODES = new Set([
-    "CMKInstantIDSamplerSDXLPipe",
-    "CMKInstantIDRegionalAdvancedSDXLPipe",
-    "CMKInstantIDFaceRebuildSDXL",
-    "CMKInstantIDFaceRebuildAdvancedSDXL",
-    "CMKFaceSwapImagePipe",
-]);
-
-function contentGuardConsumerIsActive(node, startNode) {
-    switch (node?.class_type) {
-        case "CMKInstantIDSamplerSDXLPipe":
-        case "CMKInstantIDRegionalAdvancedSDXLPipe":
-            return startNode?.inputs?.instantid_enabled === true;
-        case "CMKInstantIDFaceRebuildSDXL":
-        case "CMKInstantIDFaceRebuildAdvancedSDXL":
-            return node?.inputs?.["FACEREBUILD ENABLE"] !== false;
-        case "CMKFaceSwapImagePipe":
-            return node?.inputs?.["GLOBAL ENABLE"] !== false
-                && node?.inputs?.ENABLE !== false;
-        default:
-            return false;
-    }
-}
 const NEUTRAL_IMAGE_SIZES = [
     "1024x1024",
     "1152x832",
@@ -603,11 +578,6 @@ function rebuildModeWidgets(node, force = false) {
             .filter((name) => !["hybrid_sdxl_handoff", "hybrid_zit_denoise"].includes(name))
             .filter((name) => mode.startsWith("hybrid") || name !== "HYBRID BALANCE")
             .filter((name) => name !== "unload_zit_after")
-            .filter((name) => {
-                if (name !== "content_guard_enabled") return true;
-                const widget = state.widgetsByName.get(name);
-                return widget?.options?.cmk_baseline_visible !== false;
-            })
             .filter((name) => name !== CROP_POSITION_WIDGET || resizeMode !== "stretch");
         // The backend appends this control for positional compatibility with
         // existing workflows.  Display it with the primary process switches.
@@ -958,53 +928,39 @@ function schedule(node) {
     for (const delay of [0, 50, 200, 500]) setTimeout(() => configure(node), delay);
 }
 
-function routeContentGuardAtExecution(output) {
-    if (!output || typeof output !== "object") return;
-    const adjacency = new Map();
-    for (const [targetId, node] of Object.entries(output)) {
-        for (const value of Object.values(node?.inputs ?? {})) {
-            if (!Array.isArray(value) || value.length !== 2) continue;
-            const sourceId = String(value[0]);
-            if (!adjacency.has(sourceId)) adjacency.set(sourceId, []);
-            adjacency.get(sourceId).push(String(targetId));
-        }
+function withoutLegacyReleaseGuardValue(node, info) {
+    if (!info || node.widgets?.some((widget) => widget?.name === "content_guard_enabled")) {
+        return info;
     }
-
-    for (const [startId, startNode] of Object.entries(output)) {
-        if (startNode?.class_type !== NODE_CLASS) continue;
-        const requested = startNode.inputs?.[CONTENT_GUARD_WIDGET] !== false;
-        // Keep the UI value in workflow serialization, but remove it from
-        // module 01's API inputs so ComfyUI's native cache identity for the
-        // generation branch stays unchanged.
-        if (startNode.inputs) delete startNode.inputs[CONTENT_GUARD_WIDGET];
-
-        const pending = [...(adjacency.get(String(startId)) ?? [])];
-        const visited = new Set();
-        while (pending.length) {
-            const nodeId = pending.pop();
-            if (visited.has(nodeId)) continue;
-            visited.add(nodeId);
-            const node = output[nodeId];
-            if (!node) continue;
-            if (CONTENT_GUARD_EXECUTION_NODES.has(node.class_type)
-                && contentGuardConsumerIsActive(node, startNode)) {
-                node.inputs ??= {};
-                node.inputs[CONTENT_GUARD_EXECUTION_INPUT] = requested;
-            }
-            pending.push(...(adjacency.get(nodeId) ?? []));
+    if (!Array.isArray(info.inputs) || !Array.isArray(info.widgets_values)) return info;
+    let widgetIndex = 0;
+    let guardInputIndex = -1;
+    let guardWidgetIndex = -1;
+    for (let index = 0; index < info.inputs.length; index += 1) {
+        const input = info.inputs[index];
+        const hasWidget = Boolean(input?.widget);
+        if (input?.name === "content_guard_enabled") {
+            guardInputIndex = index;
+            guardWidgetIndex = hasWidget ? widgetIndex : -1;
+            break;
         }
+        if (hasWidget) widgetIndex += 1;
     }
-}
-
-function installContentGuardPromptRouting() {
-    if (app._cmkContentGuardPromptRouting || typeof app.graphToPrompt !== "function") return;
-    const original = app.graphToPrompt.bind(app);
-    app.graphToPrompt = async function () {
-        const result = await original(...arguments);
-        routeContentGuardAtExecution(result?.output);
-        return result;
+    if (guardInputIndex < 0) return info;
+    const inputs = info.inputs.slice();
+    inputs.splice(guardInputIndex, 1);
+    const widgetsValues = info.widgets_values.slice();
+    if (guardWidgetIndex >= 0 && guardWidgetIndex < widgetsValues.length) {
+        widgetsValues.splice(guardWidgetIndex, 1);
+    }
+    const named = { ...(info.widgets_values_named ?? {}) };
+    delete named.content_guard_enabled;
+    return {
+        ...info,
+        inputs,
+        widgets_values: widgetsValues,
+        widgets_values_named: named,
     };
-    app._cmkContentGuardPromptRouting = true;
 }
 
 app.registerExtension({
@@ -1012,7 +968,6 @@ app.registerExtension({
 
     setup() {
         installDomBehavior();
-        installContentGuardPromptRouting();
     },
 
     beforeRegisterNodeDef(nodeType, nodeData) {
@@ -1020,8 +975,11 @@ app.registerExtension({
 
         for (const hook of ["onNodeCreated", "onConfigure", "onAdded"]) {
             const original = nodeType.prototype[hook];
-            nodeType.prototype[hook] = function () {
-                const result = original?.apply(this, arguments);
+            nodeType.prototype[hook] = function (info) {
+                const args = hook === "onConfigure"
+                    ? [withoutLegacyReleaseGuardValue(this, info)]
+                    : arguments;
+                const result = original?.apply(this, args);
                 schedule(this);
                 return result;
             };

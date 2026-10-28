@@ -675,7 +675,7 @@ class CMKPipeCreateImage:
 
     @classmethod
     def INPUT_TYPES(cls):
-        return {
+        schema = {
             "required": {},
             "optional": {
                 # Keep the complete legacy widget order while making hidden
@@ -911,18 +911,14 @@ class CMKPipeCreateImage:
                         ),
                     },
                 ),
-                # Appended after every existing widget to preserve positional
-                # values in workflows saved before the Baseline control.  It is
-                # optional at the API boundary so the frontend can omit it from
-                # module 01's execution prompt and keep the generation branch's
-                # native ComfyUI cache identity stable.
+                # Baseline-only operator control. Public RELEASE packages omit
+                # this input from the backend schema entirely.
                 "content_guard_enabled": (
                     "BOOLEAN",
                     {
                         "default": True,
                         "advanced": True,
                         "label": "CONTENT GUARD",
-                        "cmk_baseline_visible": content_guard_control_visible(),
                         "tooltip": (
                             "Baseline only. Enables ContentGuard checks in InstantID, "
                             "FaceRebuild and FaceSwap image/video processing. Public "
@@ -961,6 +957,9 @@ class CMKPipeCreateImage:
             },
             "hidden": {"unique_id": "UNIQUE_ID"},
         }
+        if not content_guard_control_visible():
+            schema["optional"].pop("content_guard_enabled", None)
+        return schema
 
     RETURN_TYPES = (
         "CMK_PROCESS_SDXL",

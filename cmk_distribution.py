@@ -13,7 +13,6 @@ DISTRIBUTION_MODE = RELEASE
 
 CONTENT_GUARD_PROCESS_KEY = "content_guard_enabled"
 CONTENT_GUARD_WIDGET = "content_guard_enabled"
-CONTENT_GUARD_EXECUTION_KEY = "_cmk_content_guard_enabled"
 
 
 def distribution_mode() -> str:
@@ -29,7 +28,6 @@ def content_guard_control_visible() -> bool:
 
 def effective_content_guard_enabled(
     process: Mapping[str, Any] | None = None,
-    execution_value: Any = None,
 ) -> bool:
     """Resolve the authoritative guard state at an execution boundary.
 
@@ -38,8 +36,6 @@ def effective_content_guard_enabled(
     """
     if distribution_mode() == RELEASE:
         return True
-    if execution_value is not None:
-        return bool(execution_value)
     if not isinstance(process, Mapping):
         return True
     return bool(process.get(CONTENT_GUARD_PROCESS_KEY, True))
@@ -47,9 +43,8 @@ def effective_content_guard_enabled(
 
 def content_guard_state_token(
     process: Mapping[str, Any] | None = None,
-    execution_value: Any = None,
 ) -> str:
-    enabled = effective_content_guard_enabled(process, execution_value)
+    enabled = effective_content_guard_enabled(process)
     return f"{distribution_mode().lower()}:{'on' if enabled else 'off'}"
 
 
@@ -90,14 +85,6 @@ def content_guard_prompt_state(prompt: Any, root_node_id: Any = None) -> bool:
         else prompt.values()
     )
     nodes = list(nodes)
-    for node in nodes:
-        if not isinstance(node, Mapping):
-            continue
-        inputs = node.get("inputs")
-        if isinstance(inputs, Mapping) and CONTENT_GUARD_EXECUTION_KEY in inputs:
-            return effective_content_guard_enabled(
-                execution_value=inputs.get(CONTENT_GUARD_EXECUTION_KEY),
-            )
     for node in nodes:
         if not isinstance(node, Mapping):
             continue

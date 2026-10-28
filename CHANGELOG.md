@@ -1,3 +1,18 @@
+# CMK Flow 2.6.2 — 2026-10-28
+
+Paketversion: **CMK 2.6.2**.
+
+- Korrigiert ausschließlich den ContentGuard-UI-Vertrag auf Basis von 2.6.1.
+- Entfernt nicht autorisierte ContentGuard-Eingänge aus InstantID Sampler,
+  InstantID Regional Advanced, FaceRebuild Standard/Advanced und FaceSwap Image.
+- Entfernt die Frontend-Router, die diese funktionalen Eingänge zur Laufzeit
+  injiziert haben.
+- Blendet auch die drei autorisierten Baseline-Schalter im RELEASE-Schema
+  vollständig aus und erzwingt ContentGuard weiterhin serverseitig.
+- Bereinigt gespeicherte Guard-Widgetwerte aus den mitgelieferten Workflows und
+  erhält die Ladeverträglichkeit älterer 2.6.1-Workflows.
+- Härtet den Release-Artefakt-Validator gegen RELEASE-Modus- und Markerfehler.
+
 # CMK Flow 2.6.1 — 2026-10-23
 
 Paketversion: **CMK 2.6.1**.

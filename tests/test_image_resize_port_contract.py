@@ -13,7 +13,7 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 COMFY_ROOT = PACKAGE_ROOT.parents[1]
 TEST_PACKAGE = "_cmk_image_resize_port_contract"
 WORKFLOW = PACKAGE_ROOT / "workflows" / "showcase" / "CMK 2.6 · Full Flow .json"
-WORKFLOW_SHA256 = "73a16e3ad78a845fcb13ddf9df08e438a1808aca893e4226c9ea0fd9f723e95f"
+WORKFLOW_SHA256 = "2d3600b3d688a6f8a7051f6868c49f35675be540e4eb43ba5f4564837227df91"
 
 EXPECTED_LINKS = {
     22541: (8455, 0, 8456, 0, "CMK_MODEL_PIPE", "MODEL", "MODEL (opt)"),
@@ -61,9 +61,10 @@ class ImageResizePortContractTests(unittest.TestCase):
             / "static"
             / "assets"
         )
-        source_map = next(assets.glob("settingStore-*.js.map"))
-        data = json.loads(source_map.read_text(encoding="utf-8"))
-        sources = dict(zip(data["sources"], data["sourcesContent"]))
+        sources = {}
+        for source_map in assets.glob("*.js.map"):
+            data = json.loads(source_map.read_text(encoding="utf-8"))
+            sources.update(zip(data.get("sources", ()), data.get("sourcesContent", ())))
         service = sources["../../src/services/litegraphService.ts"]
         migration = sources["../../src/schemas/nodeDef/migration.ts"]
         ordering = sources["../../src/workbench/utils/nodeDefOrderingUtil.ts"]

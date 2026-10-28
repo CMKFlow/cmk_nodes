@@ -18,7 +18,6 @@ from ...utils.cmk_timing import cmk_timed
 from ...utils.cmk_sampling_warnings import ignore_torchsde_boundary_rounding
 from ...cmk_common import SAMPLERS, SCHEDULERS
 from ...cmk_distribution import (
-    CONTENT_GUARD_EXECUTION_KEY,
     content_guard_state_token,
     effective_content_guard_enabled,
 )
@@ -566,7 +565,6 @@ class CMKInstantIDRegionalAdvancedSDXLPipe:
             "optional": {
                 "VISUAL": ("CMK_VISUAL_PIPE",),
                 "LOG_B": ("CMK_LOG_PIPE", {"lazy": True}),
-                CONTENT_GUARD_EXECUTION_KEY: ("BOOLEAN", {"default": True, "advanced": True}),
             },
             "hidden": {"dynprompt": "DYNPROMPT", "unique_id": "UNIQUE_ID"},
         }
@@ -588,7 +586,7 @@ class CMKInstantIDRegionalAdvancedSDXLPipe:
     def IS_CHANGED(cls, PROCESS=None, **kwargs):
         return (
             f"{INSTANTID_GUARD_VERSION}:{REGIONAL_ADVANCED_VERSION}:"
-            f"{content_guard_state_token(PROCESS, kwargs.get(CONTENT_GUARD_EXECUTION_KEY))}"
+            f"{content_guard_state_token(PROCESS)}"
         )
 
     def check_lazy_status(
@@ -657,16 +655,13 @@ class CMKInstantIDRegionalAdvancedSDXLPipe:
         source_face_b=None,
         VISUAL=None,
         LOG_B=None,
-        _cmk_content_guard_enabled=None,
         dynprompt=None,
         unique_id=None,
     ):
         _reset_instantid_boundary_cache(dynprompt)
         model_pipe = _require_dict(MODEL, "MODEL")
         process = _require_dict(PROCESS, "PROCESS")
-        content_guard_enabled = effective_content_guard_enabled(
-            process, _cmk_content_guard_enabled,
-        )
+        content_guard_enabled = effective_content_guard_enabled(process)
         sampled_in = _require_dict(SAMPLED, "SAMPLED")
         visual = empty_visual() if VISUAL is None else VISUAL
         if not bool(process.get("instantid_enabled", False)):

@@ -25,13 +25,12 @@
       "requiredMarkers": {
         "cmk_distribution.py": [
           "DISTRIBUTION_MODE =",
-          "CONTENT_GUARD_EXECUTION_KEY",
           "if distribution_mode() == RELEASE:",
           "return True"
         ],
         "pipe/cmk_pipe_image.py": [
           "content_guard_enabled",
-          "cmk_baseline_visible"
+          "schema[\"optional\"].pop(\"content_guard_enabled\", None)"
         ],
         "nodes/video/face_swap_video.py": [
           "content_guard_prompt_token",
@@ -48,15 +47,32 @@
           "content_guard_state_token"
         ],
         "web/js/cmk_flow_start_guidance_v51.js": [
-          "routeContentGuardAtExecution",
-          "contentGuardConsumerIsActive",
-          "delete startNode.inputs[CONTENT_GUARD_WIDGET]",
-          "node.inputs[CONTENT_GUARD_EXECUTION_INPUT] = requested"
+          "withoutLegacyReleaseGuardValue"
+        ]
+      },
+      "forbiddenMarkers": {
+        "cmk_distribution.py": [
+          "CONTENT_GUARD_EXECUTION_KEY"
+        ],
+        "pipe/instantid/cmk_instantid_sampler.py": [
+          "_cmk_content_guard_enabled"
+        ],
+        "pipe/instantid/cmk_instantid_regional_advanced.py": [
+          "_cmk_content_guard_enabled"
+        ],
+        "nodes/instantid_face_rebuild_advanced.py": [
+          "_cmk_content_guard_enabled"
+        ],
+        "nodes/swap/face_swap.py": [
+          "_cmk_content_guard_enabled"
+        ],
+        "web/js/cmk_flow_start_guidance_v51.js": [
+          "_cmk_content_guard_enabled",
+          "routeContentGuardAtExecution"
         ],
         "web/js/cmk_swap_image_loader_pair_v1.js": [
-          "routeContentGuardAtExecution",
-          "CONTENT_GUARD_EXECUTION_INPUT",
-          "node.inputs[CONTENT_GUARD_EXECUTION_INPUT] = requested"
+          "_cmk_content_guard_enabled",
+          "routeContentGuardAtExecution"
         ]
       }
     },
