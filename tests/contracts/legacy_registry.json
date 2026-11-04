@@ -1,0 +1,176 @@
+{
+  "description": "Historical definition states that are allowed to differ from the canonical subgraphs. Entries are matched by workflow, definition name and normalised topology signature (tests/validator/graph_model.py). Never auto-migrated.",
+  "entries": [
+    {
+      "workflow": "Identity Processing Matrix.json",
+      "definition": "10 1st Pass",
+      "signatures": [
+        "d57f320a7f4e8cd43e2d00c4497cf7bfbb98347d03fabe308fba64b7c6d79daa"
+      ],
+      "release": "2.6",
+      "reason": "Legacy 2.6 Identity Processing Matrix: definitions predate the VISUAL/PROCESS gate ports and the canonical module names (see tests/test_stop_after_handoff_output_roots.py)."
+    },
+    {
+      "workflow": "Identity Processing Matrix.json",
+      "definition": "15 InstantID",
+      "signatures": [
+        "ccc5727ff6cf961ec5ea4bc56408e829431df50016487dbdfd1f9fe67c203a8d"
+      ],
+      "release": "2.6",
+      "reason": "Legacy 2.6 Identity Processing Matrix: definitions predate the VISUAL/PROCESS gate ports and the canonical module names (see tests/test_stop_after_handoff_output_roots.py)."
+    },
+    {
+      "workflow": "Identity Processing Matrix.json",
+      "definition": "20 Refiner",
+      "signatures": [
+        "5b49989d2472d62ccd24b7a2f4ecc58c23bc5587501ffcc52af3a092bf215f04"
+      ],
+      "release": "2.6",
+      "reason": "Legacy 2.6 Identity Processing Matrix: definitions predate the VISUAL/PROCESS gate ports and the canonical module names (see tests/test_stop_after_handoff_output_roots.py)."
+    },
+    {
+      "workflow": "Identity Processing Matrix.json",
+      "definition": "CMK Flow · FaceRebuild SDXL",
+      "signatures": [
+        "907a635736e300b939cc7facfabb768d85bc0117374e3097a6f96415f3722a8d"
+      ],
+      "release": "2.6",
+      "reason": "Legacy 2.6 Identity Processing Matrix: definitions predate the VISUAL/PROCESS gate ports and the canonical module names (see tests/test_stop_after_handoff_output_roots.py)."
+    },
+    {
+      "workflow": "Identity Processing Matrix.json",
+      "definition": "CMK Flow · FaceSwap",
+      "signatures": [
+        "1a6a3cdba4d1b1ce550a851b0e1589844df07c2396bbe277751ecccde79b33bd"
+      ],
+      "release": "2.6",
+      "reason": "Legacy 2.6 Identity Processing Matrix: definitions predate the VISUAL/PROCESS gate ports and the canonical module names (see tests/test_stop_after_handoff_output_roots.py)."
+    },
+    {
+      "workflow": "CMK 2.6 · Full Flow .json",
+      "definition": "CMK Flow · Upscale & Save",
+      "signatures": [
+        "05163a1f16b57b15d01ffc1ba694befd57bddf80707875528ccde0c9554be3f0"
+      ],
+      "release": "2.6",
+      "reason": "Pre-H-4 Upscale & Save (K-3 Option A): CMK_SaveProjectImage in front of the boundary, IMAGE OUT is the upscaled image. Frozen; behaviour pinned by tests/test_s1_upscale_save_legacy_reference.py."
+    },
+    {
+      "workflow": "CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT.json",
+      "definition": "CMK Flow · FaceRebuild SDXL",
+      "signatures": [
+        "550bf436155c9187741715e8cca92bfd9fc206a6665935715678f978d48b8b2c"
+      ],
+      "release": "2.6",
+      "reason": "Pre-H-3/F-03 module definition (E1 = a): gate VISUAL ACTIVE taken from the compute node, boundary without VISUAL publication. Frozen; runs with the shared boundary/gate classes, whose new VISUAL ports stay unconnected."
+    },
+    {
+      "workflow": "CMK 2.6 · Flow · Text2Image-FaceRebuild HYBRID.json",
+      "definition": "CMK Flow · FaceRebuild SDXL",
+      "signatures": [
+        "550bf436155c9187741715e8cca92bfd9fc206a6665935715678f978d48b8b2c"
+      ],
+      "release": "2.6",
+      "reason": "Pre-H-3/F-03 module definition (E1 = a): gate VISUAL ACTIVE taken from the compute node, boundary without VISUAL publication. Frozen; runs with the shared boundary/gate classes, whose new VISUAL ports stay unconnected."
+    },
+    {
+      "workflow": "CMK 2.6 · Flow · Text2Image-FaceRebuild Z-Image Turbo.json",
+      "definition": "CMK Flow · FaceRebuild SDXL",
+      "signatures": [
+        "550bf436155c9187741715e8cca92bfd9fc206a6665935715678f978d48b8b2c"
+      ],
+      "release": "2.6",
+      "reason": "Pre-H-3/F-03 module definition (E1 = a): gate VISUAL ACTIVE taken from the compute node, boundary without VISUAL publication. Frozen; runs with the shared boundary/gate classes, whose new VISUAL ports stay unconnected."
+    },
+    {
+      "workflow": "CMK 2.6 · Full Flow .json",
+      "definition": "CMK Flow · FaceRebuild SDXL",
+      "signatures": [
+        "550bf436155c9187741715e8cca92bfd9fc206a6665935715678f978d48b8b2c"
+      ],
+      "release": "2.6",
+      "reason": "Pre-H-3/F-03 module definition (E1 = a): gate VISUAL ACTIVE taken from the compute node, boundary without VISUAL publication. Frozen; runs with the shared boundary/gate classes, whose new VISUAL ports stay unconnected."
+    },
+    {
+      "workflow": "CMK 2.6 · Full Flow .json",
+      "definition": "CMK Flow · FaceSwap",
+      "signatures": [
+        "ff55697ffbb033d0259e4c1586227f9eaf75b95eb807492a75106eae7adf141d"
+      ],
+      "release": "2.6",
+      "reason": "Pre-H-3/F-03 module definition (E1 = a): gate VISUAL ACTIVE taken from the compute node, boundary without VISUAL publication. Frozen; runs with the shared boundary/gate classes, whose new VISUAL ports stay unconnected."
+    },
+    {
+      "workflow": "CMK 2.6 · Full Flow .json",
+      "definition": "CMK Flow · FaceProcess SDXL",
+      "signatures": [
+        "e2a75c8edab466238bfbaab801eb17c0c9ad5608292e505475fb510350162db6"
+      ],
+      "release": "2.6",
+      "reason": "Pre-H-3/F-03 module definition (E1 = a): gate VISUAL ACTIVE taken from the compute node, boundary without VISUAL publication. Frozen; runs with the shared boundary/gate classes, whose new VISUAL ports stay unconnected."
+    },
+    {
+      "workflow": "CMK 2.6 · Full Flow .json",
+      "definition": "CMK Flow · FaceProcess SDXL · Advanced",
+      "signatures": [
+        "75f417a4ac6f1b4794593d5b0e0ae23399d70fb3685a199beacf31380fbae639"
+      ],
+      "release": "2.6",
+      "reason": "Pre-H-3/F-03 module definition (E1 = a): gate VISUAL ACTIVE taken from the compute node, boundary without VISUAL publication. Frozen; runs with the shared boundary/gate classes, whose new VISUAL ports stay unconnected."
+    },
+    {
+      "workflow": "CMK 2.6 · Full Flow .json",
+      "definition": "CMK Flow · Detailer SDXL",
+      "signatures": [
+        "c737ff7db85488e6702367b3847369175f31b90d309eeb68e91f65a7f48119d3"
+      ],
+      "release": "2.6",
+      "reason": "Pre-H-3/F-03 module definition (E1 = a): gate VISUAL ACTIVE taken from the compute node, boundary without VISUAL publication. Frozen; runs with the shared boundary/gate classes, whose new VISUAL ports stay unconnected."
+    },
+    {
+      "workflow": "CMK 2.6 · Full Flow .json",
+      "definition": "CMK Flow · Detailer SDXL · Advanced",
+      "signatures": [
+        "7fbb0063c68b97abea1c1e994b19a0c64143e2976cfb1b6c69bf34f3d64d63f8"
+      ],
+      "release": "2.6",
+      "reason": "Pre-H-3/F-03 module definition (E1 = a): gate VISUAL ACTIVE taken from the compute node, boundary without VISUAL publication. Frozen; runs with the shared boundary/gate classes, whose new VISUAL ports stay unconnected."
+    },
+    {
+      "workflow": "CMK 2.6 · InOutPaint.json",
+      "definition": "CMK Flow · FaceProcess SDXL",
+      "signatures": [
+        "e2a75c8edab466238bfbaab801eb17c0c9ad5608292e505475fb510350162db6"
+      ],
+      "release": "2.6",
+      "reason": "Pre-H-3/F-03 module definition (E1 = a): gate VISUAL ACTIVE taken from the compute node, boundary without VISUAL publication. Frozen; runs with the shared boundary/gate classes, whose new VISUAL ports stay unconnected."
+    },
+    {
+      "workflow": "CMK 2.6 · Text2Image Identity 1.json",
+      "definition": "CMK Flow · FaceRebuild SDXL",
+      "signatures": [
+        "550bf436155c9187741715e8cca92bfd9fc206a6665935715678f978d48b8b2c"
+      ],
+      "release": "2.6",
+      "reason": "Pre-H-3/F-03 module definition (E1 = a): gate VISUAL ACTIVE taken from the compute node, boundary without VISUAL publication. Frozen; runs with the shared boundary/gate classes, whose new VISUAL ports stay unconnected."
+    },
+    {
+      "workflow": "CMK 2.6 · Text2Image Identity 1.json",
+      "definition": "CMK Flow · FaceSwap",
+      "signatures": [
+        "ff55697ffbb033d0259e4c1586227f9eaf75b95eb807492a75106eae7adf141d"
+      ],
+      "release": "2.6",
+      "reason": "Pre-H-3/F-03 module definition (E1 = a): gate VISUAL ACTIVE taken from the compute node, boundary without VISUAL publication. Frozen; runs with the shared boundary/gate classes, whose new VISUAL ports stay unconnected."
+    },
+    {
+      "workflow": "CMK 2.6 · Text2Image.json",
+      "definition": "CMK Flow · Detailer SDXL · Advanced",
+      "signatures": [
+        "7fbb0063c68b97abea1c1e994b19a0c64143e2976cfb1b6c69bf34f3d64d63f8"
+      ],
+      "release": "2.6",
+      "reason": "Pre-H-3/F-03 module definition (E1 = a): gate VISUAL ACTIVE taken from the compute node, boundary without VISUAL publication. Frozen; runs with the shared boundary/gate classes, whose new VISUAL ports stay unconnected."
+    }
+  ]
+}

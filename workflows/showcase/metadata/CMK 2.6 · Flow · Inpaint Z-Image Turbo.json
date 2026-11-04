@@ -1,0 +1,15 @@
+{
+  "published": false,
+  "displayName": "CMK 2.6 · Flow · Inpaint Z-Image Turbo",
+  "kind": "task",
+  "order": 213,
+  "category": "TASK WORKFLOWS",
+  "category_en": "TASK WORKFLOWS",
+  "description": "Zeigt experimentelles maskiertes Inpainting mit Z-Image Turbo – von der Vorbereitung bis zum ZIT-Sampling.",
+  "description_en": "Shows experimental masked inpainting with Z-Image Turbo—from preparation through ZIT sampling.",
+  "cmkHighlight": "",
+  "cmkHighlight_en": "",
+  "info": "Z-Image-Turbo-Inpainting befindet sich weiterhin in Entwicklung.",
+  "info_en": "Z-Image Turbo inpainting is still under development.",
+  "previews": []
+}

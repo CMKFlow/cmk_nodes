@@ -1,0 +1,187 @@
+{
+  "1": {
+    "inputs": {
+      "image": "cmk_s1_input.png",
+      "RESOLUTION": "SDXL 1152x832",
+      "SWAP DIMENSIONS": false,
+      "RESIZE METHOD": "lanczos",
+      "CROP": true,
+      "CROP POSITION": "center"
+    },
+    "class_type": "CMKImageLoadAndResizePipe",
+    "_meta": {
+      "title": "CMK Load Image"
+    }
+  },
+  "8418": {
+    "inputs": {
+      "SAVE ENABLED": false,
+      "filename prefix": "image",
+      "output folder": "",
+      "use date folder": true,
+      "enable upscale": false,
+      "limit 4x MP": 1.5,
+      "limit 2x MP": 8,
+      "model 4x": "RealESRGAN_x4plus.pth",
+      "model 2x": "RealESRGAN-x2plus.pth",
+      "MODEL (opt)": [
+        "1",
+        0
+      ],
+      "PROCESS": [
+        "1",
+        1
+      ],
+      "IMAGE": [
+        "8417:8373",
+        1
+      ],
+      "LOG": [
+        "8417:8373",
+        2
+      ],
+      "VISUAL": [
+        "8417:8373",
+        4
+      ]
+    },
+    "class_type": "CMKVisualizer",
+    "_meta": {
+      "title": "CMK Flow · Visualizer"
+    }
+  },
+  "8417:8370": {
+    "inputs": {
+      "enable": true,
+      "limit_4x_mp": 0.5,
+      "limit_2x_mp": 1.5,
+      "model_4x": "RealESRGAN_x4plus.pth",
+      "model_2x": "RealESRGAN-x2plus.pth",
+      "IMAGE": [
+        "1",
+        2
+      ],
+      "LOG": [
+        "1",
+        3
+      ],
+      "save_enabled": true
+    },
+    "class_type": "CMK_SmartUpscalerPipe",
+    "_meta": {
+      "title": "CMK Smart Upscaler -Pipe-"
+    }
+  },
+  "8417:8372": {
+    "inputs": {
+      "IMAGE": [
+        "8417:8370",
+        0
+      ],
+      "LOG": [
+        "8417:8370",
+        1
+      ],
+      "diagnostic": [
+        "8417:8370",
+        3
+      ]
+    },
+    "class_type": "CMKUpscaleSaveBoundaryCache",
+    "_meta": {
+      "title": "CMK Boundary Cache"
+    }
+  },
+  "8417:8373": {
+    "inputs": {
+      "ENABLE": true,
+      "IMAGE BYPASS": [
+        "1",
+        2
+      ],
+      "LOG BYPASS": [
+        "1",
+        3
+      ],
+      "IMAGE ACTIVE": [
+        "1",
+        2
+      ],
+      "LOG ACTIVE": [
+        "1",
+        3
+      ],
+      "DIAGNOSTIC ACTIVE": [
+        "8417:8372",
+        3
+      ],
+      "VISUAL ACTIVE": [
+        "8417:8420",
+        0
+      ]
+    },
+    "class_type": "CMKModuleBypassGate",
+    "_meta": {
+      "title": "CMK Module Bypass Gate"
+    }
+  },
+  "8417:8374": {
+    "inputs": {
+      "VISUAL": [
+        "8417:8373",
+        4
+      ],
+      "enable": true
+    },
+    "class_type": "CMKVisualCompare",
+    "_meta": {
+      "title": "CMK Preview & Compare"
+    }
+  },
+  "8417:8419": {
+    "inputs": {
+      "SAVE ENABLED": true,
+      "FILENAME PREFIX": "image",
+      "OUTPUT FOLDER": "",
+      "USE DATE FOLDER": true,
+      "PROCESS": [
+        "1",
+        1
+      ],
+      "IMAGE": [
+        "8417:8372",
+        1
+      ],
+      "LOG": [
+        "8417:8372",
+        2
+      ]
+    },
+    "class_type": "CMKSaveEndpoint",
+    "_meta": {
+      "title": "CMK Save Endpoint"
+    }
+  },
+  "8417:8420": {
+    "inputs": {
+      "label": "Upscale & Save",
+      "sequence": 90,
+      "live_node_type": "",
+      "branch": "result",
+      "stage_key": "result.upscale_save",
+      "IMAGE": [
+        "8417:8372",
+        1
+      ],
+      "BEFORE": [
+        "1",
+        2
+      ],
+      "enable": true
+    },
+    "class_type": "CMKVisualProvider",
+    "_meta": {
+      "title": "CMK Visual Provider -Pipe-"
+    }
+  }
+}

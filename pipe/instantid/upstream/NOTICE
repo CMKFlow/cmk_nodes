@@ -1,0 +1,9 @@
+CMK Nodes includes code derived from ComfyUI_InstantID:
+https://github.com/cubiq/ComfyUI_InstantID
+
+Copyright 2024 Matteo "cubiq"
+Licensed under the Apache License, Version 2.0.
+
+CMK changes: the upstream runtime is vendored as an internal implementation,
+loaded lazily, and consumed by the CMK pipe sampler rather than exposed as a
+second public InstantID node suite.

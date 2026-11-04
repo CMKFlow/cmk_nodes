@@ -1,0 +1,1969 @@
+import { app } from "../../../scripts/app.js";
+import { api } from "../../../scripts/api.js";
+
+const EXTENSION_NAME = "CMK.FlowBrowser";
+const COMMAND_ID = "cmk.openFlowBrowser";
+const EXTENSION_ROOT_URL = new URL("../", import.meta.url);
+const EXTENSION_DIRECTORY = decodeURIComponent(
+  EXTENSION_ROOT_URL.pathname.replace(/\/$/, "").split("/").pop() || "",
+);
+const NODE_PACK = `custom_nodes.${EXTENSION_DIRECTORY}`;
+const ALLOWED_STATUS = new Set(["STABLE", "BETA", "EXPERIMENTAL"]);
+const PREVIEW_CACHE_VERSION = "20261018-cmk265-previews-r7";
+const MEMORY_DISPLAY_KEY = "cmk-flow-memory-display";
+const MEMORY_POLL_MS = 2000;
+
+let browserDataPromise;
+let memoryIndicator = null;
+let memoryPollTimer = null;
+let memoryGeometryObserver = null;
+let selectedId = null;
+let currentCategory = "Alle";
+let searchText = "";
+let activeTab = "flow";
+let referenceSelectedId = null;
+let referenceSearchText = "";
+let referenceExpandedCategory = null;
+let referenceGroupsInitialized = false;
+let language = localStorage.getItem("cmk-flow-language") || (navigator.language?.toLowerCase().startsWith("de") ? "de" : "en");
+
+function extensionAssetUrl(path, cacheVersion = "") {
+  const encodedPath = String(path).split("/").map(encodeURIComponent).join("/");
+  const url = new URL(encodedPath, EXTENSION_ROOT_URL);
+  if (cacheVersion) url.searchParams.set("v", cacheVersion);
+  return url.href;
+}
+
+const UI_TEXT = {
+  de: { all:"Alle", searchFlows:"Flows durchsuchen …", subtitleFlow:"Flow auswählen und in den aktuellen Workflow einfügen.", noFlows:"Keine passenden Flows gefunden.", selectFlow:"Flow auswählen, um Details zu sehen.", features:"Was dieser Baustein macht", placement:"Empfohlene Platzierung", category:"Kategorie", compatibility:"Kompatibilität", version:"Version", author:"Erstellt von", interfaces:"Ein- und Ausgänge", inputs:"Eingänge", outputs:"Ausgänge", related:"Passende Bausteine davor und danach", before:"Davor", after:"Danach", preview:"So sieht der Baustein aus", insert:"In Workflow einfügen", recommended:"Empfohlen", none:"Keine", previewMissing:"Noch keine reale Vorschau hinterlegt.", canStart:"Kann am Anfang stehen", canFinish:"Kann den Ablauf abschließen", loading:"Flows werden geladen …", loadError:"Browser-Inhalte konnten nicht geladen werden.", videoStorage:"Video-Speicher", videoStorageIntro:"Hier verwaltest du die dauerhaft gespeicherten Arbeitsdateien deiner CMK-Videoprojekte. Du kannst Projekte im Flow öffnen, ihre Speicherordner anzeigen oder nicht mehr benötigte Projektdateien gezielt löschen. Die Segmente bleiben erhalten, damit du später ohne erneute Segmentierung weiterarbeiten kannst.", segments:"Segmente", mergedVideos:"Zusammengeführte Videos", files:"Dateien", technicalLocations:"Technische Speicherorte", deleteAllVideoFiles:"Video-Arbeitsdateien löschen", videoProjects:"Videoprojekte", noVideoProjects:"Keine Video-Arbeitsdateien vorhanden.", mergedWorkingVideos:"zusammengeführte Videos", total:"Gesamt", lastUsed:"Zuletzt verwendet", openInFlow:"▶ Im Flow öffnen", openFolder:"📂 Speicherordner öffnen", deleteProjectFiles:"🗑 Projektdateien löschen", openingFlow:"Video-Workflow wird geöffnet …", folderOpened:"Speicherordner wurde geöffnet.", openFailed:"Öffnen fehlgeschlagen", deleteProjectTitle:"Video-Arbeitsdateien dieses Projekts löschen?", deleteProjectText:(name)=>`Alle gespeicherten Segmente und zusammengeführten Arbeitsvideos für „${name}“ werden gelöscht. Dieser Vorgang kann nicht rückgängig gemacht werden.`, cancel:"Abbrechen", deleteProject:"Projekt löschen", deleteAllTitle:"Alle Video-Arbeitsdateien löschen?", deleteAllText:"Alle gespeicherten Videosegmente und zusammengeführten Arbeitsvideos sämtlicher Projekte werden gelöscht. Laufende Videoprozesse müssen zuvor beendet sein. Dieser Vorgang kann nicht rückgängig gemacht werden.", deleteAll:"Alle Projekte löschen", deleting:"Dateien werden gelöscht …", projectDeleted:(size)=>`Projektdateien gelöscht. ${size} freigegeben.`, allDeleted:"Alle Video-Arbeitsdateien wurden gelöscht.", partialDelete:"Ein Teil der Dateien konnte nicht gelöscht werden.", deleteFailed:"Löschen fehlgeschlagen", storageUnavailable:"Speicherstatus nicht verfügbar" },
+  en: { all:"All", searchFlows:"Search flows …", subtitleFlow:"Select a flow and add it to the current workflow.", noFlows:"No matching flows found.", selectFlow:"Select a flow to view its details.", features:"What this module does", placement:"Recommended placement", category:"Category", compatibility:"Compatibility", version:"Version", author:"Created by", interfaces:"Inputs and outputs", inputs:"Inputs", outputs:"Outputs", related:"Suitable modules before and after", before:"Before", after:"After", preview:"Module preview", insert:"Add to workflow", recommended:"Recommended", none:"None", previewMissing:"No real preview available yet.", canStart:"Can be placed at the beginning", canFinish:"Can complete the workflow", loading:"Loading flows …", loadError:"Browser content could not be loaded.", videoStorage:"Video storage", videoStorageIntro:"Manage the permanently stored working files of your CMK video projects here. You can open projects in Flow, reveal their storage folders, or selectively remove project files you no longer need. Segments remain available so you can continue later without segmenting the video again.", segments:"Segments", mergedVideos:"Merged videos", files:"files", technicalLocations:"Technical storage locations", deleteAllVideoFiles:"Delete video working files", videoProjects:"Video projects", noVideoProjects:"No video working files found.", mergedWorkingVideos:"merged videos", total:"Total", lastUsed:"Last used", openInFlow:"▶ Open in Flow", openFolder:"📂 Open storage folder", deleteProjectFiles:"🗑 Delete project files", openingFlow:"Opening video workflow …", folderOpened:"Storage folder opened.", openFailed:"Open failed", deleteProjectTitle:"Delete this project’s video working files?", deleteProjectText:(name)=>`All stored segments and merged working videos for ‘${name}’ will be deleted. This action cannot be undone.`, cancel:"Cancel", deleteProject:"Delete project", deleteAllTitle:"Delete all video working files?", deleteAllText:"All saved video segments and merged working videos for every project will be deleted. Running video processes must be stopped first. This action cannot be undone.", deleteAll:"Delete all projects", deleting:"Deleting files …", projectDeleted:(size)=>`Project files deleted. ${size} freed.`, allDeleted:"All video working files were deleted.", partialDelete:"Some files could not be deleted.", deleteFailed:"Delete failed", storageUnavailable:"Storage status unavailable" }
+};
+const t = (key) => UI_TEXT[language]?.[key] || UI_TEXT.de[key] || key;
+
+function addStyles() {
+  if (document.getElementById("cmk-flow-browser-styles")) return;
+
+  const style = document.createElement("style");
+  style.id = "cmk-flow-browser-styles";
+  style.textContent = `
+    .cmk-flow-overlay { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: 24px; background: rgba(0,0,0,.62); backdrop-filter: blur(3px); }
+    [data-cmk-flow-launcher="true"] { min-width: 118px; min-height: 36px; padding-inline: 16px !important; border: 1px solid #43d5d7 !important; background: #1f7779 !important; color: #fff !important; font-size: 14px !important; font-weight: 700 !important; letter-spacing: .015em; }
+    [data-cmk-flow-launcher="true"]:hover { border-color: #71edef !important; background: #278e90 !important; }
+    [data-cmk-flow-launcher="true"]:focus-visible { outline: 2px solid #71edef !important; outline-offset: 2px; }
+    [data-cmk-memory-indicator] { display: inline-flex; min-width: 88px; min-height: 34px; align-items: center; justify-content: center; padding: 0 10px; border: 1px solid #3b474f; border-radius: 8px; background: #151d22; color: #c4ced2; font: 650 12px/1 system-ui, sans-serif; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    [data-cmk-memory-indicator][data-memory-reserve="low"] { border-color: #8a6932; color: #ffd27d; }
+    [data-cmk-memory-indicator][data-memory-reserve="critical"] { border-color: #9d4b4b; background: #2b1d1f; color: #ffaaaa; }
+    [data-cmk-memory-indicator][hidden] { display: none !important; }
+    .cmk-flow-browser { width: min(1180px, 96vw); height: min(760px, 92vh); display: grid; grid-template-rows: auto auto 1fr; overflow: hidden; border: 1px solid #354049; border-radius: 16px; background: radial-gradient(circle at 78% 15%, #13272b 0, #11171c 32%, #101419 72%); color: #eef3f4; box-shadow: 0 28px 90px rgba(0,0,0,.62); font: 14px/1.5 system-ui, sans-serif; }
+    .cmk-flow-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid #293239; background: rgba(11,16,21,.68); }
+    .cmk-flow-heading { display: grid; gap: 2px; }
+    .cmk-flow-header h2 { margin: 0; font-size: 25px; font-weight: 700; letter-spacing: -.02em; }
+    .cmk-flow-subtitle { color: #9eaab1; font-size: 13px; }
+    .cmk-flow-header-actions { display: flex; align-items: center; gap: 12px; }
+    .cmk-about-open, .cmk-storage-open, .cmk-translation-open, .cmk-cache-open, .cmk-statistics-open { min-height: 34px; padding: 0 13px; border: 1px solid #3b474f; border-radius: 8px; background: #182127; color: #c4ced2; font: inherit; font-size: 12px; cursor: pointer; }
+    .cmk-about-open:hover, .cmk-storage-open:hover, .cmk-translation-open:hover, .cmk-cache-open:hover, .cmk-statistics-open:hover { border-color: #52636b; color: #eef3f4; }
+    .cmk-language-switch { display: flex; overflow: hidden; border: 1px solid #3b474f; border-radius: 8px; }
+    .cmk-language-button { min-width: 38px; min-height: 32px; border: 0; background: #151d22; color: #7f8d94; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+    .cmk-language-button.is-active { background: #24343a; color: #62d9d6; }
+    .cmk-flow-close { border: 0; background: transparent; color: #aeb5bb; font-size: 25px; cursor: pointer; }
+    .cmk-about-overlay { position: fixed; inset: 0; z-index: 10001; display: grid; place-items: center; padding: 24px; background: rgba(0,0,0,.68); }
+    .cmk-about-dialog { width: min(680px, 92vw); max-height: 86vh; overflow: auto; border: 1px solid #354049; border-radius: 14px; background: #12191e; color: #d4dde0; box-shadow: 0 24px 80px rgba(0,0,0,.68); }
+    .cmk-about-header { display: flex; align-items: center; justify-content: space-between; padding: 17px 20px; border-bottom: 1px solid #2d373e; }
+    .cmk-about-title { display: flex; align-items: center; gap: 11px; }
+    .cmk-about-logo { width: 36px; height: 36px; border: 1px solid #30434d; border-radius: 8px; object-fit: cover; box-shadow: 0 0 14px rgba(38,173,210,.12); }
+    .cmk-about-header h3 { margin: 0; color: #eef3f4; font-size: 21px; }
+    .cmk-about-body { padding: 20px; color: #bcc7cb; line-height: 1.65; }
+    .cmk-about-body p { margin: 0 0 15px; }
+    .cmk-about-body p:last-child { margin-bottom: 0; }
+    .cmk-about-body strong { color: #eef3f4; }
+    .cmk-about-responsibility, .cmk-about-acknowledgements { margin-top: 22px; padding: 18px; border: 1px solid #304147; border-radius: 10px; background: #141f24; }
+    .cmk-about-responsibility h4, .cmk-about-acknowledgements h4 { margin: 0 0 10px; color: #62d9d6; font-size: 14px; }
+    .cmk-about-acknowledgements a { color: #7cdfe0; }
+    .cmk-about-support { margin-top: 22px; padding-top: 20px; border-top: 1px solid #303a41; }
+    .cmk-about-donation { margin-top: 18px; padding-top: 17px; border-top: 1px solid #273138; text-align: center; }
+    .cmk-about-donation p { margin-bottom: 11px; color: #8f9ca1; font-size: 12px; line-height: 1.5; }
+    .cmk-about-donation-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .cmk-about-donation-link { display: inline-flex; align-items: center; justify-content: center; padding: 7px 12px; border: 1px solid #3a4951; border-radius: 7px; background: #182126; color: #b8c4c8; font-size: 12px; font-weight: 600; text-decoration: none; transition: border-color .15s ease, background .15s ease, color .15s ease; }
+    .cmk-about-donation-link:hover { border-color: #55717a; background: #1c292f; color: #e0e7e9; }
+    .cmk-about-donation-link:focus-visible { outline: 2px solid #62d9d6; outline-offset: 2px; }
+    .cmk-about-legal { margin-top: 20px; padding-top: 16px; border-top: 1px solid #303a41; color: #88969c; font-size: 12px; line-height: 1.5; }
+    .cmk-about-legal p { margin-bottom: 3px; }
+    .cmk-storage-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0 20px; }
+    .cmk-storage-card { padding: 14px; border: 1px solid #303a42; border-radius: 9px; background: #171f24; }
+    .cmk-storage-card strong { display: block; margin-bottom: 4px; color: #dce5e7; }
+    .cmk-storage-card span { color: #8f9ba1; font-size: 12px; }
+    .cmk-storage-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-top: 16px; border-top: 1px solid #303a41; }
+    .cmk-storage-paths { margin: -7px 0 18px; color: #738087; font-size: 11px; line-height: 1.55; }
+    .cmk-storage-paths code { color: #87959b; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .cmk-storage-projects { display: grid; gap: 9px; margin: 0 0 20px; }
+    .cmk-storage-projects h4 { margin: 0 0 2px; color: #62d9d6; font-size: 14px; }
+    .cmk-storage-project { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 13px 14px; border: 1px solid #303a42; border-radius: 9px; background: #171f24; }
+    .cmk-storage-project-name { display: block; overflow: hidden; color: #dce5e7; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+    .cmk-storage-project-meta { display: grid; gap: 2px; margin-top: 5px; color: #8f9ba1; font-size: 11px; }
+    .cmk-storage-project-actions { display: grid; min-width: 180px; gap: 6px; }
+    .cmk-storage-project-action { min-height: 31px; padding: 0 10px; border: 1px solid #3a484f; border-radius: 7px; background: #182127; color: #bdc8cc; font: inherit; font-size: 11px; text-align: left; cursor: pointer; }
+    .cmk-storage-project-action:hover { border-color: #52636b; color: #eef3f4; }
+    .cmk-storage-project-delete { border-color: #594044; background: #292023; color: #d9afb4; }
+    .cmk-storage-project-delete:hover { border-color: #86545a; color: #ffd0d4; }
+    .cmk-storage-empty { padding: 13px 14px; border: 1px solid #303a42; border-radius: 9px; color: #839097; font-size: 12px; }
+    .cmk-storage-clear { min-height: 38px; padding: 0 15px; border: 1px solid #7d4444; border-radius: 8px; background: #3a2424; color: #ffc4c4; font: inherit; font-weight: 650; cursor: pointer; }
+    .cmk-storage-clear:hover { border-color: #aa5a5a; background: #4a2929; }
+    .cmk-storage-clear:disabled { cursor: wait; opacity: .55; }
+    .cmk-storage-status { color: #8f9ba1; font-size: 12px; }
+    .cmk-translation-steps { display: grid; gap: 7px; margin: 0 0 20px; padding: 0; list-style: none; counter-reset: cmk-step; }
+    .cmk-translation-steps li { counter-increment: cmk-step; }
+    .cmk-translation-steps li::before { content: counter(cmk-step) ". "; color: #62d9d6; font-weight: 700; }
+    .cmk-translation-steps a { color: #7cdfe0; }
+    .cmk-translation-panel { display: grid; gap: 12px; padding: 16px; border: 1px solid #304147; border-radius: 10px; background: #141f24; }
+    .cmk-translation-row { display: grid; grid-template-columns: 110px 1fr; gap: 12px; align-items: center; }
+    .cmk-translation-row label, .cmk-translation-label { color: #89979d; font-size: 11px; font-weight: 700; letter-spacing: .05em; }
+    .cmk-translation-key { min-height: 38px; padding: 0 11px; border: 1px solid #3b474f; border-radius: 7px; background: #1b2228; color: #eef3f4; }
+    .cmk-translation-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .cmk-translation-action { min-height: 36px; padding: 0 13px; border: 1px solid #3b5960; border-radius: 7px; background: #193036; color: #d8eeee; font: inherit; cursor: pointer; }
+    .cmk-translation-action:hover { border-color: #55c9c8; }
+    .cmk-cache-clear { border-color: #69464a; background: #2b2022; color: #edbec2; }
+    .cmk-cache-clear:hover { border-color: #9a5a61; }
+    .cmk-cache-clear:disabled { cursor: wait; opacity: .55; }
+    .cmk-translation-remove { border-color: #69464a; background: #2b2022; color: #edbec2; }
+    .cmk-translation-message { min-height: 20px; color: #9cacb2; font-size: 12px; }
+    .cmk-translation-message.is-error { color: #ffb4b4; }
+    .cmk-translation-connected { color: #65ddd8; font-weight: 700; }
+    .cmk-statistics-dialog { width: min(820px, 94vw); max-height: min(86vh, 820px); display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; }
+    .cmk-statistics-heading { display: flex; min-width: 0; align-items: baseline; gap: 10px; }
+    .cmk-statistics-version { color: #7f8e94; font-size: 11px; font-weight: 600; white-space: nowrap; }
+    .cmk-statistics-body { min-height: 0; display: grid; gap: 12px; overflow-y: auto; }
+    .cmk-statistics-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .cmk-statistics-kpi { min-width: 0; padding: 12px 14px; border: 1px solid #304147; border-radius: 9px; background: #141f24; }
+    .cmk-statistics-kpi span { display: block; overflow-wrap: anywhere; color: #89979d; font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+    .cmk-statistics-kpi strong { display: block; margin-top: 4px; color: #eef3f4; font-size: 22px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+    .cmk-statistics-middle { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 12px; align-items: stretch; }
+    .cmk-statistics-side { min-width: 0; display: grid; gap: 12px; align-content: start; }
+    .cmk-statistics-section { min-width: 0; padding: 14px; border: 1px solid #304147; border-radius: 10px; background: #141f24; }
+    .cmk-statistics-section h4 { margin: 0 0 8px; color: #62d9d6; font-size: 13px; }
+    .cmk-statistics-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(70px, auto); gap: 12px; align-items: baseline; padding: 5px 0; border-bottom: 1px solid rgba(68,82,89,.42); }
+    .cmk-statistics-row:last-child { border-bottom: 0; }
+    .cmk-statistics-row span { min-width: 0; overflow-wrap: anywhere; color: #91a0a6; font-size: 12px; }
+    .cmk-statistics-row strong { min-width: 0; overflow-wrap: anywhere; color: #e2e9eb; font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; }
+    .cmk-statistics-subtitle { margin: 10px 0 4px; color: #b9c6ca; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+    .cmk-statistics-cache { padding-bottom: 10px; }
+    .cmk-statistics-table-wrap { max-width: 100%; overflow-x: auto; }
+    .cmk-statistics-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; }
+    .cmk-statistics-table th, .cmk-statistics-table td { padding: 7px 9px; border-bottom: 1px solid rgba(68,82,89,.42); overflow-wrap: anywhere; }
+    .cmk-statistics-table thead th { color: #89979d; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; }
+    .cmk-statistics-table thead th:first-child { width: 40%; text-align: left; }
+    .cmk-statistics-table tbody th { color: #b8c5c9; font-weight: 500; text-align: left; }
+    .cmk-statistics-table td, .cmk-statistics-table thead th:not(:first-child) { color: #e2e9eb; font-variant-numeric: tabular-nums; text-align: right; }
+    .cmk-statistics-table tbody tr:last-child th, .cmk-statistics-table tbody tr:last-child td { border-bottom: 0; color: #eef3f4; font-weight: 700; }
+    .cmk-statistics-loading { padding: 28px; color: #8e9ba1; text-align: center; }
+    @media (max-width: 680px) {
+      .cmk-statistics-dialog { width: min(94vw, 560px); }
+      .cmk-statistics-middle { grid-template-columns: 1fr; }
+      .cmk-statistics-table { min-width: 520px; }
+    }
+    @media (max-width: 460px) {
+      .cmk-statistics-kpis { grid-template-columns: 1fr; }
+      .cmk-statistics-heading { align-items: flex-start; flex-direction: column; gap: 1px; }
+      .cmk-statistics-kpi { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+      .cmk-statistics-kpi strong { margin-top: 0; font-size: 18px; }
+    }
+    .cmk-confirm-dialog { width: min(470px, 90vw); }
+    .cmk-confirm-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; }
+    .cmk-confirm-cancel, .cmk-confirm-delete { min-height: 36px; padding: 0 14px; border-radius: 8px; font: inherit; font-weight: 650; cursor: pointer; }
+    .cmk-confirm-cancel { border: 1px solid #3b474f; background: #182127; color: #c4ced2; }
+    .cmk-confirm-delete { border: 1px solid #8a4848; background: #492727; color: #ffd0d0; }
+    .cmk-browser-tabs { display: flex; gap: 4px; padding: 8px 18px 0; border-bottom: 1px solid #293239; background: rgba(11,16,21,.68); }
+    .cmk-browser-tab { min-width: 112px; padding: 9px 14px 10px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #8e9ba2; font: inherit; font-weight: 650; cursor: pointer; }
+    .cmk-browser-tab:hover { color: #d5dfe2; }
+    .cmk-browser-tab.is-active { border-bottom-color: #42cbc8; color: #eef3f4; }
+    .cmk-flow-content { min-height: 0; display: grid; grid-template-columns: 390px 1fr; }
+    .cmk-flow-sidebar { min-height: 0; display: grid; grid-template-rows: auto 1fr; border-right: 1px solid #2e383f; background: rgba(14,19,24,.78); }
+    .cmk-flow-controls { display: grid; grid-template-columns: minmax(180px, 1fr) 118px; gap: 10px; padding: 18px 18px 12px; }
+    .cmk-flow-controls input, .cmk-flow-controls select { min-height: 42px; border: 1px solid #3b474f; border-radius: 9px; padding: 0 12px; background: #1b2228; color: inherit; font: inherit; }
+    .cmk-flow-controls input:focus, .cmk-flow-controls select:focus { border-color: #40ccca; outline: 1px solid #40ccca; }
+    .cmk-flow-list { min-height: 0; overflow: auto; padding: 4px 12px 16px; }
+    .cmk-flow-item { width: 100%; display: grid; grid-template-columns: 48px 1fr; gap: 12px; align-items: center; margin: 0 0 7px; padding: 11px 12px; border: 1px solid #29333a; border-radius: 10px; background: #171e24; color: inherit; text-align: left; cursor: pointer; }
+    .cmk-flow-item:hover { border-color: #435159; background: #1c252b; }
+    .cmk-flow-item.is-selected { border-color: #39cecb; background: linear-gradient(100deg, #153638, #17484a); box-shadow: inset 3px 0 #44d6d3; }
+    .cmk-flow-item-index { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid #365259; border-radius: 9px; background: #1c2d33; color: #56d9d6; }
+    .cmk-flow-item-index svg { width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .cmk-flow-item-name { display: block; font-size: 14px; font-weight: 650; }
+    .cmk-flow-item-category { display: block; margin-top: 2px; color: #8e9ba2; font-size: 12px; }
+    .cmk-reference-group { width: 100%; margin: 7px 0 11px; overflow: hidden; border: 1px solid #334149; border-radius: 12px; background: #11181d; }
+    .cmk-reference-group.is-expanded { border-color: #3c6f73; box-shadow: 0 5px 18px rgba(0,0,0,.2); }
+    .cmk-reference-group-header { width: 100%; min-height: 58px; display: grid; grid-template-columns: minmax(0,1fr) auto auto; gap: 10px; align-items: center; padding: 12px 14px; border: 0; background: linear-gradient(100deg, #1c2930, #182127); color: #e8f3f4; text-align: left; cursor: pointer; }
+    .cmk-reference-group-header:hover { background: linear-gradient(100deg, #22333a, #1c292f); }
+    .cmk-reference-group.is-expanded .cmk-reference-group-header { background: linear-gradient(100deg, #18383a, #1b2d32); color: #f3ffff; }
+    .cmk-reference-group-title { min-width: 0; font-size: 14px; font-weight: 800; line-height: 1.2; letter-spacing: .045em; text-transform: uppercase; }
+    .cmk-reference-group-count { min-width: 27px; padding: 3px 8px; border: 1px solid #46565e; border-radius: 99px; background: #121a1f; color: #b7c5ca; font-size: 11px; font-weight: 750; text-align: center; }
+    .cmk-reference-group-chevron { color: #63d8d5; font-size: 17px; line-height: 1; transform: rotate(-90deg); transition: transform .15s ease; }
+    .cmk-reference-group.is-expanded .cmk-reference-group-chevron { transform: rotate(0); }
+    .cmk-reference-group-items { padding: 11px 10px 5px 22px; border-top: 1px solid #304047; background: #10161b; }
+    .cmk-reference-group-items .cmk-flow-item { margin-bottom: 7px; background: #171f24; }
+    .cmk-reference-item { grid-template-columns: 1fr; padding: 12px 14px; }
+    .cmk-flow-detail { min-width: 0; overflow: auto; padding: 30px 36px 26px; }
+    .cmk-flow-detail-header h3 { margin: 12px 0 2px; font-size: 28px; line-height: 1.2; letter-spacing: -.02em; }
+    .cmk-flow-domain { color: #42cbc8; font-size: 14px; font-weight: 650; }
+    .cmk-flow-description { max-width: 70ch; margin: 13px 0 24px; color: #b8c2c7; }
+    .cmk-flow-badge { display: inline-block; padding: 3px 8px; border-radius: 99px; background: #273238; color: #bceff0; font-size: 11px; font-weight: 700; letter-spacing: .06em; }
+    .cmk-flow-badge[data-status="BETA"] { background: #3b3122; color: #ffd58a; }
+    .cmk-flow-badge[data-status="EXPERIMENTAL"] { background: #3d2938; color: #ffb9e5; }
+    .cmk-flow-variants { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 18px; }
+    .cmk-flow-variant { padding: 7px 11px; border: 1px solid #34444a; border-radius: 8px; background: #182127; color: #aebbc0; font: inherit; font-size: 12px; cursor: pointer; }
+    .cmk-flow-variant:hover { border-color: #4e6b70; color: #e3eeee; }
+    .cmk-flow-variant.is-selected { border-color: #42cbc8; background: #18383a; color: #64ddd9; }
+    .cmk-flow-section-title { margin: 0 0 9px; color: #52d3cf; font-size: 13px; font-weight: 700; }
+    .cmk-flow-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+    .cmk-flow-card { min-width: 0; padding: 15px 16px; border: 1px solid #303a42; border-radius: 11px; background: rgba(25,32,38,.8); }
+    .cmk-flow-card ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; color: #c4ccd0; }
+    .cmk-flow-card li { display: grid; grid-template-columns: 14px 1fr; gap: 7px; }
+    .cmk-flow-card li::before { content: ""; width: 7px; height: 7px; margin-top: 7px; border: 2px solid #43c8c5; border-radius: 50%; }
+    .cmk-flow-feature-title { display: block; color: #d5dcdf; font-weight: 650; }
+    .cmk-flow-feature-description { display: block; margin-top: 2px; color: #8f9aa0; font-size: 12px; line-height: 1.4; }
+    .cmk-flow-feature-callout { display: grid; grid-template-columns: 42px 1fr; gap: 12px; margin-top: 14px; padding-top: 14px; border-top: 1px solid #344047; }
+    .cmk-flow-feature-callout::before { content: "✓"; display: grid; width: 32px; height: 32px; place-items: center; border: 2px solid #43c8c5; border-radius: 50%; color: #43c8c5; font-size: 19px; font-weight: 700; }
+    .cmk-flow-feature-callout-title { color: #52d3cf; font-size: 13px; font-weight: 700; }
+    .cmk-flow-feature-callout-text { margin-top: 2px; color: #9aa5aa; font-size: 12px; line-height: 1.4; }
+    .cmk-flow-card .is-optional { color: #8d989f; }
+    .cmk-flow-meta { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0 0 18px; }
+    .cmk-flow-meta-item { padding: 10px 11px; border-left: 2px solid #34444a; background: rgba(19,26,31,.65); }
+    .cmk-flow-meta-label { display: block; color: #7f8d94; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
+    .cmk-flow-meta-value { display: block; margin-top: 3px; color: #d2d9dc; font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; white-space: normal; }
+    .cmk-flow-interface { margin-bottom: 20px; }
+    .cmk-flow-sequence { margin-bottom: 20px; padding: 14px 16px; border: 1px solid #304047; border-radius: 10px; background: rgba(20,31,36,.82); }
+    .cmk-flow-sequence-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .cmk-flow-sequence-label { display: block; margin-bottom: 4px; color: #7f8d94; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
+    .cmk-flow-sequence-value { color: #c6d1d5; font-size: 12px; }
+    .cmk-flow-sequence-links { display: flex; flex-wrap: wrap; gap: 6px; }
+    .cmk-flow-sequence-link { padding: 4px 8px; border: 1px solid #385057; border-radius: 6px; background: #18272c; color: #65d8d5; font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+    .cmk-flow-sequence-link:hover { border-color: #46c9c6; background: #1b3438; color: #91efec; }
+    .cmk-flow-sequence-text { color: #9eabb0; }
+    .cmk-flow-dependency-note { margin: 11px 0 0; padding-top: 10px; border-top: 1px solid #2d3a40; color: #9fb0b6; font-size: 12px; }
+    .cmk-flow-sockets { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .cmk-flow-socket-group { min-width: 0; padding: 12px 14px; border: 1px solid #2c373e; border-radius: 9px; background: #141b20; }
+    .cmk-flow-socket-label { display: block; margin-bottom: 5px; color: #7f8c93; font-size: 10px; text-transform: uppercase; letter-spacing: .07em; }
+    .cmk-flow-socket-values { color: #bac5ca; font-size: 12px; overflow-wrap: anywhere; }
+    .cmk-flow-preview { margin-bottom: 20px; }
+    .cmk-flow-preview-stage { min-height: 190px; display: grid; place-items: center; padding: 22px; overflow: hidden; border: 1px solid #2d3940; border-radius: 11px; background-color: #10161a; background-image: radial-gradient(#29353b 1px, transparent 1px); background-size: 16px 16px; }
+    .cmk-flow-preview-gallery { width: 100%; display: grid; gap: 12px; justify-items: center; }
+    .cmk-flow-preview-image { display: block; max-width: 100%; max-height: 390px; border: 1px solid #465159; border-radius: 9px; object-fit: contain; box-shadow: 0 12px 34px rgba(0,0,0,.42); }
+    .cmk-flow-preview-tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; }
+    .cmk-flow-preview-tabs.is-grouped { width: 100%; display: grid; gap: 8px; }
+    .cmk-flow-preview-tab-group { width: 100%; display: grid; grid-template-columns: minmax(100px, auto) minmax(0, 1fr); gap: 10px; align-items: center; }
+    .cmk-flow-preview-tab-group-label { color: #52d3cf; font-size: 12px; font-weight: 750; }
+    .cmk-flow-preview-tab-group-buttons { display: flex; flex-wrap: wrap; gap: 7px; }
+    .cmk-flow-preview-tab-standalone { display: flex; flex-wrap: wrap; gap: 7px; padding-left: 110px; }
+    .cmk-flow-preview-tab { min-height: 30px; padding: 0 12px; border: 1px solid #3b484f; border-radius: 7px; background: #1a2328; color: #aebbc0; font: inherit; font-size: 12px; cursor: pointer; }
+    .cmk-flow-preview-tab:hover { border-color: #52636b; color: #e2e9eb; }
+    .cmk-flow-preview-tab.is-active { border-color: #42cbc8; background: #153638; color: #62e0dc; }
+    .cmk-flow-preview-missing { color: #75838a; font-size: 12px; }
+    .cmk-flow-actions { display: flex; justify-content: flex-end; padding-top: 2px; }
+    .cmk-flow-detail.cmk-flow-detail--compact { padding: 24px 28px 22px; }
+    .cmk-flow-compact-top { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; align-items: start; margin-bottom: 18px; }
+    .cmk-flow-compact-top.has-variants { grid-template-columns: minmax(260px, 1fr) minmax(300px, 1.2fr); }
+    .cmk-flow-detail--compact .cmk-flow-detail-header h3 { margin-top: 9px; font-size: 30px; }
+    .cmk-flow-detail--compact .cmk-flow-description { max-width: 74ch; margin: 9px 0 0; line-height: 1.45; }
+    .cmk-flow-variant-panel { min-width: 0; padding-top: 3px; }
+    .cmk-flow-variant-label { display: block; color: #52d3cf; font-size: 13px; font-weight: 700; }
+    .cmk-flow-detail--compact .cmk-flow-variants { margin: 8px 0 0; }
+    .cmk-flow-detail--compact .cmk-flow-variant { min-width: 112px; min-height: 40px; padding: 8px 14px; font-size: 13px; }
+    .cmk-flow-compact-features { margin-bottom: 18px; }
+    .cmk-flow-compact-features ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; color: #c4ccd0; }
+    .cmk-flow-compact-features li { display: grid; grid-template-columns: 24px 1fr; gap: 9px; align-items: start; line-height: 1.45; }
+    .cmk-flow-compact-features li::before { content: "✓"; display: grid; width: 19px; height: 19px; place-items: center; margin-top: 1px; border-radius: 50%; background: #39d4d0; color: #071112; font-size: 13px; font-weight: 900; }
+    .cmk-flow-compact-info { display: flex; gap: 8px; margin: 12px 0 0; color: #aebbc0; font-size: 12px; line-height: 1.4; }
+    .cmk-flow-compact-info[hidden] { display: none; }
+    .cmk-flow-compact-info strong { color: #52d3cf; }
+    .cmk-flow-detail--compact .cmk-flow-preview { margin-bottom: 14px; }
+    .cmk-flow-detail--compact .cmk-flow-preview-stage { min-height: 280px; padding: 18px; }
+    .cmk-flow-detail--compact .cmk-flow-preview-image { max-height: min(52vh, 560px); }
+    .cmk-flow-detail--compact .cmk-flow-actions { padding-top: 0; }
+    .cmk-reference-detail { max-width: 760px; }
+    .cmk-reference-detail h3 { margin: 5px 0 2px; font-size: 25px; line-height: 1.2; }
+    .cmk-reference-category { color: #8e9ba2; font-size: 12px; }
+    .cmk-flow-insert { min-width: 230px; min-height: 44px; padding: 0 20px; border: 0; border-radius: 9px; background: #35cfca; color: #071112; font: inherit; font-weight: 750; cursor: pointer; }
+    .cmk-flow-insert:hover { background: #38d4d6; }
+    .cmk-flow-empty, .cmk-flow-error { padding: 22px 14px; color: #9da5ab; }
+    .cmk-flow-error { color: #ffb4b4; }
+    @media (max-width: 850px) { .cmk-flow-browser { height: 94vh; } .cmk-flow-content { grid-template-columns: 1fr; grid-template-rows: minmax(250px, 42%) 1fr; } .cmk-flow-sidebar { border-right: 0; border-bottom: 1px solid #30353a; } .cmk-flow-detail-grid, .cmk-flow-sockets, .cmk-flow-compact-top, .cmk-flow-compact-top.has-variants { grid-template-columns: 1fr; } .cmk-flow-variant-panel { min-width: 0; } .cmk-flow-meta { grid-template-columns: 1fr 1fr; } .cmk-storage-project { grid-template-columns: 1fr; } .cmk-storage-project-actions { min-width: 0; } }
+  `;
+  document.head.append(style);
+}
+
+async function fetchJson(path) {
+  const response = await api.fetchApi(path, { cache: "no-store" });
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+  return response.json();
+}
+
+async function fetchNodeMetadata() {
+  try {
+    const response = await fetch(extensionAssetUrl("flow_node_metadata.json"), { cache: "no-store" });
+    if (!response.ok) return {};
+    return (await response.json()).nodes || {};
+  } catch {
+    return {};
+  }
+}
+
+async function fetchEnglishContent() {
+  try {
+    const response = await fetch(extensionAssetUrl("browser_content_en.json"), { cache: "no-store" });
+    return response.ok ? await response.json() : { flows: {} };
+  } catch {
+    return { flows: {} };
+  }
+}
+
+async function fetchReferenceRegistry() {
+  try {
+    return await fetchJson("/cmk/showcase-workflows");
+  } catch {
+    return { workflows: [] };
+  }
+}
+
+function normalizePreviews(metadata = {}) {
+  const rawPreviews = Array.isArray(metadata.previews)
+    ? metadata.previews
+    : metadata.preview
+      ? [{ src: metadata.preview, label: "Vorschau" }]
+      : [];
+
+  return rawPreviews
+    .map((preview, index) => typeof preview === "string" ? { src: preview } : preview)
+    .filter((preview) => preview?.src)
+    .map((preview, index) => ({
+      src: extensionAssetUrl(preview.src, PREVIEW_CACHE_VERSION),
+      group: preview.group || "",
+      label: language === "en"
+        ? ({
+            Modul: "Module",
+            Aufbau: "Structure",
+            "Aufbau · Detail": "Structure · Detail",
+            "Aufbau · Restore": "Structure · Restore",
+            Vorschau: "Preview",
+            Standard: "Standard",
+            Advanced: "Advanced",
+            Wirkung: "Effect",
+          }[preview.label]
+          || preview.label
+          || `View ${index + 1}`)
+        : (preview.label || `Ansicht ${index + 1}`),
+    }));
+}
+
+function isCableInput(spec) {
+  const type = spec?.[0];
+  if (Array.isArray(type)) return false;
+  if (spec?.[1]?.forceInput) return true;
+  return !new Set(["BOOLEAN", "COMBO", "FLOAT", "IMAGEUPLOAD", "INT", "STRING"]).has(String(type || ""));
+}
+
+function catalogOrder(metadata, fallback) {
+  const order = Number(metadata?.order);
+  return Number.isFinite(order) ? order : fallback;
+}
+
+function discoverCuratedNodes(nodeRegistry, nodeMetadata, englishContent) {
+  const packagedControlNetImplementations = new Set([
+    "CMKControlNetPreparePipe",
+    "CMKZITControlNetPreparePipe",
+    "CMKCombinedControlNetPreparePipe",
+  ]);
+  return Object.entries(nodeRegistry)
+    .filter(([nodeType, nodeDef]) => (
+      (
+        String(nodeDef?.category || "").startsWith("CMK/Flow/")
+        || nodeType === "CMKVisualizer"
+        || nodeMetadata[nodeType]?.flowPublished === true
+      )
+      && !packagedControlNetImplementations.has(nodeType)
+    ))
+    .map(([nodeType, nodeDef]) => {
+      const metadata = { ...(nodeMetadata[nodeType] || {}), ...(language === "en" ? englishContent.flows?.[nodeType] : {}) };
+      const displayName = nodeDef.display_name || nodeDef.name || nodeType;
+      const category = metadata.category || nodeDef.category.split("/").at(-1);
+      // Catalog order is explicit metadata. Visible labels are presentation
+      // only and may change without changing a node's identity or position.
+      const loaderOrder = {
+        CMKImageLoadAndResizePipe: 101,
+        CMKLoadImage: 102,
+        CMKCheckpointVAELoaderPipe: 103,
+      }[nodeType];
+      const categoryOrder = loaderOrder ?? ({ Input: 100, Process: 70, Finish: 95 }[category] ?? 80);
+      const catalogGroup = metadata.catalogGroup
+        || (Number.isFinite(Number(metadata.order)) && Number(metadata.order) <= 20 ? "generation" : "utility");
+      const required = Object.entries(nodeDef.input?.required || {}).filter(([, spec]) => isCableInput(spec)).map(([name]) => name);
+      const optional = Object.entries(nodeDef.input?.optional || {}).filter(([, spec]) => isCableInput(spec)).map(([name]) => name);
+      const inputDetails = [
+        ...Object.entries(nodeDef.input?.required || {}),
+        ...Object.entries(nodeDef.input?.optional || {}),
+      ].map(([name, spec]) => ({ name, type: Array.isArray(spec?.[0]) ? "Auswahl" : String(spec?.[0] || "") }));
+
+      return {
+        entryId: `node:${nodeType}`,
+        identity: nodeType,
+        variantGroup: nodeType,
+        kind: "node",
+        nodeType,
+        marker: "NODE",
+        name: displayName,
+        displayName: metadata.displayName || displayName.replace(/^CMK Flow\s*·\s*/, ""),
+        category,
+        domain: metadata.domain || "Flow Node",
+        description: metadata.description || nodeDef.description || "Ein direkt einsetzbarer Baustein für CMK Flow.",
+        status: String(metadata.status || "STABLE").toUpperCase(),
+        version: metadata.version || "1.0.0",
+        author: metadata.author || "CMK Nodes",
+        compatibility: Array.isArray(metadata.compatibility) ? metadata.compatibility : [],
+        features: Array.isArray(metadata.features) ? metadata.features : ["Direkt als einzelne Node einsetzbar"],
+        info: language === "en" ? (metadata.info_en || "") : (metadata.info || ""),
+        inputs: [...required, ...optional.map((name) => `${name} (optional)`) ],
+        inputDetails,
+        outputs: (nodeDef.output_name || nodeDef.output || []).map(String),
+        catalogGroup,
+        order: catalogOrder(metadata, categoryOrder),
+        browserOrder: Number.isFinite(Number(metadata.browserOrder)) ? Number(metadata.browserOrder) : 999,
+        searchAliases: [nodeType, category, "node"],
+        icon: metadata.icon || "",
+        recommendedBefore: Array.isArray(metadata.recommendedPredecessors)
+          ? metadata.recommendedPredecessors
+          : (Array.isArray(metadata.recommendedBefore) ? metadata.recommendedBefore : []),
+        recommendedAfter: Array.isArray(metadata.recommendedSuccessors)
+          ? metadata.recommendedSuccessors
+          : (Array.isArray(metadata.recommendedAfter) ? metadata.recommendedAfter : []),
+        hideRecommendations: Boolean(metadata.hideRecommendations),
+        dependencyNote: metadata.dependencyNote || "",
+        placementNote: metadata.placementNote || "Kann an der passenden Stelle in einen CMK Flow eingefügt werden.",
+        previews: normalizePreviews(metadata),
+        previewAlt: metadata.previewAlt || `${displayName} Vorschau`,
+        variantOf: metadata.variantOf || "",
+        variantLabel: metadata.variantLabel || "",
+        variantOrder: Number.isFinite(Number(metadata.variantOrder)) ? Number(metadata.variantOrder) : 999,
+        nodeProperties: metadata.nodeProperties && typeof metadata.nodeProperties === "object"
+          ? metadata.nodeProperties
+          : {},
+      };
+    });
+}
+
+async function discoverFlows() {
+  const [registry, nodeRegistry, nodeMetadata, englishContent, referenceRegistry] = await Promise.all([
+    fetchJson("/global_subgraphs"),
+    fetchJson("/object_info"),
+    fetchNodeMetadata(),
+    fetchEnglishContent(),
+    fetchReferenceRegistry(),
+  ]);
+  const cmkEntries = Object.entries(registry).filter(([, entry]) => entry?.info?.node_pack === NODE_PACK);
+
+  const candidates = await Promise.all(cmkEntries.map(async ([entryId, entry]) => {
+    const fullEntry = await fetchJson(`/global_subgraphs/${encodeURIComponent(entryId)}`);
+    const data = typeof fullEntry.data === "string" ? JSON.parse(fullEntry.data) : fullEntry.data;
+    const definitions = data?.definitions?.subgraphs || [];
+    const rootType = data?.nodes?.[0]?.type;
+    const definition = definitions.find((item) => item.id === rootType) || definitions[0];
+    const blueprintId = definition?.id || rootType || entryId;
+    const baseMetadata = data?.extra?.CMKFlow;
+    const localizedMetadata = language === "en"
+      ? (englishContent.flows?.[blueprintId] || englishContent.flows?.[entry.name])
+      : null;
+    const metadata = { ...baseMetadata, ...localizedMetadata };
+    if (!metadata?.published) return null;
+
+    const status = String(metadata.status || "").toUpperCase();
+    const numericOrder = Number(metadata.order);
+    const catalogGroup = metadata.catalogGroup
+      || (Number.isFinite(numericOrder) && numericOrder <= 20 ? "generation" : "utility");
+    if (!metadata.description || !metadata.category || !ALLOWED_STATUS.has(status)) {
+      console.warn(`[${EXTENSION_NAME}] Ignoriere unvollständige Flow-Metadaten:`, entry.name);
+      return null;
+    }
+
+    return {
+      entryId,
+      identity: blueprintId,
+      variantGroup: metadata.variantOf || blueprintId,
+      kind: "subgraph",
+      marker: catalogGroup === "generation" ? String(metadata.order).padStart(2, "0") : "FLOW",
+      blueprintId,
+      blueprintItems: {
+        nodes: data?.nodes || [],
+        subgraphs: data?.definitions?.subgraphs || [],
+      },
+      name: entry.name,
+      displayName: metadata.displayName || entry.name.replace(/^CMK Flow\s*·\s*/, ""),
+      category: metadata.category,
+      domain: metadata.domain || metadata.category,
+      description: metadata.description,
+      status,
+      version: metadata.version || "—",
+      author: metadata.author || "CMK Nodes",
+      compatibility: Array.isArray(metadata.compatibility) ? metadata.compatibility : [],
+      features: Array.isArray(metadata.features) ? metadata.features : [],
+      info: language === "en" ? (localizedMetadata?.info || "") : (baseMetadata.info || ""),
+      featureCallout: metadata.featureCallout || null,
+      inputs: (data?.nodes?.[0]?.inputs || []).map((input) => input.name),
+      inputDetails: (data?.nodes?.[0]?.inputs || []).map((input) => ({ name: input.name, type: String(input.type || "") })),
+      outputs: (data?.nodes?.[0]?.outputs || []).map((output) => output.name),
+      catalogGroup,
+      order: Number.isFinite(numericOrder) ? numericOrder : 999,
+      browserOrder: Number.isFinite(Number(metadata.browserOrder)) ? Number(metadata.browserOrder) : 999,
+      searchAliases: Array.isArray(metadata.searchAliases) ? metadata.searchAliases : [],
+      icon: metadata.icon || "",
+      recommendedBefore: Array.isArray(metadata.recommendedPredecessors)
+        ? metadata.recommendedPredecessors
+        : (Array.isArray(metadata.recommendedBefore) ? metadata.recommendedBefore : []),
+      recommendedAfter: Array.isArray(metadata.recommendedSuccessors)
+        ? metadata.recommendedSuccessors
+        : (Array.isArray(metadata.recommendedAfter) ? metadata.recommendedAfter : []),
+      dependencyNote: metadata.dependencyNote || "",
+      placementNote: metadata.placementNote || "Kann an der passenden Stelle in einen CMK Flow eingefügt werden.",
+      previews: normalizePreviews(metadata),
+      previewAlt: metadata.previewAlt || `${entry.name} Vorschau`,
+      variantOf: metadata.variantOf || "",
+      variantLabel: metadata.variantLabel || "",
+      variantOrder: Number.isFinite(Number(metadata.variantOrder)) ? Number(metadata.variantOrder) : 999,
+    };
+  }));
+
+  const discovered = candidates.filter(Boolean);
+  const allFlows = [...discovered, ...discoverCuratedNodes(nodeRegistry, nodeMetadata, englishContent)];
+  const variants = allFlows.filter((flow) => flow.variantOf);
+  const primary = allFlows.filter((flow) => !flow.variantOf);
+  for (const flow of primary) {
+    flow.variants = [flow, ...variants.filter((variant) => (
+      variant.kind === "subgraph"
+        ? variant.variantGroup === flow.identity
+        : variant.variantOf === flow.identity
+    ))].sort((a, b) => a.variantOrder - b.variantOrder || String(a.identity).localeCompare(String(b.identity)));
+  }
+
+  const catalogGroupOrder = { generation: 0, postprocess: 1, terminal: 2, utility: 3 };
+  return {
+    flows: primary.sort((a, b) => (
+      a.browserOrder - b.browserOrder
+      || (catalogGroupOrder[a.catalogGroup] ?? 9) - (catalogGroupOrder[b.catalogGroup] ?? 9)
+      || a.order - b.order
+      || String(a.identity).localeCompare(String(b.identity))
+    )),
+    references: Array.isArray(referenceRegistry.workflows) ? referenceRegistry.workflows : [],
+  };
+}
+
+function loadBrowserData() {
+  browserDataPromise ??= discoverFlows().catch((error) => {
+    browserDataPromise = undefined;
+    throw error;
+  });
+  return browserDataPromise;
+}
+
+function focusLoadedWorkflow() {
+  const canvas = app.canvas;
+  const graph = canvas?.graph || app.graph;
+  const nodes = Array.isArray(graph?._nodes) ? graph._nodes : [];
+  const surface = canvas?.canvas;
+  const ds = canvas?.ds;
+  if (!nodes.length || !surface || !ds) return;
+
+  const bounds = nodes.reduce((result, node) => {
+    const x = Number(node?.pos?.[0]) || 0;
+    const y = Number(node?.pos?.[1]) || 0;
+    const width = Math.max(Number(node?.size?.[0]) || 0, 40);
+    const height = Math.max(Number(node?.size?.[1]) || 0, 30);
+    result.minX = Math.min(result.minX, x);
+    result.minY = Math.min(result.minY, y);
+    result.maxX = Math.max(result.maxX, x + width);
+    result.maxY = Math.max(result.maxY, y + height);
+    return result;
+  }, { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+
+  const viewport = surface.getBoundingClientRect?.();
+  const viewportWidth = viewport?.width || surface.clientWidth || surface.width;
+  const viewportHeight = viewport?.height || surface.clientHeight || surface.height;
+  const edgeInset = (side) => {
+    if (!viewport || typeof document.elementsFromPoint !== "function") return 0;
+    const x = side === "left" ? viewport.left + 4 : viewport.right - 4;
+    const y = viewport.top + viewport.height / 2;
+    const candidates = document.elementsFromPoint(x, y);
+    let inset = 0;
+    for (const element of candidates) {
+      if (element === surface || element === document.body || element === document.documentElement) continue;
+      if (element.contains?.(surface) || surface.contains?.(element)) continue;
+      const rect = element.getBoundingClientRect?.();
+      if (!rect || rect.height < viewport.height * 0.35 || rect.width > viewport.width * 0.7) continue;
+      if (side === "left" && rect.left <= viewport.left + 12 && rect.right > viewport.left) {
+        inset = Math.max(inset, Math.min(rect.right - viewport.left, viewport.width));
+      }
+      if (side === "right" && rect.right >= viewport.right - 12 && rect.left < viewport.right) {
+        inset = Math.max(inset, Math.min(viewport.right - rect.left, viewport.width));
+      }
+    }
+    return inset;
+  };
+  const leftInset = edgeInset("left");
+  const rightInset = edgeInset("right");
+  const visibleWidth = Math.max(viewportWidth - leftInset - rightInset, 1);
+  const contentWidth = Math.max(bounds.maxX - bounds.minX, 1);
+  const contentHeight = Math.max(bounds.maxY - bounds.minY, 1);
+  const padding = 96;
+  const scale = Math.max(0.05, Math.min(1, (visibleWidth - padding) / contentWidth, (viewportHeight - padding) / contentHeight));
+  const centerX = (bounds.minX + bounds.maxX) / 2;
+  const centerY = (bounds.minY + bounds.maxY) / 2;
+
+  ds.scale = scale;
+  ds.offset[0] = (leftInset + visibleWidth / 2) / scale - centerX;
+  ds.offset[1] = viewportHeight / (2 * scale) - centerY;
+  canvas.setDirty?.(true, true);
+}
+
+function focusLoadedWorkflowAfterRender() {
+  requestAnimationFrame(() => requestAnimationFrame(focusLoadedWorkflow));
+  // Some ComfyUI builds finish switching the workflow tab after loadGraphData resolves.
+  window.setTimeout(focusLoadedWorkflow, 180);
+}
+
+function visibleCanvasInsertionPosition(canvas) {
+  const visible = canvas?.ds?.visible_area;
+  if (
+    Array.isArray(visible)
+    && visible.length >= 4
+    && visible.every((value) => Number.isFinite(Number(value)))
+    && Number(visible[2]) > 0
+    && Number(visible[3]) > 0
+  ) {
+    return [
+      Number(visible[0]) + Number(visible[2]) / 2,
+      Number(visible[1]) + Number(visible[3]) / 2,
+    ];
+  }
+
+  const surface = canvas?.canvas;
+  const ds = canvas?.ds;
+  const width = Number(surface?.clientWidth || surface?.width);
+  const height = Number(surface?.clientHeight || surface?.height);
+  const scale = Number(ds?.scale);
+  const offsetX = Number(ds?.offset?.[0]);
+  const offsetY = Number(ds?.offset?.[1]);
+  if (
+    width > 0 && height > 0 && scale > 0
+    && Number.isFinite(offsetX) && Number.isFinite(offsetY)
+  ) {
+    return [width / (2 * scale) - offsetX, height / (2 * scale) - offsetY];
+  }
+
+  const mouse = canvas?.graph_mouse;
+  return Array.isArray(mouse) ? [mouse[0], mouse[1]] : [0, 0];
+}
+
+function placeAndAddFlow(flow) {
+  const canvas = app.canvas;
+  // graph_mouse freezes at the last canvas event while the modal browser is
+  // open. Using it directly can paste a module thousands of graph units away.
+  const position = visibleCanvasInsertionPosition(canvas);
+
+  if (flow.kind === "node") {
+    const node = LiteGraph.createNode(flow.nodeType);
+    const graph = canvas?.graph || app.graph;
+    if (!node || !graph) throw new Error("Die ausgewählte Node konnte nicht erzeugt werden.");
+    node.properties ??= {};
+    Object.assign(node.properties, JSON.parse(JSON.stringify(flow.nodeProperties || {})));
+    node.pos = position;
+    graph.beforeChange?.();
+    graph.add(node);
+    graph.afterChange?.();
+    canvas?.selectNode?.(node, false);
+    canvas?.setDirty?.(true, true);
+    return;
+  }
+
+  // This is the same ComfyUI mechanism used by the node library for blueprints:
+  // it imports the node together with its subgraph definition into the active graph.
+  if (typeof canvas?._deserializeItems === "function") {
+    // _deserializeItems mutates its input while remapping subgraph and node IDs.
+    // Always provide a fresh plain-JSON copy so runtime Maps/proxies from one
+    // insertion can never contaminate the browser registry or a later paste.
+    const blueprintItems = JSON.parse(JSON.stringify(flow.blueprintItems));
+    const results = canvas._deserializeItems(blueprintItems, { position });
+    const node = results?.nodes?.values?.().next?.().value
+      || results?.created?.find?.((item) => item?.type === flow.blueprintId || item?.subgraph);
+    if (!node) throw new Error("Der Flow konnte nicht in den aktuellen Graphen eingefügt werden.");
+    canvas.selectNode?.(node, false);
+    canvas.setDirty?.(true, true);
+    return;
+  }
+
+  // Compatibility fallback for older ComfyUI frontends that registered blueprints
+  // directly as LiteGraph node types.
+  const nodeTypes = [flow.blueprintId, `SubgraphBlueprint.${flow.entryId}`].filter(Boolean);
+  const node = nodeTypes.map((nodeType) => LiteGraph.createNode(nodeType)).find(Boolean);
+  if (!node) throw new Error("Diese ComfyUI-Version unterstützt das Einfügen dieses Flow-Blueprints nicht.");
+
+  const graph = canvas?.graph || app.graph;
+  node.pos = position;
+  graph.beforeChange?.();
+  graph.add(node);
+  graph.afterChange?.();
+  canvas?.selectNode?.(node, false);
+  canvas?.setDirty?.(true, true);
+}
+
+function fillTextList(container, values, emptyText) {
+  container.replaceChildren();
+  const items = values.length ? values : [emptyText];
+  for (const value of items) {
+    const item = document.createElement("li");
+    if (value && typeof value === "object") {
+      const content = document.createElement("div");
+      const title = document.createElement("span");
+      title.className = "cmk-flow-feature-title";
+      title.textContent = value.title || "";
+      content.append(title);
+      if (value.description) {
+        const description = document.createElement("span");
+        description.className = "cmk-flow-feature-description";
+        description.textContent = value.description;
+        content.append(description);
+      }
+      item.append(content);
+    } else {
+      item.textContent = value;
+    }
+    if (!values.length) item.className = "is-optional";
+    container.append(item);
+  }
+}
+
+function setMetaValue(detail, key, value) {
+  detail.querySelector(`[data-meta="${key}"]`).textContent = value || "—";
+}
+
+function renderNodePreview(container, flow) {
+  container.replaceChildren();
+  if (!flow.previews?.length) {
+    const missing = document.createElement("span");
+    missing.className = "cmk-flow-preview-missing";
+    missing.textContent = t("previewMissing");
+    container.append(missing);
+    return;
+  }
+
+  const gallery = document.createElement("div");
+  gallery.className = "cmk-flow-preview-gallery";
+
+  const image = document.createElement("img");
+  image.className = "cmk-flow-preview-image";
+  image.alt = flow.previewAlt;
+  image.loading = "lazy";
+  gallery.append(image);
+
+  const tabs = document.createElement("div");
+  tabs.className = "cmk-flow-preview-tabs";
+  tabs.setAttribute("role", "group");
+  tabs.setAttribute("aria-label", "Vorschauansicht auswählen");
+  const grouped = flow.previews.some((preview) => preview.group);
+  if (grouped) tabs.classList.add("is-grouped");
+  let currentGroup = null;
+  let currentGroupButtons = null;
+
+  const buttons = flow.previews.map((preview, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "cmk-flow-preview-tab";
+    button.textContent = preview.label;
+    button.addEventListener("click", () => selectPreview(index));
+    if (grouped && preview.group) {
+      if (!currentGroupButtons || currentGroup !== preview.group) {
+        currentGroup = preview.group;
+        const group = document.createElement("div");
+        group.className = "cmk-flow-preview-tab-group";
+        const label = document.createElement("span");
+        label.className = "cmk-flow-preview-tab-group-label";
+        label.textContent = currentGroup;
+        currentGroupButtons = document.createElement("div");
+        currentGroupButtons.className = "cmk-flow-preview-tab-group-buttons";
+        group.append(label, currentGroupButtons);
+        tabs.append(group);
+      }
+      currentGroupButtons.append(button);
+    } else if (grouped) {
+      currentGroup = null;
+      currentGroupButtons = null;
+      const standalone = document.createElement("div");
+      standalone.className = "cmk-flow-preview-tab-standalone";
+      standalone.append(button);
+      tabs.append(standalone);
+    } else {
+      tabs.append(button);
+    }
+    return button;
+  });
+
+  const selectPreview = (index) => {
+    const preview = flow.previews[index];
+    image.src = preview.src;
+    image.alt = `${flow.previewAlt} – ${preview.group ? `${preview.group} – ` : ""}${preview.label}`;
+    buttons.forEach((button, buttonIndex) => {
+      const active = buttonIndex === index;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+  };
+
+  if (flow.previews.length > 1) gallery.append(tabs);
+  container.append(gallery);
+  selectPreview(0);
+}
+
+function flowIcon(flow) {
+  const value = `${flow.icon} ${flow.displayName}`.toLocaleLowerCase("de");
+  let body;
+  if (value.includes("lora")) body = '<path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/>';
+  else if (value.includes("checkpoint") || value.includes("vae")) body = '<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4.3 7.7 7.7 4.4 7.7-4.4M12 12v9"/>';
+  else if (value.includes("controlnet")) body = '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/>';
+  else if (value.includes("ksampler")) body = '<path d="M3 12h3l2.2-6 4 12 2.5-8 2 2H21"/>';
+  else if (value.includes("refiner")) body = '<path d="m12 3 1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3Z"/><path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"/>';
+  else if (value.includes("detailer")) body = '<path d="M8 3H3v5m13-5h5v5M8 21H3v-5m13 5h5v-5"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/>';
+  else if (value.includes("faceswap")) body = '<path d="M7 7h9l-3-3m4 13H8l3 3"/><path d="M19 8a7 7 0 0 1 0 8M5 16a7 7 0 0 1 0-8"/>';
+  else if (value.includes("faceprocess") || value.includes("face process")) body = '<circle cx="12" cy="12" r="8"/><path d="M9 10h.01M15 10h.01M9 15c1.8 1.3 4.2 1.3 6 0"/>';
+  else if (value.includes("save") || value.includes("upscale")) body = '<path d="M12 16V4m0 0L7 9m5-5 5 5"/><path d="M5 14v6h14v-6"/>';
+  else if (value.includes("create")) body = '<path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="8"/>';
+  else body = '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="2"/><path d="m21 15-5-5L5 20"/>';
+  return `<svg viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`;
+}
+
+function recommendationKey(value) {
+  return String(value).toLocaleLowerCase("de")
+    .replace(/^cmk flow\s*·?\s*/, "")
+    .replace(/\s*\(optional\)\s*/g, "")
+    .replace(/[^a-z0-9äöüß]+/g, " ")
+    .trim();
+}
+
+function recommendationSpec(value) {
+  if (value && typeof value === "object") {
+    return {
+      label: String(value.label || value.name || value.targetId || value.target || ""),
+      targetId: String(value.targetId || value.target || ""),
+    };
+  }
+  return { label: String(value), targetId: "" };
+}
+
+function renderFlowBrowser(root, flows) {
+  const list = root.querySelector(".cmk-flow-list");
+  const detail = root.querySelector(".cmk-flow-detail");
+  detail.classList.add("cmk-flow-detail--compact");
+  const categorySelect = root.querySelector("select");
+  const categories = [t("all"), ...new Set(flows.map((flow) => flow.category))];
+  if (!categories.includes(currentCategory)) currentCategory = t("all");
+  categorySelect.innerHTML = categories.map((category) => `<option>${category}</option>`).join("");
+  categorySelect.value = categories.includes(currentCategory) ? currentCategory : t("all");
+  const selectedVariants = new Map();
+
+  const update = () => {
+    const listScrollTop = list.scrollTop;
+    const term = searchText.trim().toLocaleLowerCase("de");
+    const visible = flows.filter((flow) => {
+      if (currentCategory !== t("all") && flow.category !== currentCategory) return false;
+      if (!term) return true;
+      return [flow.name, flow.displayName, flow.description, flow.category, flow.domain, ...flow.searchAliases]
+        .join(" ").toLocaleLowerCase("de").includes(term);
+    });
+
+    if (!visible.some((flow) => flow.entryId === selectedId)) selectedId = visible[0]?.entryId ?? null;
+    list.replaceChildren();
+    if (!visible.length) {
+      list.innerHTML = `<div class="cmk-flow-empty">${t("noFlows")}</div>`;
+    } else {
+      for (const flow of visible) {
+        const button = document.createElement("button");
+        button.className = `cmk-flow-item${flow.entryId === selectedId ? " is-selected" : ""}`;
+        button.innerHTML = `<span class="cmk-flow-item-index"></span><span><span class="cmk-flow-item-name"></span><span class="cmk-flow-item-category"></span></span>`;
+        button.querySelector(".cmk-flow-item-index").innerHTML = flowIcon(flow);
+        button.querySelector(".cmk-flow-item-name").textContent = flow.displayName;
+        button.querySelector(".cmk-flow-item-category").textContent = flow.category;
+        button.addEventListener("click", () => { selectedId = flow.entryId; update(); });
+        list.append(button);
+      }
+    }
+    list.scrollTop = listScrollTop;
+
+    const selectedPrimary = flows.find((flow) => flow.entryId === selectedId);
+    if (!selectedPrimary) {
+      detail.innerHTML = `<div class="cmk-flow-empty">${t("selectFlow")}</div>`;
+      return;
+    }
+    const variantOptions = selectedPrimary.variants || [selectedPrimary];
+    const selected = variantOptions.find((flow) => flow.entryId === selectedVariants.get(selectedPrimary.entryId)) || selectedPrimary;
+    detail.innerHTML = `
+      <div class="cmk-flow-compact-top">
+        <div class="cmk-flow-detail-header">
+          <span class="cmk-flow-badge"></span>
+          <h3></h3>
+          <div class="cmk-flow-domain"></div>
+          <p class="cmk-flow-description"></p>
+        </div>
+        <div class="cmk-flow-variant-panel" hidden>
+          <span class="cmk-flow-variant-label">${language === "de" ? "Varianten" : "Variants"}</span>
+          <div class="cmk-flow-variants"></div>
+        </div>
+      </div>
+      <section class="cmk-flow-compact-features">
+        <h4 class="cmk-flow-section-title">${t("features")}</h4>
+        <ul data-list="features"></ul>
+        <div class="cmk-flow-compact-info" hidden><strong>Info</strong><span></span></div>
+      </section>
+      <section class="cmk-flow-preview">
+        <h4 class="cmk-flow-section-title">${language === "de" ? "Vorschau" : "Preview"}</h4>
+        <div class="cmk-flow-preview-stage"></div>
+      </section>
+      <div class="cmk-flow-actions"><button class="cmk-flow-insert">${t("insert")}</button></div>`;
+    const badge = detail.querySelector(".cmk-flow-badge");
+    badge.textContent = selected.status;
+    badge.dataset.status = selected.status;
+    detail.querySelector("h3").textContent = selected.displayName;
+    detail.querySelector(".cmk-flow-domain").textContent = selected.domain;
+    detail.querySelector(".cmk-flow-description").textContent = selected.description;
+    const variantPanel = detail.querySelector(".cmk-flow-variant-panel");
+    const variantBar = detail.querySelector(".cmk-flow-variants");
+    if (variantOptions.length > 1) {
+      detail.querySelector(".cmk-flow-compact-top").classList.add("has-variants");
+      variantPanel.hidden = false;
+      for (const variant of variantOptions) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `cmk-flow-variant${variant.entryId === selected.entryId ? " is-selected" : ""}`;
+        button.textContent = variant.variantLabel
+          || (variant === selectedPrimary ? t("recommended") : variant.displayName);
+        button.addEventListener("click", () => {
+          selectedVariants.set(selectedPrimary.entryId, variant.entryId);
+          update();
+          requestAnimationFrame(() => detail.scrollTo({ top: 0 }));
+        });
+        variantBar.append(button);
+      }
+    }
+    fillTextList(detail.querySelector('[data-list="features"]'), selected.features, "Noch keine Funktionsübersicht hinterlegt");
+    const info = detail.querySelector(".cmk-flow-compact-info");
+    if (selected.info) {
+      info.hidden = false;
+      info.querySelector("span").textContent = selected.info;
+    }
+    renderNodePreview(detail.querySelector(".cmk-flow-preview-stage"), selected);
+    detail.querySelector(".cmk-flow-insert").addEventListener("click", () => {
+      try {
+        placeAndAddFlow(selected);
+        root.remove();
+      } catch (error) {
+        detail.insertAdjacentHTML("beforeend", `<div class="cmk-flow-error"></div>`);
+        detail.querySelector(".cmk-flow-error").textContent = error.message;
+      }
+    });
+  };
+
+  root.querySelector("input").value = searchText;
+  root.querySelector("input").addEventListener("input", (event) => { searchText = event.target.value; update(); });
+  categorySelect.addEventListener("change", (event) => { currentCategory = event.target.value; update(); });
+  update();
+}
+
+function renderReferenceBrowser(root, references) {
+  const list = root.querySelector(".cmk-flow-list");
+  const detail = root.querySelector(".cmk-flow-detail");
+  detail.classList.remove("cmk-flow-detail--compact");
+  const input = root.querySelector(".cmk-flow-controls input");
+  const categorySelect = root.querySelector(".cmk-flow-controls select");
+  categorySelect.hidden = true;
+  const labels = language === "de"
+    ? { empty:"Keine passenden Beispiel-Workflows gefunden.", catalogEmpty:"Die ersten beispielhaften CMK-Workflows entstehen derzeit und werden hier später veröffentlicht.", choose:"Beispiel-Workflow auswählen.", what:"Was dieser Workflow macht", cmk:"Das ist besonders CMK", info:"Info", preview:"Vorschau", open:"Als Kopie öffnen", confirm:"Der Beispiel-Workflow wird in einem neuen, ungespeicherten Workflow geöffnet. Fortfahren?" }
+    : { empty:"No matching example workflows found.", catalogEmpty:"The first CMK example workflows are currently being created and will be published here later.", choose:"Select an example workflow.", what:"What this workflow does", cmk:"What makes it distinctly CMK", info:"Info", preview:"Preview", open:"Open as copy", confirm:"The example workflow will open in a new, unsaved workflow. Continue?" };
+
+  const localizeReference = (reference) => ({
+    ...reference,
+    categoryLabel: language === "en" ? (reference.category_en || reference.category) : reference.category,
+    descriptionLabel: language === "en" ? (reference.description_en || reference.description) : reference.description,
+    highlightLabel: language === "en" ? (reference.cmkHighlight_en || reference.cmkHighlight) : reference.cmkHighlight,
+    infoLabel: language === "en" ? (reference.info_en || reference.info) : reference.info,
+    previews: normalizePreviews({
+      previews: (reference.previews || []).map((preview) => ({
+        ...preview,
+        group: language === "en" ? (preview.group_en || preview.group) : preview.group,
+        label: language === "en" ? (preview.label_en || preview.label) : preview.label,
+      })),
+    }),
+    previewAlt: reference.name,
+  });
+
+  const update = () => {
+    const scrollTop = list.scrollTop;
+    const term = referenceSearchText.trim().toLocaleLowerCase(language);
+    const visible = references.map(localizeReference).filter((reference) => !term || `${reference.name} ${reference.categoryLabel} ${reference.descriptionLabel} ${reference.highlightLabel} ${reference.infoLabel}`.toLocaleLowerCase(language).includes(term));
+    if (!visible.some((reference) => reference.filename === referenceSelectedId)) referenceSelectedId = visible[0]?.filename || null;
+    list.replaceChildren();
+    if (!visible.length) list.innerHTML = `<div class="cmk-flow-empty">${references.length ? labels.empty : labels.catalogEmpty}</div>`;
+    const groups = [];
+    for (const reference of visible) {
+      const group = groups.at(-1);
+      if (!group || group.category !== reference.category) {
+        groups.push({ category: reference.category, label: reference.categoryLabel, references: [reference] });
+      } else {
+        group.references.push(reference);
+      }
+    }
+    const visibleCategories = groups.map((group) => group.category);
+    if (!referenceGroupsInitialized && visibleCategories.length) {
+      referenceExpandedCategory = visible.find((reference) => reference.filename === referenceSelectedId)?.category || visibleCategories[0];
+      referenceGroupsInitialized = true;
+    } else if (referenceExpandedCategory && !visibleCategories.includes(referenceExpandedCategory)) {
+      referenceExpandedCategory = visibleCategories[0] || null;
+    }
+    for (const [groupIndex, group] of groups.entries()) {
+      const expanded = group.category === referenceExpandedCategory;
+      const groupElement = document.createElement("section");
+      groupElement.className = `cmk-reference-group${expanded ? " is-expanded" : ""}`;
+      const headerId = `cmk-reference-group-header-${groupIndex}`;
+      const itemsId = `cmk-reference-group-items-${groupIndex}`;
+      groupElement.setAttribute("aria-labelledby", headerId);
+
+      const header = document.createElement("button");
+      header.id = headerId;
+      header.className = "cmk-reference-group-header";
+      header.type = "button";
+      header.setAttribute("aria-expanded", String(expanded));
+      header.setAttribute("aria-controls", itemsId);
+      header.innerHTML = '<span class="cmk-reference-group-title"></span><span class="cmk-reference-group-count"></span><span class="cmk-reference-group-chevron" aria-hidden="true">⌄</span>';
+      header.querySelector(".cmk-reference-group-title").textContent = group.label;
+      header.querySelector(".cmk-reference-group-count").textContent = String(group.references.length);
+      header.dataset.referenceCategory = group.category;
+      header.addEventListener("click", () => {
+        referenceExpandedCategory = expanded ? null : group.category;
+        if (!expanded && !group.references.some((reference) => reference.filename === referenceSelectedId)) {
+          referenceSelectedId = group.references[0]?.filename || referenceSelectedId;
+        }
+        update();
+        requestAnimationFrame(() => list.querySelector(`[data-reference-category="${CSS.escape(group.category)}"]`)?.focus());
+      });
+      groupElement.append(header);
+
+      const items = document.createElement("div");
+      items.id = itemsId;
+      items.className = "cmk-reference-group-items";
+      items.hidden = !expanded;
+      for (const reference of group.references) {
+        const button = document.createElement("button");
+        button.className = `cmk-flow-item cmk-reference-item${reference.filename === referenceSelectedId ? " is-selected" : ""}`;
+        button.innerHTML = '<span class="cmk-flow-item-name"></span>';
+        button.querySelector(".cmk-flow-item-name").textContent = reference.name;
+        button.addEventListener("click", () => { referenceSelectedId = reference.filename; update(); requestAnimationFrame(() => detail.scrollTo({ top: 0 })); });
+        items.append(button);
+      }
+      groupElement.append(items);
+      list.append(groupElement);
+    }
+    list.scrollTop = scrollTop;
+
+    const selectedRaw = references.find((reference) => reference.filename === referenceSelectedId);
+    const selected = selectedRaw ? localizeReference(selectedRaw) : null;
+    if (!selected) { detail.innerHTML = `<div class="cmk-flow-empty">${labels.choose}</div>`; return; }
+    detail.innerHTML = `<div class="cmk-reference-detail">
+      <span class="cmk-reference-category"></span><h3></h3>
+      <section><h4 class="cmk-flow-section-title">${labels.what}</h4><div class="cmk-flow-card cmk-showcase-description"></div></section>
+      <section><h4 class="cmk-flow-section-title">${labels.cmk}</h4><div class="cmk-flow-card cmk-showcase-highlight"></div></section>
+      <div class="cmk-flow-compact-info cmk-showcase-info" hidden><strong>${labels.info}</strong><span></span></div>
+      <section class="cmk-flow-preview"><h4 class="cmk-flow-section-title">${labels.preview}</h4><div class="cmk-flow-preview-stage"></div></section>
+      <div class="cmk-flow-actions"><button class="cmk-flow-insert">${labels.open}</button></div>
+    </div>`;
+    detail.querySelector(".cmk-reference-category").textContent = selected.categoryLabel;
+    detail.querySelector("h3").textContent = selected.name;
+    detail.querySelector(".cmk-showcase-description").textContent = selected.descriptionLabel;
+    const highlight = detail.querySelector(".cmk-showcase-highlight");
+    highlight.textContent = selected.highlightLabel;
+    highlight.closest("section").hidden = !selected.highlightLabel;
+    const info = detail.querySelector(".cmk-showcase-info");
+    info.hidden = !selected.infoLabel;
+    info.querySelector("span").textContent = selected.infoLabel || "";
+    renderNodePreview(detail.querySelector(".cmk-flow-preview-stage"), selected);
+    detail.querySelector(".cmk-flow-insert").addEventListener("click", async () => {
+      if (!window.confirm(labels.confirm)) return;
+      try {
+        const workflow = await fetchJson(`/cmk/showcase-workflows?file=${encodeURIComponent(selected.filename)}`);
+        if (typeof app.loadGraphData !== "function") {
+          throw new Error(language === "de" ? "Diese ComfyUI-Version kann die Referenz nicht sicher als Kopie öffnen." : "This ComfyUI version cannot safely open the reference as a copy.");
+        }
+        await app.loadGraphData(workflow, true, false, selected.name, { openSource: "cmk-showcase" });
+        root.remove();
+        focusLoadedWorkflowAfterRender();
+      } catch (error) {
+        detail.insertAdjacentHTML("beforeend", '<div class="cmk-flow-error"></div>');
+        detail.querySelector(".cmk-flow-error").textContent = error.message;
+      }
+    });
+  };
+  input.value = referenceSearchText;
+  input.addEventListener("input", (event) => { referenceSearchText = event.target.value; update(); });
+  update();
+}
+
+function renderBrowser(root, data) {
+  const controls = root.querySelector(".cmk-flow-controls");
+  const subtitle = root.querySelector(".cmk-flow-subtitle");
+  const activate = (tab) => {
+    activeTab = tab;
+    root.querySelectorAll(".cmk-browser-tab").forEach((button) => {
+      const selected = button.dataset.cmkTab === tab;
+      button.classList.toggle("is-active", selected);
+      button.setAttribute("aria-selected", String(selected));
+    });
+    const references = tab === "references";
+    subtitle.textContent = references
+      ? (language === "de" ? "Beispiel-Workflows entdecken und als ungespeicherte Kopie öffnen." : "Explore example workflows and open them as an unsaved copy.")
+      : t("subtitleFlow");
+    controls.innerHTML = `<input type="search"><select aria-label="${t("category")}"></select>`;
+    const input = controls.querySelector("input");
+    input.placeholder = references ? (language === "de" ? "Beispiel-Workflows durchsuchen …" : "Search example workflows …") : t("searchFlows");
+    input.setAttribute("aria-label", input.placeholder.replace(" …", ""));
+    root.querySelector(".cmk-flow-list").replaceChildren();
+    root.querySelector(".cmk-flow-detail").replaceChildren();
+    if (references) renderReferenceBrowser(root, data.references);
+    else renderFlowBrowser(root, data.flows);
+    input.focus();
+  };
+
+  root.querySelectorAll(".cmk-browser-tab").forEach((button) => {
+    button.addEventListener("click", () => activate(button.dataset.cmkTab));
+  });
+  activate(activeTab);
+}
+
+function openAboutDialog(root) {
+  root.querySelector(".cmk-about-overlay")?.remove();
+  const overlay = document.createElement("div");
+  overlay.className = "cmk-about-overlay";
+  const aboutBody = language === "de" ? `
+        <p>CMK Flow begann mit dem Wunsch nach einer einzigen nativen Custom Node. Als sichtbar wurde, was mit Custom Nodes möglich ist, wuchs daraus ein Projekt. Dieses Projekt entwickelte sich schließlich zu einem Produkt.</p>
+        <p><strong>CMK Flow wurde von Carsten Kirschner konzipiert und mit Unterstützung moderner KI-gestützter Werkzeuge für die Softwareentwicklung entwickelt.</strong></p>
+        <p>Ein erheblicher Teil des Quellcodes wurde mit KI-Unterstützung erzeugt, analysiert und weiterentwickelt. CMK Flow entstand jedoch <strong>nicht</strong> aus einem einzigen Prompt. Es ist das Ergebnis zahlloser Architekturentscheidungen, Tests, Fehlersuchen, Überarbeitungen und vieler Stunden konzentrierter Entwicklungsarbeit.</p>
+        <p>KI diente während des gesamten Projekts als leistungsfähiges Werkzeug zur Umsetzung. Produktvision, Systemarchitektur, Benutzererlebnis und grundlegende Gestaltungsphilosophie wurden in einem fortlaufenden, vom Menschen geführten Entwicklungsprozess bestimmt.</p>
+        <p><strong>CMK Flow verbindet menschliche Kreativität, durchdachtes Produktdesign und KI-gestützte Softwareentwicklung. Es zeigt, wie menschliche Erfahrung und moderne KI gemeinsam Software schaffen können, die keiner von beiden allein hätte hervorbringen können.</strong></p>
+        <div class="cmk-about-acknowledgements">
+          <h4>Inspiration &amp; Anerkennung</h4>
+          <p>Der <a href="https://github.com/willmiao/ComfyUI-Lora-Manager" target="_blank" rel="noopener noreferrer">ComfyUI LoRA Manager von willmiao</a> hat die Erwartung an den CMK Flow Browser wesentlich mitgeprägt: überraschend direkt aus ComfyUI eine komfortable Browseroberfläche zu öffnen und dort Checkpoints, LoRAs, Metadaten und Civitai-Inhalte zugänglich zu machen, zeigte eindrucksvoll, wie funktional eine integrierte Verwaltungsoberfläche sein kann.</p>
+          <p>CMK Flow ist ein eigenständiges Projekt und steht in keiner offiziellen Verbindung zum LoRA Manager. Diese Nennung würdigt die gestalterische Inspiration und die umfangreiche Arbeit hinter diesem Open-Source-Projekt.</p>
+        </div>
+        <div class="cmk-about-responsibility">
+          <h4>Verantwortung</h4>
+          <p>CMK Flow will erwachsenen Menschen nicht vorschreiben, was sie privat und einvernehmlich gestalten. Gleichzeitig toleriert CMK keinerlei Veröffentlichung manipulierter Darstellungen realer Personen ohne deren ausdrückliche Einwilligung – insbesondere nicht in sexualisiertem oder entwürdigendem Zusammenhang.</p>
+          <p>Technische Schutzmaßnahmen können Verantwortung unterstützen, aber nicht ersetzen. Wer CMK Flow verwendet, bleibt für einen respektvollen, einvernehmlichen und rechtmäßigen Umgang mit den erzeugten Inhalten verantwortlich.</p>
+          <p>Eine gewisse Ironie bleibt: Ausgerechnet der Wunsch nach einer nativen FaceSwap-Engine gab den Anstoß für das gesamte Projekt.</p>
+        </div>
+        <div class="cmk-about-support">
+          <p><strong>CMK Flow ist und bleibt vollständig kostenlos nutzbar.</strong></p>
+          <p>Wenn CMK Flow deine Arbeit erleichtert, dir Zeit gespart oder einfach Freude bereitet hat, kannst du die weitere Entwicklung freiwillig unterstützen.</p>
+          <p><strong>Danke, dass du CMK Flow verwendest.</strong></p>
+        </div>
+        <div class="cmk-about-legal">
+          <p>Copyright © 2026 Carsten Kirschner</p>
+          <p>Lizenziert unter GNU GPL v3 oder neuer (GPL-3.0-or-later).</p>
+        </div>
+        <div class="cmk-about-donation">
+          <p>Eine Unterstützung ist vollständig freiwillig und hat keinen Einfluss auf den Funktionsumfang von CMK Flow.</p>
+          <div class="cmk-about-donation-actions">
+            <a class="cmk-about-donation-link" href="https://github.com/CMKFlow/cmk_nodes" target="_blank" rel="noopener noreferrer">Quellcode &amp; Dokumentation</a>
+            <a class="cmk-about-donation-link" href="https://paypal.me/CMKFlow" target="_blank" rel="noopener noreferrer">Freiwillig via PayPal unterstützen</a>
+          </div>
+        </div>` : `
+        <p>CMK Flow began with the wish for a single native custom node. Once it became clear what custom nodes could make possible, that node grew into a project. The project eventually evolved into a product.</p>
+        <p><strong>CMK Flow was conceived by Carsten Kirschner and developed with the support of modern AI-assisted software engineering tools.</strong></p>
+        <p>A significant portion of the source code was generated, analyzed, and refined with AI assistance. However, CMK Flow was <strong>not</strong> created from a single prompt. It is the result of countless architectural decisions, testing, debugging, refactoring, and many hours of focused development.</p>
+        <p>AI served as a powerful implementation tool throughout the project. The product vision, system architecture, user experience, and overall design philosophy were defined through an ongoing human-led development process.</p>
+        <p><strong>CMK Flow represents the combination of human creativity, thoughtful product design, and AI-assisted software engineering. It demonstrates how human expertise and modern AI can work together to create software that neither could have produced alone.</strong></p>
+        <div class="cmk-about-acknowledgements">
+          <h4>Inspiration &amp; acknowledgement</h4>
+          <p><a href="https://github.com/willmiao/ComfyUI-Lora-Manager" target="_blank" rel="noopener noreferrer">ComfyUI LoRA Manager by willmiao</a> strongly influenced the expectations behind the CMK Flow Browser. Its unexpectedly seamless transition from ComfyUI into a comfortable browser interface for checkpoints, LoRAs, metadata, and Civitai content demonstrated how capable an integrated management experience could be.</p>
+          <p>CMK Flow is an independent project and has no official affiliation with LoRA Manager. This acknowledgement recognizes the design inspiration and the substantial work behind that open-source project.</p>
+        </div>
+        <div class="cmk-about-responsibility">
+          <h4>Responsibility</h4>
+          <p>CMK Flow does not seek to dictate what consenting adults create in private. At the same time, CMK does not tolerate the publication of manipulated depictions of real people without their explicit consent, especially in a sexualized or degrading context.</p>
+          <p>Technical safeguards can support responsible conduct, but they cannot replace it. Everyone using CMK Flow remains responsible for treating generated content respectfully, consensually, and lawfully.</p>
+          <p>There is a certain irony in the fact that the entire project began with the wish for a native FaceSwap engine.</p>
+        </div>
+        <div class="cmk-about-support">
+          <p><strong>CMK Flow is, and will remain, completely free to use.</strong></p>
+          <p>If CMK Flow has made your work easier, saved you time, or simply brought you joy, you can support its continued development with a voluntary contribution.</p>
+          <p><strong>Thank you for using CMK Flow.</strong></p>
+        </div>
+        <div class="cmk-about-legal">
+          <p>Copyright © 2026 Carsten Kirschner</p>
+          <p>Licensed under GNU GPL v3 or later (GPL-3.0-or-later).</p>
+        </div>
+        <div class="cmk-about-donation">
+          <p>Support is entirely voluntary and does not affect the features available in CMK Flow.</p>
+          <div class="cmk-about-donation-actions">
+            <a class="cmk-about-donation-link" href="https://github.com/CMKFlow/cmk_nodes" target="_blank" rel="noopener noreferrer">Source code &amp; documentation</a>
+            <a class="cmk-about-donation-link" href="https://paypal.me/CMKFlow" target="_blank" rel="noopener noreferrer">Support voluntarily via PayPal</a>
+          </div>
+        </div>`;
+  overlay.innerHTML = `
+    <section class="cmk-about-dialog" role="dialog" aria-modal="true" aria-labelledby="cmk-about-title">
+      <header class="cmk-about-header">
+        <div class="cmk-about-title">
+          <img class="cmk-about-logo" src="${extensionAssetUrl("assets/brand/cmk-logo.png")}" alt="" width="36" height="36">
+          <h3 id="cmk-about-title">About CMK Flow</h3>
+        </div>
+        <button class="cmk-flow-close" type="button" aria-label="Close">×</button>
+      </header>
+      <div class="cmk-about-body">${aboutBody}</div>
+    </section>`;
+  root.append(overlay);
+  const close = () => overlay.remove();
+  overlay.querySelector(".cmk-flow-close").addEventListener("click", close);
+  overlay.addEventListener("click", (event) => { if (event.target === overlay) close(); });
+  overlay.querySelector(".cmk-flow-close").focus();
+}
+
+async function openStatisticsDialog(root) {
+  root.querySelector(".cmk-about-overlay")?.remove();
+  const de = language === "de";
+  const copy = de ? {
+    title: "CMK Statistik", loading: "Statistik wird ermittelt …", unavailable: "Nicht verfügbar", failed: "Statistik konnte nicht geladen werden.",
+    flow: "CMK Flow", version: "Version", nodes: "Registrierte Nodes", subgraphs: "Subgraphen",
+    browser: "Flow Browser", total: "Workflows gesamt", visible: "Sichtbar", hidden: "Ausgeblendet", categories: "Kategorien",
+    showcase: "Showcase", galleries: "Galerien", screenshots: "Screenshots", storage: "Speicherplatz",
+    cache: "Persistent Cache", area: "Bereich", generation: "Generation Completion", branch: "Branch-Caches", boundary: "Boundary-Caches inkl. Refiner", all: "Gesamtbestand", entries: "Einträge", files: "Dateien",
+    system: "System", comfyui: "ComfyUI", python: "Python", pytorch: "PyTorch", compute: "Compute-Backend",
+  } : {
+    title: "CMK Statistics", loading: "Collecting statistics …", unavailable: "Unavailable", failed: "Statistics could not be loaded.",
+    flow: "CMK Flow", version: "Version", nodes: "Registered nodes", subgraphs: "Subgraphs",
+    browser: "Flow Browser", total: "Total workflows", visible: "Visible", hidden: "Hidden", categories: "Categories",
+    showcase: "Showcase", galleries: "Galleries", screenshots: "Screenshots", storage: "Storage",
+    cache: "Persistent Cache", area: "Area", generation: "Generation Completion", branch: "Branch caches", boundary: "Boundary caches incl. refiner", all: "Total", entries: "Entries", files: "Files",
+    system: "System", comfyui: "ComfyUI", python: "Python", pytorch: "PyTorch", compute: "Compute backend",
+  };
+  const overlay = document.createElement("div");
+  overlay.className = "cmk-about-overlay";
+  overlay.innerHTML = `
+    <section class="cmk-about-dialog cmk-statistics-dialog" role="dialog" aria-modal="true" aria-labelledby="cmk-statistics-title">
+      <header class="cmk-about-header"><div class="cmk-statistics-heading"><h3 id="cmk-statistics-title">${copy.title}</h3><span class="cmk-statistics-version" data-statistics-version></span></div><button class="cmk-flow-close" type="button" aria-label="Close">×</button></header>
+      <div class="cmk-about-body cmk-statistics-body"><div class="cmk-statistics-loading">${copy.loading}</div></div>
+    </section>`;
+  root.append(overlay);
+  const body = overlay.querySelector(".cmk-statistics-body");
+  const statisticsSize = (bytes) => {
+    const raw = Number(bytes);
+    if (!Number.isFinite(raw) || raw < 0) return copy.unavailable;
+    if (raw < 1024) return `${raw} B`;
+    const units = ["KiB", "MiB", "GiB", "TiB"];
+    let size = raw / 1024;
+    let unit = units[0];
+    for (let index = 1; index < units.length && size >= 1024; index += 1) {
+      size /= 1024;
+      unit = units[index];
+    }
+    return `${size.toLocaleString(language, { maximumFractionDigits: 1 })} ${unit}`;
+  };
+  const value = (raw) => raw === null || raw === undefined || raw === "" ? copy.unavailable : String(raw);
+  const row = (label, raw) => {
+    const element = document.createElement("div");
+    element.className = "cmk-statistics-row";
+    const name = document.createElement("span");
+    const content = document.createElement("strong");
+    name.textContent = label;
+    content.textContent = value(raw);
+    element.append(name, content);
+    return element;
+  };
+  const section = (title) => {
+    const element = document.createElement("section");
+    element.className = "cmk-statistics-section";
+    const heading = document.createElement("h4");
+    heading.textContent = title;
+    element.append(heading);
+    return element;
+  };
+  const metric = (label, raw) => {
+    const element = document.createElement("div");
+    element.className = "cmk-statistics-kpi";
+    const name = document.createElement("span");
+    const content = document.createElement("strong");
+    name.textContent = label;
+    content.textContent = value(raw);
+    element.append(name, content);
+    return element;
+  };
+  const cacheCellValue = (area, field) => {
+    if (!area || area.available === false) return copy.unavailable;
+    return field === "bytes" ? statisticsSize(area.bytes) : value(area[field]);
+  };
+  try {
+    const response = await api.fetchApi("/cmk/statistics", { cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok || data.ok === false) throw new Error(data.message || `${response.status} ${response.statusText}`);
+    body.replaceChildren();
+    overlay.querySelector("[data-statistics-version]").textContent = `${copy.version} ${value(data.cmk_flow?.version)}`;
+
+    const kpis = document.createElement("div");
+    kpis.className = "cmk-statistics-kpis";
+    kpis.append(
+      metric(copy.nodes, data.cmk_flow?.registered_nodes),
+      metric(copy.subgraphs, data.cmk_flow?.subgraphs),
+      metric(copy.total, data.flow_browser?.total),
+    );
+
+    const browser = section(copy.browser);
+    browser.append(row(copy.visible, data.flow_browser?.visible), row(copy.hidden, data.flow_browser?.hidden));
+    const categoryTitle = document.createElement("div");
+    categoryTitle.className = "cmk-statistics-subtitle";
+    categoryTitle.textContent = copy.categories;
+    browser.append(categoryTitle);
+    for (const [category, count] of Object.entries(data.flow_browser?.categories || {})) browser.append(row(category, count));
+
+    const showcase = section(copy.showcase);
+    showcase.append(row(copy.galleries, data.showcase?.galleries), row(copy.screenshots, data.showcase?.screenshots), row(copy.storage, statisticsSize(data.showcase?.bytes)));
+
+    const system = section(copy.system);
+    system.append(row(copy.comfyui, data.runtime?.comfyui), row(copy.python, data.runtime?.python), row(copy.pytorch, data.runtime?.pytorch), row(copy.compute, data.runtime?.compute));
+
+    const side = document.createElement("div");
+    side.className = "cmk-statistics-side";
+    side.append(showcase, system);
+    const middle = document.createElement("div");
+    middle.className = "cmk-statistics-middle";
+    middle.append(browser, side);
+
+    const cache = section(copy.cache);
+    cache.classList.add("cmk-statistics-cache");
+    const cacheTotal = { ...(data.persistent_cache?.total || {}), available: data.persistent_cache?.complete === true };
+    const cacheAreas = [
+      [copy.generation, data.persistent_cache?.generation_completion],
+      [copy.branch, data.persistent_cache?.branch],
+      [copy.boundary, data.persistent_cache?.boundary],
+      [copy.all, cacheTotal],
+    ];
+    const tableWrap = document.createElement("div");
+    tableWrap.className = "cmk-statistics-table-wrap";
+    const table = document.createElement("table");
+    table.className = "cmk-statistics-table";
+    const head = document.createElement("thead");
+    const headerRow = document.createElement("tr");
+    for (const label of [copy.area, copy.entries, copy.files, copy.storage]) {
+      const cell = document.createElement("th");
+      cell.scope = "col";
+      cell.textContent = label;
+      headerRow.append(cell);
+    }
+    head.append(headerRow);
+    const tableBody = document.createElement("tbody");
+    for (const [label, area] of cacheAreas) {
+      const tableRow = document.createElement("tr");
+      const name = document.createElement("th");
+      name.scope = "row";
+      name.textContent = label;
+      tableRow.append(name);
+      for (const field of ["entries", "files", "bytes"]) {
+        const cell = document.createElement("td");
+        cell.textContent = cacheCellValue(area, field);
+        tableRow.append(cell);
+      }
+      tableBody.append(tableRow);
+    }
+    table.append(head, tableBody);
+    tableWrap.append(table);
+    cache.append(tableWrap);
+    body.append(kpis, middle, cache);
+  } catch (error) {
+    body.innerHTML = "";
+    const message = document.createElement("div");
+    message.className = "cmk-statistics-loading";
+    message.textContent = `${copy.failed} ${error.message}`;
+    body.append(message);
+  }
+  const close = () => overlay.remove();
+  overlay.querySelector(".cmk-flow-close").addEventListener("click", close);
+  overlay.addEventListener("click", (event) => { if (event.target === overlay) close(); });
+  overlay.querySelector(".cmk-flow-close").focus();
+}
+
+function formatStorageSize(bytes) {
+  const value = Number(bytes) || 0;
+  if (value < 1024) return `${value} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let size = value / 1024;
+  let unit = units[0];
+  for (let index = 1; index < units.length && size >= 1024; index += 1) {
+    size /= 1024;
+    unit = units[index];
+  }
+  return `${size.toLocaleString(language, { maximumFractionDigits: 1 })} ${unit}`;
+}
+
+function escapeStorageText(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[character]);
+}
+
+function confirmStorageAction(root, title, message, confirmLabel) {
+  return new Promise((resolve) => {
+    const confirmation = document.createElement("div");
+    confirmation.className = "cmk-about-overlay";
+    confirmation.innerHTML = `
+      <section class="cmk-about-dialog cmk-confirm-dialog" role="alertdialog" aria-modal="true">
+        <header class="cmk-about-header"><h3></h3></header>
+        <div class="cmk-about-body">
+          <p></p>
+          <div class="cmk-confirm-actions">
+            <button class="cmk-confirm-cancel" type="button">${t("cancel")}</button>
+            <button class="cmk-confirm-delete" type="button"></button>
+          </div>
+        </div>
+      </section>`;
+    confirmation.querySelector("h3").textContent = title;
+    confirmation.querySelector("p").textContent = message;
+    confirmation.querySelector(".cmk-confirm-delete").textContent = confirmLabel;
+    root.append(confirmation);
+    const finish = (result) => { confirmation.remove(); resolve(result); };
+    confirmation.querySelector(".cmk-confirm-cancel").addEventListener("click", () => finish(false));
+    confirmation.querySelector(".cmk-confirm-delete").addEventListener("click", () => finish(true));
+    confirmation.addEventListener("click", (event) => { if (event.target === confirmation) finish(false); });
+    confirmation.querySelector(".cmk-confirm-cancel").focus();
+  });
+}
+
+async function openVideoStorageDialog(root) {
+  root.querySelector(".cmk-about-overlay")?.remove();
+  const overlay = document.createElement("div");
+  overlay.className = "cmk-about-overlay";
+  overlay.innerHTML = `
+    <section class="cmk-about-dialog" role="dialog" aria-modal="true" aria-labelledby="cmk-storage-title">
+      <header class="cmk-about-header">
+        <h3 id="cmk-storage-title">${t("videoStorage")}</h3>
+        <button class="cmk-flow-close" type="button" aria-label="Close">×</button>
+      </header>
+      <div class="cmk-about-body">
+        <p>${t("videoStorageIntro")}</p>
+        <div class="cmk-storage-summary"><div class="cmk-storage-card">…</div><div class="cmk-storage-card">…</div></div>
+        <div class="cmk-storage-projects"><h4>${t("videoProjects")}</h4><div class="cmk-storage-empty">…</div></div>
+        <div class="cmk-storage-paths">${t("technicalLocations")}:<br><code>output/video/segments</code><br><code>output/video/merged</code></div>
+        <div class="cmk-storage-actions">
+          <span class="cmk-storage-status"></span>
+          <button class="cmk-storage-clear" type="button">${t("deleteAllVideoFiles")}</button>
+        </div>
+      </div>
+    </section>`;
+  root.append(overlay);
+  const close = () => overlay.remove();
+  overlay.querySelector(".cmk-flow-close").addEventListener("click", close);
+  overlay.addEventListener("click", (event) => { if (event.target === overlay) close(); });
+
+  const status = overlay.querySelector(".cmk-storage-status");
+  const clearButton = overlay.querySelector(".cmk-storage-clear");
+  const renderStats = (locations = {}) => {
+    const labels = { segments: t("segments"), merged: t("mergedVideos"), files: t("files") };
+    overlay.querySelector(".cmk-storage-summary").innerHTML = ["segments", "merged"].map((name) => {
+      const item = locations[name] || {};
+      return `<div class="cmk-storage-card"><strong>${labels[name]}</strong><span>${Number(item.files) || 0} ${labels.files} · ${formatStorageSize(item.bytes)}</span></div>`;
+    }).join("");
+  };
+
+  const renderProjects = (projects = []) => {
+    const container = overlay.querySelector(".cmk-storage-projects");
+    const heading = `<h4>${t("videoProjects")}</h4>`;
+    if (!projects.length) {
+      container.innerHTML = `${heading}<div class="cmk-storage-empty">${t("noVideoProjects")}</div>`;
+      return;
+    }
+    const dateFormatter = new Intl.DateTimeFormat(language === "de" ? "de-DE" : "en", { dateStyle: "medium", timeStyle: "short" });
+    container.innerHTML = heading + projects.map((project) => {
+      const name = escapeStorageText(project.display_name);
+      const modified = project.last_modified ? dateFormatter.format(new Date(project.last_modified)) : "—";
+      return `<article class="cmk-storage-project">
+        <div><span class="cmk-storage-project-name" title="${name}">${name}</span>
+          <div class="cmk-storage-project-meta">
+            <span>${Number(project.segment_files) || 0} ${t("segments")} · ${formatStorageSize(project.segment_bytes)}</span>
+            <span>${Number(project.merged_files) || 0} ${t("mergedWorkingVideos")} · ${formatStorageSize(project.merged_bytes)}</span>
+            <span>${t("total")}: ${formatStorageSize(project.total_bytes)}</span>
+            <span>${t("lastUsed")}: ${modified}</span>
+          </div>
+        </div>
+        <div class="cmk-storage-project-actions" data-project-id="${escapeStorageText(project.id)}">
+          <button class="cmk-storage-project-action cmk-storage-project-flow" type="button">${t("openInFlow")}</button>
+          <button class="cmk-storage-project-action cmk-storage-project-folder" type="button">${t("openFolder")}</button>
+          <button class="cmk-storage-project-action cmk-storage-project-delete" type="button">${t("deleteProjectFiles")}</button>
+        </div>
+      </article>`;
+    }).join("");
+  };
+
+  const loadStorage = async () => {
+    const response = await fetchJson("/cmk/video-storage");
+    renderStats(response.locations);
+    renderProjects(response.projects);
+  };
+
+  overlay.querySelector(".cmk-storage-projects").addEventListener("click", async (event) => {
+    const button = event.target.closest(".cmk-storage-project-action");
+    if (!button) return;
+    const projectCard = button.closest(".cmk-storage-project");
+    const projectId = button.closest(".cmk-storage-project-actions").dataset.projectId;
+    const name = projectCard.querySelector(".cmk-storage-project-name").textContent;
+
+    if (button.classList.contains("cmk-storage-project-flow")) {
+      button.disabled = true;
+      status.textContent = t("openingFlow");
+      try {
+        const response = await fetchJson(`/cmk/video-storage/project/workflow?id=${encodeURIComponent(projectId)}`);
+        if (typeof app.loadGraphData !== "function") throw new Error("loadGraphData unavailable");
+        await app.loadGraphData(response.workflow, true, false, `CMK Video · ${name}`, { openSource: "cmk-video-project" });
+        root.remove();
+        focusLoadedWorkflowAfterRender();
+      } catch (error) {
+        console.error("CMK video project workflow could not be opened", error);
+        status.textContent = `${t("openFailed")}: ${error.message}`;
+        button.disabled = false;
+      }
+      return;
+    }
+
+    if (button.classList.contains("cmk-storage-project-folder")) {
+      button.disabled = true;
+      try {
+        const response = await api.fetchApi("/cmk/video-storage/project/open-folder", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: projectId }),
+        });
+        if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+        status.textContent = t("folderOpened");
+      } catch (error) {
+        console.error("CMK video project folder could not be opened", error);
+        status.textContent = `${t("openFailed")}: ${error.message}`;
+      } finally {
+        button.disabled = false;
+      }
+      return;
+    }
+
+    if (!await confirmStorageAction(root, t("deleteProjectTitle"), t("deleteProjectText")(name), t("deleteProject"))) return;
+    button.disabled = true;
+    status.textContent = t("deleting");
+    try {
+      const response = await api.fetchApi("/cmk/video-storage/project/clear", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: projectId }),
+      });
+      const result = await response.json();
+      if (!response.ok && response.status !== 207) throw new Error(`${response.status} ${response.statusText}`);
+      if (result.failures?.length) {
+        console.warn("CMK video project cleanup was incomplete", result.failures);
+        status.textContent = t("partialDelete");
+      } else {
+        status.textContent = t("projectDeleted")(formatStorageSize(result.freed_bytes));
+      }
+      await loadStorage();
+    } catch (error) {
+      console.error("CMK video project cleanup failed", error);
+      status.textContent = `${t("deleteFailed")}: ${error.message}`;
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  try {
+    await loadStorage();
+  } catch (error) {
+    status.textContent = `${t("storageUnavailable")}: ${error.message}`;
+    clearButton.disabled = true;
+  }
+
+  clearButton.addEventListener("click", async () => {
+    if (!await confirmStorageAction(root, t("deleteAllTitle"), t("deleteAllText"), t("deleteAll"))) return;
+    clearButton.disabled = true;
+    status.textContent = t("deleting");
+    try {
+      const response = await api.fetchApi("/cmk/video-storage/clear", { method: "POST" });
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+      await loadStorage();
+      status.textContent = t("allDeleted");
+    } catch (error) {
+      console.error("CMK video storage cleanup failed", error);
+      status.textContent = `${t("deleteFailed")}: ${error.message}`;
+    } finally {
+      clearButton.disabled = false;
+    }
+  });
+  overlay.querySelector(".cmk-flow-close").focus();
+}
+
+async function openTranslationDialog(root) {
+  const de = language === "de";
+  const copy = de ? {
+    title: "Google Translation", intro: "CMK übersetzt aktive Prompts unmittelbar vor dem Text-Encoding. Originalprompts bleiben im Workflow erhalten.",
+    project: "Google-Cloud-Projekt erstellen oder auswählen", billing: "Billing aktivieren", api: "Cloud Translation API aktivieren",
+    key: "API-Key erzeugen", restrict: "Key auf die Cloud Translation API beschränken", status: "STATUS", source: "QUELLE", target: "ZIEL", apiKey: "API KEY",
+    enabled: "ÜBERSETZUNG AKTIV", save: "KEY SPEICHERN", test: "VERBINDUNG TESTEN", remove: "KEY ENTFERNEN",
+    connected: "CONNECTED", configured: "EINGERICHTET", missing: "NICHT EINGERICHTET", saved: "API-Key lokal gespeichert.", removed: "API-Key entfernt.", testing: "Verbindung wird getestet …", success: "Verbindung erfolgreich.", failed: "Verbindung fehlgeschlagen",
+  } : {
+    title: "Google Translation", intro: "CMK translates active prompts immediately before text encoding. Original prompts remain in the workflow.",
+    project: "Create or select a Google Cloud project", billing: "Enable billing", api: "Enable the Cloud Translation API",
+    key: "Create an API key", restrict: "Restrict the key to the Cloud Translation API", status: "STATUS", source: "SOURCE", target: "TARGET", apiKey: "API KEY",
+    enabled: "TRANSLATION ENABLED", save: "SAVE KEY", test: "TEST CONNECTION", remove: "REMOVE KEY",
+    connected: "CONNECTED", configured: "CONFIGURED", missing: "NOT CONFIGURED", saved: "API key saved locally.", removed: "API key removed.", testing: "Testing connection …", success: "Connection successful.", failed: "Connection failed",
+  };
+  const overlay = document.createElement("div");
+  overlay.className = "cmk-about-overlay";
+  overlay.innerHTML = `
+    <section class="cmk-about-dialog" role="dialog" aria-modal="true" aria-labelledby="cmk-translation-title">
+      <header class="cmk-about-header"><h3 id="cmk-translation-title">${copy.title}</h3><button class="cmk-flow-close" type="button" aria-label="Close">×</button></header>
+      <div class="cmk-about-body">
+        <p>${copy.intro}</p>
+        <ol class="cmk-translation-steps">
+          <li><a href="https://console.cloud.google.com/projectselector2/home/dashboard" target="_blank" rel="noreferrer">${copy.project}</a></li>
+          <li><a href="https://console.cloud.google.com/billing" target="_blank" rel="noreferrer">${copy.billing}</a></li>
+          <li><a href="https://console.cloud.google.com/apis/library/translate.googleapis.com" target="_blank" rel="noreferrer">${copy.api}</a></li>
+          <li><a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer">${copy.key}</a></li>
+          <li><a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer">${copy.restrict}</a></li>
+        </ol>
+        <div class="cmk-translation-panel">
+          <div class="cmk-translation-row"><span class="cmk-translation-label">${copy.status}</span><span data-translation-status></span></div>
+          <div class="cmk-translation-row"><span class="cmk-translation-label">${copy.source}</span><span>AUTO</span></div>
+          <div class="cmk-translation-row"><span class="cmk-translation-label">${copy.target}</span><span>ENGLISH</span></div>
+          <div class="cmk-translation-row"><label for="cmk-translation-key">${copy.apiKey}</label><input id="cmk-translation-key" class="cmk-translation-key" type="password" autocomplete="off" spellcheck="false"></div>
+          <div class="cmk-translation-row"><label for="cmk-translation-enabled">${copy.enabled}</label><input id="cmk-translation-enabled" type="checkbox"></div>
+          <div class="cmk-translation-actions"><button class="cmk-translation-action" data-translation-save>${copy.save}</button><button class="cmk-translation-action" data-translation-test>${copy.test}</button><button class="cmk-translation-action cmk-translation-remove" data-translation-remove>${copy.remove}</button></div>
+          <div class="cmk-translation-message" data-translation-message></div>
+        </div>
+      </div>
+    </section>`;
+  root.append(overlay);
+  const keyInput = overlay.querySelector("#cmk-translation-key");
+  const enabledInput = overlay.querySelector("#cmk-translation-enabled");
+  const statusElement = overlay.querySelector("[data-translation-status]");
+  const message = overlay.querySelector("[data-translation-message]");
+  let status = {};
+  const renderStatus = () => {
+    statusElement.textContent = status.connected ? copy.connected : status.configured ? copy.configured : copy.missing;
+    statusElement.classList.toggle("cmk-translation-connected", Boolean(status.connected));
+    enabledInput.checked = Boolean(status.enabled);
+    keyInput.placeholder = status.configured ? `••••••••••••${status.key_suffix || ""}` : "Google API key";
+  };
+  const request = async (path, options = {}) => {
+    const response = await api.fetchApi(path, options);
+    let payload = {};
+    try { payload = await response.json(); } catch (_) {}
+    if (!response.ok) throw new Error(payload.message || payload.error_code || `${response.status} ${response.statusText}`);
+    return payload;
+  };
+  try { status = await request("/cmk/translation"); renderStatus(); }
+  catch (error) { message.textContent = error.message; message.classList.add("is-error"); }
+  enabledInput.addEventListener("change", async () => {
+    const requested = enabledInput.checked;
+    enabledInput.disabled = true;
+    message.classList.remove("is-error");
+    try {
+      status = await request("/cmk/translation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: requested }),
+      });
+      renderStatus();
+      message.textContent = requested
+        ? (de ? "Übersetzung aktiviert." : "Translation enabled.")
+        : (de ? "Übersetzung deaktiviert." : "Translation disabled.");
+    } catch (error) {
+      enabledInput.checked = !requested;
+      message.textContent = error.message;
+      message.classList.add("is-error");
+    } finally {
+      enabledInput.disabled = false;
+    }
+  });
+  overlay.querySelector("[data-translation-save]").addEventListener("click", async () => {
+    message.classList.remove("is-error");
+    try {
+      const payload = { enabled: enabledInput.checked };
+      if (keyInput.value.trim()) payload.api_key = keyInput.value.trim();
+      status = await request("/cmk/translation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      keyInput.value = ""; renderStatus(); message.textContent = copy.saved;
+    } catch (error) { message.textContent = error.message; message.classList.add("is-error"); }
+  });
+  overlay.querySelector("[data-translation-test]").addEventListener("click", async () => {
+    message.classList.remove("is-error"); message.textContent = copy.testing;
+    try { await request("/cmk/translation/test", { method: "POST" }); message.textContent = copy.success; status = await request("/cmk/translation"); renderStatus(); }
+    catch (error) { message.textContent = `${copy.failed}: ${error.message}`; message.classList.add("is-error"); }
+  });
+  overlay.querySelector("[data-translation-remove]").addEventListener("click", async () => {
+    try { status = await request("/cmk/translation", { method: "DELETE" }); keyInput.value = ""; renderStatus(); message.textContent = copy.removed; }
+    catch (error) { message.textContent = error.message; message.classList.add("is-error"); }
+  });
+  overlay.querySelector(".cmk-flow-close").addEventListener("click", () => overlay.remove());
+  overlay.addEventListener("click", (event) => { if (event.target === overlay) overlay.remove(); });
+}
+
+async function openExecutionCacheDialog(root) {
+  root.querySelector(".cmk-about-overlay")?.remove();
+  const de = language === "de";
+  const copy = de ? {
+    title: "Execution Cache", intro: "Der Cache-Modus gilt für die gesamte ComfyUI-Instanz. Änderungen werden erst nach einem vollständigen Neustart wirksam.",
+    mode: "CACHE-MODUS", classic: "Classic – nur zum aktuellen Workflow passende Ergebnisse behalten", pressure: "RAM Pressure – mehrere inaktive Ergebnisse nach verfügbarem Speicher behalten", active: "AKTIV", selected: "NACH NEUSTART", save: "AUSWAHL SPEICHERN", saved: "Auswahl gespeichert. ComfyUI vollständig neu starten, um sie zu aktivieren.", current: "Bereits aktiv.", failed: "Cache-Einstellung konnte nicht gespeichert werden", memory: "SPEICHERANZEIGE", memoryHint: "Aktuelle RAM-Belegung neben dem CMK-Button anzeigen", clear: "Clear Persistent Cache", clearTitle: "Persistenten Cache leeren?", clearText: "Alle persistenten CMK-Generation-, Branch- und Boundary-Caches werden entfernt. Workflows und Benutzerergebnisse bleiben erhalten.", clearConfirm: "CACHE LEEREN", clearing: "Persistenter Cache wird geleert…", clearSuccess: (entries, files, size) => `Persistenter Cache geleert: ${entries} Einträge, ${files} Dateien, ${size} freigegeben.`, clearBusy: "Während einer laufenden Generierung kann der persistente Cache nicht geleert werden.", clearFailed: "Persistenter Cache konnte nicht vollständig geleert werden",
+  } : {
+    title: "Execution Cache", intro: "The cache mode applies to the entire ComfyUI instance. Changes take effect only after a full restart.",
+    mode: "CACHE MODE", classic: "Classic – keep results matching the current workflow", pressure: "RAM Pressure – retain multiple inactive results based on available memory", active: "ACTIVE", selected: "AFTER RESTART", save: "SAVE SELECTION", saved: "Selection saved. Fully restart ComfyUI to activate it.", current: "Already active.", failed: "Cache setting could not be saved", memory: "MEMORY DISPLAY", memoryHint: "Show current RAM usage next to the CMK button", clear: "Clear Persistent Cache", clearTitle: "Clear persistent cache?", clearText: "All persistent CMK generation, branch and boundary caches will be removed. Workflows and user results remain untouched.", clearConfirm: "CLEAR CACHE", clearing: "Clearing persistent cache…", clearSuccess: (entries, files, size) => `Persistent cache cleared: ${entries} entries, ${files} files, ${size} released.`, clearBusy: "The persistent cache cannot be cleared while a generation is running.", clearFailed: "Persistent cache could not be cleared completely",
+  };
+  const overlay = document.createElement("div");
+  overlay.className = "cmk-about-overlay";
+  overlay.innerHTML = `
+    <section class="cmk-about-dialog" role="dialog" aria-modal="true" aria-labelledby="cmk-cache-title">
+      <header class="cmk-about-header"><h3 id="cmk-cache-title">${copy.title}</h3><button class="cmk-flow-close" type="button" aria-label="Close">×</button></header>
+      <div class="cmk-about-body">
+        <p>${copy.intro}</p>
+        <div class="cmk-translation-panel">
+          <div class="cmk-translation-row"><span class="cmk-translation-label">${copy.active}</span><strong data-cache-active>…</strong></div>
+          <div class="cmk-translation-row"><span class="cmk-translation-label">${copy.mode}</span><div>
+            <label><input type="radio" name="cmk-cache-mode" value="classic"> ${copy.classic}</label><br>
+            <label><input type="radio" name="cmk-cache-mode" value="ram_pressure"> ${copy.pressure}</label>
+          </div></div>
+          <div class="cmk-translation-row"><span class="cmk-translation-label">${copy.selected}</span><strong data-cache-selected>…</strong></div>
+          <div class="cmk-translation-row"><span class="cmk-translation-label">${copy.memory}</span><label><input type="checkbox" data-memory-display> ${copy.memoryHint}</label></div>
+          <div class="cmk-translation-actions"><button class="cmk-translation-action" data-cache-save>${copy.save}</button><button class="cmk-translation-action cmk-cache-clear" data-cache-clear>${copy.clear}</button></div>
+          <div class="cmk-translation-message" data-cache-message></div>
+        </div>
+      </div>
+    </section>`;
+  root.append(overlay);
+  const active = overlay.querySelector("[data-cache-active]");
+  const selected = overlay.querySelector("[data-cache-selected]");
+  const message = overlay.querySelector("[data-cache-message]");
+  const memoryToggle = overlay.querySelector("[data-memory-display]");
+  memoryToggle.checked = memoryDisplayEnabled();
+  memoryToggle.addEventListener("change", () => setMemoryDisplayEnabled(memoryToggle.checked));
+  const request = async (options = {}) => {
+    const response = await api.fetchApi("/cmk/execution-cache", options);
+    let payload = {};
+    try { payload = await response.json(); } catch (_) {}
+    if (!response.ok) throw new Error(payload.message || `${response.status} ${response.statusText}`);
+    return payload;
+  };
+  const render = (status) => {
+    active.textContent = String(status.active_mode || "unknown").toUpperCase();
+    selected.textContent = String(status.configured_mode || "unknown").toUpperCase();
+    const input = overlay.querySelector(`input[value="${status.configured_mode}"]`);
+    if (input) input.checked = true;
+  };
+  let status;
+  try { status = await request(); render(status); }
+  catch (error) { message.textContent = error.message; message.classList.add("is-error"); }
+  overlay.querySelector("[data-cache-save]").addEventListener("click", async () => {
+    const mode = overlay.querySelector('input[name="cmk-cache-mode"]:checked')?.value;
+    if (!mode) return;
+    message.classList.remove("is-error");
+    try {
+      status = await request({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode }) });
+      render(status);
+      message.textContent = status.restart_required ? copy.saved : copy.current;
+    } catch (error) {
+      message.textContent = `${copy.failed}: ${error.message}`;
+      message.classList.add("is-error");
+    }
+  });
+  const clearButton = overlay.querySelector("[data-cache-clear]");
+  clearButton.addEventListener("click", async () => {
+    const confirmed = await confirmStorageAction(
+      root, copy.clearTitle, copy.clearText, copy.clearConfirm,
+    );
+    if (!confirmed) return;
+    clearButton.disabled = true;
+    message.classList.remove("is-error");
+    message.textContent = copy.clearing;
+    try {
+      const response = await api.fetchApi("/cmk/persistent-cache/clear", { method: "POST" });
+      let payload = {};
+      try { payload = await response.json(); } catch (_) {}
+      if (!response.ok) {
+        const error = new Error(payload.message || `${response.status} ${response.statusText}`);
+        error.status = response.status;
+        throw error;
+      }
+      const totals = payload.totals || {};
+      message.textContent = copy.clearSuccess(
+        Number(totals.entries) || 0,
+        Number(totals.files) || 0,
+        formatStorageSize(totals.bytes),
+      );
+    } catch (error) {
+      message.textContent = error.status === 409
+        ? copy.clearBusy
+        : `${copy.clearFailed}: ${error.message}`;
+      message.classList.add("is-error");
+    } finally {
+      clearButton.disabled = false;
+    }
+  });
+  overlay.querySelector(".cmk-flow-close").addEventListener("click", () => overlay.remove());
+  overlay.addEventListener("click", (event) => { if (event.target === overlay) overlay.remove(); });
+}
+
+function memoryDisplayEnabled() {
+  return localStorage.getItem(MEMORY_DISPLAY_KEY) === "true";
+}
+
+function formatGigabytes(bytes) {
+  const gib = Number(bytes) / (1024 ** 3);
+  if (!Number.isFinite(gib)) return "—";
+  return `${gib.toLocaleString(language === "de" ? "de-DE" : "en-US", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })} GB`;
+}
+
+function formatMemory(bytes) {
+  return `RAM ${formatGigabytes(bytes)}`;
+}
+
+async function refreshMemoryIndicator() {
+  if (!memoryIndicator || memoryIndicator.hidden) return;
+  try {
+    const response = await api.fetchApi("/cmk/process-memory");
+    if (!response.ok) throw new Error(String(response.status));
+    const status = await response.json();
+    memoryIndicator.textContent = `Comfy ≥ ${formatGigabytes(status.display_bytes)} · frei ${formatGigabytes(status.system_available_bytes)}`;
+    memoryIndicator.title = `Sichere ComfyUI-Untergrenze: RSS ${formatGigabytes(status.family_rss_bytes)} + MPS ${formatGigabytes(status.mps_driver_bytes)} · Systemspeicher gesamt ${formatGigabytes(status.system_total_bytes)}`;
+    const availableGib = Number(status.system_available_bytes) / (1024 ** 3);
+    memoryIndicator.dataset.memoryReserve = availableGib <= 1.5
+      ? "critical"
+      : availableGib <= 3
+        ? "low"
+        : "normal";
+  } catch (_) {
+    memoryIndicator.textContent = "RAM —";
+    memoryIndicator.title = "ComfyUI memory status unavailable";
+  }
+}
+
+function setMemoryDisplayEnabled(enabled) {
+  localStorage.setItem(MEMORY_DISPLAY_KEY, String(Boolean(enabled)));
+  if (!memoryIndicator) return;
+  memoryIndicator.hidden = !enabled;
+  if (memoryPollTimer) {
+    clearInterval(memoryPollTimer);
+    memoryPollTimer = null;
+  }
+  if (enabled) {
+    refreshMemoryIndicator();
+    memoryPollTimer = window.setInterval(refreshMemoryIndicator, MEMORY_POLL_MS);
+  }
+}
+
+function matchMemoryIndicatorGeometry(launcherElement) {
+  if (!memoryIndicator || !launcherElement) return;
+  const bounds = launcherElement.getBoundingClientRect();
+  const style = getComputedStyle(launcherElement);
+  if (bounds.height > 0) {
+    memoryIndicator.style.height = `${bounds.height}px`;
+    memoryIndicator.style.minHeight = `${bounds.height}px`;
+  }
+  memoryIndicator.style.borderRadius = style.borderRadius;
+  memoryIndicator.style.paddingInlineStart = style.paddingInlineStart;
+  memoryIndicator.style.paddingInlineEnd = style.paddingInlineEnd;
+  memoryIndicator.style.boxSizing = style.boxSizing;
+}
+
+async function openFlowBrowser() {
+  // Workflows, metadata and previews are package content that may be updated
+  // while ComfyUI stays open. Never reuse an earlier in-session registry.
+  browserDataPromise = undefined;
+  document.querySelector(".cmk-flow-overlay")?.remove();
+  addStyles();
+
+  const root = document.createElement("div");
+  root.className = "cmk-flow-overlay";
+  root.innerHTML = `
+    <section class="cmk-flow-browser" role="dialog" aria-modal="true" aria-labelledby="cmk-flow-title">
+      <header class="cmk-flow-header">
+        <div class="cmk-flow-heading"><h2 id="cmk-flow-title">CMK Flow</h2><span class="cmk-flow-subtitle">${t("subtitleFlow")}</span></div>
+        <div class="cmk-flow-header-actions"><div class="cmk-language-switch" aria-label="Language"><button class="cmk-language-button" data-language="de">DE</button><button class="cmk-language-button" data-language="en">EN</button></div><button class="cmk-translation-open" type="button">Translation</button><button class="cmk-statistics-open" type="button">${language === "de" ? "Statistik" : "Statistics"}</button><button class="cmk-cache-open" type="button">Cache</button><button class="cmk-storage-open" type="button">${t("videoStorage")}</button><button class="cmk-about-open" type="button">About CMK Flow</button><button class="cmk-flow-close" type="button" aria-label="Schließen">×</button></div>
+      </header>
+      <nav class="cmk-browser-tabs" role="tablist" aria-label="Bereich">
+        <button class="cmk-browser-tab" type="button" role="tab" data-cmk-tab="flow">Flow</button>
+        <button class="cmk-browser-tab" type="button" role="tab" data-cmk-tab="references">Showcase</button>
+      </nav>
+      <div class="cmk-flow-content">
+        <aside class="cmk-flow-sidebar">
+          <div class="cmk-flow-controls"><input type="search" placeholder="${t("searchFlows")}" aria-label="${t("searchFlows")}"><select aria-label="${t("category")}"></select></div>
+          <div class="cmk-flow-list"><div class="cmk-flow-empty">${t("loading")}</div></div>
+        </aside>
+        <div class="cmk-flow-detail"></div>
+      </div>
+    </section>`;
+  document.body.append(root);
+
+  const close = () => root.remove();
+  root.querySelector(".cmk-flow-header > .cmk-flow-header-actions .cmk-flow-close").addEventListener("click", close);
+  root.querySelector(".cmk-storage-open").addEventListener("click", () => openVideoStorageDialog(root));
+  root.querySelector(".cmk-translation-open").addEventListener("click", () => openTranslationDialog(root));
+  root.querySelector(".cmk-cache-open").addEventListener("click", () => openExecutionCacheDialog(root));
+  root.querySelector(".cmk-statistics-open").addEventListener("click", () => openStatisticsDialog(root));
+  root.querySelector(".cmk-about-open").addEventListener("click", () => openAboutDialog(root));
+  root.querySelectorAll(".cmk-language-button").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.language === language);
+    button.addEventListener("click", async () => {
+      if (button.dataset.language === language) return;
+      language = button.dataset.language;
+      localStorage.setItem("cmk-flow-language", language);
+      browserDataPromise = undefined;
+      root.remove();
+      await openFlowBrowser();
+    });
+  });
+  root.addEventListener("click", (event) => { if (event.target === root) close(); });
+  root.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    const about = root.querySelector(".cmk-about-overlay");
+    if (about) about.remove();
+    else close();
+  });
+
+  try {
+    renderBrowser(root, await loadBrowserData());
+  } catch (error) {
+    root.querySelector(".cmk-flow-list").innerHTML = `<div class="cmk-flow-error">${t("loadError")}</div>`;
+    root.querySelector(".cmk-flow-detail").textContent = error.message;
+    console.error(`[${EXTENSION_NAME}]`, error);
+  }
+}
+
+app.registerExtension({
+  name: EXTENSION_NAME,
+  commands: [{ id: COMMAND_ID, label: "CMK Flow öffnen", menubarLabel: "Flow Browser öffnen", function: openFlowBrowser }],
+  menuCommands: [{ path: ["CMK Flow"], commands: [COMMAND_ID] }],
+  async setup() {
+    if (!app.menu?.settingsGroup || document.querySelector("[data-cmk-flow-launcher]")) return;
+
+    addStyles();
+    const ComfyButton = window.comfyAPI?.button?.ComfyButton;
+    if (!ComfyButton) {
+      console.warn(`[${EXTENSION_NAME}] ComfyUI button API is unavailable; use the CMK Flow menu command instead.`);
+      return;
+    }
+    const launcher = new ComfyButton({
+      action: openFlowBrowser,
+      tooltip: "Kuratierte CMK Flow-Module öffnen",
+      content: "CMK Flow",
+    });
+    launcher.element.dataset.cmkFlowLauncher = "true";
+    app.menu.settingsGroup.append(launcher);
+    memoryIndicator = document.createElement("span");
+    memoryIndicator.dataset.cmkMemoryIndicator = "true";
+    memoryIndicator.textContent = "RAM …";
+    launcher.element.insertAdjacentElement("afterend", memoryIndicator);
+    memoryGeometryObserver = new ResizeObserver(() =>
+      matchMemoryIndicatorGeometry(launcher.element)
+    );
+    memoryGeometryObserver.observe(launcher.element);
+    requestAnimationFrame(() => matchMemoryIndicatorGeometry(launcher.element));
+    setMemoryDisplayEnabled(memoryDisplayEnabled());
+  },
+});

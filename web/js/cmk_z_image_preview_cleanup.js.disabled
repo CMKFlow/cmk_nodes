@@ -1,0 +1,45 @@
+import { app } from "/scripts/app.js";
+
+const FINAL_PREVIEW_NODE_TYPES = new Set([
+  "CMKKSamplerPipe",
+  "CMKRefinerPipe",
+]);
+
+function nodeOutputStore() {
+  const vueApp = document.querySelector("#vue-app")?.__vue_app__;
+  const provided = vueApp?._context?.provides;
+  if (!provided) return null;
+
+  for (const key of Reflect.ownKeys(provided)) {
+    const candidate = provided[key];
+    if (candidate?._s instanceof Map && candidate._s.has("nodeOutput")) {
+      return candidate._s.get("nodeOutput");
+    }
+  }
+  return null;
+}
+
+function clearTransientPreview(node, message) {
+  if (!Array.isArray(message?.images) || message.images.length === 0) return;
+  const graph = node?.graph;
+  const locator = graph?.isRootGraph
+    ? String(node.id)
+    : `${graph?.id}:${node.id}`;
+  nodeOutputStore()?.revokePreviewsByLocatorId?.(locator);
+  node.imgs = null;
+  node.imageIndex = null;
+  node.setDirtyCanvas?.(true, true);
+}
+
+app.registerExtension({
+  name: "cmk.flow.final_preview_cleanup",
+  beforeRegisterNodeDef(nodeType, nodeData) {
+    if (!FINAL_PREVIEW_NODE_TYPES.has(nodeData?.name)) return;
+    const originalOnExecuted = nodeType.prototype.onExecuted;
+    nodeType.prototype.onExecuted = function (message) {
+      const result = originalOnExecuted?.call(this, message);
+      clearTransientPreview(this, message);
+      return result;
+    };
+  },
+});

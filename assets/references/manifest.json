@@ -1,0 +1,65 @@
+{
+  "schema": "cmk.reference-assets.v1",
+  "assets": [
+    {
+      "package_file": "clipspace-mask-1792499379891.png",
+      "original_file": "clipspace-mask-1792499379891.png",
+      "sha256": "2d6e2de3df2d0fa0f3e5d94d2d28aeec2ec09cb1061d05a0770a0c4f62c53472"
+    },
+    {
+      "package_file": "controlnet_reference.png",
+      "original_file": "controlnet_reference3.png",
+      "sha256": "aa3ceb0fa01fc7651abc89e4a3fba076907d87d749816c9780d51a1759617b8c"
+    },
+    {
+      "package_file": "controlnet_reference4.png",
+      "original_file": "controlnet_reference4.png",
+      "sha256": "12d429aad2fd5572f91a9cd34b25da3b1953f45e05e93544a6fa024a4508bc54"
+    },
+    {
+      "package_file": "detailer_reference.png",
+      "original_file": "image_00051 (1).png",
+      "sha256": "ee75a396ec154d2304277364bd8be58e609118a6664f97ab65920888a44bde9f"
+    },
+    {
+      "package_file": "face_identity_reference.png",
+      "original_file": "portrait_reference_00003.png",
+      "sha256": "916911957d8ce4805358a28ade90ddbc495aa649fce54dd94f8c896d46007f0a"
+    },
+    {
+      "package_file": "face_reference.png",
+      "original_file": "face_reference.png",
+      "sha256": "272542cf95f005b1a86e0e2da940c014b9e67bbd247e1fefccd2dbeab60f77f1"
+    },
+    {
+      "package_file": "faceswap_reference.png",
+      "original_file": "portrait_reference_00001.png",
+      "sha256": "62bf9829fccfa950570db66ba32fcf89a0f1402f16e24b63908ae7968f2b3616"
+    },
+    {
+      "package_file": "inpaint_reference.png",
+      "original_file": "inpaint_reference.png",
+      "sha256": "5ef290147f9385436803478f9673dde508db878f69ad6413493c6e764c5f23bb"
+    },
+    {
+      "package_file": "inpaint_reference2.png",
+      "original_file": "inpaint_reference2.png",
+      "sha256": "c3ad98c617e8d8dab652a63e413b603d1cc6f4d0fa6ecc0eb5ee6a09da0da7c9"
+    },
+    {
+      "package_file": "mask_detailer_reference.png",
+      "original_file": "mask_detailer_reference.png",
+      "sha256": "9878f5bb242f919c592692717e28d85b7fecf96a6f7419199981d1e3501c25f9"
+    },
+    {
+      "package_file": "portrait_reference_00002.png",
+      "original_file": "portrait_reference_00002.png",
+      "sha256": "45270ae18ee473f9697681caa7ef02de1a0c3e5232c7fac451d3ae7b8abdcc94"
+    },
+    {
+      "package_file": "remove_refrence.png",
+      "original_file": "remove_reference.png",
+      "sha256": "be2d471adb155d1a470de5a4e9085196a81df8a768c10e48849295b71376dc7d"
+    }
+  ]
+}

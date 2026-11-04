@@ -1,0 +1,14 @@
+{
+  "description": "The nine standalone showcase workflows before H-2 (CMKCheckpointVAELoaderPipe feeding CMK Load Image or FaceRebuild directly). Frozen copies in tests/fixtures/legacy_workflows/showcase_pre_h2; the shipped files are migrated to CMKPostProcessModelPipe.",
+  "sha256": {
+    "CMK 2.6 · FaceProcess · Modul.json": "49e21ecff14f81d6ec2e50e629e23589ea8f672299d04e6867855388005e58f5",
+    "CMK 2.6 · FaceProcess.json": "3232ddd5a2d2061d1998244f7e0649dcc0516fa730091c323be50c55f44c792b",
+    "CMK 2.6 · FaceRebuild · Modul.json": "1145ab8c140bae700a72bce70bdf8f54591237dc53bcbc43d0252bb890fbeb43",
+    "CMK 2.6 · FaceRebuild.json": "9e258c0d747c708ac7cc08dc0943f2924b71f8884a51dd6f4f51b8f290c69509",
+    "CMK 2.6 · MaskDetailer .json": "cc363f613d3a86681851969bb99bf8f9890f414377be319ac3672f091aee9ffb",
+    "CMK 2.6 · MaskDetailer · Modul.json": "95d465346b68fec6110ac121d8f401ec66438e483d0b7e489b9c0b42a9de0b64",
+    "CMK 2.6 · SmartDetailer · Modul.json": "918ea5cfaf4cd88fe7d4378f6a8df48d3d846d1de6eb69b6ad06f12a176cb010",
+    "CMK 2.6 · SmartDetailer.json": "9a010cd0150e7b99cfdde82c809c8ecb1b6022d5097d8945e2827b958b29b430",
+    "FaceSwap vs FaceRebuild.json": "0088686a71be18a98387e0f4c97fe9387cad1ee4719707abddb889b0e968959e"
+  }
+}
