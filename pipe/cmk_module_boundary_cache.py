@@ -1510,7 +1510,7 @@ class _FaceBoundaryCore:
             unique_id,
             ("CMKFaceBoundaryCache",),
             self._SCHEMA,
-            exclude_inputs=("MODEL", "IMAGE", "LOG", *VISUAL_INPUT_NAMES),
+            exclude_inputs=("MODEL", "IMAGE", "LOG", *VISUAL_INPUT_NAMES, *PASSTHROUGH_INPUT_NAMES),
             include_node_identity=True,
         )
 
@@ -1768,11 +1768,14 @@ class _FaceBoundaryCore:
         return MODEL, IMAGE, LOG
 
 
-class CMKFaceBoundaryCache(_VisualPublication, _FaceBoundaryCore):
-    """FaceProcess boundary that also publishes the module's VISUAL providers."""
+class CMKFaceBoundaryCache(_PassthroughSources, _VisualPublication, _FaceBoundaryCore):
+    """FaceProcess boundary that also publishes the module's VISUAL providers and
+    owns its diagnostic and disabled passthrough (H-5, shared with the Detailer)."""
 
-    RETURN_TYPES = (*_FaceBoundaryCore.RETURN_TYPES, "CMK_VISUAL_PIPE")
-    RETURN_NAMES = (*_FaceBoundaryCore.RETURN_NAMES, "VISUAL")
+    _PASSTHROUGH_LABEL = "FaceProcess"
+
+    RETURN_TYPES = (*_FaceBoundaryCore.RETURN_TYPES, "CMK_VISUAL_PIPE", "CMK_DIAGNOSTIC")
+    RETURN_NAMES = (*_FaceBoundaryCore.RETURN_NAMES, "VISUAL", "diagnostic")
 
 
 def _faceswap_entry_paths(scope: str, cache_key: str):

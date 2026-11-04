@@ -101,24 +101,19 @@ class ActivePassthrough(ScenarioCase):
                 self.assertNotIn("CMK_SmartDetailerPipe", run["function_calls"])
                 self.assertIn("DISABLED_PASSTHROUGH", [status for _scope, status, _key in run["statuses"]])
 
-    def test_baseline_h5_faceprocess_passthrough_blocks_all_downstream_output(self):
+    def test_faceprocess_passthrough_delivers_unchanged_image(self):
+        # H-5 fixed: the boundary answers from IMAGE IN / LOG IN like the
+        # Detailer (K-5); nothing downstream is blocked.  The pre-H-5 block is
+        # pinned in test_s1_h5 (legacy fixtures).
         for fixture in ("faceprocess_std", "faceprocess_adv"):
             with self.subTest(fixture=fixture):
                 run = self.results[fixture]
-                self.assertTrue(run["succeeded"])
-                self.assertIn("DISABLED_ACTIVE_BRANCH_BLOCKED", [s for _scope, s, _k in run["statuses"]])
-                self.assertNotIn("CMKVisualizer", run["function_calls"])
-                self.assertEqual(run["visual"], {})
-                # The gate output is a stored ExecutionBlocker: nothing reaches
-                # Visual Compare, Visualizer or any save endpoint.
-                self.assertEqual(run["outputs"]["gate"], {"type": "ExecutionBlocker"})
-
-    @unittest.expectedFailure  # H-5
-    def test_faceprocess_passthrough_delivers_unchanged_image(self):
-        for fixture in ("faceprocess_std", "faceprocess_adv"):
-            run = self.results[fixture]
-            self.assertEqual(run["outputs"]["gate"].get("hash"), run["outputs"]["loader"]["hash"])
-            self.assertIn("CMKVisualizer", run["function_calls"])
+                self.assertTrue(run["succeeded"], run["errors"])
+                self.assertEqual(run["outputs"]["gate"]["hash"], run["outputs"]["loader"]["hash"])
+                self.assertIn("CMKVisualizer", run["function_calls"])
+                self.assertNotIn("CMKFaceProcessPreparePipe", run["function_calls"])
+                self.assertNotIn("CMKFaceProcessPipe", run["function_calls"])
+                self.assertIn("DISABLED_PASSTHROUGH", [s for _scope, s, _k in run["statuses"]])
 
 
 class FaceSwapActive(ScenarioCase):

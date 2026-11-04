@@ -1,14 +1,14 @@
 {
   "comfyui_version": "0.43.2",
   "frontend_version": "1.57.4",
-  "recorded_at": "2026-11-04T07:42:29+00:00",
+  "recorded_at": "2026-11-04T18:56:59+00:00",
   "fixtures": [
     {
       "name": "chain_postprocess",
       "workflow_file": "workflows/chain_postprocess.json",
-      "workflow_sha256": "3e8c1200f1ddf63d3a1a04988494b24c83191e69ce1c5d5062a74f76bc3b3dac",
+      "workflow_sha256": "070ae90b77720943d496888d4425e1ac6ee5aa9187dce30412def2bbdc86a3f5",
       "api_prompt_file": "api_prompts/chain_postprocess.json",
-      "api_prompt_sha256": "07a6c6f25bb34c480cd8a3708ac1ed40c88ce6e3fadaf6625a4538886f31a8e1",
+      "api_prompt_sha256": "9fcc71fd081f8a0ac30e16b848cd889c3a450959d34fcedb7bb1fce06d4e2626",
       "definitions": [
         {
           "name": "CMK Flow · Detailer SDXL",
@@ -17,7 +17,7 @@
         },
         {
           "name": "CMK Flow · FaceProcess SDXL",
-          "signature": "23e6bfcc63d79f12d51798c360480cdfdfc86362e3da4a01cec4644c82c88ac5",
+          "signature": "91fe7e7642c621d20d505521870cc1f4a68bd664cc6b3e16fdc8373f97e11b13",
           "canonical_at_export": true
         },
         {
@@ -100,28 +100,56 @@
     {
       "name": "faceprocess_adv",
       "workflow_file": "workflows/faceprocess_adv.json",
-      "workflow_sha256": "894e740aef84a50d9243f970328bddd3103060b08971eda72fd9b0b8f2ca34e4",
+      "workflow_sha256": "7172d9b3e9a07c2937612612319788dd284fb448659259afab2f8eee624f0b86",
       "api_prompt_file": "api_prompts/faceprocess_adv.json",
+      "api_prompt_sha256": "9de76d1684d7e61869362a632536d8de974b53783fc4045cd4830e6b8ed01aca",
+      "definitions": [
+        {
+          "name": "CMK Flow · FaceProcess SDXL · Advanced",
+          "signature": "0b05917308ed75a6da33ff86640edfefe558959a8a07fae5956469541f922c7b",
+          "canonical_at_export": true
+        }
+      ]
+    },
+    {
+      "name": "faceprocess_adv_legacy_pre_h5",
+      "workflow_file": "workflows/faceprocess_adv_legacy_pre_h5.json",
+      "workflow_sha256": "894e740aef84a50d9243f970328bddd3103060b08971eda72fd9b0b8f2ca34e4",
+      "api_prompt_file": "api_prompts/faceprocess_adv_legacy_pre_h5.json",
       "api_prompt_sha256": "218920fe201c2c7e458850ef7e055bfeb8f994a36e9b0dce8d423ee5c124b664",
       "definitions": [
         {
           "name": "CMK Flow · FaceProcess SDXL · Advanced",
           "signature": "5e46a030b8283160ce5ff9e9ad6c0e3687267178a82101a248e28fc22ce1a429",
-          "canonical_at_export": true
+          "canonical_at_export": false
         }
       ]
     },
     {
       "name": "faceprocess_std",
       "workflow_file": "workflows/faceprocess_std.json",
-      "workflow_sha256": "de5e427529b8cf5ddcd34feef74f414723815d9fd9dd48c2624a771453335409",
+      "workflow_sha256": "940e2485f282cea3fd2bb7d25805e367645f18bb2bdc18df9207bb8fcc3a0c4d",
       "api_prompt_file": "api_prompts/faceprocess_std.json",
+      "api_prompt_sha256": "312815377c5314e7875e42d1776cc1b8869fd0dd18cdb61882636a026e8310d7",
+      "definitions": [
+        {
+          "name": "CMK Flow · FaceProcess SDXL",
+          "signature": "91fe7e7642c621d20d505521870cc1f4a68bd664cc6b3e16fdc8373f97e11b13",
+          "canonical_at_export": true
+        }
+      ]
+    },
+    {
+      "name": "faceprocess_std_legacy_pre_h5",
+      "workflow_file": "workflows/faceprocess_std_legacy_pre_h5.json",
+      "workflow_sha256": "de5e427529b8cf5ddcd34feef74f414723815d9fd9dd48c2624a771453335409",
+      "api_prompt_file": "api_prompts/faceprocess_std_legacy_pre_h5.json",
       "api_prompt_sha256": "1e632c19586a4af1bc590d378b6c555dbcc83dfa00c8cfb5c3ee06112228d4bd",
       "definitions": [
         {
           "name": "CMK Flow · FaceProcess SDXL",
           "signature": "23e6bfcc63d79f12d51798c360480cdfdfc86362e3da4a01cec4644c82c88ac5",
-          "canonical_at_export": true
+          "canonical_at_export": false
         }
       ]
     },

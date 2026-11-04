@@ -625,3 +625,44 @@ erwarteten Fehlschlag `test_advanced_boundary_hits_after_eviction`.
 | `.mjs` | 7 Dateien | 7 | – | – | 0 |
 
 Geschützte Caches unverändert.
+
+## Achte produktive Korrektur: H-5, FaceProcess-Boundary und Passthrough (2026-11-04)
+
+**Freigabe:** D1 Mixin `_PassthroughSources` unverändert, D2 kein Schemawechsel,
+D3 Legacy unverändert, D4 Gate-Sonderlogik bleibt, D5 Ausgabezahl in
+`test_stop_after_handoff.py`, D6 Frontend-Export. Basis: Git `a5606df`.
+
+- **Ursachen:** (1) Gate `DIAGNOSTIC ACTIVE` vom letzten `CMKFaceProcessPipe`;
+  dessen nicht-lazy `opt_log`/`opt_diagnostic` zogen alle Zweige und Prepare
+  (`resolve_postprocess_model`) bei jedem Boundary-HIT nach. (2) Alle lokalen
+  Zweige aus ⇒ Boundary-Kern lieferte `ExecutionBlocker` für MODEL/IMAGE/LOG ⇒
+  Gate, Visual Compare, Visualizer und nachgelagerte Module still blockiert,
+  entgegen ARCHITECTURE.md („deaktivierter Modul-Passthrough“).
+- **Produktcode:** `pipe/cmk_module_boundary_cache.py`: `CMKFaceBoundaryCache`
+  erbt `_PassthroughSources` (Label `FaceProcess`), zusätzlicher Ausgang
+  `diagnostic`; `_FaceBoundaryCore._cache_key` schließt die neuen Eingänge aus.
+- **Subgraphen:** FaceProcess std/adv 1.4.0 (`IMAGE IN`/`LOG IN` ← Modul-Eingänge,
+  `diagnostic` ← letzter Zweig, Gate `DIAGNOSTIC ACTIVE` ← Boundary).
+- **Fixtures:** `faceprocess_std`, `faceprocess_adv`, `chain_postprocess` über
+  Frontend 1.57.4 neu exportiert (nach Manager-Neustart bei leerer Queue);
+  Exporte davor eingefroren als `*_legacy_pre_h5`. Schlüssel und Manifeste:
+  `contracts/boundary_keys_pre_h5.json` (byteidentisch bestätigt).
+- **Tests:** neu `test_s1_h5.py` (13 Tests); H-5-Baselines und erwartete
+  Fehlschläge in `test_s1_postprocess_scenarios.py` und `test_s1_k5b.py`
+  aufgelöst; `test_stop_after_handoff.py`: FaceProcess-Boundary 4 + VISUAL
+  Ausgänge (D5).
+- **Gemessen:** Passthrough: Bild byteidentisch, LOG + Statusblock, Diagnose
+  `FaceProcess Boundary`, VISUAL unverändert, Visualizer läuft, 0 Prepare/Zweige/
+  Auflösung. HIT nach Eviction und Neustart (std, adv einzeln und alle Zweige):
+  0 Prepare, 0 Zweig-Nodes, 0 `resolve_postprocess_model`, Ergebnisse identisch.
+  Altes Eintrag ohne Diagnose: einmal `MISS_STORED`, danach `HIT`.
+
+### Gesamtlauf nach H-5 (`_reports/full_suite_h5.json`)
+
+| Gruppe | Tests | PASS | erwarteter Fehlschlag | SKIP | unerwartet |
+|---|---|---|---|---|---|
+| S1 | 186 | 173 | 11 | 2 | 0 |
+| Bestand | 159 | 157 | – | – | 2 in `test_image_resize_port_contract.py` (Altfehler) |
+| `.mjs` | 7 Dateien | 7 | – | – | 0 |
+
+Geschützte Caches unverändert.

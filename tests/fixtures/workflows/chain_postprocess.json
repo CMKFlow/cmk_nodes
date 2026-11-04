@@ -2,7 +2,7 @@
   "id": "8b1dab84-0dac-5c1c-bb0e-771addd30e1e",
   "revision": 0,
   "last_node_id": 8441,
-  "last_link_id": 30037,
+  "last_link_id": 30041,
   "nodes": [
     {
       "id": 1,
@@ -895,7 +895,7 @@
         "state": {
           "lastGroupId": 234,
           "lastNodeId": 8441,
-          "lastLinkId": 30037,
+          "lastLinkId": 30041,
           "lastRerouteId": 1
         },
         "revision": 0,
@@ -2134,7 +2134,7 @@
         "state": {
           "lastGroupId": 234,
           "lastNodeId": 8441,
-          "lastLinkId": 30037,
+          "lastLinkId": 30041,
           "lastRerouteId": 1
         },
         "revision": 0,
@@ -2193,7 +2193,8 @@
             "type": "IMAGE",
             "linkIds": [
               12127,
-              30020
+              30020,
+              30029
             ],
             "pos": [
               9499.5390625,
@@ -2206,7 +2207,8 @@
             "type": "CMK_LOG_PIPE",
             "linkIds": [
               12129,
-              30021
+              30021,
+              30030
             ],
             "pos": [
               9499.5390625,
@@ -2414,7 +2416,7 @@
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  20554
+                  30031
                 ]
               }
             ],
@@ -2531,7 +2533,7 @@
             ],
             "size": [
               230,
-              110
+              170
             ],
             "flags": {
               "collapsed": true
@@ -2570,6 +2572,27 @@
                 "shape": 7,
                 "type": "CMK_VISUAL_PIPE",
                 "link": 30025
+              },
+              {
+                "localized_name": "IMAGE IN",
+                "name": "IMAGE IN",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 30029
+              },
+              {
+                "localized_name": "LOG IN",
+                "name": "LOG IN",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 30030
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "shape": 7,
+                "type": "CMK_DIAGNOSTIC",
+                "link": 30031
               }
             ],
             "outputs": [
@@ -2601,6 +2624,14 @@
                 "type": "CMK_VISUAL_PIPE",
                 "links": [
                   30026
+                ]
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  30032
                 ]
               }
             ],
@@ -2901,7 +2932,7 @@
                 "name": "DIAGNOSTIC ACTIVE",
                 "shape": 7,
                 "type": "CMK_DIAGNOSTIC",
-                "link": 20554
+                "link": 30032
               },
               {
                 "localized_name": "VISUAL BYPASS",
@@ -3223,14 +3254,6 @@
             "type": "CMK_LOG_PIPE"
           },
           {
-            "id": 20554,
-            "origin_id": 7842,
-            "origin_slot": 6,
-            "target_id": 7847,
-            "target_slot": 6,
-            "type": "CMK_DIAGNOSTIC"
-          },
-          {
             "id": 20556,
             "origin_id": 7847,
             "origin_slot": 1,
@@ -3309,6 +3332,38 @@
             "target_id": -20,
             "target_slot": 0,
             "type": "CMK_MODEL_PIPE"
+          },
+          {
+            "id": 30029,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 7844,
+            "target_slot": 5,
+            "type": "IMAGE"
+          },
+          {
+            "id": 30030,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 7844,
+            "target_slot": 6,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 30031,
+            "origin_id": 7842,
+            "origin_slot": 6,
+            "target_id": 7844,
+            "target_slot": 7,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 30032,
+            "origin_id": 7844,
+            "origin_slot": 4,
+            "target_id": 7847,
+            "target_slot": 6,
+            "type": "CMK_DIAGNOSTIC"
           }
         ],
         "extra": {}
@@ -3319,7 +3374,7 @@
         "state": {
           "lastGroupId": 234,
           "lastNodeId": 8441,
-          "lastLinkId": 30037,
+          "lastLinkId": 30041,
           "lastRerouteId": 1
         },
         "revision": 0,
@@ -3349,7 +3404,7 @@
             "name": "PROCESS",
             "type": "*",
             "linkIds": [
-              30032
+              30036
             ],
             "label": "PROCESS",
             "pos": [
@@ -3364,7 +3419,7 @@
             "linkIds": [
               21000,
               21010,
-              30031,
+              30035,
               22004
             ],
             "pos": [
@@ -3392,7 +3447,7 @@
             "type": "CMK_VISUAL_PIPE",
             "linkIds": [
               21035,
-              30037
+              30041
             ],
             "pos": [
               11737.543755226861,
@@ -3407,7 +3462,7 @@
               21015,
               21033,
               21034,
-              30035,
+              30039,
               22005
             ],
             "pos": [
@@ -3420,7 +3475,7 @@
             "name": "FILENAME PREFIX",
             "type": "STRING",
             "linkIds": [
-              30036
+              30040
             ],
             "pos": [
               11737.543755226861,
@@ -3528,7 +3583,7 @@
                 "name": "IMAGE",
                 "type": "IMAGE",
                 "links": [
-                  30029
+                  30033
                 ]
               },
               {
@@ -3536,7 +3591,7 @@
                 "name": "LOG",
                 "type": "CMK_LOG_PIPE",
                 "links": [
-                  30030
+                  30034
                 ]
               },
               {
@@ -3622,14 +3677,14 @@
                 "name": "IMAGE",
                 "shape": 7,
                 "type": "IMAGE",
-                "link": 30029
+                "link": 30033
               },
               {
                 "localized_name": "LOG",
                 "name": "LOG",
                 "shape": 7,
                 "type": "CMK_LOG_PIPE",
-                "link": 30030
+                "link": 30034
               },
               {
                 "localized_name": "diagnostic",
@@ -3652,7 +3707,7 @@
                 "type": "IMAGE",
                 "links": [
                   22003,
-                  30033
+                  30037
                 ]
               },
               {
@@ -3660,7 +3715,7 @@
                 "name": "LOG",
                 "type": "CMK_LOG_PIPE",
                 "links": [
-                  30034
+                  30038
                 ]
               },
               {
@@ -3727,7 +3782,7 @@
                 "name": "IMAGE ACTIVE",
                 "shape": 7,
                 "type": "*",
-                "link": 30031
+                "link": 30035
               },
               {
                 "localized_name": "LOG ACTIVE",
@@ -3922,21 +3977,21 @@
                 "name": "PROCESS",
                 "shape": 7,
                 "type": "*",
-                "link": 30032
+                "link": 30036
               },
               {
                 "localized_name": "IMAGE",
                 "name": "IMAGE",
                 "shape": 7,
                 "type": "*",
-                "link": 30033
+                "link": 30037
               },
               {
                 "localized_name": "LOG",
                 "name": "LOG",
                 "shape": 7,
                 "type": "*",
-                "link": 30034
+                "link": 30038
               },
               {
                 "localized_name": "SAVE ENABLED",
@@ -3946,7 +4001,7 @@
                 "widget": {
                   "name": "SAVE ENABLED"
                 },
-                "link": 30035
+                "link": 30039
               },
               {
                 "localized_name": "FILENAME PREFIX",
@@ -3956,7 +4011,7 @@
                 "widget": {
                   "name": "FILENAME PREFIX"
                 },
-                "link": 30036
+                "link": 30040
               }
             ],
             "outputs": [],
@@ -3999,7 +4054,7 @@
                 "name": "VISUAL",
                 "shape": 7,
                 "type": "CMK_VISUAL_PIPE",
-                "link": 30037
+                "link": 30041
               },
               {
                 "localized_name": "IMAGE",
@@ -4211,7 +4266,7 @@
             "type": "CMK_VISUAL_PIPE"
           },
           {
-            "id": 30029,
+            "id": 30033,
             "origin_id": 8370,
             "origin_slot": 0,
             "target_id": 8372,
@@ -4219,7 +4274,7 @@
             "type": "IMAGE"
           },
           {
-            "id": 30030,
+            "id": 30034,
             "origin_id": 8370,
             "origin_slot": 1,
             "target_id": 8372,
@@ -4227,7 +4282,7 @@
             "type": "CMK_LOG_PIPE"
           },
           {
-            "id": 30031,
+            "id": 30035,
             "origin_id": -10,
             "origin_slot": 1,
             "target_id": 8373,
@@ -4235,7 +4290,7 @@
             "type": "IMAGE"
           },
           {
-            "id": 30032,
+            "id": 30036,
             "origin_id": -10,
             "origin_slot": 0,
             "target_id": 8440,
@@ -4243,7 +4298,7 @@
             "type": "*"
           },
           {
-            "id": 30033,
+            "id": 30037,
             "origin_id": 8372,
             "origin_slot": 1,
             "target_id": 8440,
@@ -4251,7 +4306,7 @@
             "type": "IMAGE"
           },
           {
-            "id": 30034,
+            "id": 30038,
             "origin_id": 8372,
             "origin_slot": 2,
             "target_id": 8440,
@@ -4259,7 +4314,7 @@
             "type": "CMK_LOG_PIPE"
           },
           {
-            "id": 30035,
+            "id": 30039,
             "origin_id": -10,
             "origin_slot": 4,
             "target_id": 8440,
@@ -4267,7 +4322,7 @@
             "type": "BOOLEAN"
           },
           {
-            "id": 30036,
+            "id": 30040,
             "origin_id": -10,
             "origin_slot": 5,
             "target_id": 8440,
@@ -4283,7 +4338,7 @@
             "type": "CMK_VISUAL_PIPE"
           },
           {
-            "id": 30037,
+            "id": 30041,
             "origin_id": -10,
             "origin_slot": 3,
             "target_id": 8441,

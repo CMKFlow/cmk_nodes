@@ -368,7 +368,8 @@ class StopAfterHandoffTests(unittest.TestCase):
             # Detailer: MODEL/IMAGE/LOG plus the boundary-owned diagnostic (K-5).
             (boundaries.CMKDetailerBoundaryCache(), "40-boundary", 4, True),
             (boundaries.CMKFaceRebuildBoundaryCache(), "42-boundary", 4, True),
-            (boundaries.CMKFaceBoundaryCache(), "40-boundary", 3, True),
+            # FaceProcess: MODEL/IMAGE/LOG plus the boundary-owned diagnostic (H-5).
+            (boundaries.CMKFaceBoundaryCache(), "40-boundary", 4, True),
             (boundaries.CMKFaceSwapBoundaryCache(), "40-boundary", 4, True),
             (boundaries.CMKUpscaleSaveBoundaryCache(), "40-boundary", 4, False),
         )
