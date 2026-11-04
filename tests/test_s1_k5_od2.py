@@ -11,7 +11,7 @@ OD-2: the public MODEL output of Detailer, FaceProcess and FaceRebuild left
 through the result gate, which evaluates the whole module.  It is now CMK
 Model Forward from SG_IN.MODEL (PostProcess modules never change MODEL).
 
-Active Detailer runs use the model-free seams of E9 (``fake_detailer``):
+Active Detailer runs use the model-free seams of E9 (``fake_postprocess``):
 SAM, CLIP layer, LoRA, model patches, CLIP encode and the Smart Detailer run
 are deterministic fakes; ``resolve_postprocess_model`` stays real.
 
@@ -69,7 +69,7 @@ class DetailerPassthrough(ScenarioCase):
         cls.r = {}
         for fixture in DETAILER:
             result = cls.run_case("run_fixture", fixture=fixture, overrides=_local_off(fixture),
-                                  fake_detailer=True, upstream_visual=True, inspect=_inspect(fixture))
+                                  fake_postprocess=True, upstream_visual=True, inspect=_inspect(fixture))
             cls.r[fixture] = None if result is None else result["runs"][0]
 
     def test_no_prepare_compute_or_materialisation(self):
@@ -113,24 +113,20 @@ class DetailerPassthrough(ScenarioCase):
 
 
 class DetailerActive(ScenarioCase):
-    """Active processing keeps its result contract: Prepare and compute run
-    once on a MISS, the warm run reuses ComfyUI's cache.
-
-    Pre-existing finding K5-B (not part of K-5, recorded here): the Detailer
-    boundary never stores.  Its dependency manifest fingerprints the branch
-    with "cmk_detailer_branch_v6" and without input exclusions while
-    CMK_SmartDetailerPipe publishes its revision under "cmk_detailer_branch_v7"
-    with exclusions, so the manifest is never complete (FaceProcess: v4 / v8).
-    After eviction or a restart Prepare runs again; only the branch pickle
-    hits.  The boundary-owned diagnostic HIT path is covered in isolation by
-    PassthroughSourcesMixin below."""
+    """Active processing keeps its result and cache contracts: Prepare and
+    compute run once on a MISS and the boundary stores; the warm run reuses
+    ComfyUI's cache; after eviction and after a restart (cache files kept) the
+    boundary HITs with MODEL from the current input and IMAGE, LOG,
+    diagnostic and VISUAL from the stored entry -- no Prepare, no compute, no
+    model resolution (K5-B fixed: manifest keys from the branch class, no
+    session copy of MODEL)."""
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.r = {}
         for fixture in DETAILER:
-            common = dict(fixture=fixture, fake_detailer=True, upstream_visual=True, inspect=_inspect(fixture))
+            common = dict(fixture=fixture, fake_postprocess=True, upstream_visual=True, inspect=_inspect(fixture))
             warm = cls.run_case("run_fixture", runs=2, **common)
             evict = cls.run_case("run_fixture", runs=2, mode="ram_pressure", evict_between_runs=True, **common)
             workdir = cls.workdir(f"restart_{fixture}")
@@ -174,33 +170,32 @@ class DetailerActive(ScenarioCase):
             self.assertEqual(warm["seams"]["original_calls"], {}, fixture)
             self.assertEqual(warm["outputs"], cold["outputs"], fixture)
 
-    def test_baseline_k5b_detailer_boundary_never_stores(self):
-        for fixture in DETAILER:
+    def test_miss_stores_the_boundary(self):
+        # detailer_adv (branches 1 and 3 OFF by default) never stores: K5-C in test_s1_k5b.
+        for variant in ("evict", "restart"):
+            self.assertEqual(_statuses(self.r[("detailer_std", variant)][0]), ["MISS_STORED"], variant)
+
+    def test_boundary_hit_after_eviction_and_restart_runs_no_prepare_or_compute(self):
+        for fixture in ("detailer_std",):
             for variant in ("evict", "restart"):
                 with self.subTest(fixture=fixture, variant=variant):
-                    cold, again = self.r[(fixture, variant)]
-                    self.assertEqual(_statuses(cold), [])
-                    self.assertEqual(_statuses(again), [])
-                    self.assertEqual(again["function_calls"].get("CMKDetailerPreparePipe"), 1)
-                    self.assertEqual(again["seams"]["original_calls"], {RESOLVE: 1})
-                    # Only the branch pickle hits: the detailer run itself is skipped.
-                    self.assertNotIn("detailer.run", again["seams"]["substituted_calls"])
-                    self.assertEqual(again["outputs"], cold["outputs"])
-                    self.assertEqual(again["visual"], cold["visual"])
-
-    @unittest.expectedFailure  # K5-B: dependency manifest schema mismatch (pre-existing)
-    def test_boundary_hit_after_eviction_runs_no_prepare(self):
-        for fixture in DETAILER:
-            _cold, hit = self.r[(fixture, "evict")]
-            self.assertEqual(_statuses(hit)[-1:], ["HIT"])
-            self.assertNotIn("CMKDetailerPreparePipe", hit["function_calls"])
+                    cold, hit = self.r[(fixture, variant)]
+                    self.assertTrue(hit["succeeded"], hit["errors"])
+                    self.assertEqual(_statuses(hit)[-1], "HIT")
+                    self.assertEqual(set(_statuses(hit)), {"HIT_READY", "HIT"})
+                    self.assertNotIn("CMKDetailerPreparePipe", hit["function_calls"])
+                    self.assertNotIn("CMK_SmartDetailerPipe", hit["function_calls"])
+                    self.assertEqual(hit["seams"]["original_calls"], {})
+                    self.assertEqual(hit["seams"]["substituted_calls"], {})
+                    self.assertEqual(hit["outputs"], cold["outputs"])
+                    self.assertEqual(hit["visual"], cold["visual"])
 
 
 class PassthroughSourcesMixin(unittest.TestCase):
-    """The boundary-owned diagnostic in isolation (the executor path cannot
-    reach a Detailer HIT, see K5-B): MISS requests and stores it, HIT restores
-    it without requesting the compute node, legacy definitions are untouched
-    and the disabled passthrough never calls the core."""
+    """The boundary-owned diagnostic in isolation: MISS requests and stores
+    it, HIT restores it without requesting the compute node, legacy
+    definitions are untouched and the disabled passthrough never calls the
+    core.  (The executor path is covered by DetailerActive.)"""
 
     @classmethod
     def setUpClass(cls):
@@ -365,7 +360,7 @@ class LegacyPreK5(ScenarioCase):
         cls.r = {}
         for fixture in LEGACY:
             passthrough = cls.run_case("run_fixture", fixture=fixture, overrides=_local_off(fixture))
-            active = cls.run_case("run_fixture", fixture=fixture, fake_detailer=True, inspect=_inspect(fixture))
+            active = cls.run_case("run_fixture", fixture=fixture, fake_postprocess=True, inspect=_inspect(fixture))
             model = cls.run_case("forward_only", fixture=fixture, source=f"{gate_of(fixture)}:0")
             cls.r[fixture] = (None if passthrough is None else passthrough["runs"][0],
                               None if active is None else active["runs"][0], model)

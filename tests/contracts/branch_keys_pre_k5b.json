@@ -1,0 +1,89 @@
+{
+  "description": "Branch revision keys as published by the branch nodes (CMK_SmartDetailerPipe._publish_dependency_revision, CMKFaceProcessPipe._cache_key), recorded on 2026-11-04 at git 92b7a67 before K5-B, together with the (wrong) key the boundary manifest looked up. K5-B must keep every published key and make the manifest use it.",
+  "fixtures": {
+    "detailer_std": {
+      "8417:7719": {
+        "class_type": "CMK_SmartDetailerPipe",
+        "published_key": "c750cc8e46b5e95d61f537805585d75be14915ccc2ae22c42e401c689bc91975",
+        "manifest_key_pre_k5b": "e8d3df2ea435cfa0cc936cdd5a08e87cec38b5488e6d6ef29aa384a47ca160f4"
+      }
+    },
+    "detailer_adv": {
+      "8417:7880": {
+        "class_type": "CMK_SmartDetailerPipe",
+        "published_key": "534e4e97f5ac8af49d26ecac525ea883a1c7de5325d47e7785d8628d3832dc49",
+        "manifest_key_pre_k5b": "6900cae275c06d0ce79a645a869e0fe94583ca49b83da3d3813b951c401bee0d"
+      },
+      "8417:7883": {
+        "class_type": "CMK_SmartDetailerPipe",
+        "published_key": "74759646a20ae677bbc24cf3e669564c729ff107413dac499bfe482616f393f9",
+        "manifest_key_pre_k5b": "23b592bc0c9e12242e2533afaba3813bce24ba7ddafeb76574a6d50a8fc71772"
+      },
+      "8417:7884": {
+        "class_type": "CMK_SmartDetailerPipe",
+        "published_key": "d2562a74d092e4d7c1b5b6d8294cff7eb73159f75ea9608bc4708ba96332a9ef",
+        "manifest_key_pre_k5b": "a2ae9277605a92f15fec8677e00be192638a2a65f662dc4d3e943a9805db7348"
+      }
+    },
+    "faceprocess_std": {
+      "8417:7842": {
+        "class_type": "CMKFaceProcessPipe",
+        "published_key": "eaef6359446105e7371ac15efc4c87a61b347fb61bcd2d9c166b916a00a4a20d",
+        "manifest_key_pre_k5b": "a5574df047487a3f5ec257a8f437ce7faeb0b037e1a0ce06de8f9504680accec"
+      }
+    },
+    "faceprocess_adv": {
+      "8417:8396": {
+        "class_type": "CMKFaceProcessPipe",
+        "published_key": "b5649df4d28fcd59a17ad43a846ecad02a0026fddc9a9741640efc951c787a0b",
+        "manifest_key_pre_k5b": "a0a272cd2372860fcc1fa3b4a4d3cb8551d7a4bc5e5f5d445029e31df10adc1d"
+      },
+      "8417:8397": {
+        "class_type": "CMKFaceProcessPipe",
+        "published_key": "f041775f5ae039f96cdd37fc0e1ec3b0f337524e116b8ace42f02b6833ec91e2",
+        "manifest_key_pre_k5b": "c26a77113d3d93a073d1c327d0eda3b1db9091371accffb8ccc9539f9f56bdad"
+      },
+      "8417:8398": {
+        "class_type": "CMKFaceProcessPipe",
+        "published_key": "08347486c7b9a26a3c32e656da8502e78889f29565993c8215ace867df8eaed5",
+        "manifest_key_pre_k5b": "33daf4c8c7cf35f8578e869948b8074028f646406a36e4affe0bd120754cc28d"
+      }
+    },
+    "chain_postprocess": {
+      "8417:7719": {
+        "class_type": "CMK_SmartDetailerPipe",
+        "published_key": "c750cc8e46b5e95d61f537805585d75be14915ccc2ae22c42e401c689bc91975",
+        "manifest_key_pre_k5b": "e8d3df2ea435cfa0cc936cdd5a08e87cec38b5488e6d6ef29aa384a47ca160f4"
+      },
+      "8427:7842": {
+        "class_type": "CMKFaceProcessPipe",
+        "published_key": "b9679a0e68c3203f42a0549c6f1d082d887bc8606e285d1e5acf6afbe7580140",
+        "manifest_key_pre_k5b": "4d8b21dd06f99b6361338e9dd1eaf993037f54ea6fdd4aa345cdd482d396b8ff"
+      }
+    },
+    "detailer_std_legacy_pre_k5": {
+      "8417:7719": {
+        "class_type": "CMK_SmartDetailerPipe",
+        "published_key": "c750cc8e46b5e95d61f537805585d75be14915ccc2ae22c42e401c689bc91975",
+        "manifest_key_pre_k5b": "e8d3df2ea435cfa0cc936cdd5a08e87cec38b5488e6d6ef29aa384a47ca160f4"
+      }
+    },
+    "detailer_adv_legacy_pre_k5": {
+      "8417:7880": {
+        "class_type": "CMK_SmartDetailerPipe",
+        "published_key": "534e4e97f5ac8af49d26ecac525ea883a1c7de5325d47e7785d8628d3832dc49",
+        "manifest_key_pre_k5b": "6900cae275c06d0ce79a645a869e0fe94583ca49b83da3d3813b951c401bee0d"
+      },
+      "8417:7883": {
+        "class_type": "CMK_SmartDetailerPipe",
+        "published_key": "74759646a20ae677bbc24cf3e669564c729ff107413dac499bfe482616f393f9",
+        "manifest_key_pre_k5b": "23b592bc0c9e12242e2533afaba3813bce24ba7ddafeb76574a6d50a8fc71772"
+      },
+      "8417:7884": {
+        "class_type": "CMK_SmartDetailerPipe",
+        "published_key": "d2562a74d092e4d7c1b5b6d8294cff7eb73159f75ea9608bc4708ba96332a9ef",
+        "manifest_key_pre_k5b": "a2ae9277605a92f15fec8677e00be192638a2a65f662dc4d3e943a9805db7348"
+      }
+    }
+  }
+}

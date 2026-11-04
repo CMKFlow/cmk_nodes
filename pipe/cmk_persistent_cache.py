@@ -597,7 +597,7 @@ def build_upstream_cache_manifest(
     prompt: Any,
     unique_id: Any,
     current_class_types: Iterable[str],
-    branch_specs: Mapping[str, tuple[str, str]],
+    branch_specs: Mapping[str, Any],
     input_names: Iterable[str] = (),
 ) -> tuple[dict, str]:
     """Describe the exact persistent branch materializations feeding a boundary.
@@ -605,6 +605,10 @@ def build_upstream_cache_manifest(
     The manifest is intentionally based on tiny revision tokens written whenever a
     branch pickle is replaced. A static prompt fingerprint alone cannot detect that
     a branch with the same settings was recomputed after the boundary was stored.
+
+    ``branch_specs`` maps a branch class type to a callable returning the branch
+    class.  Scope and key come from that class (``_CACHE_SCOPE``,
+    ``dependency_cache_key``), i.e. from the code that publishes the revision.
     """
     empty = {
         "version": 1,
@@ -647,14 +651,9 @@ def build_upstream_cache_manifest(
     details = []
 
     for node_key, (node_id, class_type) in sorted(found.items()):
-        scope, schema = branch_specs[class_type]
-        cache_key, fingerprint_detail = build_node_fingerprint(
-            prompt,
-            node_id,
-            (class_type,),
-            schema,
-            include_node_identity=True,
-        )
+        branch = branch_specs[class_type]()
+        scope = branch._CACHE_SCOPE
+        cache_key, fingerprint_detail = branch.dependency_cache_key(prompt, node_id)
         revision = (
             read_pickle_revision(scope, cache_key)
             if cache_key
