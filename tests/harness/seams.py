@@ -282,9 +282,40 @@ def fake_face_process_run(self, image, **kwargs):
     return result, result, segs, segs, "fake face process run", True, diagnostic
 
 
+def fake_face_rebuild_run(self, VISUAL=None, unique_id=None, **values):
+    """_rebuild of CMKInstantIDFaceRebuildSDXL / ...AdvancedSDXL without
+    InstantID, detector or sampler (F4).  Keeps the contract: bypass mirrors the
+    real early return; an active run resolves MODEL like the real
+    CMKInstantIDFaceDetailerSDXL.detail (counted), inverts one band per active
+    slot, appends a LOG block, registers the module VISUAL provider and returns
+    a diagnostic."""
+    from cmk_s1_fake_detailer import cmk_add_block, empty_visual, make_diagnostic_payload, register_provider, resolve
+
+    model, process, image, log = values["MODEL"], values["PROCESS"], values["IMAGE"], values["LOG"]
+    visual = empty_visual() if VISUAL is None else VISUAL
+    active = [index for index in range(1, 4) if values.get(f"FACE {index} ENABLE", index == 1)]
+    if not values["FACEREBUILD ENABLE"] or not active:
+        diagnostic = make_diagnostic_payload(title="FaceRebuild (S1 fake) · Bypass", node="CMK FaceRebuild",
+                                             previews=[image], mode="Bypass")
+        return model, process, image, log, visual, diagnostic
+    resolve(model)
+    result = image.clone()
+    _batch, height, width, _ = result.shape
+    for slot in active:
+        y1, y2 = height * slot // 8, height * (slot + 3) // 8
+        result[:, y1:y2, width // 4:3 * width // 4, :] = 1.0 - result[:, y1:y2, width // 4:3 * width // 4, :]
+    log = cmk_add_block(log, "FaceRebuild (S1 fake)", 25, [f"SLOTS : {active}"], True)
+    diagnostic = make_diagnostic_payload(title="FaceRebuild (S1 fake)", node="CMK FaceRebuild",
+                                         previews=[image, result], summary=f"slots {active}")
+    visual = register_provider(visual, module_instance_id=unique_id, module_type=type(self).__name__,
+                               module_label="FaceRebuild", sequence=25, channels={"before": image, "after": result},
+                               status="completed", live_node_id=unique_id, branch="sdxl", stage_key="sdxl.facerebuild")
+    return model, process, result, log, visual, diagnostic
+
+
 def install_postprocess_seams(seams: Seams, runtime) -> None:
-    """E9 (K-5) / D5 (K5-B): run the active Detailer and FaceProcess without
-    weights.  The checkpoint is already substituted; Prepare's SAM load, CLIP
+    """E9 (K-5) / D5 (K5-B) / F4: run the active Detailer, FaceProcess and
+    FaceRebuild without weights.  The checkpoint is already substituted; Prepare's SAM load, CLIP
     layer, LoRA, model patches and CLIP encode and the compute runs (detector,
     restorer, sampler) are replaced by deterministic fakes.
     resolve_postprocess_model stays real and is counted (original_calls)."""
@@ -295,6 +326,10 @@ def install_postprocess_seams(seams: Seams, runtime) -> None:
     module = types.ModuleType("cmk_s1_fake_detailer")
     module.CMKSEG = native.CMKSEG
     module.make_diagnostic_payload = diagnostic.make_diagnostic_payload
+    module.cmk_add_block = runtime.cmk_module("pipe.cmk_log_pipe").cmk_add_block
+    visual = runtime.cmk_module("pipe.cmk_visual")
+    module.empty_visual, module.register_provider = visual.empty_visual, visual.register_provider
+    module.resolve = lambda model: runtime.cmk_module("pipe.loaders.checkpoint_vae_loader").resolve_postprocess_model(model)
     sys.modules["cmk_s1_fake_detailer"] = module
 
     seams.substitute(native.CMKSAMLoader, "load", "prepare.sam_load", fake_sam_load)
@@ -311,6 +346,9 @@ def install_postprocess_seams(seams: Seams, runtime) -> None:
     seams.substitute(face_prepare, "_encode", "prepare.clip_encode", fake_clip_encode)
     face_process = runtime.cmk_module("nodes.swap.face_process").CMK_FaceProcess
     seams.substitute(face_process, "run", "faceprocess.run", fake_face_process_run)
+    face_rebuild = runtime.cmk_module("nodes.instantid_face_rebuild_advanced")
+    for cls in (face_rebuild.CMKInstantIDFaceRebuildSDXL, face_rebuild.CMKInstantIDFaceRebuildAdvancedSDXL):
+        seams.substitute(cls, "_rebuild", "facerebuild.run", fake_face_rebuild_run)
 
 
 def install_standard(seams: Seams, runtime, *, stop_prepare: bool = True, fake_postprocess: bool = False) -> None:

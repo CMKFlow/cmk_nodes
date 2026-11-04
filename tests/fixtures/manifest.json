@@ -1,7 +1,7 @@
 {
   "comfyui_version": "0.43.2",
   "frontend_version": "1.57.4",
-  "recorded_at": "2026-11-04T18:56:59+00:00",
+  "recorded_at": "2026-11-04T21:39:21+00:00",
   "fixtures": [
     {
       "name": "chain_postprocess",
@@ -168,6 +168,20 @@
       ]
     },
     {
+      "name": "facerebuild_adv_legacy_pre_od2",
+      "workflow_file": "workflows/facerebuild_adv_legacy_pre_od2.json",
+      "workflow_sha256": "16fce81036fe5dc1f3371aeb17eeb82dfabd0ae4c92ef303c727f9ad02ad5229",
+      "api_prompt_file": "api_prompts/facerebuild_adv_legacy_pre_od2.json",
+      "api_prompt_sha256": "4674b5192ef90a96f51db23a9d0a6bde22a407af68bd693319813aee12e2d8e9",
+      "definitions": [
+        {
+          "name": "CMK Flow · FaceRebuild SDXL · Advanced",
+          "signature": "40bf2662ac00ff07e9de50e9f1fc04c8b13f9c706b0a01959dfdc0e450b88434",
+          "canonical_at_export": false
+        }
+      ]
+    },
+    {
       "name": "facerebuild_std",
       "workflow_file": "workflows/facerebuild_std.json",
       "workflow_sha256": "5b4f0189258ecbfb646d3c809bf0f053aa1beb25b0f71b49456a97657bc6f4c7",
@@ -178,6 +192,20 @@
           "name": "CMK Flow · FaceRebuild SDXL",
           "signature": "db2a5fac900093504c08e4125d45fae2dccd5c5670491c95fc9647bf62d5628d",
           "canonical_at_export": true
+        }
+      ]
+    },
+    {
+      "name": "facerebuild_std_legacy_pre_od2",
+      "workflow_file": "workflows/facerebuild_std_legacy_pre_od2.json",
+      "workflow_sha256": "b7ab6e01ec86bbd5d24b38e864774635778fbf2bd47052ed03e596b9f3cec849",
+      "api_prompt_file": "api_prompts/facerebuild_std_legacy_pre_od2.json",
+      "api_prompt_sha256": "47ff32f7463e3c58ce834d6a9b7a1ea66398ef03b64d8319ec5ae949bb905ede",
+      "definitions": [
+        {
+          "name": "CMK Flow · FaceRebuild SDXL",
+          "signature": "c51e6e2dcd52b7aa94bb46a82bd95aa447c0a79ea3d9446dcef3df33b5dbf038",
+          "canonical_at_export": false
         }
       ]
     },

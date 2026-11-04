@@ -2025,6 +2025,23 @@ neu aktivierte Zweige rechnen; die übrigen nutzen ihren Zweig-Cache. Eine
 Boundary hält je Node nur ihren letzten Eintrag; die Rückkehr zu einer früheren
 Einstellung berechnet die Boundary einmal aus den Zweig-Caches neu.
 
+### FaceRebuild-Boundary: persistente HITs ohne Session
+
+`CMK FaceRebuild Boundary Cache` hat kein Abhängigkeitsmanifest; der Schlüssel
+umfasst den gesamten Compute-Node einschließlich der `FACE n ENABLE`-Schalter.
+Ein Eintrag besteht aus IMAGE/LOG, der Diagnose (eigene Sidecar-Datei) und den
+VISUAL-Providern (H-3). Ein HIT setzt nur diese Dateien voraus und führt weder
+Compute noch Modellauflösung aus; er ist nach Eviction und nach einem Neustart
+nutzbar. Einträge ohne gespeicherte Diagnose werden einmalig neu berechnet.
+
+MODEL: Der MODEL-Ausgang der Boundary wird von kanonischen Definitionen nicht
+gelesen (OD-2, öffentliches MODEL über `CMK Model Forward -Pipe-`); ein HIT
+fordert dann kein MODEL an. Liest eine eingebettete Legacy-Definition den
+Ausgang (Gate `MODEL ACTIVE` ← Boundary), erhält sie die Session-Kopie aus
+demselben Prozess oder, ohne Session, den angeforderten Eingang; dieser
+Eingang kommt vom Compute-Node und führt ihn aus. Schlüssel, Schema und
+Subgraphen sind unverändert.
+
 ### FaceProcess-Boundary
 
 Für `CMK Face Boundary Cache` ist bestätigt:
