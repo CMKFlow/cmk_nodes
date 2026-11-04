@@ -48,19 +48,22 @@ def _blocked_outputs(count):
     blocked = ExecutionBlocker(None)
     return tuple(blocked for _ in range(count))
 
-_DETAILER_BRANCH_SPECS = {
-    "CMK_SmartDetailerPipe": (
-        "detailer_branch",
-        "cmk_detailer_branch_v6",
-    ),
-}
+# Dependency manifests take scope and key from the branch class itself (K5-B).
+# Imported lazily: the branch modules pull in the detector/sampler engines.
+def _detailer_branch():
+    from ..nodes.image.smart_detailer import CMK_SmartDetailerPipe
 
-_FACEPROCESS_BRANCH_SPECS = {
-    "CMKFaceProcessPipe": (
-        "faceprocess_branch",
-        "cmk_faceprocess_branch_v4",
-    ),
-}
+    return CMK_SmartDetailerPipe
+
+
+def _faceprocess_branch():
+    from .cmk_faceprocess import CMKFaceProcessPipe
+
+    return CMKFaceProcessPipe
+
+
+_DETAILER_BRANCH_SPECS = {"CMK_SmartDetailerPipe": _detailer_branch}
+_FACEPROCESS_BRANCH_SPECS = {"CMKFaceProcessPipe": _faceprocess_branch}
 
 
 def reset_module_boundary_cache_state() -> dict[str, int]:
@@ -990,15 +993,9 @@ class _DetailerBoundaryCore:
         )
 
     def _cache_ready(self, cache_key, dependencies) -> bool:
-        return (
-            bool(cache_key)
-            and cache_key in _DETAILER_SESSION
-            and _dependencies_match(
-                self._SCOPE,
-                cache_key,
-                dependencies,
-            )
-        )
+        # MODEL comes from the current input on a HIT (K5-B), so a valid disk
+        # entry is reusable after eviction and restart without a session copy.
+        return bool(cache_key) and _dependencies_match(self._SCOPE, cache_key, dependencies)
 
     @cmk_timed_call("LAZY 25 DETAILER BOUNDARY")
     def check_lazy_status(
@@ -1047,7 +1044,7 @@ class _DetailerBoundaryCore:
                 detail=f"{detail}; {dependency_detail}",
                 unique_id=unique_id,
             )
-            return []
+            return ["MODEL"] if MODEL is None else []
 
         if cache_key and _disk_available(self._SCOPE, cache_key):
             write_status(
@@ -1126,10 +1123,7 @@ class _DetailerBoundaryCore:
                     self._SCOPE,
                     cache_key,
                 )
-                cached_model = _DETAILER_SESSION[cache_key]
-                _retain_latest_boundary_entry(
-                    self._SCOPE, cache_key, unique_id, _DETAILER_SESSION,
-                )
+                _retain_latest_boundary_entry(self._SCOPE, cache_key, unique_id)
 
                 write_status(
                     self._SCOPE,
@@ -1143,12 +1137,11 @@ class _DetailerBoundaryCore:
                     f"{cache_key[:12]}"
                 )
                 return (
-                    cached_model,
+                    MODEL,
                     cached_image,
                     cached_log,
                 )
             except Exception as exc:
-                _DETAILER_SESSION.pop(cache_key, None)
                 write_status(
                     self._SCOPE,
                     "HIT_FAILED",
@@ -1193,13 +1186,7 @@ class _DetailerBoundaryCore:
                     LOG,
                     dependencies,
                 )
-                _DETAILER_SESSION[cache_key] = MODEL
-                _retain_latest_boundary_entry(
-                    self._SCOPE,
-                    cache_key,
-                    unique_id,
-                    _DETAILER_SESSION,
-                )
+                _retain_latest_boundary_entry(self._SCOPE, cache_key, unique_id)
                 write_status(
                     self._SCOPE,
                     "MISS_STORED",

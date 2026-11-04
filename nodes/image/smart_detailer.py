@@ -762,24 +762,24 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
                     ),
                     f"upstream=current:{upstream_artifact[:12]}",
                 )
+        return self.dependency_cache_key(prompt, unique_id)
+
+    @classmethod
+    def dependency_cache_key(cls, prompt, unique_id):
+        """Key under which this branch publishes its revision.  CMK Detailer
+        Boundary Cache resolves its dependency manifest through this method,
+        so branch and manifest can never disagree (K5-B)."""
         return build_node_fingerprint(
             prompt,
             unique_id,
             ("CMK_SmartDetailerPipe",),
-            self._CACHE_SCHEMA,
+            cls._CACHE_SCHEMA,
             exclude_inputs=("output_image_proceed", "opt_log", "VISUAL", "opt_diagnostic"),
             include_node_identity=True,
         )
 
     def _publish_dependency_revision(self, prompt, unique_id, artifact_key):
-        dependency_key, _detail = build_node_fingerprint(
-            prompt,
-            unique_id,
-            ("CMK_SmartDetailerPipe",),
-            self._CACHE_SCHEMA,
-            exclude_inputs=("output_image_proceed", "opt_log", "VISUAL", "opt_diagnostic"),
-            include_node_identity=True,
-        )
+        dependency_key, _detail = self.dependency_cache_key(prompt, unique_id)
         if dependency_key:
             write_pickle_revision(
                 self._CACHE_SCOPE,

@@ -516,7 +516,7 @@ E9 modellfreier CLIP/LoRA-Seam. Referenz: Git `cb9d24b`.
   (Detailer-Schlüssel mit Schema v3 verglichen), Bestandstest
   `test_stop_after_handoff.py` (Detailer-Boundary blockiert 4 + VISUAL Ausgänge).
 
-### Neuer, vorbestehender Befund K5-B (nicht korrigiert)
+### Neuer, vorbestehender Befund K5-B (behoben, s. „Sechste produktive Korrektur“)
 
 Das Abhängigkeitsmanifest der Detailer-Boundary fingerprintet den Zweig mit
 `cmk_detailer_branch_v6` und ohne Eingangsausschlüsse; `CMK_SmartDetailerPipe`
@@ -537,3 +537,52 @@ Diagnose-HIT-Pfad ist isoliert in `PassthroughSourcesMixin` geprüft.
 | `.mjs` | 7 Dateien | 7 | – | – | 0 |
 
 Geschützte Caches unverändert.
+
+## Sechste produktive Korrektur: K5-B, persistente Detailer-/FaceProcess-Boundaries (2026-11-04)
+
+**Freigabe:** D1 = A2, D2 ja, D3 = Zusatz C, D4 kein Schemawechsel, D5 FaceProcess-Seams,
+D6 Manifest-Referenzen aktualisieren. Basis: Git `92b7a67`.
+
+- **Ursache (Experiment belegt):** Das Abhängigkeitsmanifest berechnete den
+  Zweig-Schlüssel mit eigenen Konstanten (`cmk_detailer_branch_v6`,
+  `cmk_faceprocess_branch_v4`) und ohne die Eingangsausschlüsse des Zweigs. Jede
+  der beiden Abweichungen verhinderte allein ein vollständiges Manifest; erst
+  beide korrigiert ⇒ `MISS_STORED` und HIT. Zusätzlich verlangte der Detailer-HIT
+  eine Session-Kopie von MODEL ⇒ nach Neustart kein HIT.
+- **Produktcode:**
+  - `nodes/image/smart_detailer.py`, `pipe/cmk_faceprocess.py`: Klassenmethode
+    `dependency_cache_key` als einzige Schlüsselberechnung des Zweigs (Branch-Cache,
+    Revision und Manifest). Schlüssel unverändert.
+  - `pipe/cmk_persistent_cache.py`: `build_upstream_cache_manifest` nimmt Scope und
+    Schlüssel aus der Zweig-Klasse.
+  - `pipe/cmk_module_boundary_cache.py`: `_DETAILER_BRANCH_SPECS` /
+    `_FACEPROCESS_BRANCH_SPECS` verweisen nur noch auf die Zweig-Klassen (lazy
+    importiert); Detailer-HIT ohne Session (MODEL vom aktuellen Eingang, beim HIT
+    angefordert). `_DETAILER_SESSION` bleibt für den Reset-/Statistikvertrag
+    bestehen, wird vom Detailer aber nicht mehr befüllt.
+- **Tests:** neu `test_s1_k5b.py` (14 Tests: statische Schlüsselgleichheit über 14
+  Zweige in 7 Fixtures, Zweig-Schlüssel gegen `contracts/branch_keys_pre_k5b.json`,
+  Revisions-Invalidierung, FaceProcess-Laufzeit, K5-C). `test_s1_k5_od2.py`:
+  K5-B-Baseline und erwarteter Fehlschlag aufgelöst; Detailer-HIT nach Eviction
+  und Neustart. Harness: `manifest_keys`, Seam-Flag `fake_postprocess`
+  (Detailer und FaceProcess, D5). D6: Manifeste in `boundary_keys_pre_h3.json`
+  und `boundary_keys_pre_k5.json` aktualisiert, Schlüssel geprüft unverändert.
+- **Gemessen (T1, modellfrei):** Detailer std: Kaltlauf `MISS_STORED`; nach
+  Eviction und nach Neustart `HIT` mit 0 Prepare, 0 Compute, 0
+  `resolve_postprocess_model`; IMAGE, LOG, Diagnose, VISUAL identisch.
+  FaceProcess std: `MISS_STORED`, `HIT` nach Eviction und Neustart; Prepare und
+  Compute laufen auf dem HIT weiter über `DIAGNOSTIC ACTIVE` (H-5, unverändert,
+  als Baseline + erwarteter Fehlschlag festgehalten).
+- **Revisionen:** FaceProcess-Zweig neu berechnet ⇒ neue Revision ⇒
+  `STALE_DEPENDENCIES` ⇒ `MISS_STORED`. Detailer-Revision ist deterministisch
+  (Artefakt-Schlüssel): manipulierte Revision wird erkannt, der Zweig-HIT stellt
+  sie wieder her, die Boundary trifft unverändert.
+
+### Neuer, vorbestehender Befund K5-C (nicht korrigiert)
+
+Lokal deaktivierte Zweige speichern keinen Pickle und veröffentlichen keine
+Revision. Das Manifest eines Advanced-Moduls mit mindestens einem deaktivierten
+Zweig (Standard: 2 von 3) ist deshalb nie vollständig; Detailer und FaceProcess
+Advanced speichern weiterhin nicht. Belegt durch
+`test_baseline_k5c_advanced_with_disabled_branch_never_stores` und den strikt
+erwarteten Fehlschlag `test_advanced_boundary_hits_after_eviction`.

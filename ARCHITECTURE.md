@@ -1981,6 +1981,25 @@ ohne Compute wieder her. Die neuen Eingänge sind vom Boundary-Fingerprint
 ausgeschlossen; der Schemawechsel führt einmalig zu einem MISS. Eingebettete
 Definitionen ohne diese Verbindungen behalten das frühere Verhalten.
 
+### Abhängigkeitsmanifest und Detailer-HIT (K5-B)
+
+Detailer- und FaceProcess-Boundary speichern ein Manifest der Zweig-Revisionen.
+Scope und Schlüssel jedes Zweigs kommen ausschließlich aus der Zweig-Klasse
+(`dependency_cache_key` von `CMK_SmartDetailerPipe` bzw. `CMKFaceProcessPipe`),
+also aus derselben Berechnung, unter der der Zweig seine Revision ablegt. Die
+Boundary hält keine eigenen Schema-Konstanten oder Eingangsausschlüsse.
+
+Ein Detailer-HIT übernimmt MODEL aus dem aktuellen Eingang und stellt IMAGE,
+LOG, Diagnose und VISUAL aus dem gespeicherten Eintrag wieder her; es gibt
+keine Session-Kopie von MODEL mehr. Ein gültiger Eintrag ist damit nach
+Eviction und nach einem Neustart nutzbar, solange die Dateien unter
+`ComfyUI/temp/cmk/` erhalten sind.
+
+Bekannte Grenze (K5-C): Ein lokal deaktivierter Zweig speichert keinen Pickle
+und veröffentlicht keine Revision. Das Manifest eines Advanced-Moduls mit
+mindestens einem deaktivierten Zweig ist daher nie vollständig; dessen Boundary
+speichert nicht.
+
 ### FaceProcess-Boundary
 
 Für `CMK Face Boundary Cache` ist bestätigt:

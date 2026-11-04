@@ -131,12 +131,16 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
     _CACHE_SCOPE = "faceprocess_branch"
     _CACHE_SCHEMA = "cmk_faceprocess_branch_v8"
 
-    def _cache_key(self, prompt, unique_id):
+    @classmethod
+    def dependency_cache_key(cls, prompt, unique_id):
+        """Branch cache key; save_pickle publishes the branch revision under it.
+        CMK Face Boundary Cache resolves its dependency manifest through this
+        method, so branch and manifest can never disagree (K5-B)."""
         return build_node_fingerprint(
             prompt,
             unique_id,
             ("CMKFaceProcessPipe",),
-            self._CACHE_SCHEMA,
+            cls._CACHE_SCHEMA,
             exclude_inputs=("opt_log", "VISUAL", "opt_diagnostic"),
             include_node_identity=True,
         )
@@ -150,7 +154,7 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
     ):
         if not bool(kwargs.get("enable", True)):
             return ["FACE"] if FACE is None else []
-        cache_key, detail = self._cache_key(prompt, unique_id)
+        cache_key, detail = self.dependency_cache_key(prompt, unique_id)
 
         if cache_key and pickle_available(self._CACHE_SCOPE, cache_key):
             write_status(
@@ -185,7 +189,7 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
         unique_id=None,
         **kwargs,
     ):
-        cache_key, cache_detail = self._cache_key(prompt, unique_id)
+        cache_key, cache_detail = self.dependency_cache_key(prompt, unique_id)
 
         # A lazy cache hit deliberately does not request FACE. Load the complete
         # materialized branch before validating live inputs; otherwise ComfyUI

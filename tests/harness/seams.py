@@ -270,12 +270,24 @@ def fake_smart_detailer_run(self, image, **kwargs):
     return result, segs, segs, "fake detailer run", True, diagnostic
 
 
-def install_detailer_seams(seams: Seams, runtime) -> None:
-    """E9 (K-5): run the active Detailer without weights.  The checkpoint is
-    already substituted; Prepare's SAM load, CLIP layer, LoRA, model patches
-    and CLIP encode and the Smart Detailer run (detector + sampler) are
-    replaced by deterministic fakes.  resolve_postprocess_model stays real
-    and is counted (original_calls)."""
+def fake_face_process_run(self, image, **kwargs):
+    """CMK_FaceProcess.run without detector, restorer or sampler (D5, K5-B):
+    one face SEG in the image centre, pixels inverted; parent tuple shape
+    (image, image_proceed, segs_detected, segs_processed, log, enabled, diagnostic)."""
+    result, segs, _segs, _log, _enabled, _diagnostic = fake_smart_detailer_run(self, image)
+    from cmk_s1_fake_detailer import make_diagnostic_payload  # injected module, see install
+
+    diagnostic = make_diagnostic_payload(title="FaceProcess (S1 fake)", node="CMK FaceProcess",
+                                         previews=[image, result], summary="fake face process run")
+    return result, result, segs, segs, "fake face process run", True, diagnostic
+
+
+def install_postprocess_seams(seams: Seams, runtime) -> None:
+    """E9 (K-5) / D5 (K5-B): run the active Detailer and FaceProcess without
+    weights.  The checkpoint is already substituted; Prepare's SAM load, CLIP
+    layer, LoRA, model patches and CLIP encode and the compute runs (detector,
+    restorer, sampler) are replaced by deterministic fakes.
+    resolve_postprocess_model stays real and is counted (original_calls)."""
     import types
 
     native = runtime.cmk_module("engine.native_detailer")
@@ -295,13 +307,17 @@ def install_detailer_seams(seams: Seams, runtime) -> None:
     seams.substitute(prepare, "_encode", "prepare.clip_encode", fake_clip_encode)
     detailer = runtime.cmk_module("nodes.image.smart_detailer").CMK_SmartDetailer
     seams.substitute(detailer, "run", "detailer.run", fake_smart_detailer_run)
+    face_prepare = runtime.cmk_module("pipe.cmk_faceprocess_prepare").CMKFaceProcessPreparePipe
+    seams.substitute(face_prepare, "_encode", "prepare.clip_encode", fake_clip_encode)
+    face_process = runtime.cmk_module("nodes.swap.face_process").CMK_FaceProcess
+    seams.substitute(face_process, "run", "faceprocess.run", fake_face_process_run)
 
 
-def install_standard(seams: Seams, runtime, *, stop_prepare: bool = True, fake_detailer: bool = False) -> None:
+def install_standard(seams: Seams, runtime, *, stop_prepare: bool = True, fake_postprocess: bool = False) -> None:
     """Substitute checkpoint, FaceSwap and upscaler engines; stop Prepare's
     model materialisation and SAM loading (CLIP/LoRA cannot be faked
-    meaningfully without real weights) -- unless ``fake_detailer`` installs
-    the model-free Detailer seams (E9)."""
+    meaningfully without real weights) -- unless ``fake_postprocess`` installs
+    the model-free Detailer / FaceProcess seams (E9, D5)."""
     leaf = runtime.cmk_module("loader.checkpoint_vae_loader")
     seams.substitute(leaf, "load_checkpoint_vae_resources", "checkpoint.load_resources",
                      fake_checkpoint_resources, rebind=True)
@@ -317,9 +333,9 @@ def install_standard(seams: Seams, runtime, *, stop_prepare: bool = True, fake_d
     seams.substitute(upscaler.CMK_SmartUpscaler, "upscale", "upscale.run", fake_upscale)
 
     resolver = runtime.cmk_module("pipe.loaders.checkpoint_vae_loader")
-    if fake_detailer:
+    if fake_postprocess:
         seams.observe(resolver, "resolve_postprocess_model", "prepare.resolve_postprocess_model", rebind=True)
-        install_detailer_seams(seams, runtime)
+        install_postprocess_seams(seams, runtime)
     elif stop_prepare:
         seams.stop(resolver, "resolve_postprocess_model", "prepare.resolve_postprocess_model", rebind=True)
         native = runtime.cmk_module("engine.native_detailer")

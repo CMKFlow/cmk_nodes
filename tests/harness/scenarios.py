@@ -404,7 +404,7 @@ def _collect(runtime, record, workdir, probes, seams, inspect, files_before) -> 
     }
 
 
-def _session(workdir, extra_model_paths, mode, install_seams, stop_prepare, input_source, fake_detailer=False):
+def _session(workdir, extra_model_paths, mode, install_seams, stop_prepare, input_source, fake_postprocess=False):
     from .comfy_runtime import boot
     from .probes import install_probes
     from .seams import Seams, install_standard
@@ -416,7 +416,7 @@ def _session(workdir, extra_model_paths, mode, install_seams, stop_prepare, inpu
     probes = install_probes(runtime)
     seams = Seams()
     if install_seams:
-        install_standard(seams, runtime, stop_prepare=stop_prepare, fake_detailer=fake_detailer)
+        install_standard(seams, runtime, stop_prepare=stop_prepare, fake_postprocess=fake_postprocess)
     return runtime, probes, seams
 
 
@@ -446,7 +446,7 @@ def run_fixture(
     fake_faces: int = 1,
     upstream_visual: bool = False,
     drop_model: bool = False,
-    fake_detailer: bool = False,
+    fake_postprocess: bool = False,
 ) -> dict:
     """Execute an exported fixture with the real PromptExecutor.
 
@@ -458,7 +458,7 @@ def run_fixture(
 
     seam_module.FAKE_FACES = int(fake_faces)
     runtime, probes, seams = _session(workdir, extra_model_paths, mode, install_seams, stop_prepare, input_source,
-                                      fake_detailer)
+                                      fake_postprocess)
     prompt = _apply_overrides(load_api_prompt(fixture), fixture, overrides or {}, widget_overrides or {})
     if upstream_visual:
         prompt = _inject_upstream_visual(prompt, fixture)
@@ -689,3 +689,36 @@ def forward_only(workdir: str, fixture: str, source: str, extra_model_paths: str
     finally:
         seams.uninstall()
         probes.uninstall()
+
+
+def manifest_keys(workdir: str, fixture: str, extra_model_paths: str | None = None) -> dict:
+    """K5-B: per manifest branch, the key the boundary's dependency manifest
+    looks up and the key under which the branch node publishes its revision."""
+    from .comfy_runtime import boot
+
+    runtime = boot(Path(workdir), extra_model_paths=extra_model_paths)
+    write_selfcheck_input(Path(workdir), SELFCHECK_INPUT)
+    import nodes
+
+    pc = runtime.cmk_module("pipe.cmk_persistent_cache")
+    prompt = load_api_prompt(fixture)
+    rows = []
+    for boundary_class in ("CMKDetailerBoundaryCache", "CMKFaceBoundaryCache"):
+        for boundary_id in inner_ids(fixture, boundary_class):
+            boundary = nodes.NODE_CLASS_MAPPINGS[boundary_class]()
+            manifest = boundary._dependencies(prompt, boundary_id)[0]
+            for entry in manifest["branches"]:
+                branch = nodes.NODE_CLASS_MAPPINGS[entry["class_type"]]
+                if hasattr(branch, "dependency_cache_key"):
+                    published = branch.dependency_cache_key(prompt, entry["node_id"])[0]
+                elif entry["class_type"] == "CMK_SmartDetailerPipe":  # pre-K5-B formula of _publish_dependency_revision
+                    published = pc.build_node_fingerprint(
+                        prompt, entry["node_id"], ("CMK_SmartDetailerPipe",), branch._CACHE_SCHEMA,
+                        exclude_inputs=("output_image_proceed", "opt_log", "VISUAL", "opt_diagnostic"),
+                        include_node_identity=True)[0]
+                else:
+                    published = branch()._cache_key(prompt, entry["node_id"])[0]
+                rows.append({"boundary": boundary_id, "node_id": entry["node_id"], "class_type": entry["class_type"],
+                             "scope": entry["scope"], "manifest_key": entry["cache_key"], "published_key": published,
+                             "branch_scope": branch._CACHE_SCOPE})
+    return {"rows": rows}
