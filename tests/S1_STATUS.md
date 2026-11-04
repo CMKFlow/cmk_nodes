@@ -578,7 +578,7 @@ D6 Manifest-Referenzen aktualisieren. Basis: Git `92b7a67`.
   (Artefakt-Schlüssel): manipulierte Revision wird erkannt, der Zweig-HIT stellt
   sie wieder her, die Boundary trifft unverändert.
 
-### Neuer, vorbestehender Befund K5-C (nicht korrigiert)
+### Neuer, vorbestehender Befund K5-C (behoben, s. „Siebte produktive Korrektur“)
 
 Lokal deaktivierte Zweige speichern keinen Pickle und veröffentlichen keine
 Revision. Das Manifest eines Advanced-Moduls mit mindestens einem deaktivierten
@@ -586,3 +586,42 @@ Zweig (Standard: 2 von 3) ist deshalb nie vollständig; Detailer und FaceProcess
 Advanced speichern weiterhin nicht. Belegt durch
 `test_baseline_k5c_advanced_with_disabled_branch_never_stores` und den strikt
 erwarteten Fehlschlag `test_advanced_boundary_hits_after_eviction`.
+
+
+## Siebte produktive Korrektur: K5-C, Manifest-Vertrag für deaktivierte Advanced-Zweige (2026-11-04)
+
+**Freigabe:** Lösungsvorschlag K5-C. Basis: Git `fa17ee2` (K5-B).
+
+- **Vertrag:** `CMK_SmartDetailerPipe.dependency_revision` und
+  `CMKFaceProcessPipe.dependency_revision` (Zweig-Klasse = einzige Quelle):
+  `enable` ausdrücklich `False` ⇒ `DISABLED_REVISION` (`"disabled"`,
+  `pipe/cmk_persistent_cache.py`); sonst die veröffentlichte Revision; aktiv ohne
+  Revision ⇒ Manifest unvollständig; verlinkt/unklar ⇒ aktiv.
+  `build_upstream_cache_manifest` ruft nur noch die Zweig-Methoden auf.
+- **Unverändert:** Branch- und Boundary-Schlüssel, Schemata, Boundary-Modul,
+  FaceRebuild, H-5. Keine Pickles oder Revisionsdateien für deaktivierte Zweige,
+  keine zusätzlichen Lazy-Anforderungen.
+- **Contracts:** in `boundary_keys_pre_h3.json` und `boundary_keys_pre_k5.json`
+  genau 8 Manifest-Einträge `revision: null` ⇒ `"disabled"` (deaktivierte Zweige
+  der Advanced-Fixtures), Schlüssel geprüft unverändert.
+- **Tests (`test_s1_k5b.py`, jetzt 25):** statischer Vertrag über 6 Einstellungen,
+  Laufzeitmatrix (alle aktiv, nur 1/2/3, 1+3) × Eviction/Neustart, alle aus,
+  Wechsel OFF→ON / ON→OFF / Wiederholung. K5-C-Baseline und erwarteter
+  Fehlschlag aufgelöst.
+- **Gemessen:** Detailer Advanced in allen Einstellungen Kaltlauf `MISS_STORED`,
+  HIT nach Eviction und Neustart mit 0 Prepare, 0 Zweig-Nodes, 0 Modellauflösung;
+  FaceProcess Advanced ebenso HIT, Engine 0, aber Prepare 1 und 3 Zweig-Nodes über
+  `DIAGNOSTIC ACTIVE` (H-5, Baseline + erwarteter Fehlschlag). OFF→ON: nur der neue
+  Zweig rechnet (Detailer: neuer Boundary-Schlüssel; FaceProcess:
+  `STALE_DEPENDENCIES`). ON→OFF: Boundary einmal neu aus Zweig-Caches (Engine 0),
+  danach HIT.
+
+### Gesamtlauf nach K5-C (`_reports/full_suite_k5c.json`)
+
+| Gruppe | Tests | PASS | erwarteter Fehlschlag | SKIP | unerwartet |
+|---|---|---|---|---|---|
+| S1 | 177 | 161 | 14 | 2 | 0 |
+| Bestand | 159 | 157 | – | – | 2 in `test_image_resize_port_contract.py` (Altfehler) |
+| `.mjs` | 7 Dateien | 7 | – | – | 0 |
+
+Geschützte Caches unverändert.

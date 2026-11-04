@@ -17,9 +17,11 @@ from ...pipe.cmk_log_pipe import CMKLogConcat, cmk_block_to_string
 from ...pipe.cmk_visual import empty_visual, register_provider
 from ..utils.diagnostic_concat import CMKDiagnosticConcat
 from ...pipe.cmk_persistent_cache import (
+    DISABLED_REVISION,
     build_node_fingerprint,
     load_pickle,
     pickle_available,
+    read_pickle_revision,
     save_pickle,
     write_pickle_revision,
     write_status,
@@ -777,6 +779,16 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
             exclude_inputs=("output_image_proceed", "opt_log", "VISUAL", "opt_diagnostic"),
             include_node_identity=True,
         )
+
+    @classmethod
+    def dependency_revision(cls, prompt, unique_id, cache_key):
+        """Manifest revision of this branch (K5-C).  A branch switched off in
+        the prompt stores nothing and reports DISABLED_REVISION; a linked or
+        otherwise undetermined ``enable`` counts as active."""
+        node = prompt.get(str(unique_id)) if isinstance(prompt, dict) else None
+        if isinstance(node, dict) and (node.get("inputs") or {}).get("enable") is False:
+            return DISABLED_REVISION
+        return read_pickle_revision(cls._CACHE_SCOPE, cache_key)
 
     def _publish_dependency_revision(self, prompt, unique_id, artifact_key):
         dependency_key, _detail = self.dependency_cache_key(prompt, unique_id)

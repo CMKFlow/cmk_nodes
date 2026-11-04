@@ -1,5 +1,5 @@
 {
-  "description": "Boundary cache keys and dependency manifests recorded on 2026-11-04 before K-5 / OD-2 (fixtures as exported after H-2, git cb9d24b). K-5 changes only the Detailer schema (v3 -> v4); with the old schema every key and manifest must stay identical. Dependency manifests refreshed for K5-B (manifest branch keys now come from the branch class); boundary keys unchanged.",
+  "description": "Boundary cache keys and dependency manifests recorded on 2026-11-04 before K-5 / OD-2 (fixtures as exported after H-2, git cb9d24b). K-5 changes only the Detailer schema (v3 -> v4); with the old schema every key and manifest must stay identical. Dependency manifests refreshed for K5-B (manifest branch keys now come from the branch class) and K5-C (disabled branches report the revision 'disabled'); boundary keys unchanged.",
   "schemas": {
     "detailer": "cmk_detailer_boundary_v3"
   },
@@ -41,7 +41,7 @@
             "class_type": "CMK_SmartDetailerPipe",
             "scope": "detailer_branch",
             "cache_key": "534e4e97f5ac8af49d26ecac525ea883a1c7de5325d47e7785d8628d3832dc49",
-            "revision": null
+            "revision": "disabled"
           },
           {
             "node_id": "8417:7883",
@@ -55,7 +55,7 @@
             "class_type": "CMK_SmartDetailerPipe",
             "scope": "detailer_branch",
             "cache_key": "d2562a74d092e4d7c1b5b6d8294cff7eb73159f75ea9608bc4708ba96332a9ef",
-            "revision": null
+            "revision": "disabled"
           }
         ]
       }
@@ -89,7 +89,7 @@
             "class_type": "CMKFaceProcessPipe",
             "scope": "faceprocess_branch",
             "cache_key": "b5649df4d28fcd59a17ad43a846ecad02a0026fddc9a9741640efc951c787a0b",
-            "revision": null
+            "revision": "disabled"
           },
           {
             "node_id": "8417:8397",
@@ -103,7 +103,7 @@
             "class_type": "CMKFaceProcessPipe",
             "scope": "faceprocess_branch",
             "cache_key": "08347486c7b9a26a3c32e656da8502e78889f29565993c8215ace867df8eaed5",
-            "revision": null
+            "revision": "disabled"
           }
         ]
       }

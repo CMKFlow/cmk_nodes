@@ -10,6 +10,10 @@ Since K5-B the manifest takes scope and key from the branch class
 (``dependency_cache_key``); the Detailer HIT takes MODEL from the current input
 instead of a session copy.  The dynamic tests use the model-free seams
 (``fake_postprocess``: E9, D5).
+
+K5-C: a branch switched off in the prompt (``enable`` literally False) reports
+the manifest revision "disabled" through ``dependency_revision`` of its branch
+class; Advanced modules with mixed branch settings now store and HIT.
 """
 
 from __future__ import annotations
@@ -180,35 +184,208 @@ class FaceProcessPersistence(ScenarioCase):
             self.assertNotIn("CMKFaceProcessPreparePipe", hit["function_calls"])
 
 
-class K5C(ScenarioCase):
-    """Pre-existing finding K5-C (not corrected): a locally disabled branch
-    stores no pickle and publishes no revision, so the manifest of an
-    Advanced module with any branch OFF (the default: 2 of 3) is never
-    complete and its boundary never stores."""
+ADVANCED = {
+    # fixture: (branch class, boundary scope, prepare class, engine seam)
+    "detailer_adv": ("CMK_SmartDetailerPipe", "detailer_boundary", "CMKDetailerPreparePipe", "detailer.run"),
+    "faceprocess_adv": ("CMKFaceProcessPipe", "faceprocess_boundary", "CMKFaceProcessPreparePipe", "faceprocess.run"),
+}
+SETTINGS = {"all_on": (1, 2, 3), "only_1": (1,), "only_2": (2,), "only_3": (3,), "two_1_3": (1, 3)}
 
-    FIXTURES = {"detailer_adv": "detailer_boundary", "faceprocess_adv": "faceprocess_boundary"}
+
+def _enable(fixture, active):
+    nodes = inner_ids(fixture, ADVANCED[fixture][0])
+    return {f"{node}.enable": index in active for index, node in enumerate(nodes, start=1)}
+
+
+class AdvancedManifestContract(ScenarioCase):
+    """K5-C static contract: a branch switched off in the prompt reports the
+    marker "disabled"; an active branch reports its published revision (none
+    before the first run => manifest incomplete).  Keys stay byte-identical."""
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.r = {}
-        for fixture in cls.FIXTURES:
-            result = cls.run_case("run_fixture", runs=2, mode="ram_pressure", evict_between_runs=True,
-                                  fixture=fixture, fake_postprocess=True, inspect=_inspect(fixture))
-            cls.r[fixture] = None if result is None else result["runs"]
+        for fixture in ADVANCED:
+            for setting, active in {**SETTINGS, "all_off": ()}.items():
+                result = cls.run_case("manifest_keys", fixture=fixture, overrides=_enable(fixture, active))
+                cls.r[(fixture, setting)] = None if result is None else result["rows"]
 
-    def test_baseline_k5c_advanced_with_disabled_branch_never_stores(self):
-        for fixture, scope in self.FIXTURES.items():
-            with self.subTest(fixture=fixture):
-                cold, again = self.r[fixture]
+    def test_disabled_marker_and_missing_active_revision(self):
+        for (fixture, setting), rows in self.r.items():
+            with self.subTest(fixture=fixture, setting=setting):
+                for row in rows:
+                    self.assertEqual(row["revision"], "disabled" if row["enable"] is False else None, row)
+                any_active = any(row["enable"] is not False for row in rows)
+                self.assertEqual(rows[0]["complete"], not any_active)
+
+    def test_branch_keys_unchanged(self):
+        # Default setting (only branch 2) equals the pre-K5-B record byte for byte.
+        for fixture in ADVANCED:
+            for row in self.r[(fixture, "only_2")]:
+                self.assertEqual(row["published_key"], PINNED[fixture][row["node_id"]]["published_key"])
+                self.assertEqual(row["manifest_key"], row["published_key"])
+
+    def test_enable_toggle_changes_only_the_toggled_branch_key(self):
+        for fixture in ADVANCED:
+            default = {row["node_id"]: row["published_key"] for row in self.r[(fixture, "only_2")]}
+            every = {row["node_id"]: row["published_key"] for row in self.r[(fixture, "all_on")]}
+            first, second, third = inner_ids(fixture, ADVANCED[fixture][0])
+            self.assertNotEqual(default[first], every[first], fixture)
+            self.assertEqual(default[second], every[second], fixture)
+            self.assertNotEqual(default[third], every[third], fixture)
+
+    def test_boundary_key_identity(self):
+        # Detailer: the boundary fingerprint contains the branch widgets; FaceProcess
+        # excludes MODEL/IMAGE/LOG, so its invalidation comes from the manifest alone.
+        detailer = {self.r[("detailer_adv", s)][0]["boundary_key"] for s in SETTINGS}
+        faceprocess = {self.r[("faceprocess_adv", s)][0]["boundary_key"] for s in SETTINGS}
+        self.assertEqual(len(detailer), len(SETTINGS))
+        self.assertEqual(len(faceprocess), 1)
+
+
+class AdvancedMatrix(ScenarioCase):
+    """K5-C runtime matrix (model-free seams): cold MISS stores, the boundary
+    HITs after eviction and after a restart with kept cache files, results are
+    identical.  Detailer HIT: no Prepare, no branch node, no model resolution.
+    FaceProcess HIT: the gate still pulls Prepare and the branch nodes through
+    DIAGNOSTIC ACTIVE (H-5, unchanged) -- asserted separately."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.r = {}
+        for fixture in ADVANCED:
+            for setting, active in SETTINGS.items():
+                common = dict(fixture=fixture, fake_postprocess=True, upstream_visual=True,
+                              overrides=_enable(fixture, active), inspect=_inspect(fixture))
+                evict = cls.run_case("run_fixture", runs=2, mode="ram_pressure", evict_between_runs=True, **common)
+                workdir = cls.workdir(f"restart_{fixture}_{setting}")
+                first = cls.run_case("run_fixture", workdir=workdir, **common)
+                second = cls.run_case("run_fixture", workdir=workdir, **common)
+                cls.r[(fixture, setting, "evict")] = None if evict is None else evict["runs"]
+                cls.r[(fixture, setting, "restart")] = None if first is None else first["runs"] + second["runs"]
+
+    def _cases(self):
+        for (fixture, setting, variant), runs in self.r.items():
+            yield fixture, setting, variant, runs[0], runs[1]
+
+    def test_cold_run_computes_active_branches_and_stores(self):
+        for fixture, setting, variant, cold, _hit in self._cases():
+            with self.subTest(fixture=fixture, setting=setting, variant=variant):
+                _branch, scope, prepare, engine = ADVANCED[fixture]
                 self.assertTrue(cold["succeeded"], cold["errors"])
-                self.assertEqual(_statuses(cold, scope), [])
-                self.assertEqual(_statuses(again, scope), [])
+                self.assertEqual(_statuses(cold, scope), ["MISS_STORED"])
+                self.assertEqual(cold["function_calls"].get(prepare), 1)
+                self.assertEqual(cold["seams"]["substituted_calls"].get(engine), len(SETTINGS[setting]))
 
-    @unittest.expectedFailure  # K5-C: disabled branches publish no revision
-    def test_advanced_boundary_hits_after_eviction(self):
-        for fixture, scope in self.FIXTURES.items():
-            self.assertEqual(_statuses(self.r[fixture][1], scope)[-1:], ["HIT"])
+    def test_hit_after_eviction_and_restart(self):
+        for fixture, setting, variant, cold, hit in self._cases():
+            with self.subTest(fixture=fixture, setting=setting, variant=variant):
+                _branch, scope, _prepare, engine = ADVANCED[fixture]
+                self.assertTrue(hit["succeeded"], hit["errors"])
+                self.assertEqual(_statuses(hit, scope)[-1], "HIT")
+                self.assertNotIn(engine, hit["seams"]["substituted_calls"])
+                self.assertEqual(hit["outputs"], cold["outputs"])
+                self.assertEqual(hit["visual"], cold["visual"])
+
+    def test_detailer_hit_runs_no_prepare_compute_or_resolution(self):
+        for fixture, setting, variant, _cold, hit in self._cases():
+            if fixture != "detailer_adv":
+                continue
+            with self.subTest(setting=setting, variant=variant):
+                self.assertNotIn("CMKDetailerPreparePipe", hit["function_calls"])
+                self.assertNotIn("CMK_SmartDetailerPipe", hit["function_calls"])
+                self.assertEqual(hit["seams"]["original_calls"], {})
+
+    def test_baseline_h5_faceprocess_hit_still_pulls_prepare_and_branches(self):
+        for fixture, setting, variant, _cold, hit in self._cases():
+            if fixture != "faceprocess_adv":
+                continue
+            with self.subTest(setting=setting, variant=variant):
+                self.assertEqual(hit["function_calls"].get("CMKFaceProcessPreparePipe"), 1)
+                self.assertEqual(hit["function_calls"].get("CMKFaceProcessPipe"), 3)
+
+    @unittest.expectedFailure  # H-5 scope: FaceProcess DIAGNOSTIC ACTIVE comes from the compute node
+    def test_faceprocess_hit_runs_no_prepare(self):
+        for fixture, _setting, _variant, _cold, hit in self._cases():
+            if fixture == "faceprocess_adv":
+                self.assertNotIn("CMKFaceProcessPreparePipe", hit["function_calls"])
+
+
+class AdvancedAllOff(ScenarioCase):
+    """All local branches OFF: Detailer disabled passthrough (K-5), FaceProcess
+    blocked (H-5) -- the manifest is never consulted."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.r = {}
+        for fixture in ADVANCED:
+            result = cls.run_case("run_fixture", fixture=fixture, fake_postprocess=True,
+                                  overrides=_enable(fixture, ()), inspect=_inspect(fixture))
+            cls.r[fixture] = None if result is None else result["runs"][0]
+
+    def test_all_off_unchanged(self):
+        detailer, faceprocess = self.r["detailer_adv"], self.r["faceprocess_adv"]
+        self.assertEqual(_statuses(detailer, "detailer_boundary")[-1], "DISABLED_PASSTHROUGH")
+        self.assertIn("DISABLED_ACTIVE_BRANCH_BLOCKED", _statuses(faceprocess, "faceprocess_boundary"))
+        for run in (detailer, faceprocess):
+            self.assertEqual(run["seams"]["original_calls"], {})
+            self.assertEqual(run["seams"]["substituted_calls"], {})
+
+
+class AdvancedToggles(ScenarioCase):
+    """OFF -> ON and ON -> OFF across restarts in one cache directory.
+    Detailer: the boundary key changes with every toggle (MISS); FaceProcess:
+    the boundary key stays, the manifest changes (STALE_DEPENDENCIES -> MISS).
+    Only newly enabled branches compute; the others reuse their branch cache.
+    A boundary keeps only its latest entry per node, so returning to an
+    earlier setting recomputes the boundary once from the branch caches."""
+
+    STEPS = (("only_2", (2,)), ("on_1", (1, 2)), ("off_1", (2,)), ("repeat", (2,)))
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.r = {}
+        for fixture in ADVANCED:
+            workdir = cls.workdir(f"toggle_{fixture}")
+            for step, active in cls.STEPS:
+                result = cls.run_case("run_fixture", workdir=workdir, fixture=fixture, fake_postprocess=True,
+                                      upstream_visual=True, overrides=_enable(fixture, active), inspect=_inspect(fixture))
+                cls.r[(fixture, step)] = None if result is None else result["runs"][0]
+
+    def test_off_to_on_computes_only_the_new_branch(self):
+        for fixture, (_b, scope, _p, engine) in ADVANCED.items():
+            with self.subTest(fixture=fixture):
+                run = self.r[(fixture, "on_1")]
+                self.assertTrue(run["succeeded"], run["errors"])
+                self.assertEqual(_statuses(run, scope)[-1], "MISS_STORED")
+                self.assertEqual(run["seams"]["substituted_calls"].get(engine), 1)
+                if fixture == "faceprocess_adv":
+                    self.assertIn("STALE_DEPENDENCIES", _statuses(run, scope))
+                else:
+                    self.assertNotIn("STALE_DEPENDENCIES", _statuses(run, scope))
+
+    def test_on_to_off_recomputes_the_boundary_from_branch_caches(self):
+        for fixture, (_b, scope, _p, engine) in ADVANCED.items():
+            with self.subTest(fixture=fixture):
+                run = self.r[(fixture, "off_1")]
+                self.assertEqual(_statuses(run, scope)[-1], "MISS_STORED")
+                self.assertNotIn(engine, run["seams"]["substituted_calls"])
+                self.assertEqual(run["outputs"], self.r[(fixture, "only_2")]["outputs"])
+                if fixture == "faceprocess_adv":
+                    self.assertIn("STALE_DEPENDENCIES", _statuses(run, scope))
+
+    def test_unchanged_setting_hits_again(self):
+        for fixture, (_b, scope, _p, engine) in ADVANCED.items():
+            with self.subTest(fixture=fixture):
+                run = self.r[(fixture, "repeat")]
+                self.assertEqual(_statuses(run, scope)[-1], "HIT")
+                self.assertNotIn(engine, run["seams"]["substituted_calls"])
+                self.assertEqual(run["outputs"], self.r[(fixture, "only_2")]["outputs"])
+                self.assertEqual(run["visual"], self.r[(fixture, "only_2")]["visual"])
 
 
 if __name__ == "__main__":

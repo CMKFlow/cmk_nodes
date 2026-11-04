@@ -8,9 +8,11 @@ from .cmk_log_pipe import CMKLogConcat, cmk_block_to_string
 from .cmk_visual import empty_visual, register_provider
 from ..nodes.utils.diagnostic_concat import CMKDiagnosticConcat
 from .cmk_persistent_cache import (
+    DISABLED_REVISION,
     build_node_fingerprint,
     load_pickle,
     pickle_available,
+    read_pickle_revision,
     save_pickle,
     write_status,
 )
@@ -144,6 +146,16 @@ class CMKFaceProcessPipe(CMK_FaceProcess):
             exclude_inputs=("opt_log", "VISUAL", "opt_diagnostic"),
             include_node_identity=True,
         )
+
+    @classmethod
+    def dependency_revision(cls, prompt, unique_id, cache_key):
+        """Manifest revision of this branch (K5-C).  A branch switched off in
+        the prompt stores nothing and reports DISABLED_REVISION; a linked or
+        otherwise undetermined ``enable`` counts as active."""
+        node = prompt.get(str(unique_id)) if isinstance(prompt, dict) else None
+        if isinstance(node, dict) and (node.get("inputs") or {}).get("enable") is False:
+            return DISABLED_REVISION
+        return read_pickle_revision(cls._CACHE_SCOPE, cache_key)
 
     def check_lazy_status(
         self,
