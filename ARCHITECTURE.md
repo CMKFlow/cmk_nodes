@@ -1995,10 +1995,21 @@ keine Session-Kopie von MODEL mehr. Ein gültiger Eintrag ist damit nach
 Eviction und nach einem Neustart nutzbar, solange die Dateien unter
 `ComfyUI/temp/cmk/` erhalten sind.
 
-Bekannte Grenze (K5-C): Ein lokal deaktivierter Zweig speichert keinen Pickle
-und veröffentlicht keine Revision. Das Manifest eines Advanced-Moduls mit
-mindestens einem deaktivierten Zweig ist daher nie vollständig; dessen Boundary
-speichert nicht.
+Ein lokal deaktivierter Zweig speichert keinen Pickle und veröffentlicht keine
+Revision. Seinen Manifest-Zustand liefert deshalb ebenfalls die Zweig-Klasse
+(`dependency_revision`, K5-C):
+
+- `enable` im Prompt ausdrücklich `False` ⇒ Marker `disabled`,
+- aktiv ⇒ die tatsächlich veröffentlichte Revision,
+- aktiv ohne Revision ⇒ Manifest unvollständig (kein HIT),
+- verlinkter oder nicht eindeutiger `enable`-Eingang ⇒ aktiv.
+
+Der Zweig-Schlüssel enthält `enable`; ein Umschalten ändert daher den
+Manifest-Eintrag (FaceProcess: Boundary-Schlüssel ohne Upstream, Invalidierung
+nur über das Manifest) bzw. zusätzlich den Boundary-Schlüssel (Detailer). Nur
+neu aktivierte Zweige rechnen; die übrigen nutzen ihren Zweig-Cache. Eine
+Boundary hält je Node nur ihren letzten Eintrag; die Rückkehr zu einer früheren
+Einstellung berechnet die Boundary einmal aus den Zweig-Caches neu.
 
 ### FaceProcess-Boundary
 

@@ -691,9 +691,11 @@ def forward_only(workdir: str, fixture: str, source: str, extra_model_paths: str
         probes.uninstall()
 
 
-def manifest_keys(workdir: str, fixture: str, extra_model_paths: str | None = None) -> dict:
-    """K5-B: per manifest branch, the key the boundary's dependency manifest
-    looks up and the key under which the branch node publishes its revision."""
+def manifest_keys(workdir: str, fixture: str, extra_model_paths: str | None = None,
+                  overrides: dict | None = None) -> dict:
+    """K5-B / K5-C: per manifest branch, the key and revision the boundary's
+    dependency manifest records and the key under which the branch node
+    publishes its revision."""
     from .comfy_runtime import boot
 
     runtime = boot(Path(workdir), extra_model_paths=extra_model_paths)
@@ -701,7 +703,7 @@ def manifest_keys(workdir: str, fixture: str, extra_model_paths: str | None = No
     import nodes
 
     pc = runtime.cmk_module("pipe.cmk_persistent_cache")
-    prompt = load_api_prompt(fixture)
+    prompt = _apply_overrides(load_api_prompt(fixture), fixture, overrides or {}, {})
     rows = []
     for boundary_class in ("CMKDetailerBoundaryCache", "CMKFaceBoundaryCache"):
         for boundary_id in inner_ids(fixture, boundary_class):
@@ -720,5 +722,8 @@ def manifest_keys(workdir: str, fixture: str, extra_model_paths: str | None = No
                     published = branch()._cache_key(prompt, entry["node_id"])[0]
                 rows.append({"boundary": boundary_id, "node_id": entry["node_id"], "class_type": entry["class_type"],
                              "scope": entry["scope"], "manifest_key": entry["cache_key"], "published_key": published,
-                             "branch_scope": branch._CACHE_SCOPE})
+                             "branch_scope": branch._CACHE_SCOPE, "revision": entry["revision"],
+                             "enable": prompt[entry["node_id"]]["inputs"].get("enable"),
+                             "complete": manifest["complete"],
+                             "boundary_key": boundary._cache_key(prompt, boundary_id)[0]})
     return {"rows": rows}

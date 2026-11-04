@@ -1,5 +1,5 @@
 {
-  "description": "Boundary cache keys and dependency manifests recorded on 2026-11-04 before the H-3/F-03 change (fixtures as exported then). The VISUAL publication must not change them. Dependency manifests refreshed for K5-B (manifest branch keys now come from the branch class); boundary keys unchanged.",
+  "description": "Boundary cache keys and dependency manifests recorded on 2026-11-04 before the H-3/F-03 change (fixtures as exported then). The VISUAL publication must not change them. Dependency manifests refreshed for K5-B (manifest branch keys now come from the branch class) and K5-C (disabled branches report the revision 'disabled'); boundary keys unchanged.",
   "fixtures": {
     "faceswap_std": {
       "key": "6eb30cf4434a45de244c67021597196e91cf8126027102a11057b5159d509f56",
@@ -38,7 +38,7 @@
             "class_type": "CMK_SmartDetailerPipe",
             "scope": "detailer_branch",
             "cache_key": "aaa1fb423ff0f809814da42f643e82aeb3b8afc718a1ab77c8e69289f48520ec",
-            "revision": null
+            "revision": "disabled"
           },
           {
             "node_id": "8417:7883",
@@ -52,7 +52,7 @@
             "class_type": "CMK_SmartDetailerPipe",
             "scope": "detailer_branch",
             "cache_key": "9e54e33e4388bcb30297342aef6e98fbf3beb7c4f2f56ce0eb93c09da8978ba3",
-            "revision": null
+            "revision": "disabled"
           }
         ]
       }
@@ -86,7 +86,7 @@
             "class_type": "CMKFaceProcessPipe",
             "scope": "faceprocess_branch",
             "cache_key": "3d506f33616125704e1a345f23df4da8ead01367cafeca9a4e8132ba93c17caa",
-            "revision": null
+            "revision": "disabled"
           },
           {
             "node_id": "8417:8397",
@@ -100,7 +100,7 @@
             "class_type": "CMKFaceProcessPipe",
             "scope": "faceprocess_branch",
             "cache_key": "f5072fd3a3edba5a22fbdaecdd83615628cb592eacd55eaae07c655e35d6c744",
-            "revision": null
+            "revision": "disabled"
           }
         ]
       }

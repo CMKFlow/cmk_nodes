@@ -439,6 +439,12 @@ def cache_path(scope: str, cache_key: str, suffix: str) -> Path:
     return cache_directory(scope) / f"{cache_key}{suffix}"
 
 
+# Manifest revision of a branch that is switched off in the prompt (K5-C): a
+# disabled branch stores nothing, its key (which contains ``enable``) carries
+# the state.  Never a real revision token.
+DISABLED_REVISION = "disabled"
+
+
 def revision_path(scope: str, cache_key: str) -> Path:
     return cache_path(scope, cache_key, ".rev")
 
@@ -607,8 +613,9 @@ def build_upstream_cache_manifest(
     a branch with the same settings was recomputed after the boundary was stored.
 
     ``branch_specs`` maps a branch class type to a callable returning the branch
-    class.  Scope and key come from that class (``_CACHE_SCOPE``,
-    ``dependency_cache_key``), i.e. from the code that publishes the revision.
+    class.  Scope, key and revision come from that class (``_CACHE_SCOPE``,
+    ``dependency_cache_key``, ``dependency_revision``), i.e. from the code that
+    publishes the revision; a disabled branch reports ``DISABLED_REVISION``.
     """
     empty = {
         "version": 1,
@@ -654,11 +661,7 @@ def build_upstream_cache_manifest(
         branch = branch_specs[class_type]()
         scope = branch._CACHE_SCOPE
         cache_key, fingerprint_detail = branch.dependency_cache_key(prompt, node_id)
-        revision = (
-            read_pickle_revision(scope, cache_key)
-            if cache_key
-            else None
-        )
+        revision = branch.dependency_revision(prompt, node_id, cache_key) if cache_key else None
         if cache_key is None or revision is None:
             complete = False
 
