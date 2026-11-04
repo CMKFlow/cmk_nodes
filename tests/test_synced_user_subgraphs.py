@@ -41,6 +41,8 @@ EXPECTED = {
             ("CMKResultProcessForwardPipe", (1395, 2040)): ((280, 30), 5),
             ("CMKVisualCompare", (760, 830)): ((1105, 1165), 6),
             ("CMKModuleBypassGate", (935, 2040)): ((230, 235), 7),
+            # OD-2: the public MODEL output is forwarded from SG_IN.MODEL.
+            ("CMKModelForwardPipe", (1395, 2090)): ((235, 30), 0),
         },
     },
     "CMK Flow · FaceSwap · Advanced.json": {

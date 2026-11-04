@@ -354,6 +354,12 @@ def _collect(runtime, record, workdir, probes, seams, inspect, files_before) -> 
             outputs[label] = None
             continue
         tensor = item[0] if isinstance(item, (list, tuple)) else item
+        if isinstance(tensor, dict) and isinstance(tensor.get("blocks"), list):
+            outputs[label] = {"type": "log", "blocks": [[b.get("title"), b.get("lines")] for b in tensor["blocks"]]}
+            continue
+        if isinstance(tensor, dict) and tensor.get("type") == "CMK_DIAGNOSTIC":
+            outputs[label] = {"type": "diagnostic", "title": tensor.get("title"), "mode": tensor.get("mode")}
+            continue
         outputs[label] = (
             {"hash": tensor_hash(tensor), "shape": list(tensor.shape)}
             if hasattr(tensor, "shape") else {"type": type(tensor).__name__}
@@ -398,7 +404,7 @@ def _collect(runtime, record, workdir, probes, seams, inspect, files_before) -> 
     }
 
 
-def _session(workdir, extra_model_paths, mode, install_seams, stop_prepare, input_source):
+def _session(workdir, extra_model_paths, mode, install_seams, stop_prepare, input_source, fake_detailer=False):
     from .comfy_runtime import boot
     from .probes import install_probes
     from .seams import Seams, install_standard
@@ -410,7 +416,7 @@ def _session(workdir, extra_model_paths, mode, install_seams, stop_prepare, inpu
     probes = install_probes(runtime)
     seams = Seams()
     if install_seams:
-        install_standard(seams, runtime, stop_prepare=stop_prepare)
+        install_standard(seams, runtime, stop_prepare=stop_prepare, fake_detailer=fake_detailer)
     return runtime, probes, seams
 
 
@@ -440,6 +446,7 @@ def run_fixture(
     fake_faces: int = 1,
     upstream_visual: bool = False,
     drop_model: bool = False,
+    fake_detailer: bool = False,
 ) -> dict:
     """Execute an exported fixture with the real PromptExecutor.
 
@@ -450,7 +457,8 @@ def run_fixture(
     from . import seams as seam_module
 
     seam_module.FAKE_FACES = int(fake_faces)
-    runtime, probes, seams = _session(workdir, extra_model_paths, mode, install_seams, stop_prepare, input_source)
+    runtime, probes, seams = _session(workdir, extra_model_paths, mode, install_seams, stop_prepare, input_source,
+                                      fake_detailer)
     prompt = _apply_overrides(load_api_prompt(fixture), fixture, overrides or {}, widget_overrides or {})
     if upstream_visual:
         prompt = _inject_upstream_visual(prompt, fixture)
@@ -633,7 +641,8 @@ def seam_neutrality(workdir: str, fixture: str, extra_model_paths: str | None = 
 
 
 def boundary_key(workdir: str, fixture: str, boundary_class: str, input_source: str = SELFCHECK_INPUT,
-                 extra_model_paths: str | None = None, model_source_class: str | None = None) -> dict:
+                 extra_model_paths: str | None = None, model_source_class: str | None = None,
+                 schema: str | None = None) -> dict:
     """Boundary cache key exactly as the boundary computes it, for the given
     content of the (same-named) input file.  ``model_source_class`` replaces
     the class of the node feeding CMK Load Image's MODEL input (H-2)."""
@@ -645,6 +654,8 @@ def boundary_key(workdir: str, fixture: str, boundary_class: str, input_source: 
 
     node_id = inner_ids(fixture, boundary_class)[0]
     instance = nodes.NODE_CLASS_MAPPINGS[boundary_class]()
+    if schema:
+        instance._SCHEMA = schema  # compare across a deliberate schema bump (K-5)
     prompt = load_api_prompt(fixture)
     if model_source_class:
         source = prompt["1"]["inputs"]["MODEL SDXL (opt)"][0]
@@ -654,11 +665,15 @@ def boundary_key(workdir: str, fixture: str, boundary_class: str, input_source: 
     return {"key": key, "detail": detail, "dependencies": dependencies}
 
 
-def forward_only(workdir: str, fixture: str, source: str, extra_model_paths: str | None = None) -> dict:
+def forward_only(workdir: str, fixture: str, source: str, extra_model_paths: str | None = None,
+                 drop_model: bool = False) -> dict:
     """Request only one output (PROCESS or MODEL) through an added PreviewAny
-    output node and record what executed."""
+    output node and record what executed.  ``drop_model`` disconnects the
+    checkpoint so MODEL is None."""
     runtime, probes, seams = _session(workdir, extra_model_paths, "classic", True, True, SELFCHECK_INPUT)
     prompt = load_api_prompt(fixture)
+    if drop_model:
+        prompt["1"]["inputs"].pop("MODEL SDXL (opt)", None)
     node_id, index = source.rsplit(":", 1)
     prompt["cmk_s1_probe"] = {"class_type": "PreviewAny", "inputs": {"source": [node_id, int(index)]}}
     try:

@@ -1,23 +1,23 @@
 {
   "comfyui_version": "0.43.2",
   "frontend_version": "1.57.4",
-  "recorded_at": "2026-11-04T06:24:54+00:00",
+  "recorded_at": "2026-11-04T07:42:29+00:00",
   "fixtures": [
     {
       "name": "chain_postprocess",
       "workflow_file": "workflows/chain_postprocess.json",
-      "workflow_sha256": "5548cf4b26017b555e7b8e3a2de06c0396c0e639ef3ad212b7964dcc5e7173f7",
+      "workflow_sha256": "3e8c1200f1ddf63d3a1a04988494b24c83191e69ce1c5d5062a74f76bc3b3dac",
       "api_prompt_file": "api_prompts/chain_postprocess.json",
-      "api_prompt_sha256": "8fbca4a0bfeb621be2dd5eaff15c92423e9ebb3707b30d58d6a3fe90092e43cb",
+      "api_prompt_sha256": "07a6c6f25bb34c480cd8a3708ac1ed40c88ce6e3fadaf6625a4538886f31a8e1",
       "definitions": [
         {
           "name": "CMK Flow · Detailer SDXL",
-          "signature": "9beae0a3c53a2bcdd4fb47ca9556cad1efceac03d2a808f46cdda33983136f38",
+          "signature": "bb18fdf7c186156a7ab05f7e987841a7799bbe71c761d7a100168545de627b87",
           "canonical_at_export": true
         },
         {
           "name": "CMK Flow · FaceProcess SDXL",
-          "signature": "5af4d19b8c63d89ec9f1afa9495615f3eb09621b591f869f75182f6e301c4f02",
+          "signature": "23e6bfcc63d79f12d51798c360480cdfdfc86362e3da4a01cec4644c82c88ac5",
           "canonical_at_export": true
         },
         {
@@ -30,27 +30,41 @@
     {
       "name": "detailer_adv",
       "workflow_file": "workflows/detailer_adv.json",
-      "workflow_sha256": "43bfd4d7ecdf7224c67ccba85793fe9d74c96d6395a06fe3e36343f2b12948fc",
+      "workflow_sha256": "dce585c43e3b4cbb000e69e9117c03a45d51dd75a3d412e887fde57ffd10346a",
       "api_prompt_file": "api_prompts/detailer_adv.json",
+      "api_prompt_sha256": "f82157d59e08906c8ad2dd45af244517fd3426e285c73ecaf45a2855bb96f4e1",
+      "definitions": [
+        {
+          "name": "CMK Flow · Detailer SDXL · Advanced",
+          "signature": "fa76d08efadb92c3d1447f1043d0ed15dadfa5248e283cd668d6f38bfeef73ca",
+          "canonical_at_export": true
+        }
+      ]
+    },
+    {
+      "name": "detailer_adv_legacy_pre_k5",
+      "workflow_file": "workflows/detailer_adv_legacy_pre_k5.json",
+      "workflow_sha256": "43bfd4d7ecdf7224c67ccba85793fe9d74c96d6395a06fe3e36343f2b12948fc",
+      "api_prompt_file": "api_prompts/detailer_adv_legacy_pre_k5.json",
       "api_prompt_sha256": "058ae3b5f98a52c253ae42fbc18acf3996f13a292fc7d3164a423cb89dd576ad",
       "definitions": [
         {
           "name": "CMK Flow · Detailer SDXL · Advanced",
           "signature": "075b64590d94f03fc38ac868c072230494e68562fb41c5e88cf51ad4c6767b65",
-          "canonical_at_export": true
+          "canonical_at_export": false
         }
       ]
     },
     {
       "name": "detailer_std",
       "workflow_file": "workflows/detailer_std.json",
-      "workflow_sha256": "0d72d35978d468f91244a55470e88ea86f73d3c023a61d30edbce36df17f04ea",
+      "workflow_sha256": "beb29f076c6bd0b366b3383ee86ece7f2342e0963327940563809b3acd0f976f",
       "api_prompt_file": "api_prompts/detailer_std.json",
-      "api_prompt_sha256": "0065e52670bf9c7181897e61c081bc5f49d29399c7fd4659eafd16b35a09c3fd",
+      "api_prompt_sha256": "8286aef3d005fee0eb05c62197d272b18bff481ad7307f4cc6a96f2f540e1fb1",
       "definitions": [
         {
           "name": "CMK Flow · Detailer SDXL",
-          "signature": "9beae0a3c53a2bcdd4fb47ca9556cad1efceac03d2a808f46cdda33983136f38",
+          "signature": "bb18fdf7c186156a7ab05f7e987841a7799bbe71c761d7a100168545de627b87",
           "canonical_at_export": true
         }
       ]
@@ -65,20 +79,34 @@
         {
           "name": "CMK Flow · Detailer SDXL",
           "signature": "9beae0a3c53a2bcdd4fb47ca9556cad1efceac03d2a808f46cdda33983136f38",
-          "canonical_at_export": true
+          "canonical_at_export": false
+        }
+      ]
+    },
+    {
+      "name": "detailer_std_legacy_pre_k5",
+      "workflow_file": "workflows/detailer_std_legacy_pre_k5.json",
+      "workflow_sha256": "0d72d35978d468f91244a55470e88ea86f73d3c023a61d30edbce36df17f04ea",
+      "api_prompt_file": "api_prompts/detailer_std_legacy_pre_k5.json",
+      "api_prompt_sha256": "0065e52670bf9c7181897e61c081bc5f49d29399c7fd4659eafd16b35a09c3fd",
+      "definitions": [
+        {
+          "name": "CMK Flow · Detailer SDXL",
+          "signature": "9beae0a3c53a2bcdd4fb47ca9556cad1efceac03d2a808f46cdda33983136f38",
+          "canonical_at_export": false
         }
       ]
     },
     {
       "name": "faceprocess_adv",
       "workflow_file": "workflows/faceprocess_adv.json",
-      "workflow_sha256": "d4ce367b1a3e10ab3f36283a41c4f3411f36c25bb4da324f5ec78c4794d18489",
+      "workflow_sha256": "894e740aef84a50d9243f970328bddd3103060b08971eda72fd9b0b8f2ca34e4",
       "api_prompt_file": "api_prompts/faceprocess_adv.json",
-      "api_prompt_sha256": "2ddf8ce087fdc9a53aa7a510adcc81c88f5173cad46abab1a817afe3238eaf46",
+      "api_prompt_sha256": "218920fe201c2c7e458850ef7e055bfeb8f994a36e9b0dce8d423ee5c124b664",
       "definitions": [
         {
           "name": "CMK Flow · FaceProcess SDXL · Advanced",
-          "signature": "faa74f3149d30f06c23aaefec4505378531cd2a0ed86fd862dd4b4a7eb0631bc",
+          "signature": "5e46a030b8283160ce5ff9e9ad6c0e3687267178a82101a248e28fc22ce1a429",
           "canonical_at_export": true
         }
       ]
@@ -86,13 +114,13 @@
     {
       "name": "faceprocess_std",
       "workflow_file": "workflows/faceprocess_std.json",
-      "workflow_sha256": "3252e72ddd81f3b2ecf19002edd11bbd6240ec0258576098678c01e1d4a905b7",
+      "workflow_sha256": "de5e427529b8cf5ddcd34feef74f414723815d9fd9dd48c2624a771453335409",
       "api_prompt_file": "api_prompts/faceprocess_std.json",
-      "api_prompt_sha256": "24caa99449947b529d8a8b439efb48ceeff0f64deef8f5bebe44fbd43229364d",
+      "api_prompt_sha256": "1e632c19586a4af1bc590d378b6c555dbcc83dfa00c8cfb5c3ee06112228d4bd",
       "definitions": [
         {
           "name": "CMK Flow · FaceProcess SDXL",
-          "signature": "5af4d19b8c63d89ec9f1afa9495615f3eb09621b591f869f75182f6e301c4f02",
+          "signature": "23e6bfcc63d79f12d51798c360480cdfdfc86362e3da4a01cec4644c82c88ac5",
           "canonical_at_export": true
         }
       ]
@@ -100,13 +128,13 @@
     {
       "name": "facerebuild_adv",
       "workflow_file": "workflows/facerebuild_adv.json",
-      "workflow_sha256": "16fce81036fe5dc1f3371aeb17eeb82dfabd0ae4c92ef303c727f9ad02ad5229",
+      "workflow_sha256": "7e7e52e270d6f5d137ee7c1edfe7ef2f56cc3227507803933d5f1466d1bc3dba",
       "api_prompt_file": "api_prompts/facerebuild_adv.json",
-      "api_prompt_sha256": "4674b5192ef90a96f51db23a9d0a6bde22a407af68bd693319813aee12e2d8e9",
+      "api_prompt_sha256": "91b73b18f3ca021e4cd50e5152b4d968c4ab7423d605f0443148bb31b1977c19",
       "definitions": [
         {
           "name": "CMK Flow · FaceRebuild SDXL · Advanced",
-          "signature": "40bf2662ac00ff07e9de50e9f1fc04c8b13f9c706b0a01959dfdc0e450b88434",
+          "signature": "47e2c598cccccf8792dd7c4e798b5a654a45520981e58c12ac22b406225b90a6",
           "canonical_at_export": true
         }
       ]
@@ -114,13 +142,13 @@
     {
       "name": "facerebuild_std",
       "workflow_file": "workflows/facerebuild_std.json",
-      "workflow_sha256": "b7ab6e01ec86bbd5d24b38e864774635778fbf2bd47052ed03e596b9f3cec849",
+      "workflow_sha256": "5b4f0189258ecbfb646d3c809bf0f053aa1beb25b0f71b49456a97657bc6f4c7",
       "api_prompt_file": "api_prompts/facerebuild_std.json",
-      "api_prompt_sha256": "47ff32f7463e3c58ce834d6a9b7a1ea66398ef03b64d8319ec5ae949bb905ede",
+      "api_prompt_sha256": "d7952aeca199fccc6554ae878997d654425d58f8aec2a759b4a2c238aceb4ab1",
       "definitions": [
         {
           "name": "CMK Flow · FaceRebuild SDXL",
-          "signature": "c51e6e2dcd52b7aa94bb46a82bd95aa447c0a79ea3d9446dcef3df33b5dbf038",
+          "signature": "db2a5fac900093504c08e4125d45fae2dccd5c5670491c95fc9647bf62d5628d",
           "canonical_at_export": true
         }
       ]

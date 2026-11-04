@@ -365,7 +365,8 @@ class StopAfterHandoffTests(unittest.TestCase):
         prompt = _postprocess_chain_prompt(True)
         # (node, unique_id, result outputs, publishes VISUAL since H-3 / F-03)
         cases = (
-            (boundaries.CMKDetailerBoundaryCache(), "40-boundary", 3, True),
+            # Detailer: MODEL/IMAGE/LOG plus the boundary-owned diagnostic (K-5).
+            (boundaries.CMKDetailerBoundaryCache(), "40-boundary", 4, True),
             (boundaries.CMKFaceRebuildBoundaryCache(), "42-boundary", 4, True),
             (boundaries.CMKFaceBoundaryCache(), "40-boundary", 3, True),
             (boundaries.CMKFaceSwapBoundaryCache(), "40-boundary", 4, True),

@@ -66,8 +66,10 @@ class BoundaryKeysUnchanged(ScenarioCase):
         for fixture, boundary_class in BOUNDARY.items():
             with self.subTest(fixture=fixture):
                 source = None if fixture.startswith("faceswap") else "CMKCheckpointVAELoaderPipe"
+                # K-5 bumped the Detailer schema v3 -> v4; compare with the recorded schema.
+                schema = "cmk_detailer_boundary_v3" if fixture.startswith("detailer") else None
                 result = self.run_case("boundary_key", fixture=fixture, boundary_class=boundary_class,
-                                       model_source_class=source)
+                                       model_source_class=source, schema=schema)
                 self.assertEqual(result["key"], PINNED[fixture]["key"])
                 self.assertEqual(result["dependencies"], PINNED[fixture]["deps"])
 

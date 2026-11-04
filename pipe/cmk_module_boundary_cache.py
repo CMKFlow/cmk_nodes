@@ -637,6 +637,126 @@ class _VisualPublication:
         return (*outputs, cmk_visual.publish_providers(visual_in, providers))
 
 
+# -- Disabled passthrough without the compute node (K-5) -------------------
+# "IMAGE IN" / "LOG IN" carry the module's own inputs; "diagnostic" is the
+# compute node's diagnostic, which the module definition now routes through
+# the boundary instead of straight to the gate.  With every local branch OFF
+# the boundary answers from these inputs alone: no Prepare, no compute, no
+# model materialisation.  Older embedded definitions leave the inputs
+# unconnected and keep the previous behaviour.
+PASSTHROUGH_INPUTS = {
+    "IMAGE IN": ("IMAGE", {"lazy": True}),
+    "LOG IN": ("CMK_LOG_PIPE", {"lazy": True}),
+    "diagnostic": ("CMK_DIAGNOSTIC", {"lazy": True}),
+}
+PASSTHROUGH_INPUT_NAMES = tuple(PASSTHROUGH_INPUTS)
+
+
+class _PassthroughSources:
+    """Boundary mixin: disabled passthrough from the module inputs and the
+    boundary-owned diagnostic.  Appends ``diagnostic`` after VISUAL so the
+    existing output slots keep their indices.  The class provides
+    ``_PASSTHROUGH_LABEL`` and the core hooks used by ``_VisualPublication``.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        types = super().INPUT_TYPES()
+        types.setdefault("optional", {}).update(PASSTHROUGH_INPUTS)
+        return types
+
+    def _routed(self, prompt, unique_id) -> bool:
+        connected = _connected_inputs(prompt, unique_id)
+        return "IMAGE IN" in connected and "LOG IN" in connected
+
+    def _passthrough(self, prompt, unique_id) -> bool:
+        return (
+            self._routed(prompt, unique_id)
+            and not stop_after_handoff_prompt_state(prompt, unique_id)
+            and self._module_disabled(prompt, unique_id)
+        )
+
+    def check_lazy_status(self, prompt=None, unique_id=None, **inputs):
+        own = {name: inputs.pop(name, None) for name in PASSTHROUGH_INPUT_NAMES}
+        connected = _connected_inputs(prompt, unique_id)
+        if self._passthrough(prompt, unique_id):
+            write_status(self._SCOPE, "DISABLED_PASSTHROUGH_READY",
+                         detail="module inputs; compute skipped", unique_id=unique_id)
+            names = ["IMAGE IN", "LOG IN", "MODEL"]
+            if _visual_routed(prompt, unique_id):
+                names.append("VISUAL IN")
+            values = {**inputs, **own}
+            return [name for name in names if name in connected and values.get(name) is None]
+        diagnostic_routed = "diagnostic" in connected and not stop_after_handoff_prompt_state(prompt, unique_id)
+        if diagnostic_routed:
+            key, _detail = self._cache_key(prompt, unique_id)
+            if key and _disk_available(self._SCOPE, key) and not all(
+                path.is_file() for path in _diagnostic_entry_paths(self._SCOPE, key)
+            ):
+                _remove_entry(self._SCOPE, key)
+        needed = list(super().check_lazy_status(prompt=prompt, unique_id=unique_id, **inputs))
+        if (
+            diagnostic_routed
+            and own["diagnostic"] is None
+            and not self._module_disabled(prompt, unique_id)
+            and not self._result_cached(prompt, unique_id)
+        ):
+            needed.append("diagnostic")
+        return needed
+
+    def boundary(self, prompt=None, unique_id=None, **inputs):
+        own = {name: inputs.pop(name, None) for name in PASSTHROUGH_INPUT_NAMES}
+        if self._passthrough(prompt, unique_id):
+            return self._disabled_passthrough(prompt, unique_id, own, inputs)
+        outputs = tuple(super().boundary(prompt=prompt, unique_id=unique_id, **inputs))
+        if isinstance(outputs[1], ExecutionBlocker):
+            return (*outputs, outputs[1])
+        if "diagnostic" not in _connected_inputs(prompt, unique_id):
+            return (*outputs, ExecutionBlocker(None))
+        if self._module_disabled(prompt, unique_id):
+            # Legacy passthrough through the compute node (IMAGE IN unrouted).
+            return (*outputs, own["diagnostic"] if own["diagnostic"] is not None else ExecutionBlocker(None))
+        key, _detail = self._cache_key(prompt, unique_id)
+        if own["diagnostic"] is None:
+            return (*outputs, _load_diagnostic(self._SCOPE, key))
+        if key and _disk_available(self._SCOPE, key):
+            _save_diagnostic(self._SCOPE, key, own["diagnostic"])
+        return (*outputs, own["diagnostic"])
+
+    def _disabled_passthrough(self, prompt, unique_id, own, inputs):
+        from .cmk_log_pipe import cmk_add_block
+        from ..utils.cmk_diagnostic import make_diagnostic_payload
+
+        image, log = own["IMAGE IN"], own["LOG IN"]
+        if image is None:
+            raise RuntimeError(f"CMK Boundary Cache / {self._PASSTHROUGH_LABEL}: disabled passthrough requires IMAGE IN")
+        if not isinstance(log, dict):
+            raise TypeError(f"CMK Boundary Cache / {self._PASSTHROUGH_LABEL}: LOG IN is not a CMK log pipe")
+        lines = [
+            "STATUS          : DISABLED PASSTHROUGH",
+            "REASON          : module enabled, all local branches OFF",
+            "PREPARE/COMPUTE : SKIPPED",
+            "CACHE           : SKIPPED",
+        ]
+        log_out = cmk_add_block(log, f"{self._PASSTHROUGH_LABEL} Boundary", 71, lines, True)
+        diagnostic = make_diagnostic_payload(
+            title=f"{self._PASSTHROUGH_LABEL} Boundary",
+            node=f"CMK Boundary Cache / {self._PASSTHROUGH_LABEL}",
+            previews=[image],
+            summary="disabled passthrough | prepare and compute skipped",
+            details="\n".join(lines),
+            mode="disabled / passthrough",
+            metadata={"global_enabled": True, "local_enabled": False},
+        )
+        visual = None
+        if _visual_routed(prompt, unique_id):
+            visual = cmk_visual.normalize_visual(inputs.get("VISUAL IN"))
+        write_status(self._SCOPE, "DISABLED_PASSTHROUGH",
+                     detail="module inputs; compute skipped", unique_id=unique_id)
+        print(f"[CMK Boundary Cache / {self._PASSTHROUGH_LABEL}] DISABLED PASSTHROUGH -> PREPARE/COMPUTE SKIPPED")
+        return (inputs.get("MODEL"), image, log_out, visual, diagnostic)
+
+
 def _write_encoded(tensor_path, json_path, value, file_format: str, scope: str) -> None:
     from safetensors.torch import save_file  # type: ignore
 
@@ -812,7 +932,8 @@ def _dependencies_match(
 
 class _DetailerBoundaryCore:
     _SCOPE = "detailer_boundary"
-    _SCHEMA = "cmk_detailer_boundary_v3"
+    # v4 (K-5): entries carry the boundary diagnostic next to IMAGE/LOG/VISUAL.
+    _SCHEMA = "cmk_detailer_boundary_v4"
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -848,7 +969,7 @@ class _DetailerBoundaryCore:
             unique_id,
             ("CMKDetailerBoundaryCache",),
             self._SCHEMA,
-            exclude_inputs=VISUAL_INPUT_NAMES,
+            exclude_inputs=VISUAL_INPUT_NAMES + PASSTHROUGH_INPUT_NAMES,
             include_node_identity=True,
         )
 
@@ -1106,11 +1227,14 @@ class _DetailerBoundaryCore:
         return MODEL, IMAGE, LOG
 
 
-class CMKDetailerBoundaryCache(_VisualPublication, _DetailerBoundaryCore):
-    """Detailer boundary that also publishes the module's VISUAL providers."""
+class CMKDetailerBoundaryCache(_PassthroughSources, _VisualPublication, _DetailerBoundaryCore):
+    """Detailer boundary that also publishes the module's VISUAL providers and
+    owns its diagnostic and disabled passthrough (K-5)."""
 
-    RETURN_TYPES = (*_DetailerBoundaryCore.RETURN_TYPES, "CMK_VISUAL_PIPE")
-    RETURN_NAMES = (*_DetailerBoundaryCore.RETURN_NAMES, "VISUAL")
+    _PASSTHROUGH_LABEL = "Detailer"
+
+    RETURN_TYPES = (*_DetailerBoundaryCore.RETURN_TYPES, "CMK_VISUAL_PIPE", "CMK_DIAGNOSTIC")
+    RETURN_NAMES = (*_DetailerBoundaryCore.RETURN_NAMES, "VISUAL", "diagnostic")
 
 
 class _FaceRebuildBoundaryCore:

@@ -29,7 +29,8 @@ class SeamNeutrality(ScenarioCase):
         # Visual Compare and Visualizer return IS_CHANGED = nan: their keys are
         # unstable by design even without seams and are reported, not compared.
         self.assertEqual(result["volatile_nodes"], ["8417:7708", "8418"])
-        self.assertEqual(result["compared_nodes"], 7)
+        # 8 since OD-2: CMK Model Forward feeds the public MODEL output.
+        self.assertEqual(result["compared_nodes"], 8)
 
     def test_faceswap_std_surface_and_cache_keys_unchanged(self):
         result = self._neutrality("faceswap_std")
