@@ -126,6 +126,15 @@ MODEL-, PROCESS- und Ergebnistransport gilt damit verbindlich:
 MODEL / PROCESS / IMAGE oder SAMPLED / LOG / VISUAL / diagnostic
 ```
 
+PostProcess-Module verändern MODEL nicht. Bei Detailer, FaceProcess und
+FaceRebuild (jeweils Standard und Advanced) kommt der öffentliche MODEL-Ausgang
+deshalb über `CMK Model Forward -Pipe-` direkt aus dem MODEL-Eingang des Moduls,
+nicht aus dem Ergebnis-Gate (OD-2). Eine Anforderung nur von MODEL wertet so
+weder Prepare noch Compute, Boundary oder Gate aus. Der MODEL-Eingang des
+Forwards ist optional; ohne Checkpoint wird `None` unverändert durchgereicht.
+FaceSwap führt MODEL weiterhin über `CMK Result Pack` (eigener Typ
+`CMK_RESULT_MODEL`).
+
 Der Eingang des externen `CMK Visualizer` ist optional, damit ein zunächst
 unverdrahtet platzierter Visualizer die Prompt-Validierung nicht blockiert.
 Ohne Pipe zeigt er einen leeren Wartezustand; erst die angeschlossene `VISUAL`-
@@ -1951,6 +1960,26 @@ Der Disabled-Passthrough muss:
 Ein sichtbarer deaktivierter Node darf kurz als Teil der Graphauswertung
 erscheinen. Seine eigentliche Ausführungszeit muss jedoch im
 Millisekundenbereich bleiben.
+
+### Detailer: Passthrough ohne Prepare (K-5)
+
+`CMK Detailer Boundary Cache` besitzt die internen Eingänge `IMAGE IN` und
+`LOG IN` (Modul-Eingänge) sowie `diagnostic` (Diagnose des Compute-Nodes) und
+den zusätzlichen Ausgang `diagnostic` nach `VISUAL`. Das Ergebnis-Gate bezieht
+`DIAGNOSTIC ACTIVE` von der Boundary, nicht mehr direkt vom Compute-Node.
+
+Bei globalem ENABLE und vollständig deaktivierten lokalen Zweigen fordert die
+Boundary ausschließlich `IMAGE IN`, `LOG IN`, MODEL und `VISUAL IN` an. Sie gibt
+IMAGE unverändert aus, ergänzt das Eingangs-LOG um den Block
+`Detailer Boundary` (`STATUS : DISABLED PASSTHROUGH`), erzeugt eine schlanke
+Diagnose ohne Compute und reicht VISUAL unverändert durch. Prepare, Compute und
+`resolve_postprocess_model` werden nicht ausgewertet.
+
+Bei aktiver Verarbeitung speichert die Boundary die Diagnose neben IMAGE, LOG
+und VISUAL (Schema `cmk_detailer_boundary_v4`) und stellt sie bei einem HIT
+ohne Compute wieder her. Die neuen Eingänge sind vom Boundary-Fingerprint
+ausgeschlossen; der Schemawechsel führt einmalig zu einem MISS. Eingebettete
+Definitionen ohne diese Verbindungen behalten das frühere Verhalten.
 
 ### FaceProcess-Boundary
 

@@ -1,0 +1,124 @@
+{
+  "description": "Boundary cache keys and dependency manifests recorded on 2026-11-04 before K-5 / OD-2 (fixtures as exported after H-2, git cb9d24b). K-5 changes only the Detailer schema (v3 -> v4); with the old schema every key and manifest must stay identical.",
+  "schemas": {
+    "detailer": "cmk_detailer_boundary_v3"
+  },
+  "fixtures": {
+    "faceswap_std": {
+      "key": "6eb30cf4434a45de244c67021597196e91cf8126027102a11057b5159d509f56",
+      "deps": null
+    },
+    "faceswap_adv": {
+      "key": "bc8f47fccbf3855bc1a339a0e27b3b6a2875375f35f5482cb6451dce766dd013",
+      "deps": null
+    },
+    "detailer_std": {
+      "key": "9d612efa8726c5caf03968af49448e5c6899a43fd4597145a9bd84d6ac3ed711",
+      "deps": {
+        "version": 1,
+        "boundary_node_id": "8417:7706",
+        "complete": false,
+        "branches": [
+          {
+            "node_id": "8417:7719",
+            "class_type": "CMK_SmartDetailerPipe",
+            "scope": "detailer_branch",
+            "cache_key": "e8d3df2ea435cfa0cc936cdd5a08e87cec38b5488e6d6ef29aa384a47ca160f4",
+            "revision": null
+          }
+        ]
+      }
+    },
+    "detailer_adv": {
+      "key": "b1e5ba1228b2b0b6000d9c078c6af72ad8c925217c013f1d007ce5d350f98d21",
+      "deps": {
+        "version": 1,
+        "boundary_node_id": "8417:7881",
+        "complete": false,
+        "branches": [
+          {
+            "node_id": "8417:7880",
+            "class_type": "CMK_SmartDetailerPipe",
+            "scope": "detailer_branch",
+            "cache_key": "6900cae275c06d0ce79a645a869e0fe94583ca49b83da3d3813b951c401bee0d",
+            "revision": null
+          },
+          {
+            "node_id": "8417:7883",
+            "class_type": "CMK_SmartDetailerPipe",
+            "scope": "detailer_branch",
+            "cache_key": "23b592bc0c9e12242e2533afaba3813bce24ba7ddafeb76574a6d50a8fc71772",
+            "revision": null
+          },
+          {
+            "node_id": "8417:7884",
+            "class_type": "CMK_SmartDetailerPipe",
+            "scope": "detailer_branch",
+            "cache_key": "a2ae9277605a92f15fec8677e00be192638a2a65f662dc4d3e943a9805db7348",
+            "revision": null
+          }
+        ]
+      }
+    },
+    "faceprocess_std": {
+      "key": "bf7ca982f42297d1153da2be25d6229ed52edf1f699c79ed223e5cca9e94f517",
+      "deps": {
+        "version": 1,
+        "boundary_node_id": "8417:7844",
+        "complete": false,
+        "branches": [
+          {
+            "node_id": "8417:7842",
+            "class_type": "CMKFaceProcessPipe",
+            "scope": "faceprocess_branch",
+            "cache_key": "a5574df047487a3f5ec257a8f437ce7faeb0b037e1a0ce06de8f9504680accec",
+            "revision": null
+          }
+        ]
+      }
+    },
+    "faceprocess_adv": {
+      "key": "3380e2642b834b0b4c28ed4809054e0a1161e0a57dca004b6b4a573c706b3567",
+      "deps": {
+        "version": 1,
+        "boundary_node_id": "8417:8393",
+        "complete": false,
+        "branches": [
+          {
+            "node_id": "8417:8396",
+            "class_type": "CMKFaceProcessPipe",
+            "scope": "faceprocess_branch",
+            "cache_key": "a0a272cd2372860fcc1fa3b4a4d3cb8551d7a4bc5e5f5d445029e31df10adc1d",
+            "revision": null
+          },
+          {
+            "node_id": "8417:8397",
+            "class_type": "CMKFaceProcessPipe",
+            "scope": "faceprocess_branch",
+            "cache_key": "c26a77113d3d93a073d1c327d0eda3b1db9091371accffb8ccc9539f9f56bdad",
+            "revision": null
+          },
+          {
+            "node_id": "8417:8398",
+            "class_type": "CMKFaceProcessPipe",
+            "scope": "faceprocess_branch",
+            "cache_key": "33daf4c8c7cf35f8578e869948b8074028f646406a36e4affe0bd120754cc28d",
+            "revision": null
+          }
+        ]
+      }
+    },
+    "facerebuild_std": {
+      "key": "b7691cb5eb6ec58d4081b511f5a220df7d89e86dd59e717ef2e09b5a684c159b",
+      "deps": null
+    },
+    "facerebuild_adv": {
+      "key": "9c4cff0c8b860687ea4dc0c09a874a846b8b1e550a3cf0660816073419cd5434",
+      "deps": null
+    },
+    "upscale_save": {
+      "key": "8e8216d8b22cafa4996d1b559ff4ee55e3fe3c6bd6e1914284b6783f5f956098",
+      "deps": null
+    }
+  }
+}

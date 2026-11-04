@@ -223,10 +223,85 @@ def install_tripwires(seams: Seams) -> None:
         pass
 
 
-def install_standard(seams: Seams, runtime, *, stop_prepare: bool = True) -> None:
+def fake_sam_load(self, *args, **kwargs):
+    return (SimpleNamespace(cmk_s1_fake="sam"),)
+
+
+def fake_clip_set_last_layer(self, clip, stop_at_clip_layer):
+    return clip
+
+
+def fake_apply_single_lora(self, model, clip, lora_name, strength_model, strength_clip):
+    return model, clip, ""
+
+
+def fake_model_patch(self, model, *args, **kwargs):
+    return model
+
+
+def fake_clip_encode(clip, text):
+    import torch
+
+    return [[torch.zeros((1, 1, 8)), {"cmk_s1_fake_text": str(text)}]]
+
+
+def fake_smart_detailer_run(self, image, **kwargs):
+    """CMK_SmartDetailer.run without detector or sampler: one SEG in the
+    image centre whose pixels are inverted (same tuple shape as the real run)."""
+    import torch
+
+    from cmk_s1_fake_detailer import CMKSEG, make_diagnostic_payload  # injected module, see install
+
+    _batch, height, width, _ = image.shape
+    x1, y1, x2, y2 = width // 4, height // 4, (3 * width) // 4, (3 * height) // 4
+    result = image.clone()
+    result[:, y1:y2, x1:x2, :] = 1.0 - result[:, y1:y2, x1:x2, :]
+    seg = CMKSEG(
+        cropped_image=result[:, y1:y2, x1:x2, :].clone(),
+        cropped_mask=torch.ones((y2 - y1, x2 - x1)),
+        confidence=0.99,
+        crop_region=(x1, y1, x2, y2),
+        bbox=(x1, y1, x2, y2),
+        label="face",
+    )
+    segs = ((width, height), [seg])
+    diagnostic = make_diagnostic_payload(title="Smart Detailer (S1 fake)", node="CMK Smart Detailer",
+                                         previews=[image, result], summary="fake detailer run")
+    return result, segs, segs, "fake detailer run", True, diagnostic
+
+
+def install_detailer_seams(seams: Seams, runtime) -> None:
+    """E9 (K-5): run the active Detailer without weights.  The checkpoint is
+    already substituted; Prepare's SAM load, CLIP layer, LoRA, model patches
+    and CLIP encode and the Smart Detailer run (detector + sampler) are
+    replaced by deterministic fakes.  resolve_postprocess_model stays real
+    and is counted (original_calls)."""
+    import types
+
+    native = runtime.cmk_module("engine.native_detailer")
+    diagnostic = runtime.cmk_module("utils.cmk_diagnostic")
+    module = types.ModuleType("cmk_s1_fake_detailer")
+    module.CMKSEG = native.CMKSEG
+    module.make_diagnostic_payload = diagnostic.make_diagnostic_payload
+    sys.modules["cmk_s1_fake_detailer"] = module
+
+    seams.substitute(native.CMKSAMLoader, "load", "prepare.sam_load", fake_sam_load)
+    helper = runtime.cmk_module("pipe.cmk_sampler_prepare").CMKSamplerPrepareSDXLPipe
+    seams.substitute(helper, "_clip_set_last_layer", "prepare.clip_layer", fake_clip_set_last_layer)
+    seams.substitute(helper, "_apply_single_lora", "prepare.lora", fake_apply_single_lora)
+    for name in ("_apply_pag", "_apply_sampling", "_apply_freeu"):
+        seams.substitute(helper, name, "prepare.model_patch", fake_model_patch)
+    prepare = runtime.cmk_module("pipe.cmk_detailer_prepare").CMKDetailerPreparePipe
+    seams.substitute(prepare, "_encode", "prepare.clip_encode", fake_clip_encode)
+    detailer = runtime.cmk_module("nodes.image.smart_detailer").CMK_SmartDetailer
+    seams.substitute(detailer, "run", "detailer.run", fake_smart_detailer_run)
+
+
+def install_standard(seams: Seams, runtime, *, stop_prepare: bool = True, fake_detailer: bool = False) -> None:
     """Substitute checkpoint, FaceSwap and upscaler engines; stop Prepare's
     model materialisation and SAM loading (CLIP/LoRA cannot be faked
-    meaningfully without real weights)."""
+    meaningfully without real weights) -- unless ``fake_detailer`` installs
+    the model-free Detailer seams (E9)."""
     leaf = runtime.cmk_module("loader.checkpoint_vae_loader")
     seams.substitute(leaf, "load_checkpoint_vae_resources", "checkpoint.load_resources",
                      fake_checkpoint_resources, rebind=True)
@@ -242,7 +317,10 @@ def install_standard(seams: Seams, runtime, *, stop_prepare: bool = True) -> Non
     seams.substitute(upscaler.CMK_SmartUpscaler, "upscale", "upscale.run", fake_upscale)
 
     resolver = runtime.cmk_module("pipe.loaders.checkpoint_vae_loader")
-    if stop_prepare:
+    if fake_detailer:
+        seams.observe(resolver, "resolve_postprocess_model", "prepare.resolve_postprocess_model", rebind=True)
+        install_detailer_seams(seams, runtime)
+    elif stop_prepare:
         seams.stop(resolver, "resolve_postprocess_model", "prepare.resolve_postprocess_model", rebind=True)
         native = runtime.cmk_module("engine.native_detailer")
         seams.stop(native.CMKSAMLoader, "load", "prepare.sam_load")

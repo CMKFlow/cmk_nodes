@@ -29,7 +29,7 @@
       "model 4x": "RealESRGAN_x4plus.pth",
       "model 2x": "RealESRGAN-x2plus.pth",
       "MODEL (opt)": [
-        "8427:7847",
+        "8427:8439",
         0
       ],
       "PROCESS": [
@@ -163,6 +163,18 @@
       "VISUAL": [
         "8417:7719",
         4
+      ],
+      "IMAGE IN": [
+        "1",
+        2
+      ],
+      "LOG IN": [
+        "1",
+        3
+      ],
+      "diagnostic": [
+        "8417:7719",
+        5
       ]
     },
     "class_type": "CMKDetailerBoundaryCache",
@@ -198,10 +210,6 @@
   "8417:7709": {
     "inputs": {
       "ENABLE": true,
-      "MODEL BYPASS": [
-        "1",
-        0
-      ],
       "IMAGE BYPASS": [
         "1",
         2
@@ -209,10 +217,6 @@
       "LOG BYPASS": [
         "1",
         3
-      ],
-      "MODEL ACTIVE": [
-        "8417:7706",
-        0
       ],
       "IMAGE ACTIVE": [
         "8417:7706",
@@ -223,8 +227,8 @@
         2
       ],
       "DIAGNOSTIC ACTIVE": [
-        "8417:7719",
-        5
+        "8417:7706",
+        4
       ],
       "VISUAL ACTIVE": [
         "8417:7706",
@@ -234,6 +238,18 @@
     "class_type": "CMKModuleBypassGate",
     "_meta": {
       "title": "CMK Module Bypass Gate"
+    }
+  },
+  "8417:8438": {
+    "inputs": {
+      "MODEL": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "CMKModelForwardPipe",
+    "_meta": {
+      "title": "CMK Model Forward -Pipe-"
     }
   },
   "8427:7842": {
@@ -291,7 +307,7 @@
   "8427:7844": {
     "inputs": {
       "MODEL": [
-        "8417:7709",
+        "8417:8438",
         0
       ],
       "IMAGE": [
@@ -343,7 +359,7 @@
       "freeu_s1": 0.9,
       "freeu_s2": 0.2,
       "MODEL": [
-        "8417:7709",
+        "8417:8438",
         0
       ],
       "PROCESS": [
@@ -380,10 +396,6 @@
   "8427:7847": {
     "inputs": {
       "ENABLE": true,
-      "MODEL BYPASS": [
-        "8417:7709",
-        0
-      ],
       "IMAGE BYPASS": [
         "8417:7709",
         1
@@ -391,10 +403,6 @@
       "LOG BYPASS": [
         "8417:7709",
         2
-      ],
-      "MODEL ACTIVE": [
-        "8427:7844",
-        0
       ],
       "IMAGE ACTIVE": [
         "8427:7844",
@@ -420,6 +428,18 @@
     "class_type": "CMKModuleBypassGate",
     "_meta": {
       "title": "CMK Module Bypass Gate"
+    }
+  },
+  "8427:8439": {
+    "inputs": {
+      "MODEL": [
+        "8417:8438",
+        0
+      ]
+    },
+    "class_type": "CMKModelForwardPipe",
+    "_meta": {
+      "title": "CMK Model Forward -Pipe-"
     }
   },
   "8437:8370": {
@@ -492,7 +512,7 @@
         4
       ],
       "VISUAL ACTIVE": [
-        "8437:8439",
+        "8437:8441",
         0
       ]
     },
@@ -514,7 +534,7 @@
       "title": "CMK Preview & Compare"
     }
   },
-  "8437:8438": {
+  "8437:8440": {
     "inputs": {
       "SAVE ENABLED": true,
       "FILENAME PREFIX": "image",
@@ -538,7 +558,7 @@
       "title": "CMK Save Endpoint"
     }
   },
-  "8437:8439": {
+  "8437:8441": {
     "inputs": {
       "label": "Upscale & Save",
       "sequence": 90,

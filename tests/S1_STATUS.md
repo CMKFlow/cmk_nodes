@@ -164,8 +164,8 @@ haben in keinem Szenario ausgelöst.
 | H-3 | Das Gate fordert wiederholt `MODEL ACTIVE` an (ohne Checkpoint legitim `None`); ComfyUI beendet daraufhin die Lazy-Schleife, `VISUAL ACTIVE` wird nie angefordert ⇒ der FaceSwap-Provider geht verloren (erklärt K3) | `test_baseline_h3_visual_provider_lost_at_gate` |
 | H-4 | `CMK_SaveProjectImage` ist OUTPUT_NODE im Subgraph ⇒ Upscaler und Save laufen auch im Bypass (ohne Datei) | `test_baseline_h4_*` |
 | H-5 | FaceProcess (std/adv): global an, alle lokalen Zweige aus ⇒ Boundary liefert `ExecutionBlocker`; Visual Compare, Visualizer und Save werden still blockiert | `test_baseline_h5_*` |
-| K-5 | Detailer: global an, lokal aus ⇒ Boundary meldet `DISABLED_PASSTHROUGH_READY`, trotzdem materialisiert Prepare das Modell | `test_baseline_k5_*` |
-| OD-2 | Anforderung nur von MODEL startet Prepare (MODEL läuft über Gate/Boundary) | `test_baseline_od2_*` |
+| K-5 (behoben, s. u.) | Detailer: global an, lokal aus ⇒ Boundary meldet `DISABLED_PASSTHROUGH_READY`, trotzdem materialisiert Prepare das Modell | Legacy: `LegacyPreK5` in `test_s1_k5_od2.py` |
+| OD-2 (behoben, s. u.) | Anforderung nur von MODEL startet Prepare (MODEL läuft über Gate/Boundary) | Legacy: `LegacyPreK5` in `test_s1_k5_od2.py` |
 | M3 | „Kein Gesicht gefunden“ ist ein Fehler statt `completed_empty` | `test_baseline_m3_*` |
 | M7 | gleicher Dateiname, neuer Inhalt ⇒ identischer Boundary-Schlüssel | `test_baseline_m7_*` |
 | T-5 | warmer Lauf (classic/ram_pressure): Save läuft nicht erneut; nach Eviction/Neustart wird neu gespeichert (`image_00002`) | `test_baseline_t5_*`, `test_save_after_restart_writes_next_counter` |
@@ -475,3 +475,65 @@ Keine neuen Regressionen. Geschützte Caches unverändert, keine Modellladung.
   `None`). Umgestellt: H-2-Paare in `test_s1_postprocess_scenarios.py` und
   `test_s1_seams.py`. Offen bleiben K-5 und OD-2 (erwartete Fehlschläge
   unverändert).
+
+## Fünfte produktive Korrektur: K-5 / OD-2 (2026-11-04)
+
+**Freigabe:** E1 = K5-A, E2 schlanke Diagnose, E3 Eingangs-LOG + Statusblock,
+E4 `CMKModelForwardPipe` optional, E5 OD2-B für sechs Subgraphen, E6 Neustart-HIT
+zurückgestellt, E7 Tests und Schemawechsel, E8 FaceProcess erst mit H-5,
+E9 modellfreier CLIP/LoRA-Seam. Referenz: Git `cb9d24b`.
+
+- **Ursache K-5 (Experiment belegt):** zwei unabhängige Compute-Abhängigkeiten im
+  Passthrough: Boundary fordert IMAGE/LOG vom Compute-Node, Gate holt
+  `DIAGNOSTIC ACTIVE` direkt vom Compute-Node. Erst beide entfernt ⇒ kein Prepare.
+- **Ursache OD-2:** SG_OUT.MODEL kam vom Gate; das Gate wird als Ganzes
+  ausgewertet und zieht bei aktivem Modul Boundary, Compute und Prepare nach.
+- **Produktcode:**
+  - `pipe/cmk_model_forward.py`: MODEL optional, `None` wird durchgereicht.
+  - `pipe/cmk_module_boundary_cache.py`: Mixin `_PassthroughSources` (interne
+    Eingänge `IMAGE IN`, `LOG IN`, `diagnostic`; Ausgang `diagnostic` nach VISUAL;
+    Passthrough ohne Core; Diagnose bei MISS gespeichert, bei HIT geladen).
+    `CMKDetailerBoundaryCache` nutzt ihn. Schema `cmk_detailer_boundary_v4`;
+    die neuen Eingänge sind vom Fingerprint ausgeschlossen.
+- **Subgraphen:** Detailer (std/adv) 1.2.0, FaceProcess (std/adv) 1.3.0,
+  FaceRebuild (std/adv) 1.2.0: SG_OUT.MODEL ← `CMKModelForwardPipe` ← SG_IN.MODEL,
+  Gate-Eingänge `MODEL ACTIVE/BYPASS` entfernt. Nur Detailer zusätzlich:
+  `IMAGE IN`/`LOG IN` ← SG_IN, `diagnostic` ← Compute, Gate `DIAGNOSTIC ACTIVE`
+  ← Boundary. FaceSwap und FaceProcess-Passthrough (H-5) unverändert.
+- **Fixtures:** sieben Fixtures über das Frontend 1.57.4 neu exportiert
+  (Detailer, FaceProcess, FaceRebuild je std/adv, `chain_postprocess`). Exporte
+  vor K-5 eingefroren als `detailer_std_legacy_pre_k5` / `detailer_adv_legacy_pre_k5`.
+  Schlüssel vor der Änderung: `contracts/boundary_keys_pre_k5.json`.
+- **Harness:** `fake_detailer` (E9: SAM, CLIP-Layer, LoRA, Modell-Patches,
+  CLIP-Encode und Smart-Detailer-Lauf ersetzt; `resolve_postprocess_model` echt
+  und gezählt), `forward_only(drop_model)`, `boundary_key(schema)`, LOG- und
+  Diagnose-Zusammenfassung in `outputs`.
+- **Tests:** neu `test_s1_k5_od2.py` (27 Tests). Umgestellt: K-5/OD-2 in
+  `test_s1_postprocess_scenarios.py` (erwartete Fehlschläge und Baselines
+  aufgelöst). Angepasst als direkte Folge der freigegebenen Änderungen:
+  `test_synced_user_subgraphs.py` (Forward im Layout-Pin FaceRebuild Advanced),
+  `test_s1_seams.py` (8 statt 7 verglichene Nodes), `test_s1_visual_publication.py`
+  (Detailer-Schlüssel mit Schema v3 verglichen), Bestandstest
+  `test_stop_after_handoff.py` (Detailer-Boundary blockiert 4 + VISUAL Ausgänge).
+
+### Neuer, vorbestehender Befund K5-B (nicht korrigiert)
+
+Das Abhängigkeitsmanifest der Detailer-Boundary fingerprintet den Zweig mit
+`cmk_detailer_branch_v6` und ohne Eingangsausschlüsse; `CMK_SmartDetailerPipe`
+veröffentlicht seine Revision unter `cmk_detailer_branch_v7` mit Ausschlüssen.
+Das Manifest wird nie vollständig ⇒ die Detailer-Boundary speichert nie; nach
+Eviction oder Neustart läuft Prepare erneut (nur der Zweig-Pickle trifft).
+FaceProcess analog (`v4` gegenüber `v8`). Bereits in `cb9d24b` vorhanden.
+Belegt durch `test_baseline_k5b_detailer_boundary_never_stores` und den strikt
+erwarteten Fehlschlag `test_boundary_hit_after_eviction_runs_no_prepare`. Der
+Diagnose-HIT-Pfad ist isoliert in `PassthroughSourcesMixin` geprüft.
+
+### Gesamtlauf nach K-5 / OD-2 (`_reports/full_suite_k5.json` + Nachläufe `full_suite_k5_rerun_*`)
+
+| Gruppe | Tests | PASS | erwarteter Fehlschlag | SKIP | unerwartet |
+|---|---|---|---|---|---|
+| S1 | 152 | 137 | 13 | 2 | 0 |
+| Bestand | 159 | 157 | – | – | 2 in `test_image_resize_port_contract.py` (Altfehler) |
+| `.mjs` | 7 Dateien | 7 | – | – | 0 |
+
+Geschützte Caches unverändert.

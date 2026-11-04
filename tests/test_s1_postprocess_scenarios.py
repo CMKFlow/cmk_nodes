@@ -87,20 +87,19 @@ class ActivePassthrough(ScenarioCase):
         self.assertIn("DISABLED_PASSTHROUGH", [status for _scope, status, _key in run["statuses"]])
         self.assertIn("8418", run["visual"])
 
-    def test_baseline_k5_detailer_passthrough_runs_expensive_prepare(self):
+    def test_detailer_passthrough_skips_prepare(self):
+        # K-5 fixed: the boundary answers from IMAGE IN / LOG IN and owns the
+        # diagnostic, so neither Prepare nor the compute node is requested.
+        # The pre-K-5 behaviour is pinned in test_s1_k5_od2 (legacy fixtures).
         for fixture in ("detailer_std", "detailer_adv"):
             with self.subTest(fixture=fixture):
                 run = self.results[fixture]
-                self.assertFalse(run["succeeded"])
-                self.assertEqual(run["seams"]["stopped_calls"], {"prepare.resolve_postprocess_model": 1})
-                self.assertEqual([e["node_type"] for e in run["errors"]], ["CMKDetailerPreparePipe"])
-
-    @unittest.expectedFailure  # K-5
-    def test_detailer_passthrough_skips_prepare(self):
-        for fixture in ("detailer_std", "detailer_adv"):
-            run = self.results[fixture]
-            self.assertTrue(run["succeeded"])
-            self.assertEqual(run["seams"]["stopped_calls"], {})
+                self.assertTrue(run["succeeded"], run["errors"])
+                self.assertEqual(run["seams"]["stopped_calls"], {})
+                self.assertEqual(run["outputs"]["gate"]["hash"], run["outputs"]["loader"]["hash"])
+                self.assertNotIn("CMKDetailerPreparePipe", run["function_calls"])
+                self.assertNotIn("CMK_SmartDetailerPipe", run["function_calls"])
+                self.assertIn("DISABLED_PASSTHROUGH", [status for _scope, status, _key in run["statuses"]])
 
     def test_baseline_h5_faceprocess_passthrough_blocks_all_downstream_output(self):
         for fixture in ("faceprocess_std", "faceprocess_adv"):
@@ -169,26 +168,27 @@ class FaceSwapActive(ScenarioCase):
 
 
 class ForwardWithoutCompute(ScenarioCase):
-    """A5: requesting only PROCESS or MODEL must not run Prepare or Compute."""
+    """A5: requesting only PROCESS or MODEL must not run Prepare or Compute.
+
+    OD-2 fixed: the public MODEL output is CMK Model Forward from SG_IN.MODEL
+    (the expanded SG_OUT.MODEL source).  The pre-OD-2 routing through gate and
+    boundary is pinned in test_s1_k5_od2 (legacy fixtures)."""
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        forward = f"{inner_ids('detailer_std', 'CMKModelForwardPipe')[0]}:0"
         cls.process = cls.run_case("forward_only", fixture="detailer_std", source="8417:7707:0")
-        cls.model = cls.run_case("forward_only", fixture="detailer_std", source=f"{gate_of('detailer_std')}:0")
+        cls.model = cls.run_case("forward_only", fixture="detailer_std", source=forward)
 
     def test_process_forward_runs_no_module_work(self):
         self.assertTrue(self.process["succeeded"], self.process["errors"])
         self.assertEqual(work_calls(self.process), {})
         self.assertEqual(self.process["seams"]["stopped_calls"], {})
 
-    def test_baseline_od2_model_request_runs_prepare(self):
-        self.assertFalse(self.model["succeeded"])
-        self.assertEqual(self.model["seams"]["stopped_calls"], {"prepare.resolve_postprocess_model": 1})
-
-    @unittest.expectedFailure  # OD-2: MODEL currently routed through gate and boundary
     def test_model_forward_runs_no_module_work(self):
-        self.assertTrue(self.model["succeeded"])
+        self.assertTrue(self.model["succeeded"], self.model["errors"])
+        self.assertEqual(work_calls(self.model), {})
         self.assertEqual(self.model["seams"]["stopped_calls"], {})
 
 
