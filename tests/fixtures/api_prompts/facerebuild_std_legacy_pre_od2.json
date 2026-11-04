@@ -1,0 +1,223 @@
+{
+  "1": {
+    "inputs": {
+      "image": "cmk_s1_input.png",
+      "RESOLUTION": "SDXL 1152x832",
+      "SWAP DIMENSIONS": false,
+      "RESIZE METHOD": "lanczos",
+      "CROP": true,
+      "CROP POSITION": "center",
+      "MODEL SDXL (opt)": [
+        "8419",
+        0
+      ]
+    },
+    "class_type": "CMKImageLoadAndResizePipe",
+    "_meta": {
+      "title": "CMK Load Image"
+    }
+  },
+  "8418": {
+    "inputs": {
+      "SAVE ENABLED": false,
+      "filename prefix": "image",
+      "output folder": "",
+      "use date folder": true,
+      "enable upscale": false,
+      "limit 4x MP": 1.5,
+      "limit 2x MP": 8,
+      "model 4x": "RealESRGAN_x4plus.pth",
+      "model 2x": "RealESRGAN-x2plus.pth",
+      "MODEL (opt)": [
+        "8417:7827",
+        0
+      ],
+      "PROCESS": [
+        "8417:7825",
+        0
+      ],
+      "IMAGE": [
+        "8417:7827",
+        1
+      ],
+      "LOG": [
+        "8417:7827",
+        2
+      ],
+      "VISUAL": [
+        "8417:7827",
+        4
+      ]
+    },
+    "class_type": "CMKVisualizer",
+    "_meta": {
+      "title": "CMK Flow · Visualizer"
+    }
+  },
+  "8419": {
+    "inputs": {
+      "ckpt_name": "juggernautXL_ragnarok.safetensors",
+      "vae_name": "ClearVAE_V2.2.safetensors",
+      "checkpoint_vae": true
+    },
+    "class_type": "CMKPostProcessModelPipe",
+    "_meta": {
+      "title": "CMK PostProcess Model"
+    }
+  },
+  "8417:7822": {
+    "inputs": {
+      "image": "CMK Package · face_identity_reference.png",
+      "opt_in": "image"
+    },
+    "class_type": "CMKLoadImage",
+    "_meta": {
+      "title": "CMK Flow · Load Image"
+    }
+  },
+  "8417:7823": {
+    "inputs": {
+      "FACEREBUILD ENABLE": true,
+      "CMK FACE REBUILD STANDARD SEPARATOR 1": "",
+      "TARGET FACE": "Leftmost",
+      "PASTEBACK NECK": true,
+      "SAMPLING START": 0,
+      "IDENTITY STRENGTH": 1,
+      "POSE STRENGTH": 0.7,
+      "CMK FACE REBUILD STANDARD SEPARATOR 2": "",
+      "HEAD AREA": 0.75,
+      "NECK AREA": 0.4,
+      "MASK FEATHER": 32,
+      "WORKING RESOLUTION": "1024",
+      "CMK FACE REBUILD STANDARD SEPARATOR 3": "",
+      "TOTAL STEPS": 20,
+      "sampler": "euler_ancestral",
+      "scheduler": "karras",
+      "DETECT MODEL": "buffalo_l",
+      "DETECT SIZE": 640,
+      "instantid_model": "ip-adapter.bin",
+      "controlnet_model": "instantid/diffusion_pytorch_model.safetensors",
+      "provider": "CoreML",
+      "cfg": 4.5,
+      "identity_noise": 0.75,
+      "MODEL": [
+        "1",
+        0
+      ],
+      "PROCESS": [
+        "1",
+        1
+      ],
+      "IMAGE": [
+        "1",
+        2
+      ],
+      "LOG": [
+        "1",
+        3
+      ],
+      "SOURCE FACE": [
+        "8417:7822",
+        1
+      ]
+    },
+    "class_type": "CMKInstantIDFaceRebuildSDXL",
+    "_meta": {
+      "title": "CMK FaceRebuild SDXL"
+    }
+  },
+  "8417:7824": {
+    "inputs": {
+      "MODEL": [
+        "8417:7823",
+        0
+      ],
+      "IMAGE": [
+        "8417:7823",
+        2
+      ],
+      "LOG": [
+        "8417:7823",
+        3
+      ],
+      "diagnostic": [
+        "8417:7823",
+        5
+      ],
+      "VISUAL": [
+        "8417:7823",
+        4
+      ]
+    },
+    "class_type": "CMKFaceRebuildBoundaryCache",
+    "_meta": {
+      "title": "CMK Boundary Cache"
+    }
+  },
+  "8417:7825": {
+    "inputs": {
+      "PROCESS": [
+        "1",
+        1
+      ]
+    },
+    "class_type": "CMKResultProcessForwardPipe",
+    "_meta": {
+      "title": "CMK Result Process Forward -Pipe-"
+    }
+  },
+  "8417:7826": {
+    "inputs": {
+      "VISUAL": [
+        "8417:7827",
+        4
+      ],
+      "enable": true
+    },
+    "class_type": "CMKVisualCompare",
+    "_meta": {
+      "title": "CMK Preview & Compare"
+    }
+  },
+  "8417:7827": {
+    "inputs": {
+      "ENABLE": true,
+      "MODEL BYPASS": [
+        "1",
+        0
+      ],
+      "IMAGE BYPASS": [
+        "1",
+        2
+      ],
+      "LOG BYPASS": [
+        "1",
+        3
+      ],
+      "MODEL ACTIVE": [
+        "8417:7824",
+        0
+      ],
+      "IMAGE ACTIVE": [
+        "8417:7824",
+        1
+      ],
+      "LOG ACTIVE": [
+        "8417:7824",
+        2
+      ],
+      "DIAGNOSTIC ACTIVE": [
+        "8417:7824",
+        3
+      ],
+      "VISUAL ACTIVE": [
+        "8417:7824",
+        4
+      ]
+    },
+    "class_type": "CMKModuleBypassGate",
+    "_meta": {
+      "title": "CMK Module Bypass Gate"
+    }
+  }
+}

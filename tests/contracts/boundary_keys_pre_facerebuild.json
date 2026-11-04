@@ -1,0 +1,18 @@
+{
+  "description": "FaceRebuild boundary keys recorded on 2026-11-04 at git 7e2dbfc before the persistent-HIT change (variant C: no rewiring). They must stay byte-identical.",
+  "schema": "cmk_face_rebuild_boundary_v1",
+  "fixtures": {
+    "facerebuild_std": {
+      "key": "b7691cb5eb6ec58d4081b511f5a220df7d89e86dd59e717ef2e09b5a684c159b"
+    },
+    "facerebuild_adv": {
+      "key": "9c4cff0c8b860687ea4dc0c09a874a846b8b1e550a3cf0660816073419cd5434"
+    },
+    "facerebuild_std_legacy_pre_od2": {
+      "key": "b7691cb5eb6ec58d4081b511f5a220df7d89e86dd59e717ef2e09b5a684c159b"
+    },
+    "facerebuild_adv_legacy_pre_od2": {
+      "key": "9c4cff0c8b860687ea4dc0c09a874a846b8b1e550a3cf0660816073419cd5434"
+    }
+  }
+}

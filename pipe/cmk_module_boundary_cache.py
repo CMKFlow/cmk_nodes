@@ -24,7 +24,9 @@ from ..utils.preview_payload import _as_rgb_uint8
 
 _DETAILER_SESSION: dict[str, dict] = {}
 _Z_IMAGE_SESSION: dict[str, tuple[dict, object]] = {}
-_FACE_REBUILD_SESSION: dict[str, tuple[dict, object]] = {}
+# FaceRebuild: MODEL of the stored result, for legacy definitions whose gate
+# still reads the boundary MODEL output (before OD-2).  Not needed for a HIT.
+_FACE_REBUILD_SESSION: dict[str, dict] = {}
 
 
 def _stop_after_handoff_blocks_module(prompt, unique_id, scope, label):
@@ -1262,7 +1264,26 @@ class _FaceRebuildBoundaryCore:
         )
 
     def _ready(self, key):
-        return bool(key) and key in _FACE_REBUILD_SESSION and _disk_available(self._SCOPE, key)
+        # IMAGE/LOG, diagnostic and (H-3) VISUAL are on disk; no session needed.
+        return (
+            bool(key)
+            and _disk_available(self._SCOPE, key)
+            and all(path.is_file() for path in _diagnostic_entry_paths(self._SCOPE, key))
+        )
+
+    @staticmethod
+    def _model_consumed(prompt, unique_id) -> bool:
+        """Whether any node reads the MODEL output (slot 0) of this boundary.
+        Canonical definitions forward MODEL from SG_IN (OD-2); only legacy
+        definitions route the gate's MODEL ACTIVE through the boundary."""
+        if not isinstance(prompt, dict):
+            return True
+        uid = str(unique_id)
+        return any(
+            isinstance(value, list) and len(value) == 2 and str(value[0]) == uid and value[1] == 0
+            for node in prompt.values() if isinstance(node, dict)
+            for value in (node.get("inputs") or {}).values()
+        )
 
     def _module_disabled(self, prompt, unique_id) -> bool:
         return _face_rebuild_disabled_state(prompt, unique_id)[0]
@@ -1290,8 +1311,18 @@ class _FaceRebuildBoundaryCore:
             return []
 
         key, detail = self._cache_key(prompt, unique_id)
+        if key and _disk_available(self._SCOPE, key) and not self._ready(key):
+            # Stored before the boundary persisted its diagnostic: recompute once.
+            _remove_entry(self._SCOPE, key)
+            _FACE_REBUILD_SESSION.pop(key, None)
         if self._ready(key):
             write_status(self._SCOPE, "HIT_READY", cache_key=key, detail=detail, unique_id=unique_id)
+            if (
+                MODEL is None
+                and key not in _FACE_REBUILD_SESSION
+                and self._model_consumed(prompt, unique_id)
+            ):
+                return ["MODEL"]
             return []
 
         branch = [
@@ -1328,7 +1359,12 @@ class _FaceRebuildBoundaryCore:
         if self._ready(key):
             try:
                 cached_image, cached_log = _load_image_log(self._SCOPE, key)
-                cached_model, cached_diagnostic = _FACE_REBUILD_SESSION[key]
+                cached_diagnostic = _load_diagnostic(self._SCOPE, key)
+                # MODEL: unread in canonical definitions (OD-2); legacy readers
+                # get the session copy or the requested input.
+                cached_model = MODEL
+                if self._model_consumed(prompt, unique_id) and isinstance(_FACE_REBUILD_SESSION.get(key), dict):
+                    cached_model = _FACE_REBUILD_SESSION[key]
                 _retain_latest_boundary_entry(
                     self._SCOPE, key, unique_id, _FACE_REBUILD_SESSION,
                 )
@@ -1357,7 +1393,8 @@ class _FaceRebuildBoundaryCore:
                     self._SCOPE, key, IMAGE, LOG,
                     {"complete": True, "schema": self._SCHEMA},
                 )
-                _FACE_REBUILD_SESSION[key] = (MODEL, diagnostic)
+                _save_diagnostic(self._SCOPE, key, diagnostic)
+                _FACE_REBUILD_SESSION[key] = MODEL
                 _retain_latest_boundary_entry(
                     self._SCOPE, key, unique_id, _FACE_REBUILD_SESSION,
                 )

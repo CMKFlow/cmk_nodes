@@ -666,3 +666,42 @@ D3 Legacy unverändert, D4 Gate-Sonderlogik bleibt, D5 Ausgabezahl in
 | `.mjs` | 7 Dateien | 7 | – | – | 0 |
 
 Geschützte Caches unverändert.
+
+## Neunte produktive Korrektur: FaceRebuild, persistente Boundary-HITs (2026-11-04)
+
+**Freigabe:** F1 Variante C (keine Umverdrahtung), F2 Session nur für
+Legacy-MODEL, F3 einmalige Neuberechnung ohne Diagnose-Sidecar, F4 Seam im
+Harness, F5 lokaler ENABLE-Check unverändert. Basis: Git `7e2dbfc`.
+
+- **Ursache:** HIT verlangte `_FACE_REBUILD_SESSION[key] = (MODEL, diagnostic)`;
+  die Diagnose lag nur in der Session ⇒ nach Neustart immer `MISS_STORED`.
+- **Produktcode** (`pipe/cmk_module_boundary_cache.py`, nur
+  `_FaceRebuildBoundaryCore`): Diagnose-Sidecar bei MISS; `_ready` = Platte +
+  Sidecar; HIT lädt IMAGE/LOG/Diagnose (VISUAL über H-3); MODEL wird nur
+  angefordert, wenn ein Node den Boundary-MODEL-Ausgang liest und keine
+  Session-Kopie existiert; Session hält nur noch MODEL. Einträge ohne Sidecar
+  werden einmalig verworfen.
+- **Unverändert:** Schlüssel (`contracts/boundary_keys_pre_facerebuild.json`,
+  byteidentisch), Schema, Fingerprints, Subgraphen, Ports, Reset/Statistik.
+- **Harness:** `fake_postprocess` ersetzt auch `_rebuild` beider FaceRebuild-
+  Klassen (`facerebuild.run`). Legacy-Fixtures `facerebuild_*_legacy_pre_od2`
+  (Exporte aus `cb9d24b`, Gate liest `boundary.MODEL`).
+- **Tests:** neu `test_s1_facerebuild.py` (11 Tests).
+- **Gemessen:** kanonisch Standard und Advanced (1/2/3 Slots, keiner): Kaltlauf
+  `MISS_STORED`; HIT nach Eviction und nach Neustart mit 0 Compute, 0
+  Modellauflösung, Ergebnisse identisch; HIT fordert kein MODEL an. Vorher:
+  Neustart ⇒ `MISS_STORED`, Compute 1, Auflösung 1. Legacy: In-Prozess-HIT über
+  Session ohne Compute; nach Neustart HIT mit angefordertem MODEL (Compute läuft,
+  wie bisher), MODEL nie `None`. Slot-Wechsel ⇒ MISS; Rückkehr einmal neu, dann HIT.
+
+### Gesamtlauf nach FaceRebuild (`_reports/full_suite_facerebuild.json`)
+
+| Gruppe | Tests | PASS | erwarteter Fehlschlag | SKIP | unerwartet |
+|---|---|---|---|---|---|
+| S1 | 197 | 184 | 11 | 2 | 0 |
+| Bestand | 159 | 157 | – | – | 2 in `test_image_resize_port_contract.py` (Altfehler) |
+| `.mjs` | 7 Dateien | 7 | – | – | 0 |
+
+Geschützte Caches unverändert. Danach nur `fixtures/manifest.json` um die beiden
+Legacy-Fixtures ergänzt; `test_s1_fixtures`, `test_s1_fixture_validation` und
+`test_s1_graph_contracts` erneut grün.
