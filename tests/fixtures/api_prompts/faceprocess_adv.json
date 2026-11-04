@@ -120,6 +120,18 @@
       "VISUAL": [
         "8417:8391",
         1
+      ],
+      "IMAGE IN": [
+        "1",
+        2
+      ],
+      "LOG IN": [
+        "1",
+        3
+      ],
+      "diagnostic": [
+        "8417:8398",
+        6
       ]
     },
     "class_type": "CMKFaceBoundaryCache",
@@ -307,8 +319,8 @@
         2
       ],
       "DIAGNOSTIC ACTIVE": [
-        "8417:8398",
-        6
+        "8417:8393",
+        4
       ],
       "VISUAL ACTIVE": [
         "8417:8393",

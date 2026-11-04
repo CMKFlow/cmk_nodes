@@ -1852,8 +1852,22 @@ Die Prüfung liest ausschließlich die Boolean-Werte der relevanten Prepare- und
 Execute-Nodes aus dem Promptgraphen. Sie darf keine Bild-, Pipe-, LOG- oder
 SEGS-Payloads kanonisieren.
 
+Umsetzung (H-5): `CMK Face Boundary Cache` nutzt denselben Mechanismus wie die
+Detailer-Boundary (K-5): interne Eingänge `IMAGE IN`, `LOG IN` und `diagnostic`,
+Ausgang `diagnostic` nach `VISUAL`; das Gate bezieht `DIAGNOSTIC ACTIVE` von der
+Boundary. Bei globalem ENABLE und vollständig deaktivierten lokalen Zweigen
+gibt die Boundary IMAGE unverändert aus, ergänzt das Eingangs-LOG um den Block
+`FaceProcess Boundary` (`STATUS : DISABLED PASSTHROUGH`), liefert eine schlanke
+Diagnose und reicht VISUAL unverändert durch; nachgelagerte Module und der
+Visualizer laufen. Ein HIT stellt IMAGE, LOG, Diagnose und VISUAL aus dem
+gespeicherten Eintrag wieder her, ohne Prepare, Zweige oder Modellauflösung.
+Einträge ohne gespeicherte Diagnose werden beim ersten Zugriff einmalig
+verworfen. Eingebettete Definitionen ohne die neuen Verbindungen behalten das
+frühere Verhalten.
+
 Der FaceProcess-Boundary-Key schließt die transportierenden Eingänge `IMAGE`
-und `LOG` von der eigenen Node-Signatur aus. Die inhaltliche Cache-Validierung
+und `LOG` (sowie `IMAGE IN`, `LOG IN`, `diagnostic` und VISUAL) von der eigenen
+Node-Signatur aus. Die inhaltliche Cache-Validierung
 aktiver Branches bleibt Aufgabe des separaten Branch-Manifests. Dadurch darf
 die Boundary-Identität nicht erneut den vollständigen vorgelagerten Workflow
 rekursiv serialisieren.

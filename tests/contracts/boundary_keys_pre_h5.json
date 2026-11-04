@@ -1,0 +1,70 @@
+{
+  "description": "FaceProcess boundary keys and dependency manifests recorded on 2026-11-04 at git a5606df before H-5. The H-5 rewiring (IMAGE IN / LOG IN / diagnostic) must keep them byte-identical.",
+  "fixtures": {
+    "faceprocess_std": {
+      "key": "bf7ca982f42297d1153da2be25d6229ed52edf1f699c79ed223e5cca9e94f517",
+      "deps": {
+        "version": 1,
+        "boundary_node_id": "8417:7844",
+        "complete": false,
+        "branches": [
+          {
+            "node_id": "8417:7842",
+            "class_type": "CMKFaceProcessPipe",
+            "scope": "faceprocess_branch",
+            "cache_key": "eaef6359446105e7371ac15efc4c87a61b347fb61bcd2d9c166b916a00a4a20d",
+            "revision": null
+          }
+        ]
+      }
+    },
+    "faceprocess_adv": {
+      "key": "3380e2642b834b0b4c28ed4809054e0a1161e0a57dca004b6b4a573c706b3567",
+      "deps": {
+        "version": 1,
+        "boundary_node_id": "8417:8393",
+        "complete": false,
+        "branches": [
+          {
+            "node_id": "8417:8396",
+            "class_type": "CMKFaceProcessPipe",
+            "scope": "faceprocess_branch",
+            "cache_key": "b5649df4d28fcd59a17ad43a846ecad02a0026fddc9a9741640efc951c787a0b",
+            "revision": "disabled"
+          },
+          {
+            "node_id": "8417:8397",
+            "class_type": "CMKFaceProcessPipe",
+            "scope": "faceprocess_branch",
+            "cache_key": "f041775f5ae039f96cdd37fc0e1ec3b0f337524e116b8ace42f02b6833ec91e2",
+            "revision": null
+          },
+          {
+            "node_id": "8417:8398",
+            "class_type": "CMKFaceProcessPipe",
+            "scope": "faceprocess_branch",
+            "cache_key": "08347486c7b9a26a3c32e656da8502e78889f29565993c8215ace867df8eaed5",
+            "revision": "disabled"
+          }
+        ]
+      }
+    },
+    "chain_postprocess": {
+      "key": "85db385e2711107029c87476009d67de22a434ded7efaeb30739be935f03993b",
+      "deps": {
+        "version": 1,
+        "boundary_node_id": "8427:7844",
+        "complete": false,
+        "branches": [
+          {
+            "node_id": "8427:7842",
+            "class_type": "CMKFaceProcessPipe",
+            "scope": "faceprocess_branch",
+            "cache_key": "b9679a0e68c3203f42a0549c6f1d082d887bc8606e285d1e5acf6afbe7580140",
+            "revision": null
+          }
+        ]
+      }
+    }
+  }
+}

@@ -134,10 +134,10 @@ class BranchRevisionInvalidates(ScenarioCase):
 
 
 class FaceProcessPersistence(ScenarioCase):
-    """FaceProcess boundary stores and HITs after eviction and restart.  The
-    gate still requests DIAGNOSTIC ACTIVE from the compute node (left
-    untouched, part of the later H-5 correction), so Prepare and compute run
-    on a HIT; the boundary result is reused.  Advanced: see K5C."""
+    """FaceProcess boundary stores and HITs after eviction and restart.  Since
+    H-5 the gate takes DIAGNOSTIC ACTIVE from the boundary, so a HIT runs no
+    Prepare, no branch node and no model resolution.  Advanced: see
+    AdvancedMatrix."""
 
     FIXTURES = ("faceprocess_std",)
 
@@ -172,16 +172,13 @@ class FaceProcessPersistence(ScenarioCase):
                 self.assertEqual(hit["outputs"]["log"], cold["outputs"]["log"])
                 self.assertEqual(hit["visual"], cold["visual"])
 
-    def test_baseline_h5_diagnostic_line_still_pulls_prepare_and_compute(self):
-        for (fixture, variant), (_cold, hit) in self.r.items():
+    def test_hit_runs_no_prepare_compute_or_resolution(self):
+        for (fixture, variant), (cold, hit) in self.r.items():
             with self.subTest(fixture=fixture, variant=variant):
-                self.assertEqual(hit["function_calls"].get("CMKFaceProcessPreparePipe"), 1)
-                self.assertIn("CMKFaceProcessPipe", hit["function_calls"])
-
-    @unittest.expectedFailure  # H-5 scope: FaceProcess DIAGNOSTIC ACTIVE comes from the compute node
-    def test_hit_runs_no_prepare(self):
-        for (_fixture, _variant), (_cold, hit) in self.r.items():
-            self.assertNotIn("CMKFaceProcessPreparePipe", hit["function_calls"])
+                self.assertNotIn("CMKFaceProcessPreparePipe", hit["function_calls"])
+                self.assertNotIn("CMKFaceProcessPipe", hit["function_calls"])
+                self.assertEqual(hit["seams"]["original_calls"], {})
+                self.assertEqual(hit["outputs"]["diagnostic"], cold["outputs"]["diagnostic"])
 
 
 ADVANCED = {
@@ -247,9 +244,8 @@ class AdvancedManifestContract(ScenarioCase):
 class AdvancedMatrix(ScenarioCase):
     """K5-C runtime matrix (model-free seams): cold MISS stores, the boundary
     HITs after eviction and after a restart with kept cache files, results are
-    identical.  Detailer HIT: no Prepare, no branch node, no model resolution.
-    FaceProcess HIT: the gate still pulls Prepare and the branch nodes through
-    DIAGNOSTIC ACTIVE (H-5, unchanged) -- asserted separately."""
+    identical.  HIT: no Prepare, no branch node, no model resolution (FaceProcess
+    since H-5: DIAGNOSTIC ACTIVE comes from the boundary)."""
 
     @classmethod
     def setUpClass(cls):
@@ -289,33 +285,18 @@ class AdvancedMatrix(ScenarioCase):
                 self.assertEqual(hit["outputs"], cold["outputs"])
                 self.assertEqual(hit["visual"], cold["visual"])
 
-    def test_detailer_hit_runs_no_prepare_compute_or_resolution(self):
+    def test_hit_runs_no_prepare_compute_or_resolution(self):
         for fixture, setting, variant, _cold, hit in self._cases():
-            if fixture != "detailer_adv":
-                continue
-            with self.subTest(setting=setting, variant=variant):
-                self.assertNotIn("CMKDetailerPreparePipe", hit["function_calls"])
-                self.assertNotIn("CMK_SmartDetailerPipe", hit["function_calls"])
+            branch, _scope, prepare, _engine = ADVANCED[fixture]
+            with self.subTest(fixture=fixture, setting=setting, variant=variant):
+                self.assertNotIn(prepare, hit["function_calls"])
+                self.assertNotIn(branch, hit["function_calls"])
                 self.assertEqual(hit["seams"]["original_calls"], {})
-
-    def test_baseline_h5_faceprocess_hit_still_pulls_prepare_and_branches(self):
-        for fixture, setting, variant, _cold, hit in self._cases():
-            if fixture != "faceprocess_adv":
-                continue
-            with self.subTest(setting=setting, variant=variant):
-                self.assertEqual(hit["function_calls"].get("CMKFaceProcessPreparePipe"), 1)
-                self.assertEqual(hit["function_calls"].get("CMKFaceProcessPipe"), 3)
-
-    @unittest.expectedFailure  # H-5 scope: FaceProcess DIAGNOSTIC ACTIVE comes from the compute node
-    def test_faceprocess_hit_runs_no_prepare(self):
-        for fixture, _setting, _variant, _cold, hit in self._cases():
-            if fixture == "faceprocess_adv":
-                self.assertNotIn("CMKFaceProcessPreparePipe", hit["function_calls"])
 
 
 class AdvancedAllOff(ScenarioCase):
-    """All local branches OFF: Detailer disabled passthrough (K-5), FaceProcess
-    blocked (H-5) -- the manifest is never consulted."""
+    """All local branches OFF: disabled passthrough for Detailer (K-5) and
+    FaceProcess (H-5) -- the manifest is never consulted."""
 
     @classmethod
     def setUpClass(cls):
@@ -329,7 +310,7 @@ class AdvancedAllOff(ScenarioCase):
     def test_all_off_unchanged(self):
         detailer, faceprocess = self.r["detailer_adv"], self.r["faceprocess_adv"]
         self.assertEqual(_statuses(detailer, "detailer_boundary")[-1], "DISABLED_PASSTHROUGH")
-        self.assertIn("DISABLED_ACTIVE_BRANCH_BLOCKED", _statuses(faceprocess, "faceprocess_boundary"))
+        self.assertEqual(_statuses(faceprocess, "faceprocess_boundary")[-1], "DISABLED_PASSTHROUGH")
         for run in (detailer, faceprocess):
             self.assertEqual(run["seams"]["original_calls"], {})
             self.assertEqual(run["seams"]["substituted_calls"], {})

@@ -617,7 +617,8 @@
             "linkIds": [
               11999,
               12159,
-              16028
+              16028,
+              21999
             ],
             "pos": [
               9459.5390625,
@@ -630,7 +631,8 @@
             "type": "CMK_LOG_PIPE",
             "linkIds": [
               12162,
-              16029
+              16029,
+              22000
             ],
             "pos": [
               9459.5390625,
@@ -917,7 +919,7 @@
             ],
             "size": [
               230,
-              110
+              170
             ],
             "flags": {
               "collapsed": true
@@ -956,6 +958,27 @@
                 "shape": 7,
                 "type": "CMK_VISUAL_PIPE",
                 "link": 21995
+              },
+              {
+                "localized_name": "IMAGE IN",
+                "name": "IMAGE IN",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 21999
+              },
+              {
+                "localized_name": "LOG IN",
+                "name": "LOG IN",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 22000
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "shape": 7,
+                "type": "CMK_DIAGNOSTIC",
+                "link": 22001
               }
             ],
             "outputs": [
@@ -987,6 +1010,14 @@
                 "type": "CMK_VISUAL_PIPE",
                 "links": [
                   21996
+                ]
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  22002
                 ]
               }
             ],
@@ -1632,7 +1663,7 @@
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  16033
+                  22001
                 ]
               }
             ],
@@ -1762,7 +1793,7 @@
                 "name": "DIAGNOSTIC ACTIVE",
                 "shape": 7,
                 "type": "CMK_DIAGNOSTIC",
-                "link": 16033
+                "link": 22002
               },
               {
                 "localized_name": "VISUAL BYPASS",
@@ -2124,14 +2155,6 @@
             "type": "CMK_LOG_PIPE"
           },
           {
-            "id": 16033,
-            "origin_id": 8398,
-            "origin_slot": 6,
-            "target_id": 8399,
-            "target_slot": 6,
-            "type": "CMK_DIAGNOSTIC"
-          },
-          {
             "id": 16035,
             "origin_id": 8399,
             "origin_slot": 1,
@@ -2210,6 +2233,38 @@
             "target_id": -20,
             "target_slot": 0,
             "type": "CMK_MODEL_PIPE"
+          },
+          {
+            "id": 21999,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 8393,
+            "target_slot": 5,
+            "type": "IMAGE"
+          },
+          {
+            "id": 22000,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 8393,
+            "target_slot": 6,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 22001,
+            "origin_id": 8398,
+            "origin_slot": 6,
+            "target_id": 8393,
+            "target_slot": 7,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 22002,
+            "origin_id": 8393,
+            "origin_slot": 4,
+            "target_id": 8399,
+            "target_slot": 6,
+            "type": "CMK_DIAGNOSTIC"
           },
           {
             "id": 11999,
