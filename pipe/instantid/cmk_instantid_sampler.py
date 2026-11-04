@@ -1,0 +1,786 @@
+from __future__ import annotations
+
+import inspect
+import os
+
+import numpy as np
+
+from ..cmk_log_pipe import cmk_add_block
+from ..cmk_module_cache_contract import stamp_artifact
+from ..cmk_visual import empty_visual, register_provider
+from ..cmk_visual import empty_visual, register_provider
+from ...utils.cmk_translation import translate_prompt
+from ...utils.cmk_diagnostic import make_diagnostic_payload
+from ...utils.cmk_timing import cmk_timed
+from ...utils.cmk_sampling_warnings import ignore_torchsde_boundary_rounding
+from ...cmk_common import SAMPLERS, SCHEDULERS
+from ...cmk_distribution import (
+    content_guard_state_token,
+    effective_content_guard_enabled,
+)
+from ...engine.content_guard import (
+    ContentGuardBlocked,
+    GUARD_VERSION,
+    cleanup_content_guard_abort,
+    get_content_guard,
+)
+from ...engine.instantid_face_rebuild import select_target_face
+from ...utils.tensor_utils import tensor_to_uint8_rgb
+from .cmk_instantid_conditioning import _hybrid_positive_conditioning
+
+
+INSTANTID_PROVIDERS = ["CoreML", "CPU", "CUDA", "ROCM"]
+INSTANTID_GUARD_VERSION = f"{GUARD_VERSION}:instantid-handoff-final-target-v3"
+
+# TEMPORARY DIAGNOSTIC: compare module 10's complete layout-patched model with
+# the dedicated identity branch. Revert to False after the controlled test.
+_DIAGNOSTIC_USE_LAYOUT_PATCHED_MODEL = False
+_INSTANTID_STAGE_KEY = "sdxl.identity"
+
+def _filename_list(category):
+    try:
+        import folder_paths
+
+        return list(folder_paths.get_filename_list(category))
+    except Exception:
+        return []
+
+
+def _instantid_models():
+    models = _filename_list("instantid")
+    if models:
+        return models
+    try:
+        import folder_paths
+
+        directory = os.path.join(folder_paths.models_dir, "instantid")
+        extensions = tuple(str(ext).lower() for ext in folder_paths.supported_pt_extensions)
+        return sorted(
+            name for name in os.listdir(directory) if name.lower().endswith(extensions)
+        ) if os.path.isdir(directory) else []
+    except Exception:
+        return []
+
+
+def _node_class(*names):
+    try:
+        import nodes
+    except Exception as exc:
+        raise RuntimeError(f"ComfyUI node registry unavailable: {exc}") from exc
+    mappings = getattr(nodes, "NODE_CLASS_MAPPINGS", {}) or {}
+    for name in names:
+        if name in mappings:
+            return mappings[name]
+        value = getattr(nodes, name, None)
+        if value is not None:
+            return value
+    if any(name.startswith("CMKInternalInstantID") or name == "CMKInternalApplyInstantIDAdvanced" for name in names):
+        try:
+            from .upstream import CMK_INSTANTID_CLASSES
+
+            for name in names:
+                if name in CMK_INSTANTID_CLASSES:
+                    return CMK_INSTANTID_CLASSES[name]
+        except Exception as exc:
+            raise RuntimeError(
+                "CMK InstantID runtime unavailable. Install the CMK requirements "
+                f"(insightface/onnxruntime). Details: {exc}"
+            ) from exc
+    raise RuntimeError(f"Required node is missing: {' / '.join(names)}")
+
+
+def _call_node(names, **kwargs):
+    cls = _node_class(*names)
+    instance = cls()
+    function = getattr(instance, getattr(cls, "FUNCTION"))
+    signature = inspect.signature(function)
+    accepted = {name: value for name, value in kwargs.items() if name in signature.parameters}
+    return function(**accepted)
+
+
+def _outputs(value):
+    if isinstance(value, dict) and "result" in value:
+        value = value["result"]
+    return value if isinstance(value, (tuple, list)) else (value,)
+
+
+def _require_dict(pipe, name):
+    if not isinstance(pipe, dict):
+        raise TypeError(f"CMK InstantID Sampler SDXL -Pipe-: {name} must be a CMK pipe")
+    return pipe
+
+
+def _first(*values):
+    return next((value for value in values if value is not None), None)
+
+
+def _guard_faces(faceanalysis, image_rgb):
+    """Detect policy faces without creating a ComfyUI-visible image output."""
+    bgr = np.ascontiguousarray(image_rgb[:, :, ::-1])
+    detector = getattr(faceanalysis, "det_model", None)
+    for size in range(640, 128, -64):
+        if detector is not None:
+            detector.input_size = (size, size)
+        faces = list(faceanalysis.get(bgr) or [])
+        if faces:
+            return faces
+    return []
+
+
+def _guard_source_images(faceanalysis, source_images):
+    guard = get_content_guard()
+    for image in source_images:
+        rgb = tensor_to_uint8_rgb(image)
+        faces = _guard_faces(faceanalysis, rgb)
+        if not faces:
+            raise ContentGuardBlocked("CG_FACE_UNAVAILABLE", "source")
+        # InstantID averages all detected donor embeddings. Therefore every
+        # participating source face must satisfy the source policy.
+        for face in faces:
+            guard.inspect_image(rgb, face, "source")
+
+
+def _guard_generated_latent(result, vae, faceanalysis, target_selection):
+    """Internally decode and inspect; never return, preview, cache, or persist it."""
+    decoded = None
+    try:
+        decoded = _outputs(_call_node(("VAEDecode",), samples=result, vae=vae))[0]
+        if decoded is None or int(decoded.shape[0]) < 1:
+            raise ContentGuardBlocked("CG_INPUT_INVALID", "target")
+        guard = get_content_guard()
+        for image in decoded:
+            rgb = tensor_to_uint8_rgb(image)
+            faces = _guard_faces(faceanalysis, rgb)
+            if not faces:
+                raise ContentGuardBlocked("CG_FACE_UNAVAILABLE", "target")
+            face = select_target_face(
+                faces, str(target_selection), rgb.shape[1], rgb.shape[0],
+            )
+            guard.inspect_image(rgb, face, "target")
+    finally:
+        # Policy-local only: no node/subgraph preview, diagnostic, pipe value,
+        # boundary-cache entry, or temporary file may retain this tensor.
+        del decoded
+
+
+def _sample_continuation(
+    *, model, add_noise, noise_seed, steps, cfg, sampler_name, scheduler,
+    positive, negative, latent_image, start_at_step, end_at_step,
+):
+    """Continue the existing latent through ComfyUI's unchanged sampler path."""
+    return _outputs(_call_node(
+        ("KSamplerAdvanced",),
+        model=model,
+        add_noise=add_noise,
+        noise_seed=int(noise_seed),
+        steps=int(steps),
+        cfg=float(cfg),
+        sampler_name=str(sampler_name),
+        scheduler=str(scheduler),
+        positive=positive,
+        negative=negative,
+        latent_image=latent_image,
+        start_at_step=int(start_at_step),
+        end_at_step=int(end_at_step),
+        return_with_leftover_noise="disable",
+    ))[0]
+
+
+class CMKInstantIDSamplerSDXLPipe:
+    """Apply InstantID to an existing layout latent and return a sampled CMK pipe."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "MODEL": ("CMK_MODEL_PIPE",),
+                "PROCESS": ("CMK_PROCESS_SDXL",),
+                "SAMPLED": ("CMK_SAMPLED_PIPE",),
+                "LOG": ("CMK_LOG_PIPE",),
+                "source_face": ("IMAGE",),
+                "identity_strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.05}),
+                "pose_strength": ("FLOAT", {"default": 0.7, "min": 0.0, "max": 1.0, "step": 0.05}),
+                "target_face": (("Largest", "Leftmost", "Rightmost", "Topmost", "Bottommost", "Center"), {
+                    "default": "Largest",
+                    "tooltip": "Selects which detected person receives the InstantID identity.",
+                }),
+                "instantid_start": ("FLOAT", {
+                    "default": 0.0, "min": 0.0, "max": 1.0, "step": 0.01,
+                    "tooltip": "Start of both InstantID identity attention and keypoint ControlNet guidance.",
+                }),
+                "instantid_end": ("FLOAT", {
+                    "default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01,
+                    "tooltip": "End of both InstantID identity attention and keypoint ControlNet guidance.",
+                }),
+                "instantid_model": ((_instantid_models() or [""]), {"advanced": True}),
+                "controlnet_model": ((_filename_list("controlnet") or [""]), {"advanced": True}),
+                "provider": (INSTANTID_PROVIDERS, {"default": "CoreML", "advanced": True}),
+                "cfg": ("FLOAT", {"default": 4.5, "min": 0.0, "max": 30.0, "step": 0.1, "advanced": True}),
+                "noise": ("FLOAT", {
+                    "default": 0.75, "min": 0.0, "max": 1.0, "step": 0.01,
+                    "advanced": True,
+                    "tooltip": (
+                        "Noise applied to the unconditional InstantID face embedding. Higher "
+                        "values can strengthen identity transfer, especially without module 05. "
+                        "This does not control latent sampling noise."
+                    ),
+                }),
+                "conditioning_mode": (
+                    ["CMK prepared", "InstantID reference"],
+                    {
+                        "default": "InstantID reference",
+                        "advanced": True,
+                        "tooltip": (
+                            "InstantID reference: encodes the prompts with the native checkpoint CLIP "
+                            "for the identity pass (current CMK default). CMK prepared: reuses the "
+                            "conditioning already prepared by module 10, including its CLIP settings."
+                        ),
+                    },
+                ),
+                "reference_conditioning_weight": ("FLOAT", {
+                    "default": 0.75, "min": 0.0, "max": 1.0, "step": 0.05,
+                    "advanced": True,
+                    "tooltip": (
+                        "Blend used by InstantID reference: 1.0 is pure native reference "
+                        "conditioning; 0.0 is pure CMK prepared conditioning. Ignored in "
+                        "CMK prepared mode."
+                    ),
+                }),
+                "reference_start_at_step": ("INT", {
+                    "default": 8, "min": 0, "max": 200, "step": 1,
+                    "advanced": True,
+                    "tooltip": (
+                        "Legacy workflow compatibility value. No longer used by active "
+                        "InstantID sampling modes."
+                    ),
+                }),
+            },
+            "optional": {
+                "VISUAL": ("CMK_VISUAL_PIPE",),
+            },
+            "hidden": {"dynprompt": "DYNPROMPT", "unique_id": "UNIQUE_ID"},
+        }
+
+    RETURN_TYPES = (
+        "CMK_MODEL_PIPE",
+        "CMK_PROCESS_SDXL",
+        "CMK_SAMPLED_PIPE",
+        "CMK_LOG_PIPE",
+        "IMAGE",
+        "CMK_VISUAL_PIPE",
+        "CMK_DIAGNOSTIC",
+    )
+    RETURN_NAMES = ("MODEL", "PROCESS", "SAMPLED", "LOG", "IDENTITY IMAGE", "VISUAL", "diagnostic")
+    FUNCTION = "sample"
+    CATEGORY = "CMK/Flow/Face"
+
+    @classmethod
+    def IS_CHANGED(cls, PROCESS=None, **kwargs):
+        return (
+            f"{INSTANTID_GUARD_VERSION}:"
+            f"{content_guard_state_token(PROCESS)}"
+        )
+
+    def sample(self, *args, **kwargs):
+        try:
+            return self._sample(*args, **kwargs)
+        except ContentGuardBlocked as exc:
+            model_pipe = kwargs.get("MODEL", args[0] if args else None)
+            process = kwargs.get("PROCESS", args[1] if len(args) > 1 else None)
+            cleanup_content_guard_abort(
+                exc,
+                label="15 InstantID",
+                model_pipe=model_pipe,
+                unload_models=bool(
+                    isinstance(process, dict)
+                    and process.get("unload_models_after_use", True)
+                ),
+            )
+            args = ()
+            kwargs.clear()
+            model_pipe = None
+            process = None
+            raise exc.with_traceback(None) from None
+
+    def _sample(
+        self,
+        MODEL,
+        PROCESS,
+        SAMPLED,
+        LOG,
+        source_face,
+        identity_strength,
+        pose_strength,
+        target_face,
+        instantid_start,
+        instantid_end,
+        instantid_model,
+        controlnet_model,
+        provider,
+        cfg,
+        noise,
+        conditioning_mode,
+        reference_conditioning_weight,
+        reference_start_at_step,
+        VISUAL=None,
+        dynprompt=None,
+        unique_id=None,
+    ):
+        _reset_instantid_boundary_cache(dynprompt)
+        model_pipe = _require_dict(MODEL, "MODEL")
+        process = _require_dict(PROCESS, "PROCESS")
+        content_guard_enabled = effective_content_guard_enabled(process)
+        sampled_in = _require_dict(SAMPLED, "SAMPLED")
+        visual = empty_visual() if VISUAL is None else VISUAL
+        if not bool(process.get("instantid_enabled", False)):
+            lines = ["InstantID          : disabled in module 01", "Sampling           : bypassed"]
+            log_out = cmk_add_block(LOG, "InstantID Sampler SDXL", 45, lines, True)
+            diagnostic = make_diagnostic_payload(
+                title="InstantID Sampler SDXL",
+                node="CMK InstantID Sampler SDXL -Pipe-",
+                previews=[],
+                summary="InstantID disabled; pipeline passed through",
+                details="\n".join(lines),
+                mode="Bypass",
+                metadata={"identity_applied": False},
+            )
+            return model_pipe, process, sampled_in, log_out, None, visual, diagnostic
+        if source_face is None:
+            raise ValueError("CMK InstantID Sampler SDXL -Pipe-: source_face is missing")
+        if not instantid_model or not controlnet_model:
+            raise ValueError("CMK InstantID Sampler SDXL -Pipe-: InstantID and ControlNet models are required")
+        if sampled_in.get("sdxl_handoff_cache_hit") is True:
+            print("INSTANTID · RESUMED FROM HANDOFF", flush=True)
+            LOG = cmk_add_block(
+                LOG,
+                "SDXL Handoff Boundary",
+                44,
+                [
+                    "SDXL HANDOFF     : CACHE HIT",
+                    "INSTANTID       : RESUMED FROM HANDOFF",
+                    f"HANDOFF STEP    : {int(sampled_in.get('instantid_end_at_step', 0))}",
+                ],
+                True,
+            )
+
+        zero_pass_mode = bool(sampled_in.get("instantid_zero_pass", False))
+        inpaint_bridge_mode = bool(sampled_in.get("instantid_inpaint_bridge", False))
+        if (
+            content_guard_enabled
+            and not zero_pass_mode
+            and sampled_in.get("content_guard_handoff") != "PASS · SDXL HANDOFF"
+        ):
+            raise ContentGuardBlocked("CG_HANDOFF_UNVERIFIED", "target_intermediate")
+        layout_latent = _first(sampled_in.get("samples"), sampled_in.get("latent_1st_pass"), sampled_in.get("latent_image"))
+        keypoints_latent = None if zero_pass_mode else sampled_in.get("instantid_keypoints_latent")
+        vae = _first(model_pipe.get("vae"), sampled_in.get("vae"))
+        identity_sampling_source = (
+            "aligned Hybrid ModelSampling"
+            if (
+                not zero_pass_mode
+                and str(process.get("instantid_mode", "HYBRID")).strip().upper() == "HYBRID"
+            )
+            else "native ModelSampling"
+        )
+        if _DIAGNOSTIC_USE_LAYOUT_PATCHED_MODEL:
+            base_model = _first(
+                sampled_in.get("model_patched"),
+                sampled_in.get("model_identity"),
+                sampled_in.get("model"),
+                model_pipe.get("model"),
+            )
+            model_source = "DIAGNOSTIC: SAMPLED.model_patched (complete module 10 layout patches)"
+        else:
+            # Normal path: source LoRAs + the centrally prepared sampling
+            # contract + FreeU, without the local layout Hyper-LoRA or PAG.
+            base_model = _first(
+                sampled_in.get("model_identity"),
+                sampled_in.get("model_patched"),
+                sampled_in.get("model"),
+                model_pipe.get("model"),
+            )
+            model_source = (
+                f"SAMPLED.model_identity (source LoRAs + {identity_sampling_source} + FreeU; no local Hyper-LoRA / PAG)"
+                if sampled_in.get("model_identity") is not None
+                else "SAMPLED.model_patched (compatibility fallback)"
+            )
+        positive = (
+            sampled_in.get("conditioning_identity_pos")
+            if inpaint_bridge_mode
+            else sampled_in.get("conditioning_pos")
+        )
+        negative = (
+            sampled_in.get("conditioning_identity_neg")
+            if inpaint_bridge_mode
+            else sampled_in.get("conditioning_neg")
+        )
+        missing = [name for name, value in (
+            ("layout latent", layout_latent),
+            (("zero-pass mode", True) if zero_pass_mode else ("keypoints latent", keypoints_latent)),
+            ("VAE", vae), ("MODEL", base_model),
+            ("positive conditioning", positive), ("negative conditioning", negative),
+        ) if value is None]
+        if missing:
+            raise ValueError("CMK InstantID Sampler SDXL -Pipe-: missing " + ", ".join(missing))
+
+        positive = _hybrid_positive_conditioning(
+            positive,
+            instantid_mode=process.get("instantid_mode", "HYBRID"),
+            zero_pass_mode=zero_pass_mode,
+        )
+        negative = _hybrid_positive_conditioning(
+            negative,
+            instantid_mode=process.get("instantid_mode", "HYBRID"),
+            zero_pass_mode=zero_pass_mode,
+        )
+        conditioning_source = "CMK prepared"
+        if str(conditioning_mode) == "InstantID reference":
+            prepared_positive = positive
+            prepared_negative = negative
+            clean_clip = model_pipe.get("clip")
+            if clean_clip is None:
+                from ..loaders.checkpoint_vae_loader import ensure_sdxl_text_encoder
+
+                clean_clip, _ = ensure_sdxl_text_encoder(model_pipe)
+            prompt_pos = str(process.get("prompt_pos", sampled_in.get("prompt_pos", "")) or "")
+            prompt_neg = str(process.get("prompt_neg", sampled_in.get("prompt_neg", "")) or "")
+            translation_pos = translate_prompt(prompt_pos)
+            translation_neg = translate_prompt(prompt_neg)
+            with cmk_timed("15 INSTANTID REFERENCE CONDITIONING", "native CLIP Text Encode"):
+                reference_positive = _outputs(_call_node(("CLIPTextEncode",), clip=clean_clip, text=translation_pos.text))[0]
+                reference_negative = _outputs(_call_node(("CLIPTextEncode",), clip=clean_clip, text=translation_neg.text))[0]
+            if bool(process.get("unload_models_after_use", True)):
+                from ..loaders.checkpoint_vae_loader import evict_sdxl_text_encoder
+
+                evict_sdxl_text_encoder(model_pipe, sampled_in)
+                clean_clip = None
+                import gc
+
+                gc.collect()
+                try:
+                    import comfy.model_management
+
+                    comfy.model_management.cleanup_models_gc()
+                    comfy.model_management.soft_empty_cache(force=True)
+                except Exception:
+                    pass
+            reference_weight = max(0.0, min(1.0, float(reference_conditioning_weight)))
+            with cmk_timed(
+                "15 INSTANTID HYBRID CONDITIONING",
+                f"reference={reference_weight:.2f} | CMK prepared={1.0 - reference_weight:.2f}",
+            ):
+                positive = _outputs(_call_node(
+                    ("ConditioningAverage",),
+                    conditioning_to=prepared_positive,
+                    conditioning_from=reference_positive,
+                    conditioning_to_strength=1.0 - reference_weight,
+                ))[0]
+                negative = _outputs(_call_node(
+                    ("ConditioningAverage",),
+                    conditioning_to=prepared_negative,
+                    conditioning_from=reference_negative,
+                    conditioning_to_strength=1.0 - reference_weight,
+                ))[0]
+            conditioning_source = (
+                f"hybrid: {reference_weight:.0%} native reference | "
+                f"{1.0 - reference_weight:.0%} CMK prepared"
+            )
+
+        if zero_pass_mode:
+            width = int(sampled_in.get("sdxl_width", process.get("sdxl_width", 1024)))
+            height = int(sampled_in.get("sdxl_height", process.get("sdxl_height", 1024)))
+            with cmk_timed("15 INSTANTID ZERO-PASS NEUTRAL KPS", f"{width}x{height}"):
+                layout_image = _outputs(_call_node(
+                    ("EmptyImage",),
+                    width=width,
+                    height=height,
+                    batch_size=1,
+                    color=0,
+                ))[0]
+        else:
+            # Decode the sampler's clean x0 estimate for face/keypoint detection.
+            # The separate noisy layout latent remains untouched for continuation.
+            with cmk_timed("15 INSTANTID KEYPOINTS X0 VAE DECODE"):
+                layout_image = _outputs(_call_node(("VAEDecode",), samples=keypoints_latent, vae=vae))[0]
+        with cmk_timed("15 INSTANTID FACEANALYSIS LOAD", str(provider)):
+            faceanalysis = _outputs(_call_node(("CMKInternalInstantIDFaceAnalysis",), provider=provider))[0]
+        if content_guard_enabled:
+            with cmk_timed("15 INSTANTID CONTENTGUARD SOURCE", "all detected donor faces"):
+                _guard_source_images(faceanalysis, source_face)
+        with cmk_timed("15 INSTANTID MODEL LOAD", str(instantid_model)):
+            instantid = _outputs(_call_node(("CMKInternalInstantIDModelLoader",), instantid_file=instantid_model))[0]
+        with cmk_timed("15 INSTANTID CONTROLNET LOAD", str(controlnet_model)):
+            control_net = _outputs(_call_node(("ControlNetLoader",), control_net_name=controlnet_model))[0]
+        with cmk_timed(
+            "15 INSTANTID APPLY",
+            f"identity={float(identity_strength):.2f} | pose={float(pose_strength):.2f}",
+        ):
+            applied = _outputs(_call_node(
+                ("CMKInternalApplyInstantIDAdvanced",),
+                instantid=instantid,
+                insightface=faceanalysis,
+                control_net=control_net,
+                image=source_face,
+                image_kps=layout_image,
+                model=base_model,
+                positive=positive,
+                negative=negative,
+                ip_weight=float(identity_strength),
+                cn_strength=float(pose_strength),
+                weight=float(identity_strength),
+                start_at=float(instantid_start),
+                end_at=float(instantid_end),
+                noise=float(noise),
+                combine_embeds="average",
+                target_selection=str(target_face),
+                image_kps_is_hint=zero_pass_mode,
+            ))
+        if len(applied) < 3:
+            raise TypeError("CMK InstantID Sampler SDXL -Pipe-: Apply InstantID returned invalid outputs")
+        patched_model, positive_out, negative_out = applied[:3]
+
+        final_steps = int(sampled_in.get("steps_1st_pass", sampled_in.get("steps", 20)))
+        start_at_step = 0 if zero_pass_mode else int(sampled_in.get("instantid_end_at_step", 2))
+        add_noise = "enable" if (zero_pass_mode or inpaint_bridge_mode) else "disable"
+        workflow_mode = (
+            "ZERO-PASS"
+            if zero_pass_mode
+            else (
+                f"HYBRID · INPAINT · HANDOFF {start_at_step}"
+                if inpaint_bridge_mode
+                else f"HYBRID · TEXT2IMAGE · HANDOFF {start_at_step}"
+            )
+        )
+        shared_denoise = float(sampled_in.get("denoise", 1.0))
+        sampler_name = str(sampled_in.get("sampler", "euler_ancestral"))
+        scheduler = str(sampled_in.get("scheduler", "karras"))
+        with cmk_timed(
+            "15 INSTANTID KSAMPLER",
+            f"steps {start_at_step}-{final_steps}/{final_steps} | {sampler_name} | {scheduler}",
+        ):
+            with ignore_torchsde_boundary_rounding():
+                sampling_args = {
+                    "model": patched_model,
+                    "add_noise": add_noise,
+                    "noise_seed": int(sampled_in.get("seed", process.get("seed", 0))),
+                    "steps": final_steps,
+                    "cfg": float(cfg),
+                    "sampler_name": str(sampler_name),
+                    "scheduler": str(scheduler),
+                    "positive": positive_out,
+                    "negative": negative_out,
+                    "latent_image": layout_latent,
+                    "start_at_step": start_at_step,
+                    "end_at_step": final_steps,
+                }
+                result = _sample_continuation(**sampling_args)
+        if content_guard_enabled:
+            with cmk_timed("15 INSTANTID CONTENTGUARD TARGET", "internal final decode"):
+                _guard_generated_latent(result, vae, faceanalysis, target_face)
+        with cmk_timed(
+            "15 INSTANTID VISUAL VAE DECODE",
+            "guard-approved result" if content_guard_enabled else "baseline guard bypass",
+        ):
+            identity_decoded = _outputs(_call_node(("VAEDecode",), samples=result, vae=vae))
+            identity_image = identity_decoded[0]
+        sampled_out = dict(sampled_in)
+        sampled_out.update({
+            "model_patched": patched_model,
+            "conditioning_pos": positive_out,
+            "conditioning_neg": negative_out,
+            "samples": result,
+            "latent": result,
+            "latent_image": result,
+            "latent_1st_pass": result,
+            "image_1st_pass": identity_image,
+            "steps": final_steps,
+            "steps_1st_pass": final_steps,
+            "denoise": shared_denoise,
+            "identity_layout_latent": layout_latent,
+            "identity_applied": True,
+            "instantid_zero_pass": zero_pass_mode,
+            "instantid_inpaint_bridge": inpaint_bridge_mode,
+            "instantid_workflow": workflow_mode,
+            "content_guard_version": INSTANTID_GUARD_VERSION,
+            "content_guard_enabled": content_guard_enabled,
+        })
+        lines = [
+            f"Workflow          : {workflow_mode}",
+            f"Model source      : {model_source}",
+            f"Conditioning      : {conditioning_source}",
+            f"Identity strength : {float(identity_strength):.2f}",
+            f"Pose strength     : {float(pose_strength):.2f}",
+            f"InstantID range   : {float(instantid_start):.2f} - {float(instantid_end):.2f}",
+            f"Sampling schedule : {start_at_step}-{final_steps}/{final_steps} | add_noise={add_noise}",
+            f"External ControlNet: {'SDXL layout only · stopped at handoff' if sampled_in.get('controlnet_applied') else 'not active'}",
+            f"Sampling mode     : {('zero-pass + noise' if zero_pass_mode else ('clean Inpaint bridge + noise' if inpaint_bridge_mode else 'split continuation'))}",
+            f"KPS source        : {('neutral black' if zero_pass_mode else ('clean Inpaint bridge' if inpaint_bridge_mode else '1st-pass x0'))}",
+            (
+                f"Inpaint bridge   : x0 decode/encode | step {start_at_step}/{final_steps}"
+                if inpaint_bridge_mode
+                else "Inpaint bridge   : n/a"
+            ),
+            f"InstantID CFG     : {float(cfg):.2f}",
+            f"Identity emb noise: {float(noise):.2f}",
+            f"Target face       : {target_face}",
+            *(
+                [
+                    (
+                        "ContentGuard      : PASS · SDXL HANDOFF + SOURCE + GENERATED TARGET"
+                        if not zero_pass_mode
+                        else "ContentGuard      : PASS · SOURCE + GENERATED TARGET"
+                    ),
+                ]
+                if content_guard_enabled
+                else ["ContentGuard      : BYPASS · BASELINE"]
+            ),
+            f"Method            : {sampler_name} | {scheduler}",
+            f"InstantID model   : {instantid_model}",
+            f"ControlNet model  : {controlnet_model}",
+        ]
+        if str(conditioning_mode) == "InstantID reference":
+            for label, result in (("POS", translation_pos), ("NEG", translation_neg)):
+                if result.status not in {"empty", "disabled", "not_configured"}:
+                    lines.append(result.log_line(label))
+        log_out = cmk_add_block(LOG, "InstantID Sampler SDXL", 45, lines, True)
+        diagnostic = make_diagnostic_payload(
+            title="InstantID Sampler SDXL",
+            node="CMK InstantID Sampler SDXL -Pipe-",
+            previews=[],
+            summary=workflow_mode,
+            details="\n".join(lines),
+            mode="InstantID",
+            metadata={
+                "identity_applied": True,
+                "steps": final_steps,
+                "identity_embedding_noise": float(noise),
+                "workflow": workflow_mode,
+            },
+        )
+        visual = register_provider(
+            visual,
+            module_instance_id=unique_id or "instantid-sampler",
+            module_type="CMKInstantIDSamplerSDXLPipe",
+            module_label="Identity",
+            sequence=15,
+            channels={"result": identity_image},
+            status="completed",
+            live_node_id=unique_id,
+            branch="sdxl",
+            stage_key="sdxl.identity",
+        )
+        if bool(process.get("unload_models_after_use", True)):
+            from ..loaders.checkpoint_vae_loader import unload_all_phase_models
+
+            unload_all_phase_models("15 InstantID complete")
+        return model_pipe, process, sampled_out, log_out, identity_image, visual, diagnostic
+
+
+_INSTANTID_BOUNDARY_CACHE = {}
+_INSTANTID_BOUNDARY_EXECUTION_TOKEN = None
+
+
+def clear_instantid_boundary_cache():
+    count = len(_INSTANTID_BOUNDARY_CACHE)
+    _INSTANTID_BOUNDARY_CACHE.clear()
+    return count
+
+
+def _reset_instantid_boundary_cache(dynprompt):
+    global _INSTANTID_BOUNDARY_EXECUTION_TOKEN
+    token = id(dynprompt) if dynprompt is not None else None
+    if token != _INSTANTID_BOUNDARY_EXECUTION_TOKEN:
+        _INSTANTID_BOUNDARY_CACHE.clear()
+        _INSTANTID_BOUNDARY_EXECUTION_TOKEN = token
+
+
+class CMKInstantIDBoundary:
+    """Materialize every InstantID result before the subgraph fans out.
+
+    Global-subgraph outputs are resolved independently by ComfyUI.  Without a
+    common non-lazy consumer, downstream MODEL/PROCESS/SAMPLED/LOG requests can
+    reopen the expensive InstantID sampler after its preview has completed.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "optional": {
+                "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
+                "PROCESS": ("CMK_PROCESS_SDXL", {"lazy": True}),
+                "SAMPLED": ("CMK_SAMPLED_PIPE", {"lazy": True}),
+                "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
+                "diagnostic": ("CMK_DIAGNOSTIC", {"lazy": True}),
+            },
+            "hidden": {
+                "prompt": "PROMPT",
+                "unique_id": "UNIQUE_ID",
+                "dynprompt": "DYNPROMPT",
+            }
+        }
+
+    RETURN_TYPES = (
+        "CMK_MODEL_PIPE",
+        "CMK_PROCESS_SDXL",
+        "CMK_SAMPLED_PIPE",
+        "CMK_LOG_PIPE",
+        "CMK_DIAGNOSTIC",
+    )
+    RETURN_NAMES = ("MODEL", "PROCESS", "SAMPLED", "LOG", "diagnostic")
+    FUNCTION = "materialize"
+    CATEGORY = "CMK/Internal/Boundary & Cache"
+    DEV_ONLY = True
+
+    def check_lazy_status(self, prompt=None, unique_id=None, dynprompt=None, **inputs):
+        _reset_instantid_boundary_cache(dynprompt)
+        key = self._cache_key(prompt, unique_id)
+        if key in _INSTANTID_BOUNDARY_CACHE:
+            return []
+        return [
+            name for name in ("MODEL", "PROCESS", "SAMPLED", "LOG", "diagnostic")
+            if inputs.get(name) is None
+        ]
+
+    @staticmethod
+    def _cache_key(prompt, unique_id):
+        try:
+            from ..cmk_family_result import _sampled_boundary_key
+            return _sampled_boundary_key(
+                prompt,
+                unique_id,
+                include_content_guard=True,
+            )
+        except Exception:
+            return None
+
+    def materialize(
+        self,
+        MODEL=None,
+        PROCESS=None,
+        SAMPLED=None,
+        LOG=None,
+        diagnostic=None,
+        prompt=None,
+        unique_id=None,
+        dynprompt=None,
+    ):
+        _reset_instantid_boundary_cache(dynprompt)
+        key = self._cache_key(prompt, unique_id)
+        if key in _INSTANTID_BOUNDARY_CACHE and any(
+            value is None for value in (MODEL, PROCESS, SAMPLED, LOG, diagnostic)
+        ):
+            print(f"[CMK InstantID Boundary] HIT {key[:12]}")
+            return _INSTANTID_BOUNDARY_CACHE[key]
+        values = (MODEL, PROCESS, SAMPLED, LOG, diagnostic)
+        if any(value is None for value in values):
+            raise ValueError("CMK InstantID Boundary is missing a materialized input")
+        result_process = (
+            stamp_artifact(PROCESS, _INSTANTID_STAGE_KEY, key)
+            if key and isinstance(PROCESS, dict)
+            else PROCESS
+        )
+        values = (MODEL, result_process, SAMPLED, LOG, diagnostic)
+        if key:
+            _INSTANTID_BOUNDARY_CACHE[key] = values
+            print(f"[CMK InstantID Boundary] STORE {key[:12]}")
+        return values

@@ -1,0 +1,690 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import threading
+from pathlib import Path
+from typing import Any
+
+from ..cmk_distribution import (
+    CONTENT_GUARD_WIDGET,
+    STOP_AFTER_HANDOFF_WIDGET,
+    stop_after_handoff_prompt_state,
+)
+from ..utils.cmk_timing import cmk_timed_call
+
+
+_CACHE_SCHEMA = "cmk_refiner_boundary_cache_v3"
+_MAX_DISK_ENTRIES = 16
+
+# MODEL cannot be serialized safely and remains available for the current
+# ComfyUI process; both IMAGE tensors and LOG are materialized.
+_SESSION_STATE: dict[str, Any] = {}
+
+# ComfyUI may ask the same lazy boundary for its status several times while it
+# incrementally resolves the graph.  The expanded prompt is immutable for that
+# execution, so canonicalizing both complete image branches more than once is
+# wasted work.  Keep the memo strictly scoped to the current prompt object.
+_FINGERPRINT_MEMO_LOCK = threading.RLock()
+_FINGERPRINT_MEMO_PROMPT_ID = None
+_FINGERPRINT_MEMO: dict[str, tuple[str | None, str]] = {}
+
+
+def reset_refiner_boundary_cache_state() -> dict[str, int]:
+    """Release runtime state paired with Refiner boundary files."""
+    global _FINGERPRINT_MEMO_PROMPT_ID, _FINGERPRINT_MEMO
+    with _FINGERPRINT_MEMO_LOCK:
+        result = {
+            "refiner_session": len(_SESSION_STATE),
+            "refiner_fingerprint_memo": len(_FINGERPRINT_MEMO),
+        }
+        _SESSION_STATE.clear()
+        _FINGERPRINT_MEMO_PROMPT_ID = None
+        _FINGERPRINT_MEMO = {}
+        return result
+
+
+def _lookup_node(prompt: dict, node_id: Any):
+    if not isinstance(prompt, dict):
+        return None
+    if node_id in prompt:
+        return prompt[node_id]
+    return prompt.get(str(node_id))
+
+
+def _resolve_current_node(prompt: dict, unique_id: Any):
+    if not isinstance(prompt, dict):
+        return None, None
+
+    for candidate in (unique_id, str(unique_id)):
+        if candidate in prompt and isinstance(prompt[candidate], dict):
+            return candidate, prompt[candidate]
+
+    unique_text = str(unique_id) if unique_id is not None else ""
+    suffix_matches = []
+    class_matches = []
+
+    for key, value in prompt.items():
+        if not isinstance(value, dict):
+            continue
+
+        key_text = str(key)
+        if unique_text and (
+            key_text.endswith(f":{unique_text}")
+            or key_text.endswith(f"/{unique_text}")
+            or key_text.endswith(f".{unique_text}")
+        ):
+            suffix_matches.append((key, value))
+
+        if value.get("class_type") == "CMKRefinerBoundaryCache":
+            class_matches.append((key, value))
+
+    if len(suffix_matches) == 1:
+        return suffix_matches[0]
+    if len(class_matches) == 1:
+        return class_matches[0]
+    return None, None
+
+
+def _is_link(prompt: dict, value: Any) -> bool:
+    return (
+        isinstance(value, (list, tuple))
+        and len(value) == 2
+        and isinstance(value[1], int)
+        and _lookup_node(prompt, value[0]) is not None
+    )
+
+
+def _canonical_scalar(value: Any):
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    if isinstance(value, dict):
+        return {
+            str(key): _canonical_scalar(item)
+            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+        }
+    if isinstance(value, (list, tuple)):
+        return [_canonical_scalar(item) for item in value]
+    return repr(value)
+
+
+def _canonical_node(prompt: dict, node_id: Any, memo: dict, stack: set):
+    key = str(node_id)
+    if key in memo:
+        return memo[key]
+    if key in stack:
+        return {"cycle": key}
+
+    node = _lookup_node(prompt, node_id)
+    if not isinstance(node, dict):
+        return {"missing": key}
+
+    stack.add(key)
+    canonical_inputs = {}
+    class_type = str(node.get("class_type", ""))
+    for input_name, value in sorted(
+        (node.get("inputs", {}) or {}).items(),
+        key=lambda pair: str(pair[0]),
+    ):
+        if class_type == "CMKPipeCreateImage" and str(input_name) in {
+            CONTENT_GUARD_WIDGET,
+            STOP_AFTER_HANDOFF_WIDGET,
+        }:
+            continue
+        if _is_link(prompt, value):
+            canonical_inputs[str(input_name)] = {
+                "link": {
+                    "node": _canonical_node(
+                        prompt,
+                        value[0],
+                        memo,
+                        stack,
+                    ),
+                    "output": int(value[1]),
+                }
+            }
+        else:
+            canonical_inputs[str(input_name)] = _canonical_scalar(value)
+
+    payload = {
+        "class_type": class_type,
+        "inputs": canonical_inputs,
+    }
+    stack.remove(key)
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    result = {"sha256": hashlib.sha256(encoded).hexdigest()}
+    memo[key] = result
+    return result
+
+
+def build_refiner_fingerprint(prompt: Any, unique_id: Any) -> tuple[str | None, str]:
+    if not isinstance(prompt, dict):
+        return None, "PROMPT is unavailable"
+
+    global _FINGERPRINT_MEMO_PROMPT_ID, _FINGERPRINT_MEMO
+    prompt_id = id(prompt)
+    memo_key = str(unique_id)
+    with _FINGERPRINT_MEMO_LOCK:
+        if _FINGERPRINT_MEMO_PROMPT_ID != prompt_id:
+            _FINGERPRINT_MEMO_PROMPT_ID = prompt_id
+            _FINGERPRINT_MEMO = {}
+        cached = _FINGERPRINT_MEMO.get(memo_key)
+        if cached is not None:
+            return cached
+
+    resolved_id, current = _resolve_current_node(prompt, unique_id)
+    if not isinstance(current, dict):
+        result = (None, (
+            "boundary node not found in expanded prompt "
+            f"(unique_id={unique_id!r})"
+        ))
+        with _FINGERPRINT_MEMO_LOCK:
+            _FINGERPRINT_MEMO[memo_key] = result
+        return result
+
+    inputs = current.get("inputs", {}) or {}
+    first_link = inputs.get("IMAGE_1ST_PASS")
+    refined_link = inputs.get("IMAGE_REFINED")
+
+    if not _is_link(prompt, first_link):
+        return None, (
+            "IMAGE_1ST_PASS is not an expanded graph link "
+            f"(resolved_id={resolved_id!r})"
+        )
+    if not _is_link(prompt, refined_link):
+        return None, (
+            "IMAGE_REFINED is not an expanded graph link "
+            f"(resolved_id={resolved_id!r})"
+        )
+
+    memo = {}
+    payload = {
+        "schema": _CACHE_SCHEMA,
+        "image_1st_pass_root": {
+            "node": _canonical_node(
+                prompt,
+                first_link[0],
+                memo,
+                set(),
+            ),
+            "output": int(first_link[1]),
+        },
+        "image_refined_root": {
+            "node": _canonical_node(
+                prompt,
+                refined_link[0],
+                memo,
+                set(),
+            ),
+            "output": int(refined_link[1]),
+        },
+    }
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    result = (
+        hashlib.sha256(encoded).hexdigest(),
+        f"resolved_id={resolved_id!r}",
+    )
+    with _FINGERPRINT_MEMO_LOCK:
+        _FINGERPRINT_MEMO[memo_key] = result
+    return result
+
+
+def _cache_directory() -> Path:
+    import folder_paths  # type: ignore
+
+    directory = (
+        Path(folder_paths.get_temp_directory())
+        / "cmk"
+        / "refiner_boundary"
+    )
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def _entry_paths(cache_key: str) -> tuple[Path, Path]:
+    base = _cache_directory() / f"refiner_{cache_key}"
+    return base.with_suffix(".safetensors"), base.with_suffix(".json")
+
+
+def _status_path() -> Path:
+    return _cache_directory() / "last_status.json"
+
+
+def _write_status(status: str, **fields) -> None:
+    payload = {
+        "schema": _CACHE_SCHEMA,
+        "status": status,
+        **fields,
+    }
+    try:
+        with _status_path().open("w", encoding="utf-8") as handle:
+            json.dump(
+                payload,
+                handle,
+                ensure_ascii=False,
+                indent=2,
+                default=str,
+            )
+    except Exception:
+        pass
+
+
+def _disk_available(cache_key: str) -> bool:
+    image_path, log_path = _entry_paths(cache_key)
+    return image_path.is_file() and log_path.is_file()
+
+
+def _remove_disk_entry(cache_key: str) -> None:
+    image_path, log_path = _entry_paths(cache_key)
+    for path in (image_path, log_path):
+        try:
+            path.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
+def _retain_latest_entry(cache_key: str, unique_id: Any) -> None:
+    """Keep only the latest Refiner cache revision for one boundary node."""
+    directory = _cache_directory()
+    index_path = directory / "latest_by_node.json"
+    index_tmp = directory / "latest_by_node.json.tmp"
+    slot = str(unique_id)
+
+    try:
+        with index_path.open("r", encoding="utf-8") as handle:
+            index = json.load(handle)
+        if not isinstance(index, dict):
+            index = {}
+    except Exception:
+        index = {}
+
+    previous_key = index.get(slot)
+    index[slot] = cache_key
+    try:
+        with index_tmp.open("w", encoding="utf-8") as handle:
+            json.dump(index, handle, ensure_ascii=False, sort_keys=True)
+        os.replace(index_tmp, index_path)
+    finally:
+        try:
+            index_tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    if isinstance(previous_key, str) and previous_key != cache_key:
+        _remove_disk_entry(previous_key)
+        _SESSION_STATE.pop(previous_key, None)
+
+
+def _json_safe(value: Any):
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    if isinstance(value, dict):
+        return {
+            str(key): _json_safe(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(item) for item in value]
+    return str(value)
+
+
+def _save_disk(
+    cache_key: str,
+    image_1st_pass,
+    image_refined,
+    log_pipe: dict,
+) -> None:
+    from safetensors.torch import save_file  # type: ignore
+
+    image_path, log_path = _entry_paths(cache_key)
+    image_tmp = image_path.with_name(image_path.name + ".tmp")
+    log_tmp = log_path.with_name(log_path.name + ".tmp")
+
+    try:
+        save_file(
+            {
+                "image_1st_pass": (
+                    image_1st_pass.detach()
+                    .to("cpu")
+                    .contiguous()
+                ),
+                "image_refined": (
+                    image_refined.detach()
+                    .to("cpu")
+                    .contiguous()
+                ),
+            },
+            str(image_tmp),
+            metadata={
+                "format": "CMK_REFINER_BOUNDARY_CACHE",
+                "schema": _CACHE_SCHEMA,
+            },
+        )
+        with log_tmp.open("w", encoding="utf-8") as handle:
+            json.dump(
+                _json_safe(log_pipe),
+                handle,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+
+        os.replace(image_tmp, image_path)
+        os.replace(log_tmp, log_path)
+    finally:
+        for path in (image_tmp, log_tmp):
+            try:
+                path.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+    _prune_disk()
+
+
+def _load_disk(cache_key: str):
+    from safetensors.torch import load_file  # type: ignore
+
+    image_path, log_path = _entry_paths(cache_key)
+    try:
+        tensors = load_file(str(image_path), device="cpu")
+        image_1st_pass = tensors["image_1st_pass"]
+        image_refined = tensors["image_refined"]
+
+        with log_path.open("r", encoding="utf-8") as handle:
+            log_pipe = json.load(handle)
+
+        for label, image in (
+            ("IMAGE 1ST PASS", image_1st_pass),
+            ("IMAGE REFINED", image_refined),
+        ):
+            if getattr(image, "ndim", None) != 4:
+                raise ValueError(f"cached {label} tensor is invalid")
+        if not isinstance(log_pipe, dict):
+            raise TypeError("cached LOG is not a dictionary")
+
+        os.utime(image_path, None)
+        os.utime(log_path, None)
+        return image_1st_pass, image_refined, log_pipe
+    except Exception:
+        _remove_disk_entry(cache_key)
+        raise
+
+
+def _prune_disk() -> None:
+    directory = _cache_directory()
+    entries = sorted(
+        directory.glob("refiner_*.safetensors"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+
+    for image_path in entries[_MAX_DISK_ENTRIES:]:
+        cache_key = image_path.stem.removeprefix("refiner_")
+        _remove_disk_entry(cache_key)
+        _SESSION_STATE.pop(cache_key, None)
+
+
+class CMKRefinerBoundaryCache:
+    """Materialized boundary for all Refiner image consumers.
+
+    The public Refiner module still exports only IMAGE REFINED. Internally the
+    first-pass/refined comparer also consumes this boundary, so no preview or
+    output branch can request CMKRefinerPipe directly.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "MODEL": ("CMK_MODEL_PIPE", {"lazy": True}),
+                "IMAGE_1ST_PASS": ("IMAGE", {"lazy": True}),
+                "IMAGE_REFINED": ("IMAGE", {"lazy": True}),
+                "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
+            },
+            "hidden": {
+                "prompt": "PROMPT",
+                "unique_id": "UNIQUE_ID",
+            },
+        }
+
+    RETURN_TYPES = (
+        "CMK_MODEL_PIPE",
+        "IMAGE",
+        "IMAGE",
+        "CMK_LOG_PIPE",
+    )
+    RETURN_NAMES = (
+        "MODEL",
+        "IMAGE 1ST PASS",
+        "IMAGE REFINED",
+        "LOG",
+    )
+    FUNCTION = "boundary"
+    CATEGORY = "CMK/Internal/Boundary & Cache"
+    DEV_ONLY = True
+
+    @cmk_timed_call("LAZY 20 REFINER BOUNDARY")
+    def check_lazy_status(
+        self,
+        MODEL=None,
+        IMAGE_1ST_PASS=None,
+        IMAGE_REFINED=None,
+        LOG=None,
+        prompt=None,
+        unique_id=None,
+    ):
+        if stop_after_handoff_prompt_state(prompt, unique_id):
+            from .cmk_family_result import _upstream_sdxl_first_pass_hit
+
+            if _upstream_sdxl_first_pass_hit(prompt, unique_id) is not None:
+                return []
+            return ["MODEL"] if MODEL is None else []
+        cache_key, detail = build_refiner_fingerprint(
+            prompt,
+            unique_id,
+        )
+
+        if cache_key is None:
+            _write_status(
+                "NO_FINGERPRINT",
+                detail=detail,
+                unique_id=unique_id,
+            )
+            print(
+                "[CMK Refiner Boundary Cache] NO FINGERPRINT: "
+                f"{detail}"
+            )
+        elif _disk_available(cache_key):
+            _write_status(
+                "HIT_READY",
+                cache_key=cache_key,
+                detail=detail,
+            )
+            # MODEL cannot be serialized. After a ComfyUI restart, resolve only
+            # the current MODEL pipe; both images and LOG remain disk-backed and
+            # must not reopen Refiner sampling.
+            if cache_key not in _SESSION_STATE and MODEL is None:
+                return ["MODEL"]
+            return []
+
+        # MODEL and LOG both arrive through preparation paths that depend on
+        # the sampled family gate. Materialize them before either Refiner image;
+        # requesting LOG after Refiner sampling can reopen module 10 after the
+        # base model has been displaced by the Refiner model.
+        if MODEL is None:
+            return ["MODEL"]
+        if LOG is None:
+            return ["LOG"]
+        if IMAGE_1ST_PASS is None:
+            return ["IMAGE_1ST_PASS"]
+        if IMAGE_REFINED is None:
+            return ["IMAGE_REFINED"]
+        return []
+
+    def boundary(
+        self,
+        MODEL=None,
+        IMAGE_1ST_PASS=None,
+        IMAGE_REFINED=None,
+        LOG=None,
+        prompt=None,
+        unique_id=None,
+    ):
+        if stop_after_handoff_prompt_state(prompt, unique_id):
+            from .cmk_family_result import _upstream_sdxl_first_pass_hit
+
+            hit = _upstream_sdxl_first_pass_hit(prompt, unique_id)
+            if hit is None:
+                raise RuntimeError(
+                    "CMK Refiner Boundary Cache: SDXL handoff preview is unavailable"
+                )
+            cached_model, _sampled, result = hit
+            model = MODEL if MODEL is not None else cached_model
+            return model, result["image"], result["image"], result["log"]
+        cache_key, detail = build_refiner_fingerprint(
+            prompt,
+            unique_id,
+        )
+
+        if (
+            cache_key
+            and _disk_available(cache_key)
+            and any(
+                value is None
+                for value in (
+                    MODEL,
+                    IMAGE_1ST_PASS,
+                    IMAGE_REFINED,
+                    LOG,
+                )
+            )
+        ):
+            session_value = _SESSION_STATE.get(cache_key)
+            if session_value is not None:
+                cached_model = session_value
+            else:
+                if MODEL is None:
+                    raise RuntimeError(
+                        "CMK Refiner Boundary Cache: restart hit requires "
+                        "current MODEL"
+                    )
+                cached_model = MODEL
+                _SESSION_STATE[cache_key] = cached_model
+            try:
+                (
+                    cached_first,
+                    cached_refined,
+                    cached_log,
+                ) = _load_disk(cache_key)
+                _retain_latest_entry(cache_key, unique_id)
+                _write_status(
+                    "HIT",
+                    cache_key=cache_key,
+                    detail=detail,
+                )
+                print(
+                    "[CMK Refiner Boundary Cache] HIT "
+                    f"{cache_key[:12]} -> BOTH IMAGES/LOG"
+                )
+                return (
+                    cached_model,
+                    cached_first,
+                    cached_refined,
+                    cached_log,
+                )
+            except Exception as exc:
+                _SESSION_STATE.pop(cache_key, None)
+                _write_status(
+                    "HIT_FAILED",
+                    cache_key=cache_key,
+                    detail=str(exc),
+                )
+                print(
+                    "[CMK Refiner Boundary Cache] HIT FAILED; "
+                    f"rebuilding ({exc})"
+                )
+
+        missing = [
+            name
+            for name, value in (
+                ("MODEL", MODEL),
+                ("IMAGE_1ST_PASS", IMAGE_1ST_PASS),
+                ("IMAGE_REFINED", IMAGE_REFINED),
+                ("LOG", LOG),
+            )
+            if value is None
+        ]
+        if missing:
+            raise RuntimeError(
+                "CMK Refiner Boundary Cache: cache miss requires "
+                + ", ".join(missing)
+            )
+
+        if not isinstance(MODEL, dict):
+            raise TypeError("MODEL is not a CMK model pipe")
+        if not isinstance(LOG, dict):
+            raise TypeError("LOG is not a CMK log pipe")
+
+        if cache_key is None:
+            _write_status(
+                "BYPASS_NO_FINGERPRINT",
+                detail=detail,
+                unique_id=unique_id,
+            )
+            print(
+                "[CMK Refiner Boundary Cache] BYPASS: "
+                f"{detail}"
+            )
+            return (
+                MODEL,
+                IMAGE_1ST_PASS,
+                IMAGE_REFINED,
+                LOG,
+            )
+
+        try:
+            _save_disk(
+                cache_key,
+                IMAGE_1ST_PASS,
+                IMAGE_REFINED,
+                LOG,
+            )
+            _SESSION_STATE[cache_key] = MODEL
+            _retain_latest_entry(cache_key, unique_id)
+            _write_status(
+                "MISS_STORED",
+                cache_key=cache_key,
+                detail=detail,
+            )
+            print(
+                "[CMK Refiner Boundary Cache] MISS "
+                f"{cache_key[:12]} -> BOTH IMAGES STORED"
+            )
+        except Exception as exc:
+            _write_status(
+                "STORE_FAILED",
+                cache_key=cache_key,
+                detail=str(exc),
+            )
+            print(
+                "[CMK Refiner Boundary Cache] STORE FAILED: "
+                f"{exc}"
+            )
+
+        return (
+            MODEL,
+            IMAGE_1ST_PASS,
+            IMAGE_REFINED,
+            LOG,
+        )

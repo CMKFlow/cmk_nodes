@@ -1,0 +1,435 @@
+from __future__ import annotations
+
+"""CMK-native Fooocus inpaint support.
+
+Implements the model-loading and patching logic required by
+``CMK Sampler Prepare SDXL -Pipe-`` without calling external custom nodes.
+
+Algorithm adapted from Acly/comfyui-inpaint-nodes (GPL-3.0):
+https://github.com/Acly/comfyui-inpaint-nodes
+"""
+
+import os
+import math
+from typing import Any
+
+import torch
+import torch.nn.functional as F
+
+import comfy.lora
+import comfy.patcher_extension
+import comfy.utils
+import folder_paths
+import node_helpers
+from comfy.model_base import BaseModel
+from comfy.model_management import cast_to_device
+from comfy.model_patcher import ModelPatcher
+from torch import Tensor
+
+
+INPAINT_CATEGORY = "inpaint"
+_INPAINT_EXTENSIONS = {".safetensors", ".pt", ".pth", ".ckpt", ".patch"}
+_FOOOCUS_AREAS = "cmk_fooocus_areas"
+
+
+def ensure_inpaint_model_folder() -> None:
+    """Register ``models/inpaint`` when no other node pack has done so."""
+    try:
+        existing = folder_paths.get_folder_paths(INPAINT_CATEGORY)
+        if existing:
+            return
+    except Exception:
+        pass
+
+    path = os.path.join(folder_paths.models_dir, INPAINT_CATEGORY)
+    os.makedirs(path, exist_ok=True)
+    folder_paths.add_model_folder_path(INPAINT_CATEGORY, path, is_default=True)
+    try:
+        current = folder_paths.folder_names_and_paths[INPAINT_CATEGORY]
+        if isinstance(current, tuple) and len(current) >= 2:
+            folder_paths.folder_names_and_paths[INPAINT_CATEGORY] = (current[0], _INPAINT_EXTENSIONS)
+    except Exception:
+        pass
+
+
+class InpaintHead(torch.nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.head = torch.nn.Parameter(torch.empty(size=(320, 5, 3, 3), device="cpu"))
+
+    def __call__(self, x: Tensor) -> Tensor:
+        x = F.pad(x, (1, 1, 1, 1), "replicate")
+        return F.conv2d(x, weight=self.head)
+
+
+class InpaintBlockPatch:
+    def __init__(self) -> None:
+        self.inpaint_head_feature: Tensor | None = None
+
+    def _feature_for_call(self, h: Tensor, transformer_options: dict[str, Any]) -> Tensor:
+        if self.inpaint_head_feature is None:
+            raise RuntimeError("Fooocus inpaint head feature is missing")
+
+        feature = self.inpaint_head_feature.to(h)
+        uuids = transformer_options.get("uuids")
+        areas = transformer_options.get(_FOOOCUS_AREAS)
+        if not uuids or areas is None:
+            if feature.shape[1:] != h.shape[1:] or h.shape[0] % feature.shape[0] != 0:
+                raise RuntimeError(
+                    "Fooocus inpaint received a regional model input without conditioning area information"
+                )
+            return feature.repeat(h.shape[0] // feature.shape[0], 1, 1, 1)
+
+        chunks = []
+        for cond_uuid in uuids:
+            if cond_uuid not in areas:
+                raise RuntimeError(
+                    f"Fooocus inpaint is missing conditioning area information for UUID {cond_uuid}"
+                )
+            area = areas[cond_uuid]
+            if area is None:
+                chunk = feature
+            else:
+                height, width, y, x = area
+                if height <= 0 or width <= 0 or y < 0 or x < 0 or y + height > feature.shape[-2] or x + width > feature.shape[-1]:
+                    raise RuntimeError(
+                        f"Fooocus inpaint conditioning area {area} is outside feature shape {tuple(feature.shape[-2:])}"
+                    )
+                chunk = feature[:, :, y:y + height, x:x + width]
+            chunks.append(chunk)
+
+        try:
+            inpaint_block = torch.cat(chunks)
+        except RuntimeError as error:
+            raise RuntimeError("Fooocus inpaint conditioning areas cannot be combined into the current model batch") from error
+        if inpaint_block.shape != h.shape:
+            raise RuntimeError(
+                f"Fooocus inpaint feature shape {tuple(inpaint_block.shape)} does not match model input {tuple(h.shape)}"
+            )
+        return inpaint_block
+
+    def __call__(self, h: Tensor, transformer_options: dict[str, Any]) -> Tensor:
+        if transformer_options["block"][1] == 0:
+            h = h + self._feature_for_call(h, transformer_options)
+        return h
+
+
+def _fooocus_areas_by_uuid(conds, x_in: Tensor) -> dict[Any, tuple[int, ...] | None]:
+    dims = tuple(x_in.shape[2:])
+    areas = {}
+    for cond_group in conds:
+        for cond in cond_group:
+            cond_uuid = cond.get("uuid")
+            if cond_uuid is None:
+                continue
+            area = cond.get("area")
+            if area is None:
+                areas[cond_uuid] = None
+                continue
+            if len(area) != len(dims) * 2 or not all(isinstance(value, int) for value in area):
+                raise RuntimeError(f"Fooocus inpaint requires a resolved integer conditioning area, got {area!r}")
+            area = list(area)
+            for i in range(len(dims)):
+                area[i] = min(x_in.shape[i + 2] - area[len(dims) + i], area[i])
+            areas[cond_uuid] = tuple(area)
+    return areas
+
+
+def _fooocus_calc_cond_batch(executor, model, conds, x_in, timestep, model_options):
+    model_options = model_options.copy()
+    transformer_options = model_options.get("transformer_options", {}).copy()
+    transformer_options[_FOOOCUS_AREAS] = _fooocus_areas_by_uuid(conds, x_in)
+    model_options["transformer_options"] = transformer_options
+    return executor(model, conds, x_in, timestep, model_options)
+
+
+def _load_fooocus_patch(lora: dict[str, Tensor], to_load: dict[str, str]) -> dict[str, tuple[str, Tensor]]:
+    patch_dict: dict[str, tuple[str, Tensor]] = {}
+    loaded_keys: set[str] = set()
+    for key in to_load.values():
+        value = lora.get(key)
+        if value is not None:
+            patch_dict[key] = ("fooocus", value)
+            loaded_keys.add(key)
+
+    not_loaded = sum(1 for key in lora if key not in loaded_keys)
+    if not_loaded > 0:
+        print(
+            f"[CMK Fooocus Inpaint] {len(loaded_keys)} LoRA keys loaded, "
+            f"{not_loaded} remaining keys not found in model."
+        )
+    return patch_dict
+
+
+if not hasattr(comfy.lora, "calculate_weight") and hasattr(ModelPatcher, "calculate_weight"):
+    raise RuntimeError("CMK Fooocus Inpaint requires ComfyUI v0.1.1 or later")
+
+_ORIGINAL_CALCULATE_WEIGHT = comfy.lora.calculate_weight
+_CALCULATE_WEIGHT_PATCHED = False
+
+
+def _calculate_weight_patched(
+    patches,
+    weight,
+    key,
+    intermediate_dtype=torch.float32,
+    original_weights=None,
+):
+    remaining = []
+    for patch in patches:
+        alpha = patch[0]
+        value = patch[1]
+        is_fooocus = isinstance(value, tuple) and len(value) == 2 and value[0] == "fooocus"
+        if not is_fooocus:
+            remaining.append(patch)
+            continue
+
+        if alpha == 0.0:
+            continue
+
+        value = value[1]
+        w1 = cast_to_device(value[0], weight.device, torch.float32)
+        if w1.shape != weight.shape:
+            print(
+                f"[CMK Fooocus Inpaint] Shape mismatch {key}, weight not merged "
+                f"({w1.shape} != {weight.shape})"
+            )
+            continue
+
+        w_min = cast_to_device(value[1], weight.device, torch.float32)
+        w_max = cast_to_device(value[2], weight.device, torch.float32)
+        w1 = (w1 / 255.0) * (w_max - w_min) + w_min
+        weight += alpha * cast_to_device(w1, weight.device, weight.dtype)
+
+    if remaining:
+        try:
+            return _ORIGINAL_CALCULATE_WEIGHT(
+                remaining,
+                weight,
+                key,
+                intermediate_dtype,
+                original_weights=original_weights,
+            )
+        except TypeError:
+            return _ORIGINAL_CALCULATE_WEIGHT(remaining, weight, key, intermediate_dtype)
+    return weight
+
+
+def _inject_calculate_weight_patch() -> None:
+    global _CALCULATE_WEIGHT_PATCHED
+    if not _CALCULATE_WEIGHT_PATCHED:
+        print("[CMK Fooocus Inpaint] Injecting Fooocus weight handler")
+        comfy.lora.calculate_weight = _calculate_weight_patched
+        _CALCULATE_WEIGHT_PATCHED = True
+
+
+def _resolve_inpaint_file(name: str) -> str:
+    ensure_inpaint_model_folder()
+    cleaned = str(name or "").strip().replace("\\", "/")
+    if not cleaned:
+        raise ValueError("Fooocus inpaint filename is empty")
+    if os.path.isabs(cleaned) and os.path.isfile(cleaned):
+        return cleaned
+
+    direct = folder_paths.get_full_path(INPAINT_CATEGORY, cleaned)
+    if direct:
+        return direct
+
+    wanted = os.path.basename(cleaned).lower()
+    matches: list[str] = []
+    for candidate in folder_paths.get_filename_list(INPAINT_CATEGORY):
+        if os.path.basename(candidate).lower() == wanted:
+            resolved = folder_paths.get_full_path(INPAINT_CATEGORY, candidate)
+            if resolved:
+                matches.append(resolved)
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        raise FileNotFoundError(f"Fooocus inpaint filename is ambiguous: {name}")
+    raise FileNotFoundError(
+        f"Fooocus inpaint file not found: {name}. "
+        f"Expected below {os.path.join(folder_paths.models_dir, INPAINT_CATEGORY)}"
+    )
+
+
+def load_fooocus_inpaint(head: str, patch: str) -> tuple[InpaintHead, dict[str, Tensor]]:
+    head_file = _resolve_inpaint_file(head)
+    patch_file = _resolve_inpaint_file(patch)
+
+    model = InpaintHead()
+    state_dict = torch.load(head_file, map_location="cpu", weights_only=True)
+    model.load_state_dict(state_dict)
+    lora = comfy.utils.load_torch_file(patch_file, safe_load=True)
+    return model, lora
+
+
+def apply_fooocus_inpaint(
+    model: ModelPatcher,
+    patch: tuple[InpaintHead, dict[str, Tensor]],
+    latent: dict[str, Any],
+    strength: float = 1.0,
+) -> ModelPatcher:
+    if not isinstance(latent, dict) or "samples" not in latent or "noise_mask" not in latent:
+        raise ValueError("Fooocus Inpaint requires latent with 'samples' and 'noise_mask'")
+
+    base_model: BaseModel = model.model
+    latent_pixels = base_model.process_latent_in(latent["samples"])
+    noise_mask = latent["noise_mask"].round()
+    latent_mask = F.max_pool2d(noise_mask, (8, 8)).round().to(latent_pixels)
+
+    inpaint_head_model, inpaint_lora = patch
+    feed = torch.cat([latent_mask, latent_pixels], dim=1)
+    inpaint_head_model.to(device=feed.device, dtype=feed.dtype)
+
+    block_patch = InpaintBlockPatch()
+    spatial_strength = max(0.0, min(1.0, float(strength)))
+    block_patch.inpaint_head_feature = inpaint_head_model(feed) * spatial_strength
+
+    lora_keys = comfy.lora.model_lora_keys_unet(model.model, {})
+    lora_keys.update({key: key for key in base_model.state_dict().keys()})
+    loaded_lora = _load_fooocus_patch(inpaint_lora, lora_keys)
+
+    patched_model = model.clone()
+    patched_model.set_model_input_block_patch(block_patch)
+    patched_model.add_wrapper_with_key(
+        comfy.patcher_extension.WrappersMP.CALC_COND_BATCH,
+        "cmk_fooocus_areas",
+        _fooocus_calc_cond_batch,
+    )
+    patched = patched_model.add_patches(loaded_lora, spatial_strength)
+    not_patched_count = sum(1 for key in loaded_lora if key not in patched)
+    if not_patched_count > 0:
+        print(f"[CMK Fooocus Inpaint] Failed to patch {not_patched_count} keys")
+
+    _inject_calculate_weight_patch()
+    return patched_model
+
+
+def grow_mask_for_sampling(mask: Tensor, grow_mask_by: int) -> Tensor:
+    """Apply the VAE inpaint mask growth while preserving shape and rank."""
+    if not isinstance(mask, torch.Tensor) or mask.ndim not in (2, 3, 4):
+        raise ValueError("CMK Fooocus Inpaint mask must be a 2D, 3D or 4D tensor")
+    original_ndim = mask.ndim
+    x = mask
+    if original_ndim == 2:
+        x = x.unsqueeze(0).unsqueeze(0)
+    elif original_ndim == 3:
+        x = x.unsqueeze(1)
+    elif x.shape[1] != 1:
+        raise ValueError("CMK Fooocus Inpaint 4D mask must have one channel")
+
+    amount = max(0, int(grow_mask_by))
+    if amount:
+        kernel = torch.ones((1, 1, amount, amount), device=x.device, dtype=x.dtype)
+        padding = math.ceil((amount - 1) / 2)
+        grown = F.conv2d(x.round(), kernel, padding=padding).clamp(0.0, 1.0)
+        grown = grown[:, :, :x.shape[-2], :x.shape[-1]]
+    else:
+        grown = x
+
+    if original_ndim == 2:
+        return grown[0, 0]
+    if original_ndim == 3:
+        return grown[:, 0]
+    return grown
+
+
+class CMKFooocusInpaintPipeline:
+    """Native CMK wrapper for the complete Fooocus inpaint preparation chain.
+
+    The mask is always retained internally for Fooocus model patching.  The
+    ``noise_mask`` switch controls only whether the returned sampler latent
+    contains a noise mask.
+    """
+
+    def prepare(
+        self,
+        model: ModelPatcher,
+        positive,
+        negative,
+        vae,
+        image: Tensor,
+        mask: Tensor,
+        *,
+        head: str = "fooocus_inpaint_head.pth",
+        patch: str = "inpaint_v25.fooocus.patch",
+        noise_mask: bool = False,
+        replace_masked_content: bool = False,
+        spatial_strength: float = 1.0,
+        grow_mask_by: int = 16,
+    ):
+        if model is None or not hasattr(model, "clone"):
+            raise TypeError("CMK Fooocus Inpaint requires a valid ComfyUI MODEL")
+        if vae is None:
+            raise ValueError("CMK Fooocus Inpaint requires VAE")
+        if image is None or mask is None:
+            raise ValueError("CMK Fooocus Inpaint requires image and mask")
+
+        # Native equivalent of ComfyUI InpaintModelConditioning.
+        x = (image.shape[1] // 8) * 8
+        y = (image.shape[2] // 8) * 8
+        resized_mask = F.interpolate(
+            mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1])),
+            size=(image.shape[1], image.shape[2]),
+            mode="bilinear",
+        )
+
+        original_pixels = image
+        pixels = original_pixels.clone()
+        if pixels.shape[1] != x or pixels.shape[2] != y:
+            x_offset = (pixels.shape[1] % 8) // 2
+            y_offset = (pixels.shape[2] % 8) // 2
+            pixels = pixels[:, x_offset:x + x_offset, y_offset:y + y_offset, :]
+            resized_mask = resized_mask[:, :, x_offset:x + x_offset, y_offset:y + y_offset]
+            original_pixels = original_pixels[:, x_offset:x + x_offset, y_offset:y + y_offset, :]
+
+        # Match VAEEncodeForInpaint: sampling must extend beyond the visible
+        # source-mask edge so VAE/latent interpolation cannot leave a narrow
+        # untouched ring around the generated region.
+        sampler_mask = grow_mask_for_sampling(resized_mask, grow_mask_by)
+
+        keep = (1.0 - resized_mask.round()).squeeze(1)
+        for channel in range(3):
+            pixels[:, :, :, channel] -= 0.5
+            pixels[:, :, :, channel] *= keep
+            pixels[:, :, :, channel] += 0.5
+
+        concat_latent = vae.encode(pixels)
+        original_latent = vae.encode(original_pixels)
+
+        positive_out = node_helpers.conditioning_set_values(
+            positive,
+            {"concat_latent_image": concat_latent, "concat_mask": resized_mask},
+        )
+        negative_out = node_helpers.conditioning_set_values(
+            negative,
+            {"concat_latent_image": concat_latent, "concat_mask": resized_mask},
+        )
+
+        # Fooocus model patch and KSampler require two distinct latents:
+        #
+        # - patch_latent uses the masked/neutral concat latent. This prevents
+        #   the Fooocus inpaint head from seeing and reconstructing the original
+        #   content underneath the mask.
+        # - sampler_latent normally keeps the original latent. Replace Object
+        #   instead starts from the masked/neutral latent so the old subject
+        #   cannot steer its own reconstruction.
+        patch_latent = {
+            "samples": concat_latent,
+            "noise_mask": resized_mask.round(),
+        }
+        inpaint_patch = load_fooocus_inpaint(head, patch)
+        patched_model = apply_fooocus_inpaint(
+            model,
+            inpaint_patch,
+            patch_latent,
+            strength=spatial_strength,
+        )
+
+        sampler_latent = {
+            "samples": concat_latent if replace_masked_content else original_latent
+        }
+        if noise_mask:
+            sampler_latent["noise_mask"] = sampler_mask
+
+        return patched_model, positive_out, negative_out, sampler_latent

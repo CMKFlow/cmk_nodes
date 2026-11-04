@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "requiredFiles": [
+    "__init__.py",
+    "cmk_mappings.py",
+    "cmk_distribution.py",
+    "pyproject.toml",
+    "requirements.txt",
+    "web/flow_node_metadata.json",
+    "web/browser_content_en.json"
+  ],
+  "forbiddenArtifactPaths": [
+    ".git",
+    ".ruff_cache",
+    "_cmk_backups",
+    "tests"
+  ],
+  "releaseFeatures": [
+    {
+      "name": "ContentGuard distribution policy",
+      "requiredFiles": [
+        "cmk_distribution.py",
+        "engine/content_guard.py"
+      ],
+      "requiredMarkers": {
+        "cmk_distribution.py": [
+          "DISTRIBUTION_MODE =",
+          "if distribution_mode() == RELEASE:",
+          "return True"
+        ],
+        "pipe/cmk_pipe_image.py": [
+          "content_guard_enabled",
+          "schema[\"optional\"].pop(\"content_guard_enabled\", None)"
+        ],
+        "nodes/video/face_swap_video.py": [
+          "content_guard_prompt_token",
+          "content_guard_enabled=content_guard_enabled"
+        ],
+        "nodes/video/face_swap_video_loader.py": [
+          "content_guard_control_visible",
+          "segments[CONTENT_GUARD_PROCESS_KEY] = content_guard_enabled"
+        ],
+        "pipe/loaders/cmk_swap_image_loader.py": [
+          "content_guard_control_visible",
+          "process = {",
+          "CONTENT_GUARD_PROCESS_KEY: content_guard_enabled",
+          "content_guard_state_token"
+        ]
+      },
+      "forbiddenMarkers": {
+        "cmk_distribution.py": [
+          "CONTENT_GUARD_EXECUTION_KEY"
+        ],
+        "pipe/instantid/cmk_instantid_sampler.py": [
+          "_cmk_content_guard_enabled"
+        ],
+        "pipe/instantid/cmk_instantid_regional_advanced.py": [
+          "_cmk_content_guard_enabled"
+        ],
+        "nodes/instantid_face_rebuild_advanced.py": [
+          "_cmk_content_guard_enabled"
+        ],
+        "nodes/swap/face_swap.py": [
+          "_cmk_content_guard_enabled"
+        ],
+        "web/js/cmk_flow_start_guidance_v51.js": [
+          "_cmk_content_guard_enabled",
+          "routeContentGuardAtExecution"
+        ],
+        "web/js/cmk_swap_image_loader_pair_v1.js": [
+          "_cmk_content_guard_enabled",
+          "routeContentGuardAtExecution"
+        ]
+      }
+    },
+    {
+      "name": "CMK Flow Image Resize",
+      "nodeClass": "CMKImageResize",
+      "requiredFiles": [
+        "nodes/image/image_resize.py",
+        "web/js/cmk_image_resize_ui.js",
+        "web/assets/previews/CMK Flow · Image Resize.webp"
+      ],
+      "requiredMarkers": {
+        "cmk_mappings.py": [
+          "from .nodes.image.image_resize import CMKImageResize",
+          "\"CMKImageResize\": CMKImageResize",
+          "\"CMKImageResize\": \"CMK Flow · Image Resize\""
+        ],
+        "pipe/cmk_sampler_prepare.py": [
+          "ensure_sdxl_text_encoder",
+          "clip, _ = ensure_sdxl_text_encoder(MODEL)"
+        ],
+        "web/js/cmk_flow_browser.js": [
+          "selected.features, \"Noch keine Funktionsübersicht hinterlegt\""
+        ]
+      },
+      "requiredJsonKeys": {
+        "web/flow_node_metadata.json": "nodes.CMKImageResize",
+        "web/browser_content_en.json": "flows.CMKImageResize"
+      }
+    }
+  ]
+}

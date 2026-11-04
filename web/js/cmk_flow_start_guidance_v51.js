@@ -1,0 +1,1120 @@
+import { app } from "../../../scripts/app.js";
+import { installSourceTargetSlider } from "./cmk_source_target_slider.js";
+
+const NODE_CLASS = "CMKPipeCreateImage";
+const BASE_NODE_HEIGHT = 800;
+const RUNAWAY_NODE_HEIGHT = 1600;
+// Calibrated against the non-prompt chrome of every Standard UI state.  The
+// totals make each state's content minimum exactly 800 px; ComfyUI therefore
+// has no odd intermediate value to round up to the next ten.  The fields only
+// define minima (no maximum), so additional manual height continues to flow
+// into the prompt area instead of becoming an empty gap above it.
+const MODE_PROMPT_HEIGHTS = Object.freeze({
+    "text2image": Object.freeze({
+        "GLOBAL PROMPT POS": 264,
+        "PROMPT NEG": 91,
+    }),
+    "inpaint": Object.freeze({
+        "GLOBAL PROMPT POS": 108,
+        "PROMPT NEG": 72,
+    }),
+    "z-image": Object.freeze({
+        "GLOBAL PROMPT POS": 362,
+    }),
+    "z-image-inpaint": Object.freeze({
+        "GLOBAL PROMPT POS": 316,
+    }),
+    "hybrid": Object.freeze({
+        "GLOBAL PROMPT POS": 286,
+        "PROMPT NEG": 91,
+    }),
+    "hybrid-inpaint": Object.freeze({
+        "GLOBAL PROMPT POS": 134,
+        "PROMPT NEG": 72,
+    }),
+});
+const NODE_SELECTOR = '[data-node-id], [data-testid^="node-body-"]';
+const LABEL_SELECTOR = '[data-testid="widget-layout-field-label"]';
+const HANDOFF_WIDGET_NAME = "instantid_handoff_percent";
+const HANDOFF_DISPLAY_CLASS = "cmk-handoff-percent-display";
+const HANDOFF_DISPLAY_STYLE_ID = "cmk-handoff-percent-display-style";
+const MODE_INFO_NAME = "MODE INFO";
+const FAMILY_TABS_NAME = "MODEL FAMILY TABS";
+const MODE_INFO = {
+    "custom": "Manual prompts and Advanced settings.",
+    "replace object": "Prompt and LoRAs describe the replacement.",
+    "remove object": "Prompt-guided background reconstruction with internal subject suppression.",
+    "extend image": "Prompt describes the extension; Fit creates canvas and mask.",
+};
+const MODE_INFO_TOOLTIP = {
+    "custom": "Uses the user prompts and the technical Sampler Advanced values without guided overrides.",
+    "replace object": "The masked subject is discarded before sampling; spatial inpaint guidance fits the prompt-driven replacement into the scene; denoise 1.00, noise mask ON; outpaint OFF.",
+    "remove object": "Noise discards the masked content; full-strength Fooocus reconstructs the background with internal subject suppression. The user prompt guides the scene when present, otherwise neutral internal guidance is used. LoRAs are bypassed and the Refiner performs the second pass.",
+    "extend image": "Fit creates the outpaint canvas and mask. Navier-Stokes continues the surroundings as preparation; user prompt describes the extended scene; denoise 1.00, noise mask ON, context reference ON.",
+};
+const GUIDED_FILL = {
+    "replace object": "noise",
+    "remove object": "noise",
+    "extend image": "navier-stokes",
+};
+const GUIDED_OUTPAINT = {
+    "replace object": false,
+    "remove object": false,
+    "extend image": true,
+};
+const GUIDED_RESIZE = {
+    "extend image": "Fit",
+};
+const INPAINT_ONLY_WIDGETS = new Set([
+    "outpaint_on",
+    "outpaint_overlap",
+    "mask_fill_holes",
+    "fill_masked_area",
+    "process_mode",
+    "inpaint_mask_expand",
+    MODE_INFO_NAME,
+]);
+const TEXT2IMAGE_HIDDEN_WIDGETS = new Set([
+    "upscale_method",
+    "resize_mode",
+    "crop_position",
+]);
+
+const CROP_POSITION_WIDGET = "crop_position";
+const USER_WIDGET_LABELS = {
+    "model_family": "MODEL FAMILY",
+    "GLOBAL PROMPT POS": "GLOBAL PROMPT POS",
+    "PROMPT NEG": "PROMPT NEG",
+    "INPAINT_MODE": "MODE",
+    "resolution": "IMAGE SIZE",
+    "swap_dimensions": "SWAP WIDTH / HEIGHT",
+    "upscale_method": "RESIZE QUALITY",
+    "outpaint_on": "OUTPAINT",
+    "mask_fill_holes": "FILL MASK HOLES",
+    "fill_masked_area": "MASK FILL",
+    "process_mode": "PROCESS MODE",
+    "resize_mode": "IMAGE FIT",
+    "crop_position": "IMAGE POSITION",
+    "instantid_enabled": "INSTANTID",
+    "controlnet_enabled": "CONTROLNET",
+    "instantid_handoff_percent": "HYBRID HANDOFF",
+    "stop_after_handoff": "STOP AFTER HANDOFF",
+    "instantid_mode": "INSTANTID MODE",
+    "inpaint_mask_expand": "INPAINT MASK EXPAND",
+    "hybrid_sdxl_handoff": "SDXL HANDOFF",
+    "hybrid_zit_denoise": "ZIT DENOISE",
+    "unload_models_after_use": "UNLOAD MODELS AFTER USE",
+    "live_preview_zit": "LIVE PREVIEW ZIT",
+    "content_guard_enabled": "CONTENT GUARD",
+};
+const INSTANTID_MODE_LABELS = Object.freeze({
+    "ZERO-PASS": "ZERO-PASS · SINGLE PERSON ONLY",
+});
+const NEUTRAL_IMAGE_SIZES = [
+    "1024x1024",
+    "1152x832",
+    "832x1152",
+    "1216x832",
+    "832x1216",
+    "1344x768",
+    "768x1344",
+    "512x512",
+    "768x512",
+    "512x768",
+];
+const ZIT_IMAGE_SIZES = NEUTRAL_IMAGE_SIZES.slice(0, 7);
+const FAMILY_DEFAULT_IMAGE_SIZE = {
+    "SDXL": "1152x832",
+    "Z-Image Turbo": "1024x1024",
+    "Hybrid": "1152x832",
+};
+const ZIT_INPAINT_DEFAULT_SIZE = "768x512";
+const Z_IMAGE_HIDDEN_WIDGETS = new Set([
+    "PROMPT NEG",
+    "upscale_method",
+    "device",
+    "outpaint_on",
+    "outpaint_overlap",
+    "fill_masked_area",
+    "process_mode",
+    "resize_mode",
+    "crop_position",
+    MODE_INFO_NAME,
+    "instantid_enabled",
+    "instantid_mode",
+]);
+const USER_INPUT_LABELS = {
+    "PROCESS": "PROCESS",
+    "IMAGE": "IMAGE",
+    "MASK": "MASK",
+    "FILENAME": "FILENAME",
+    "FILENAME STRING": "FILENAME",
+    "LOG": "LOG",
+    "LORA STACK": "LORA STACK",
+    "lora_stack": "SDXL LORA STACK",
+    "ACTIVE LORAS": "ACTIVE LORAS",
+    "lora_syntax": "SDXL ACTIVE LORAS",
+    "ADDITIONAL PROMPT": "ADDITIONAL PROMPT",
+    "opt_prompt_pos": "ADDITIONAL PROMPT",
+    "LoRA SDXL": "LoRA SDXL",
+    "LoRA ZIT": "LoRA ZIT",
+};
+const USER_OUTPUT_LABELS = {
+    "PROCESS": "PROCESS",
+    "IMAGE": "IMAGE",
+    "LOG": "LOG",
+    "DIAGNOSTIC": "diagnostic",
+    "diagnostic": "diagnostic",
+};
+
+function isTarget(node) {
+    return Boolean(node) && (
+        node.comfyClass === NODE_CLASS ||
+        node.type === NODE_CLASS ||
+        node.constructor?.comfyClass === NODE_CLASS ||
+        node.constructor?.nodeData?.name === NODE_CLASS
+    );
+}
+
+function nodeOutputStore() {
+    const vueApp = document.querySelector("#vue-app")?.__vue_app__;
+    const provided = vueApp?._context?.provides;
+    if (!provided) return null;
+    for (const key of Reflect.ownKeys(provided)) {
+        const candidate = provided[key];
+        if (candidate?._s instanceof Map && candidate._s.has("nodeOutput")) {
+            return candidate._s.get("nodeOutput");
+        }
+    }
+    return null;
+}
+
+function clearInpaintPreview(node) {
+    const graph = node?.graph;
+    const locator = graph?.isRootGraph
+        ? String(node.id)
+        : `${graph?.id}:${node.id}`;
+    const outputStore = nodeOutputStore();
+    outputStore?.removeNodeOutputs?.(node.id);
+    outputStore?.revokePreviewsByLocatorId?.(locator);
+    if (app.nodeOutputs) delete app.nodeOutputs[locator];
+    node.imgs = null;
+    node.imageIndex = null;
+    node.setDirtyCanvas?.(true, true);
+}
+
+function nodeForElement(element) {
+    const nodeElement = element?.closest?.(NODE_SELECTOR);
+    const testId = nodeElement?.getAttribute?.("data-testid") || "";
+    const id = nodeElement?.dataset?.nodeId ?? testId.match(/^node-body-(.+)$/)?.[1];
+    if (id == null) return null;
+    for (const graph of [app.canvas?.graph, app.graph, app.rootGraph]) {
+        for (const candidate of [id, Number(id)]) {
+            if (candidate === "" || Number.isNaN(candidate)) continue;
+            const node = graph?.getNodeById?.(candidate);
+            if (node) return node;
+        }
+    }
+    return null;
+}
+
+function decorateNodeElement(nodeElement) {
+    const node = nodeForElement(nodeElement);
+    if (!isTarget(node) || !node._cmkStartUi) return;
+    const visibleWidgets = node._cmkStartVisibleWidgets;
+    if (!(visibleWidgets instanceof Set)) return;
+    const widgets = [...node._cmkStartUi.widgetsByName.values()];
+    for (const label of nodeElement.querySelectorAll(LABEL_SELECTOR)) {
+        const text = label.textContent?.trim();
+        const widget = widgets.find((candidate) => (
+            String(candidate?.label ?? "").trim() === text
+            || String(candidate?.name ?? "").trim() === text
+        ));
+        if (widget && label.parentElement) {
+            label.parentElement.style.display = visibleWidgets.has(widget) ? "" : "none";
+            if (widget.name === HANDOFF_WIDGET_NAME) {
+                const input = label.parentElement.querySelector('[data-slot="number-field-input"]');
+                const numberField = input?.closest?.('[data-slot="number-field"]');
+                if (numberField) {
+                    numberField.classList.add(HANDOFF_DISPLAY_CLASS);
+                    numberField.dataset.cmkHandoffDisplay = `${Number(widget.value)} %`;
+                }
+            }
+        }
+    }
+}
+
+function scan(root = document) {
+    if (root instanceof Element) {
+        const owner = root.matches(NODE_SELECTOR) ? root : root.closest(NODE_SELECTOR);
+        if (owner) decorateNodeElement(owner);
+    }
+    for (const nodeElement of root.querySelectorAll?.(NODE_SELECTOR) || []) {
+        decorateNodeElement(nodeElement);
+    }
+}
+
+function installDomBehavior() {
+    if (window._cmkStartDomInstalled) return;
+    window._cmkStartDomInstalled = true;
+    if (!document.getElementById(HANDOFF_DISPLAY_STYLE_ID)) {
+        const style = document.createElement("style");
+        style.id = HANDOFF_DISPLAY_STYLE_ID;
+        style.textContent = `
+.${HANDOFF_DISPLAY_CLASS}:not(:focus-within) [data-slot="number-field-input"] {
+    color: transparent !important;
+    caret-color: transparent !important;
+}
+.${HANDOFF_DISPLAY_CLASS}:not(:focus-within)::after {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    content: attr(data-cmk-handoff-display);
+    font-size: 0.75rem;
+    line-height: 1rem;
+    pointer-events: none;
+}
+`;
+        document.head.append(style);
+    }
+    const observer = new MutationObserver((records) => {
+        for (const record of records) {
+            for (const added of record.addedNodes) {
+                if (added instanceof Element) scan(added);
+            }
+        }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    scan();
+}
+
+function captureWidgets(node) {
+    node._cmkStartUi ??= {
+        widgetsByName: new Map(),
+        canonicalOrder: [],
+        visibleMode: null,
+        rebuilding: false,
+    };
+    const state = node._cmkStartUi;
+    for (const widget of node.widgets ?? []) {
+        if (!widget?.name) continue;
+        if (!state.widgetsByName.has(widget.name)) {
+            state.canonicalOrder.push(widget.name);
+        }
+        state.widgetsByName.set(widget.name, widget);
+    }
+    return state;
+}
+
+function enforceDirectZitInpaintContract(state) {
+    if (!state) return;
+    const family = String(
+        state.widgetsByName.get("model_family")?.value ?? "SDXL"
+    ).trim().toLowerCase();
+    const rawMode = state.widgetsByName.get("INPAINT_MODE")?.value;
+    const inpaint = typeof rawMode === "boolean"
+        ? rawMode
+        : String(rawMode ?? "Text2Image").trim().toLowerCase() === "inpaint";
+    if (family !== "z-image turbo" || !inpaint) return;
+
+    const outpaint = state.widgetsByName.get("outpaint_on");
+    if (outpaint) outpaint.value = false;
+    const processMode = state.widgetsByName.get("process_mode");
+    if (processMode) processMode.value = "Custom";
+}
+
+export function getWidget(node, name) {
+    return captureWidgets(node).widgetsByName.get(name) ?? null;
+}
+
+export function setWidgetVisible(widget, visible) {
+    if (!widget) return;
+    widget.options ??= {};
+    widget._cmkVisibilityState ??= {
+        type: widget.type,
+        computeSize: widget.computeSize,
+        draw: widget.draw,
+        hidden: widget.hidden,
+        optionsHidden: widget.options.hidden,
+    };
+    const original = widget._cmkVisibilityState;
+    if (visible) {
+        widget.type = original.type;
+        widget.computeSize = original.computeSize;
+        widget.draw = original.draw;
+        widget.hidden = original.hidden;
+        widget.options.hidden = original.optionsHidden;
+        return;
+    }
+    // Keep the original type so current Vue node rendering can filter this
+    // widget via options.hidden instead of retaining a socket-only grid row.
+    widget.type = original.type;
+    widget.computeSize = () => [0, -4];
+    widget.draw = () => {};
+    widget.hidden = true;
+    widget.options.hidden = true;
+}
+
+function setPromptHeight(widget, height, minimumWidth = 560) {
+    if (!widget) return;
+    widget._cmkStartPromptComputeSize ??= widget.computeSize;
+    // Modern DOM widgets must participate in ComfyUI's constrained layout.
+    // A computeSize override makes them fixed-height and leaves all additional
+    // manually assigned node height as blank space before the prompt. With a
+    // minimum and no maximum, distributeSpace grows the prompt field(s).
+    widget.computeSize = typeof widget.computeLayoutSize === "function"
+        ? undefined
+        : (width) => [Math.max(Number(width) || minimumWidth, minimumWidth), height];
+    widget.options ??= {};
+    widget.options.getMinHeight = () => height;
+    delete widget.options.getMaxHeight;
+    delete widget.options.getHeight;
+    widget.options.rows = Math.max(1, Math.round((height - 24) / 14));
+    widget.computedHeight = undefined;
+    for (const element of [widget.element, widget.inputEl]) {
+        if (!element?.style) continue;
+        element.style.setProperty("--comfy-widget-min-height", `${height}px`);
+        element.style.removeProperty("--comfy-widget-max-height");
+        element.style.removeProperty("--comfy-widget-height");
+        element.style.height = "100%";
+        element.style.minHeight = `${height}px`;
+        element.setAttribute?.("rows", String(widget.options.rows));
+    }
+}
+
+function installStableWidgetSerialization(node) {
+    if (node._cmkStableWidgetSerializationInstalled) return;
+    const originalOnSerialize = node.onSerialize;
+    node.onSerialize = function (data) {
+        const state = this._cmkStartUi;
+        enforceDirectZitInpaintContract(state);
+        const result = originalOnSerialize?.apply(this, arguments);
+        const widgets = state
+            ? state.canonicalOrder
+                .map((name) => state.widgetsByName.get(name))
+                .filter(Boolean)
+            : this.widgets;
+        if (this.serialize_widgets && Array.isArray(widgets)) {
+            data.widgets_values = widgets
+                .filter((widget) => widget?.serialize !== false)
+                .map((widget) => {
+                    const value = widget?.value;
+                    if (value == null || typeof value !== "object") return value ?? null;
+                    try { return JSON.parse(JSON.stringify(value)); } catch (_) { return value; }
+                });
+        }
+        return result;
+    };
+    node._cmkStableWidgetSerializationInstalled = true;
+}
+
+function installModelFamilyTabs(node) {
+    if (node._cmkModelFamilyTabsInstalled || typeof node.addDOMWidget !== "function") return;
+    const original = node.widgets?.find((widget) => widget?.name === "model_family");
+    if (!original) return;
+
+    const root = document.createElement("div");
+    root.style.display = "grid";
+    root.style.gridTemplateColumns = "1fr 1fr 1fr";
+    root.style.gap = "6px";
+    root.style.width = "100%";
+    root.style.boxSizing = "border-box";
+
+    const choices = ["SDXL", "Hybrid", "Z-Image Turbo"];
+    const buttons = choices.map((value) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = value === "Z-Image Turbo" ? "Z-IMAGE TURBO" : value.toUpperCase();
+        button.style.height = "28px";
+        button.style.padding = "0 10px";
+        button.style.borderRadius = "5px";
+        button.style.cursor = "pointer";
+        button.style.appearance = "none";
+        button.style.webkitAppearance = "none";
+        button.style.boxShadow = "none";
+        button.style.textShadow = "none";
+        button.style.backgroundImage = "none";
+        button.style.outline = "none";
+        button.style.fontFamily = "inherit";
+        button.style.fontSize = "12px";
+        root.append(button);
+        return button;
+    });
+
+    const render = () => {
+        buttons.forEach((button, index) => {
+            const active = choices[index] === root._cmkValue;
+            button.style.border = active
+                ? "1px solid rgba(88,190,230,.75)"
+                : "1px solid rgba(255,255,255,.12)";
+            button.style.background = active
+                ? "rgba(44,132,166,.32)"
+                : "rgba(255,255,255,.035)";
+            button.style.color = active ? "#fff" : "var(--input-text, #ddd)";
+            button.style.fontWeight = active ? "650" : "450";
+        });
+    };
+
+    root._cmkValue = String(original.value ?? "SDXL");
+    const panel = node.addDOMWidget(FAMILY_TABS_NAME, "cmk_model_family_tabs", root, {
+        hideOnZoom: false,
+        getMinHeight: () => 34,
+        getHeight: () => 34,
+        getValue: () => root._cmkValue,
+        setValue: (value) => {
+            root._cmkValue = String(value ?? "SDXL");
+            render();
+        },
+    });
+    panel.serialize = false;
+    panel.computeSize = (width) => [Math.max(Number(width) || 420, 420), 34];
+    // Every DOM widget normally receives an expandable `auto` row in the Vue
+    // node grid. The family tabs are deliberately fixed-height; leaving their
+    // inherited layout method present makes them absorb spare node height as
+    // an empty row directly above the first prompt.
+    panel.computeLayoutSize = undefined;
+
+    const panelIndex = node.widgets.indexOf(panel);
+    if (panelIndex >= 0) node.widgets.splice(panelIndex, 1);
+    node.widgets.unshift(panel);
+    setWidgetVisible(original, false);
+
+    buttons.forEach((button, index) => {
+        button.addEventListener("click", () => {
+            rememberFamilyResolution(node, root._cmkValue);
+            root._cmkValue = choices[index];
+            original.value = root._cmkValue;
+            restoreFamilyResolution(node, root._cmkValue);
+            render();
+            try { original.callback?.(root._cmkValue, node, original); } catch (_) {}
+            try { node.onWidgetChanged?.("model_family", root._cmkValue, original, original); } catch (_) {}
+            requestStartLayout(node);
+            node.setDirtyCanvas?.(true, true);
+        });
+    });
+    render();
+    node._cmkModelFamilyTabsInstalled = true;
+}
+
+function isInpaintMode(node) {
+    const value = getWidget(node, "INPAINT_MODE")?.value;
+    if (typeof value === "boolean") return value;
+    return String(value ?? "Text2Image").trim().toLowerCase() === "inpaint";
+}
+
+function isZImage(node) {
+    return String(getWidget(node, "model_family")?.value ?? "SDXL")
+        .trim()
+        .toLowerCase()
+        .includes("z-image");
+}
+
+function isHybrid(node) {
+    return String(getWidget(node, "model_family")?.value ?? "SDXL")
+        .trim()
+        .toLowerCase() === "hybrid";
+}
+
+function resolutionToken(value, fallback = "") {
+    return String(value ?? fallback).trim().split(/\s+/).at(-1);
+}
+
+function familyResolutionValues(family, inpaint = false) {
+    return family === "Z-Image Turbo" && !inpaint
+        ? ZIT_IMAGE_SIZES
+        : NEUTRAL_IMAGE_SIZES;
+}
+
+function rememberFamilyResolution(node, family) {
+    const resolution = getWidget(node, "resolution");
+    if (!resolution) return;
+    node._cmkResolutionByFamily ??= {};
+    node._cmkResolutionByFamily[family] = resolutionToken(
+        resolution.value,
+        FAMILY_DEFAULT_IMAGE_SIZE[family],
+    );
+}
+
+function restoreFamilyResolution(node, family) {
+    const resolution = getWidget(node, "resolution");
+    if (!resolution) return;
+    const values = familyResolutionValues(family, family === "Z-Image Turbo" && isInpaintMode(node));
+    node._cmkResolutionByFamily ??= {};
+    const remembered = node._cmkResolutionByFamily[family];
+    resolution.value = values.includes(remembered)
+        ? remembered
+        : FAMILY_DEFAULT_IMAGE_SIZE[family];
+    resolution.options = { ...(resolution.options ?? {}), values };
+}
+
+export function startLayoutMode(node) {
+    return isHybrid(node)
+        ? (isInpaintMode(node) ? "hybrid-inpaint" : "hybrid")
+        : isZImage(node)
+        ? (isInpaintMode(node) ? "z-image-inpaint" : "z-image")
+        : (isInpaintMode(node) ? "inpaint" : "text2image");
+}
+
+// Mode-dependent widget state shared by the v1 and v2 layouts: resolution
+// lists, mode labels, handoff normalisation and leaving-inpaint cleanup.
+export function prepareStartMode(node, mode) {
+    const state = captureWidgets(node);
+    const leavingInpaint = state.visibleMode?.endsWith("inpaint")
+        && !mode.endsWith("inpaint");
+    if (leavingInpaint) clearInpaintPreview(node);
+    const inpaintMode = mode.endsWith("inpaint");
+    const instantIDEnabled = Boolean(state.widgetsByName.get("instantid_enabled")?.value);
+    const resolution = state.widgetsByName.get("resolution");
+    const resolutionValues = familyResolutionValues(
+        isZImage(node) ? "Z-Image Turbo" : (isHybrid(node) ? "Hybrid" : "SDXL"),
+        mode === "z-image-inpaint",
+    );
+    if (resolution) {
+        resolution.options = { ...(resolution.options ?? {}), values: resolutionValues };
+    }
+    const enteringZitInpaint = mode === "z-image-inpaint"
+        && state.visibleMode !== null
+        && state.visibleMode !== mode;
+    if (enteringZitInpaint && resolutionToken(resolution?.value) === FAMILY_DEFAULT_IMAGE_SIZE["Z-Image Turbo"]) {
+        resolution.value = ZIT_INPAINT_DEFAULT_SIZE;
+        node._cmkResolutionByFamily ??= {};
+        node._cmkResolutionByFamily["Z-Image Turbo"] = ZIT_INPAINT_DEFAULT_SIZE;
+    }
+    const flowModeWidget = state.widgetsByName.get("INPAINT_MODE");
+    if (flowModeWidget) {
+        flowModeWidget.label = mode === "z-image-inpaint"
+            ? "MODE · INPAINT EXPERIMENTAL"
+            : mode === "hybrid-inpaint"
+            ? "MODE · SDXL INPAINT → ZIT FINISH"
+            : "MODE";
+    }
+    const instantIDHandoff = state.widgetsByName.get("instantid_handoff_percent");
+    if (instantIDHandoff && ![60, 70, 80].includes(Number(instantIDHandoff.value))) {
+        instantIDHandoff.value = 70;
+    }
+    const instantIDToggle = state.widgetsByName.get("instantid_enabled");
+    if (instantIDToggle) {
+        instantIDToggle.label = inpaintMode && instantIDEnabled
+            ? "INSTANTID · HYBRID INPAINT"
+            : "INSTANTID";
+    }
+}
+
+// Ordered names of the widgets the start-node rules show for ``mode``.
+export function startVisibleNames(node, mode) {
+    const state = captureWidgets(node);
+    const resizeMode = String(
+        state.widgetsByName.get("resize_mode")?.value ?? "Fit"
+    ).trim().toLowerCase();
+    const zImageMode = mode.startsWith("z-image");
+    const inpaintMode = mode.endsWith("inpaint");
+    const instantIDEnabled = Boolean(state.widgetsByName.get("instantid_enabled")?.value);
+    const instantIDMode = String(
+        state.widgetsByName.get("instantid_mode")?.value ?? "HYBRID"
+    ).trim().toUpperCase();
+    const visibleNames = state.canonicalOrder
+        .filter((name) => !zImageMode || !Z_IMAGE_HIDDEN_WIDGETS.has(name))
+        .filter((name) => inpaintMode || !INPAINT_ONLY_WIDGETS.has(name))
+        .filter((name) => !["text2image", "hybrid"].includes(mode) || !TEXT2IMAGE_HIDDEN_WIDGETS.has(name))
+        .filter((name) => ["text2image", "inpaint"].includes(mode) || name !== "instantid_enabled")
+        .filter((name) => name !== "instantid_mode" || (mode === "text2image" && instantIDEnabled))
+        .filter((name) => name !== "instantid_handoff_percent" || (
+            ["text2image", "inpaint"].includes(mode)
+            && instantIDEnabled
+            && (inpaintMode || instantIDMode === "HYBRID")
+        ))
+        .filter((name) => name !== "stop_after_handoff" || (
+            mode.startsWith("hybrid")
+            || (
+                ["text2image", "inpaint"].includes(mode)
+                && instantIDEnabled
+                && (inpaintMode || instantIDMode === "HYBRID")
+            )
+        ))
+        .filter((name) => !["hybrid_sdxl_handoff", "hybrid_zit_denoise"].includes(name))
+        .filter((name) => mode.startsWith("hybrid") || name !== "HYBRID BALANCE")
+        .filter((name) => name !== "unload_zit_after")
+        .filter((name) => name !== CROP_POSITION_WIDGET || resizeMode !== "stretch");
+    // The backend appends this control for positional compatibility with
+    // existing workflows.  Display it with the primary process switches.
+    const controlNetIndex = visibleNames.indexOf("controlnet_enabled");
+    if (controlNetIndex >= 0) {
+        visibleNames.splice(controlNetIndex, 1);
+        const instantIDIndex = visibleNames.indexOf("instantid_enabled");
+        const lifecycleIndex = visibleNames.indexOf("unload_models_after_use");
+        visibleNames.splice(
+            instantIDIndex >= 0
+                ? instantIDIndex
+                : (lifecycleIndex >= 0 ? lifecycleIndex : visibleNames.length),
+            0,
+            "controlnet_enabled",
+        );
+    }
+    const handshakeIndex = visibleNames.indexOf("instantid_handoff_percent");
+    if (handshakeIndex >= 0) {
+        visibleNames.splice(handshakeIndex, 1);
+        const modeIndex = visibleNames.indexOf("instantid_mode");
+        const toggleIndex = visibleNames.indexOf("instantid_enabled");
+        const insertAfter = modeIndex >= 0 ? modeIndex : toggleIndex;
+        visibleNames.splice(
+            insertAfter >= 0 ? insertAfter + 1 : visibleNames.length,
+            0,
+            "instantid_handoff_percent",
+        );
+    }
+    const stopIndex = visibleNames.indexOf("stop_after_handoff");
+    if (stopIndex >= 0) {
+        visibleNames.splice(stopIndex, 1);
+        const handoffIndex = mode.startsWith("hybrid")
+            ? visibleNames.indexOf("HYBRID BALANCE")
+            : visibleNames.indexOf("instantid_handoff_percent");
+        visibleNames.splice(
+            handoffIndex >= 0 ? handoffIndex + 1 : visibleNames.length,
+            0,
+            "stop_after_handoff",
+        );
+    }
+    // The backend appends new widgets to preserve legacy positional
+    // serialization. Present the ZIT preview switch beside model unload
+    // without changing that canonical serialization order.
+    const previewIndex = visibleNames.indexOf("live_preview_zit");
+    const unloadIndex = visibleNames.indexOf("unload_models_after_use");
+    if (previewIndex >= 0 && unloadIndex >= 0) {
+        visibleNames.splice(previewIndex, 1);
+        visibleNames.splice(
+            visibleNames.indexOf("unload_models_after_use") + 1,
+            0,
+            "live_preview_zit",
+        );
+    }
+    const guardIndex = visibleNames.indexOf("content_guard_enabled");
+    if (guardIndex >= 0 && unloadIndex >= 0) {
+        visibleNames.splice(guardIndex, 1);
+        const previewPosition = visibleNames.indexOf("live_preview_zit");
+        visibleNames.splice(
+            previewPosition >= 0
+                ? previewPosition + 1
+                : visibleNames.indexOf("unload_models_after_use") + 1,
+            0,
+            "content_guard_enabled",
+        );
+    }
+    return visibleNames;
+}
+
+export function applyStartPromptHeights(node, mode, visibleWidgetSet) {
+    const state = captureWidgets(node);
+    const promptWidgets = ["GLOBAL PROMPT POS", "PROMPT NEG"]
+        .map((name) => state.widgetsByName.get(name))
+        .filter((widget) => widget && visibleWidgetSet.has(widget));
+    const modePromptHeights = MODE_PROMPT_HEIGHTS[mode];
+    const promptMinimumScale = Number(node._cmkStartPromptMinimumScale) || 1;
+    const promptMinimumWidth = Number(node._cmkStartPromptMinimumWidth) || 560;
+    for (const widget of promptWidgets) {
+        const promptHeight = modePromptHeights?.[widget.name];
+        if (Number.isFinite(promptHeight)) {
+            setPromptHeight(
+                widget,
+                promptHeight * promptMinimumScale,
+                promptMinimumWidth,
+            );
+        }
+    }
+}
+
+export function rebuildModeWidgets(node, force = false) {
+    const state = captureWidgets(node);
+    if (state.rebuilding) return;
+    const mode = startLayoutMode(node);
+    if (mode === "z-image-inpaint") enforceDirectZitInpaintContract(state);
+    if (!force && state.visibleMode === mode) return;
+
+    state.rebuilding = true;
+    try {
+        prepareStartMode(node, mode);
+        const visibleNames = startVisibleNames(node, mode);
+        const visibleNameSet = new Set(visibleNames);
+        for (const name of state.canonicalOrder) {
+            setWidgetVisible(state.widgetsByName.get(name), visibleNameSet.has(name));
+        }
+        // The technical family widget must remain in node.widgets so ComfyUI
+        // includes the declared model_family input in the execution prompt.
+        // It stays layout-invisible; the DOM tabs are its only UI.
+        setWidgetVisible(state.widgetsByName.get("model_family"), false);
+        const familyTabs = state.widgetsByName.get(FAMILY_TABS_NAME);
+        const visibleWidgets = visibleNames
+            .filter((name) => name !== "model_family" && name !== FAMILY_TABS_NAME)
+            .map((name) => state.widgetsByName.get(name))
+            .filter(Boolean);
+        if (familyTabs) visibleWidgets.unshift(familyTabs);
+        const visibleWidgetSet = new Set(visibleWidgets);
+        applyStartPromptHeights(node, mode, visibleWidgetSet);
+        const inactiveWidgets = state.canonicalOrder
+            .map((name) => state.widgetsByName.get(name))
+            .filter((widget) => widget && !visibleWidgetSet.has(widget));
+        node.widgets = [...visibleWidgets, ...inactiveWidgets];
+        node._cmkStartVisibleWidgets = new Set(visibleWidgets);
+        state.visibleMode = mode;
+        node.graph?.trigger?.("node:widget:changed", { nodeId: node.id });
+        node.setDirtyCanvas?.(true, true);
+        app.graph?.setDirtyCanvas?.(true, true);
+        for (const delay of [0, 40, 120]) setTimeout(() => scan(), delay);
+    } finally {
+        state.rebuilding = false;
+    }
+}
+
+// Every layout request of the shared start-node controls goes through here.
+// A v2 node installs its own layout (node._cmkStartLayout); v1 keeps the
+// legacy rebuild.
+function requestStartLayout(node) {
+    if (typeof node._cmkStartLayout === "function") return node._cmkStartLayout();
+    return rebuildModeWidgets(node, true);
+}
+
+export function configureStartBase(node, allowV2 = false) {
+    if (!isTarget(node) || typeof node.addWidget !== "function") return;
+    if (!allowV2 && Number(node.properties?.cmkStartUiVersion) === 2) return;
+    // Repair only the runaway height produced by the short-lived dynamic
+    // prompt-height implementation. Normal and manually resized nodes are
+    // never touched.
+    if (!node._cmkRunawayHeightRecovered && Number(node.size?.[1]) > RUNAWAY_NODE_HEIGHT) {
+        node._cmkRunawayHeightRecovered = true;
+        node.setSize?.([Number(node.size?.[0]) || 600, BASE_NODE_HEIGHT]);
+    } else if (!allowV2 && Number(node.size?.[1]) < BASE_NODE_HEIGHT) {
+        node.setSize?.([Number(node.size?.[0]) || 600, BASE_NODE_HEIGHT]);
+    }
+    installStableWidgetSerialization(node);
+    try {
+        installModelFamilyTabs(node);
+    } catch (error) {
+        console.warn("[CMK Create Image] model-family tabs unavailable", error);
+    }
+    captureWidgets(node);
+    for (const widget of node.widgets ?? []) {
+        if (USER_WIDGET_LABELS[widget?.name]) {
+            widget.label = USER_WIDGET_LABELS[widget.name];
+        }
+    }
+    if (Array.isArray(node.inputs)) {
+        node.inputs = node.inputs.map((input) => {
+            const label = USER_INPUT_LABELS[input?.name];
+            return label ? { ...input, label, localized_name: label } : input;
+        });
+    }
+    if (Array.isArray(node.outputs)) {
+        node.outputs = node.outputs.map((output) => {
+            const label = USER_OUTPUT_LABELS[output?.name];
+            return label ? { ...output, label, localized_name: label } : output;
+        });
+    }
+    node.graph?.trigger?.("node:slot-label:changed", {
+        nodeId: node.id,
+        slotType: 1,
+    });
+    node.graph?.trigger?.("node:slot-label:changed", {
+        nodeId: node.id,
+        slotType: 2,
+    });
+    if (node.properties && "cmkStartPreferredWidth" in node.properties) {
+        delete node.properties.cmkStartPreferredWidth;
+    }
+
+    const flowMode = getWidget(node, "INPAINT_MODE");
+    if (flowMode) {
+        flowMode.label = "MODE";
+        if (typeof flowMode.value === "boolean") {
+            flowMode.value = flowMode.value ? "Inpaint" : "Text2Image";
+        }
+        if (!["text2image", "inpaint"].includes(String(flowMode.value).trim().toLowerCase())) {
+            flowMode.value = "Text2Image";
+        }
+        if (!flowMode._cmkModeVisibilityCallbackInstalled) {
+            const originalModeCallback = flowMode.callback;
+            flowMode.callback = function () {
+                const result = originalModeCallback?.apply(this, arguments);
+                for (const delay of [0, 50, 200]) {
+                    setTimeout(() => {
+                        requestStartLayout(node);
+                        node._cmkAfterStartModeRebuild?.();
+                    }, delay);
+                }
+                return result;
+            };
+            flowMode._cmkModeVisibilityCallbackInstalled = true;
+        }
+    }
+
+    const modelFamily = getWidget(node, "model_family");
+    if (modelFamily && !modelFamily._cmkFamilyVisibilityCallbackInstalled) {
+        const originalFamilyCallback = modelFamily.callback;
+        modelFamily.callback = function () {
+            const result = originalFamilyCallback?.apply(this, arguments);
+            requestStartLayout(node);
+            return result;
+        };
+        modelFamily._cmkFamilyVisibilityCallbackInstalled = true;
+    }
+
+    const hybridBalance = getWidget(node, "HYBRID BALANCE");
+    installSourceTargetSlider(
+        node, hybridBalance, "CMK HYBRID BALANCE", "SDXL", "ZIT", 0, 4, 2,
+    )
+        ?._cmkSyncFromCanonical?.();
+
+    const instantIDToggle = getWidget(node, "instantid_enabled");
+    if (instantIDToggle && !instantIDToggle._cmkModeVisibilityCallbackInstalled) {
+        const originalInstantIDCallback = instantIDToggle.callback;
+        instantIDToggle.callback = function () {
+            const result = originalInstantIDCallback?.apply(this, arguments);
+            requestStartLayout(node);
+            return result;
+        };
+        instantIDToggle._cmkModeVisibilityCallbackInstalled = true;
+    }
+
+    const instantIDMode = getWidget(node, "instantid_mode");
+    if (instantIDMode && !instantIDMode._cmkOptionLabelsInstalled) {
+        const originalGetOptionLabel = instantIDMode.options?.getOptionLabel;
+        instantIDMode.options = {
+            ...(instantIDMode.options ?? {}),
+            getOptionLabel: (value) => (
+                INSTANTID_MODE_LABELS[String(value)]
+                ?? originalGetOptionLabel?.(value)
+                ?? String(value)
+            ),
+        };
+        instantIDMode._cmkOptionLabelsInstalled = true;
+    }
+
+    const instantIDHandoff = getWidget(node, HANDOFF_WIDGET_NAME);
+    if (instantIDHandoff && !instantIDHandoff._cmkPercentDisplayCallbackInstalled) {
+        const originalHandoffCallback = instantIDHandoff.callback;
+        instantIDHandoff.callback = function () {
+            const result = originalHandoffCallback?.apply(this, arguments);
+            requestAnimationFrame(() => scan());
+            return result;
+        };
+        instantIDHandoff._cmkPercentDisplayCallbackInstalled = true;
+    }
+
+    const resolution = getWidget(node, "resolution");
+    if (resolution) {
+        const family = isZImage(node) ? "Z-Image Turbo" : (isHybrid(node) ? "Hybrid" : "SDXL");
+        const values = familyResolutionValues(family, family === "Z-Image Turbo" && isInpaintMode(node));
+        const sizeToken = resolutionToken(
+            resolution.value,
+            FAMILY_DEFAULT_IMAGE_SIZE[family],
+        );
+        resolution.value = values.includes(sizeToken)
+            ? sizeToken
+            : FAMILY_DEFAULT_IMAGE_SIZE[family];
+        resolution.options = {
+            ...(resolution.options ?? {}),
+            values,
+        };
+        node._cmkResolutionByFamily ??= {};
+        node._cmkResolutionByFamily[family] = resolution.value;
+    }
+
+    const upscaleMethod = getWidget(node, "upscale_method");
+    if (upscaleMethod && !["lanczos", "bicubic", "bilinear", "nearest"].includes(
+        String(upscaleMethod.value).trim().toLowerCase()
+    )) {
+        upscaleMethod.value = "lanczos";
+    }
+
+    const resizeMode = getWidget(node, "resize_mode");
+    if (resizeMode && !resizeMode._cmkResizeVisibilityCallbackInstalled) {
+        const originalResizeCallback = resizeMode.callback;
+        resizeMode.callback = function () {
+            const result = originalResizeCallback?.apply(this, arguments);
+            requestStartLayout(node);
+            return result;
+        };
+        resizeMode._cmkResizeVisibilityCallbackInstalled = true;
+    }
+
+    const processMode = getWidget(node, "process_mode");
+    if (processMode) {
+        processMode.label = "PROCESS MODE";
+        processMode.advanced = false;
+        processMode.hidden = false;
+        const processModeTooltip = [
+            "Guided inpaint preset; no semantic object recognition.",
+            "Custom: Sampler Advanced values unchanged.",
+            "Replace Object: masked content is discarded before sampling; spatial inpaint guidance uses the normal SDXL prompt; noise fill, denoise 1.00, noise mask ON, context reference OFF and outpaint OFF; user prompt and LoRAs remain active.",
+            "Remove Object: noise fill plus full-strength Fooocus background reconstruction with internal subject suppression. The user prompt guides the scene when present; otherwise neutral internal guidance is used. All LoRAs are bypassed and the Refiner performs the second pass.",
+            "Extend Image: Fit creates canvas and mask; Navier-Stokes fill, denoise 1.00, noise mask ON, context reference ON.",
+            "Guided modes override fill_masked_area. Custom leaves all technical values selectable.",
+        ].join("\n");
+        processMode.tooltip = processModeTooltip;
+        processMode.options = {
+            ...(processMode.options ?? {}),
+            tooltip: processModeTooltip,
+        };
+        if (!processMode._cmkModeInfoCallbackInstalled) {
+            const originalCallback = processMode.callback;
+            processMode.callback = function () {
+                const result = originalCallback?.apply(this, arguments);
+                const modeKey = String(processMode.value ?? "Custom").trim().toLowerCase();
+                const fillWidget = getWidget(node, "fill_masked_area");
+                if (fillWidget) {
+                    if (modeKey === "custom") {
+                        fillWidget.value = node._cmkCustomFillMaskedArea ?? fillWidget.value;
+                    } else {
+                        if (node._cmkLastProcessMode === "custom") {
+                            node._cmkCustomFillMaskedArea = fillWidget.value;
+                        }
+                        fillWidget.value = GUIDED_FILL[modeKey] ?? fillWidget.value;
+                    }
+                }
+                const outpaintWidget = getWidget(node, "outpaint_on");
+                if (outpaintWidget) {
+                    if (modeKey === "custom") {
+                        outpaintWidget.value = node._cmkCustomOutpaint ?? outpaintWidget.value;
+                    } else {
+                        if (node._cmkLastProcessMode === "custom") {
+                            node._cmkCustomOutpaint = outpaintWidget.value;
+                        }
+                        outpaintWidget.value = GUIDED_OUTPAINT[modeKey] ?? outpaintWidget.value;
+                    }
+                }
+                const resizeWidget = getWidget(node, "resize_mode");
+                if (resizeWidget) {
+                    if (modeKey === "custom") {
+                        resizeWidget.value = node._cmkCustomResizeMode ?? resizeWidget.value;
+                    } else if (GUIDED_RESIZE[modeKey]) {
+                        if (node._cmkLastProcessMode === "custom") {
+                            node._cmkCustomResizeMode = resizeWidget.value;
+                        }
+                        resizeWidget.value = GUIDED_RESIZE[modeKey];
+                    }
+                }
+                node._cmkLastProcessMode = modeKey;
+                modeInfo.value = MODE_INFO[modeKey] ?? MODE_INFO.custom;
+                modeInfo.tooltip = MODE_INFO_TOOLTIP[modeKey] ?? MODE_INFO_TOOLTIP.custom;
+                modeInfo.options = {
+                    ...(modeInfo.options ?? {}),
+                    tooltip: modeInfo.tooltip,
+                };
+                node.setDirtyCanvas?.(true, true);
+                app.graph?.setDirtyCanvas?.(true, true);
+                return result;
+            };
+            processMode._cmkModeInfoCallbackInstalled = true;
+        }
+    }
+
+    let modeInfo = getWidget(node, MODE_INFO_NAME);
+    if (!modeInfo) {
+        modeInfo = node.addWidget("text", MODE_INFO_NAME, "", () => {}, {
+            serialize: false,
+        });
+        captureWidgets(node);
+    }
+    const modeKey = String(processMode?.value ?? "Custom").trim().toLowerCase();
+    const fillWidget = getWidget(node, "fill_masked_area");
+    if (fillWidget && modeKey !== "custom") {
+        fillWidget.value = GUIDED_FILL[modeKey] ?? fillWidget.value;
+    }
+    const outpaintWidget = getWidget(node, "outpaint_on");
+    if (outpaintWidget && modeKey !== "custom") {
+        outpaintWidget.value = GUIDED_OUTPAINT[modeKey] ?? outpaintWidget.value;
+    }
+    const resizeWidget = getWidget(node, "resize_mode");
+    if (resizeWidget && GUIDED_RESIZE[modeKey]) {
+        resizeWidget.value = GUIDED_RESIZE[modeKey];
+    }
+    node._cmkLastProcessMode = modeKey;
+    modeInfo.value = MODE_INFO[modeKey] ?? MODE_INFO.custom;
+    modeInfo.label = "MODE INFO →";
+    modeInfo.disabled = true;
+    modeInfo.serialize = false;
+    modeInfo.tooltip = MODE_INFO_TOOLTIP[modeKey] ?? MODE_INFO_TOOLTIP.custom;
+    modeInfo.options = {
+        ...(modeInfo.options ?? {}),
+        tooltip: modeInfo.tooltip,
+    };
+
+    requestStartLayout(node);
+    node.setDirtyCanvas?.(true, true);
+    app.graph?.setDirtyCanvas?.(true, true);
+}
+
+function schedule(node) {
+    for (const delay of [0, 50, 200, 500]) {
+        setTimeout(() => configureStartBase(node), delay);
+    }
+}
+
+function withoutLegacyReleaseGuardValue(node, info) {
+    if (!info || node.widgets?.some((widget) => widget?.name === "content_guard_enabled")) {
+        return info;
+    }
+    if (!Array.isArray(info.inputs) || !Array.isArray(info.widgets_values)) return info;
+    let widgetIndex = 0;
+    let guardInputIndex = -1;
+    let guardWidgetIndex = -1;
+    for (let index = 0; index < info.inputs.length; index += 1) {
+        const input = info.inputs[index];
+        const hasWidget = Boolean(input?.widget);
+        if (input?.name === "content_guard_enabled") {
+            guardInputIndex = index;
+            guardWidgetIndex = hasWidget ? widgetIndex : -1;
+            break;
+        }
+        if (hasWidget) widgetIndex += 1;
+    }
+    if (guardInputIndex < 0) return info;
+    const inputs = info.inputs.slice();
+    inputs.splice(guardInputIndex, 1);
+    const widgetsValues = info.widgets_values.slice();
+    if (guardWidgetIndex >= 0 && guardWidgetIndex < widgetsValues.length) {
+        widgetsValues.splice(guardWidgetIndex, 1);
+    }
+    const named = { ...(info.widgets_values_named ?? {}) };
+    delete named.content_guard_enabled;
+    return {
+        ...info,
+        inputs,
+        widgets_values: widgetsValues,
+        widgets_values_named: named,
+    };
+}
+
+app.registerExtension({
+    name: "cmk.flow.start.guidance.v51",
+
+    setup() {
+        installDomBehavior();
+    },
+
+    beforeRegisterNodeDef(nodeType, nodeData) {
+        if (nodeData.name !== NODE_CLASS) return;
+
+        for (const hook of ["onNodeCreated", "onConfigure", "onAdded"]) {
+            const original = nodeType.prototype[hook];
+            nodeType.prototype[hook] = function (info) {
+                const args = hook === "onConfigure"
+                    ? [withoutLegacyReleaseGuardValue(this, info)]
+                    : arguments;
+                const result = original?.apply(this, args);
+                schedule(this);
+                return result;
+            };
+        }
+
+    },
+
+    nodeCreated(node) {
+        if (isTarget(node)) schedule(node);
+    },
+
+    loadedGraphNode(node) {
+        if (isTarget(node)) schedule(node);
+    },
+});

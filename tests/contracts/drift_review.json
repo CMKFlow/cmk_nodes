@@ -1,0 +1,61 @@
+{
+  "description": "Embedded definitions that differ from the canonical subgraph for a reason that is not documented. They need an owner decision: allowed legacy (move to legacy_registry.json) or migration. Until decided they keep test_shipped_workflows_have_no_unreviewed_drift as an expected failure.",
+  "entries": [
+    {
+      "workflow": "CMK 2.6 · Flow · Inpaint Z-Image Turbo.json",
+      "definition": "LoRA Stack · ZIT",
+      "signatures": [
+        "624391e20379971372cd8b61b70debacc772ea5b8102c2955645c2bd5cfb68ee"
+      ],
+      "question": "Single shared opt_image_file input vs. canonical per-branch opt_image_file_N inputs (or missing CMKTriggerWordsConcatenate in LoRA Stack · ZIT): intended legacy state or stale copy?"
+    },
+    {
+      "workflow": "CMK 2.6 · Full Flow .json",
+      "definition": "CMK Flow · 15A InstantID Regional SDXL",
+      "signatures": [
+        "9a09558ea2c03d7e58cffafd72cf4898498d8e49ef8aa28aa6f5189ec38771aa"
+      ],
+      "question": "Single shared opt_image_file input vs. canonical per-branch opt_image_file_N inputs (or missing CMKTriggerWordsConcatenate in LoRA Stack · ZIT): intended legacy state or stale copy?"
+    },
+    {
+      "workflow": "CMK 2.6 · Full Flow .json",
+      "definition": "CMK Flow · FaceRebuild SDXL · Advanced",
+      "signatures": [
+        "6b9b38027e712c115a6660b951dcfb6292db7b1c81a9c16d786fa518d299b63f"
+      ],
+      "question": "Single shared opt_image_file input vs. canonical per-branch opt_image_file_N inputs (or missing CMKTriggerWordsConcatenate in LoRA Stack · ZIT): intended legacy state or stale copy?"
+    },
+    {
+      "workflow": "CMK 2.6 · Full Flow .json",
+      "definition": "CMK Flow · FaceSwap · Advanced",
+      "signatures": [
+        "93d307d29f5cc49490005bf328745eb3776a0b5c6a2a34c22ede8fd8a6e9ff37"
+      ],
+      "question": "Single shared opt_image_file input vs. canonical per-branch opt_image_file_N inputs (or missing CMKTriggerWordsConcatenate in LoRA Stack · ZIT): intended legacy state or stale copy?"
+    },
+    {
+      "workflow": "CMK 2.6 · Text2Image Identity 3.json",
+      "definition": "CMK Flow · 15A InstantID Regional SDXL",
+      "signatures": [
+        "9a09558ea2c03d7e58cffafd72cf4898498d8e49ef8aa28aa6f5189ec38771aa"
+      ],
+      "question": "Single shared opt_image_file input vs. canonical per-branch opt_image_file_N inputs (or missing CMKTriggerWordsConcatenate in LoRA Stack · ZIT): intended legacy state or stale copy?"
+    },
+    {
+      "workflow": "CMK 2.6 · Text2Image Identity 3.json",
+      "definition": "CMK Flow · FaceRebuild SDXL · Advanced",
+      "signatures": [
+        "6b9b38027e712c115a6660b951dcfb6292db7b1c81a9c16d786fa518d299b63f"
+      ],
+      "question": "Single shared opt_image_file input vs. canonical per-branch opt_image_file_N inputs (or missing CMKTriggerWordsConcatenate in LoRA Stack · ZIT): intended legacy state or stale copy?"
+    },
+    {
+      "workflow": "CMK 2.6 · Text2Image Identity 3.json",
+      "definition": "CMK Flow · FaceSwap · Advanced",
+      "signatures": [
+        "93d307d29f5cc49490005bf328745eb3776a0b5c6a2a34c22ede8fd8a6e9ff37"
+      ],
+      "question": "Single shared opt_image_file input vs. canonical per-branch opt_image_file_N inputs (or missing CMKTriggerWordsConcatenate in LoRA Stack · ZIT): intended legacy state or stale copy?"
+    }
+  ]
+}

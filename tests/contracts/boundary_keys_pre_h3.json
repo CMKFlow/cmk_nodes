@@ -1,0 +1,117 @@
+{
+  "description": "Boundary cache keys and dependency manifests recorded on 2026-11-04 before the H-3/F-03 change (fixtures as exported then). The VISUAL publication must not change them.",
+  "fixtures": {
+    "faceswap_std": {
+      "key": "6eb30cf4434a45de244c67021597196e91cf8126027102a11057b5159d509f56",
+      "deps": null
+    },
+    "faceswap_adv": {
+      "key": "bc8f47fccbf3855bc1a339a0e27b3b6a2875375f35f5482cb6451dce766dd013",
+      "deps": null
+    },
+    "detailer_std": {
+      "key": "574a3115a7035362152dbb0d4e3cb5e74834ed53902fd462594d40f8a5be0c7b",
+      "deps": {
+        "version": 1,
+        "boundary_node_id": "8417:7706",
+        "complete": false,
+        "branches": [
+          {
+            "node_id": "8417:7719",
+            "class_type": "CMK_SmartDetailerPipe",
+            "scope": "detailer_branch",
+            "cache_key": "b060ed7497d8758da7c5e3b0a213f35df50e13b3b5b73ba328e6bc6c3bdde1a2",
+            "revision": null
+          }
+        ]
+      }
+    },
+    "detailer_adv": {
+      "key": "29ab630db9a1654cdce4513b1d4ce9c3d80a6193c49a246a60b55590edd7308b",
+      "deps": {
+        "version": 1,
+        "boundary_node_id": "8417:7881",
+        "complete": false,
+        "branches": [
+          {
+            "node_id": "8417:7880",
+            "class_type": "CMK_SmartDetailerPipe",
+            "scope": "detailer_branch",
+            "cache_key": "d9d103f2fbef2fabe1d0084a50e27485ae614414b60068ab9ca2e5055499c08a",
+            "revision": null
+          },
+          {
+            "node_id": "8417:7883",
+            "class_type": "CMK_SmartDetailerPipe",
+            "scope": "detailer_branch",
+            "cache_key": "976247ffcfd91d35ab080a208050c2f4de3ef8ab67f2f598193e946a0f64e786",
+            "revision": null
+          },
+          {
+            "node_id": "8417:7884",
+            "class_type": "CMK_SmartDetailerPipe",
+            "scope": "detailer_branch",
+            "cache_key": "f045840a0e4efa2966d2c7432be0337be00003a383f8875bfb4fa7e4e9fbc16c",
+            "revision": null
+          }
+        ]
+      }
+    },
+    "faceprocess_std": {
+      "key": "bf7ca982f42297d1153da2be25d6229ed52edf1f699c79ed223e5cca9e94f517",
+      "deps": {
+        "version": 1,
+        "boundary_node_id": "8417:7844",
+        "complete": false,
+        "branches": [
+          {
+            "node_id": "8417:7842",
+            "class_type": "CMKFaceProcessPipe",
+            "scope": "faceprocess_branch",
+            "cache_key": "dfa3167252ae6ccde26dad315a57ef6a8d4270eaa5703cb53f4c29bd79030bc5",
+            "revision": null
+          }
+        ]
+      }
+    },
+    "faceprocess_adv": {
+      "key": "3380e2642b834b0b4c28ed4809054e0a1161e0a57dca004b6b4a573c706b3567",
+      "deps": {
+        "version": 1,
+        "boundary_node_id": "8417:8393",
+        "complete": false,
+        "branches": [
+          {
+            "node_id": "8417:8396",
+            "class_type": "CMKFaceProcessPipe",
+            "scope": "faceprocess_branch",
+            "cache_key": "21e30ab67ebf1a61eb4d64cdeb0931248a8439f898a1ad1e08ff6242423e348b",
+            "revision": null
+          },
+          {
+            "node_id": "8417:8397",
+            "class_type": "CMKFaceProcessPipe",
+            "scope": "faceprocess_branch",
+            "cache_key": "225924c0140758c620a135b3c7c97150510c3b7249535e13a8008639c5ce9c96",
+            "revision": null
+          },
+          {
+            "node_id": "8417:8398",
+            "class_type": "CMKFaceProcessPipe",
+            "scope": "faceprocess_branch",
+            "cache_key": "5113d2434ad8585c005c4f374e820540d990306e7894558df4eb83b5a360c480",
+            "revision": null
+          }
+        ]
+      }
+    },
+    "facerebuild_std": {
+      "key": "b9490bedd018f80548fb096081ec5161bdcd747a22362c5a09b274add84d65b7",
+      "deps": null
+    },
+    "facerebuild_adv": {
+      "key": "9128928e773719e0de48c1ee4a904b6ad8501b7bba1d8f022be69ba54322a70e",
+      "deps": null
+    }
+  }
+}
