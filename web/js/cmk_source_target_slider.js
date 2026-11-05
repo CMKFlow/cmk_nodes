@@ -2,6 +2,9 @@ const MIN_BALANCE = -2;
 const MAX_BALANCE = 2;
 const STYLE_ID = "cmk-source-target-native-slider-style";
 
+// Every rule is scoped to one widget row ([data-testid="node-widget"]).  An
+// unscoped "div.grid:has(...)" also matched the page-level comfyui-body grid,
+// so one HYBRID BALANCE slider on the canvas labelled every slider "ZIT".
 function ensureNativeSliderStyle() {
     if (document.getElementById(STYLE_ID)) return;
     const style = document.createElement("style");
@@ -10,24 +13,24 @@ function ensureNativeSliderStyle() {
         [data-testid="node-widget"]:has([data-slot="slider"][aria-label^="SAMPLING START"]) {
             align-items: center;
         }
-        div.grid:has([data-slot="slider"][aria-label^="SAMPLING START"])
+        [data-testid="node-widget"] div.grid:has([data-slot="slider"][aria-label^="SAMPLING START"])
             > [data-testid="widget-layout-field-label"] {
             font-size: 11px;
             font-weight: 600;
             color: var(--fg-color, #ddd);
         }
-        div.grid:has([data-slot="slider"][aria-label^="SAMPLING START"])
+        [data-testid="node-widget"] div.grid:has([data-slot="slider"][aria-label^="SAMPLING START"])
             > .relative > div {
             border: 0 !important;
             box-shadow: none !important;
         }
-        div.grid:has([data-slot="slider"][aria-label^="SAMPLING START"])
+        [data-testid="node-widget"] div.grid:has([data-slot="slider"][aria-label^="SAMPLING START"])
             div.flex:has(> [data-slot="slider"]) {
             gap: 10px !important;
             padding: 0 2px !important;
             background: transparent !important;
         }
-        div.grid:has([data-slot="slider"][aria-label^="SAMPLING START"])
+        [data-testid="node-widget"] div.grid:has([data-slot="slider"][aria-label^="SAMPLING START"])
             div.flex:has(> [data-slot="slider"])::after {
             content: "TARGET";
             flex: 0 0 auto;
@@ -35,35 +38,35 @@ function ensureNativeSliderStyle() {
             font-weight: 600;
             color: var(--fg-color, #ddd);
         }
-        div.grid:has([data-slot="slider"][aria-label^="SAMPLING START"])
+        [data-testid="node-widget"] div.grid:has([data-slot="slider"][aria-label^="SAMPLING START"])
             [data-slot="slider-range"] {
             display: none !important;
         }
-        div.grid:has([data-slot="slider"][aria-label^="SAMPLING START"])
+        [data-testid="node-widget"] div.grid:has([data-slot="slider"][aria-label^="SAMPLING START"])
             .w-16:has(input[aria-label^="SAMPLING START"]) {
             display: none !important;
         }
         [data-testid="node-widget"]:has([data-slot="slider"][aria-label^="HYBRID BALANCE"]) {
             align-items: center;
         }
-        div.grid:has([data-slot="slider"][aria-label^="HYBRID BALANCE"])
+        [data-testid="node-widget"] div.grid:has([data-slot="slider"][aria-label^="HYBRID BALANCE"])
             > [data-testid="widget-layout-field-label"] {
             font-size: 11px;
             font-weight: 600;
             color: var(--fg-color, #ddd);
         }
-        div.grid:has([data-slot="slider"][aria-label^="HYBRID BALANCE"])
+        [data-testid="node-widget"] div.grid:has([data-slot="slider"][aria-label^="HYBRID BALANCE"])
             > .relative > div {
             border: 0 !important;
             box-shadow: none !important;
         }
-        div.grid:has([data-slot="slider"][aria-label^="HYBRID BALANCE"])
+        [data-testid="node-widget"] div.grid:has([data-slot="slider"][aria-label^="HYBRID BALANCE"])
             div.flex:has(> [data-slot="slider"]) {
             gap: 10px !important;
             padding: 0 2px !important;
             background: transparent !important;
         }
-        div.grid:has([data-slot="slider"][aria-label^="HYBRID BALANCE"])
+        [data-testid="node-widget"] div.grid:has([data-slot="slider"][aria-label^="HYBRID BALANCE"])
             div.flex:has(> [data-slot="slider"])::after {
             content: "ZIT";
             flex: 0 0 auto;
@@ -71,11 +74,11 @@ function ensureNativeSliderStyle() {
             font-weight: 600;
             color: var(--fg-color, #ddd);
         }
-        div.grid:has([data-slot="slider"][aria-label^="HYBRID BALANCE"])
+        [data-testid="node-widget"] div.grid:has([data-slot="slider"][aria-label^="HYBRID BALANCE"])
             [data-slot="slider-range"] {
             display: none !important;
         }
-        div.grid:has([data-slot="slider"][aria-label^="HYBRID BALANCE"])
+        [data-testid="node-widget"] div.grid:has([data-slot="slider"][aria-label^="HYBRID BALANCE"])
             .w-16:has(input[aria-label^="HYBRID BALANCE"]) {
             display: none !important;
         }
