@@ -87,10 +87,12 @@ class HybridStopSequence(ScenarioCase):
         self.assertEqual(sdxl(self.restart), [1, 0, 0, 0])
         self.assertEqual(checkpoint_loads(self.restart), [1, 0, 0, 0])
 
-    def test_zit_side_unchanged(self):
-        # ZIT runs only without STOP; the run-3 ZIT sampling is the known F-03
-        # path (ZIT gate VISUAL ACTIVE before the boundary), identical before.
-        self.assertEqual([run["sampling"]["zit"] for run in self.classic["runs"]], [1, 0, 1, 0])
+    def test_zit_sampled_once(self):
+        # ZIT runs only without STOP.  Run 3 is a ZIT boundary HIT whose sampler
+        # output is no longer in ComfyUI's cache (classic: evicted by run 2);
+        # since F-03 the boundary publishes VISUAL and the sampler stays idle.
+        self.assertEqual([run["sampling"]["zit"] for run in self.classic["runs"]], [1, 0, 0, 0])
+        self.assertEqual([run["sampling"]["zit"] for run in self.pressure["runs"]], [1, 0, 0, 0])
 
     def test_fresh_run_keeps_the_fresh_zit_handoff(self):
         # The entry stored in run 1 is not read back by the ZIT side of the same
@@ -253,6 +255,78 @@ class HybridStopCacheIdentity(ScenarioCase):
         runs = self.capacity["runs"]
         self.assertEqual([len(run["scopes"][SCOPE]) for run in runs], [1, 2, 3, 4, 5, 6, 7, 8, 8, 8])
         self.assertEqual(sdxl(runs), [1] * 10)
+
+
+ZIT_GATE, ZIT_BOUNDARY, ZIT_SAMPLER, ZIT_BRIDGE = "8431:7655", "8431:7656", "8431:7652", "8431:7657"
+ZIT_INSPECT = {name: f"{ZIT_GATE}:{index}" for index, name in
+               enumerate(("zit_model", "zit_image", "zit_log", "zit_visual", "zit_diagnostic"))}
+ZIT_WORK = {"CMKZImageTurboLoaderPipe", "CMKSamplerPrepareZImageTurboPipe", "CMKKSamplerPipe",
+            "CMKZImageTurboFinalizePipe", "CMKLoRATextLoader"}
+LEGACY_ZIT = {  # 10 KSampler Z-Image Turbo before F-03: gate VISUAL straight from the sampler
+    "overrides": {f"{ZIT_GATE}.VISUAL": [ZIT_SAMPLER, 1]},
+    "remove_inputs": [f"{ZIT_BOUNDARY}.VISUAL IN", f"{ZIT_BOUNDARY}.VISUAL"],
+}
+
+
+def zit_calls(run):
+    return sorted(name for name in run["function_calls"] if name in ZIT_WORK)
+
+
+def zit_loads(run):
+    return run["seams"]["substituted_calls"].get("generation.call_node_kwargs", 0)
+
+
+class ZitBoundaryVisual(ScenarioCase):
+    """F-03: a ZIT boundary HIT publishes VISUAL itself; the ZIT sampler, its
+    loader and its prompt encoding stay idle although the sampler output is no
+    longer in ComfyUI's execution cache."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # classic: run 2 (STOP) evicts the signatures of run 1; run 3 is a HIT.
+        cls.classic = cls.run_case("hybrid_stop_sequence", stops=[False, True, False], inspect=ZIT_INSPECT)
+        cls.pressure = cls.run_case("hybrid_stop_sequence", stops=[False, False], mode="ram_pressure",
+                                    evict_between_runs=True, inspect=ZIT_INSPECT)
+        cls.legacy = cls.run_case("hybrid_stop_sequence", stops=[False, True, False], inspect=ZIT_INSPECT,
+                                  **LEGACY_ZIT)
+
+    def _miss_and_hit(self, result, hit_index):
+        runs = result["runs"]
+        self.assertTrue(all(run["succeeded"] for run in runs), [run["errors"] for run in runs])
+        return runs[0], runs[hit_index]
+
+    def test_miss_samples_and_publishes_visual(self):
+        miss, _hit = self._miss_and_hit(self.classic, 2)
+        self.assertEqual(miss["sampling"]["zit"], 1)
+        self.assertIn("CMKKSamplerPipe", miss["function_calls"])
+        providers = miss["visual"]["8334"]
+        self.assertIn(("cmk-CMKKSamplerPipe-8431-7652", ["before", "after"]),
+                      [(p["provider_id"], p["channels"]) for p in providers])
+
+    def test_hit_runs_no_zit_work(self):
+        for result, index in ((self.classic, 2), (self.pressure, 1)):
+            _miss, hit = self._miss_and_hit(result, index)
+            self.assertEqual(hit["sampling"]["zit"], 0)
+            self.assertEqual(zit_calls(hit), [])
+            self.assertEqual(zit_loads(hit), 0)  # no ZIT UNET / text encoder / VAE load
+            self.assertEqual(hit["seams"]["substituted_calls"].get("generation.call_node", 0), 0)  # no encode
+            self.assertEqual([status[1] for status in hit["statuses"] if status[0] == "z_image_boundary"][-1], "HIT")
+            self.assertNotIn(ZIT_SAMPLER, hit["entered"])
+
+    def test_hit_output_contract_equals_miss(self):
+        for result, index in ((self.classic, 2), (self.pressure, 1)):
+            miss, hit = self._miss_and_hit(result, index)
+            for name in ZIT_INSPECT:
+                self.assertEqual(hit["outputs"][name], miss["outputs"][name], name)
+            self.assertEqual(hit["visual"], miss["visual"])  # providers, channels, pixel hashes
+
+    def test_older_definition_keeps_its_behaviour(self):
+        runs = self.legacy["runs"]
+        self.assertTrue(all(run["succeeded"] for run in runs), [run["errors"] for run in runs])
+        # Without the VISUAL links the gate still pulls VISUAL from the sampler.
+        self.assertEqual([run["sampling"]["zit"] for run in runs], [1, 0, 1])
+        self.assertEqual(runs[2]["visual"], runs[0]["visual"])
 
 
 if __name__ == "__main__":

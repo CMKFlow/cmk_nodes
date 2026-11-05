@@ -507,7 +507,7 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
                          evict_between_runs: bool = False, seed: int | None = None,
                          preseed: dict | None = None, inspect: dict | None = None,
                          overrides: dict | None = None, seeds: list | None = None,
-                         start_inputs: list | None = None) -> dict:
+                         start_inputs: list | None = None, remove_inputs: list | None = None) -> dict:
     """Run a Hybrid fixture several times in one executor with STOP per run.
 
     guard: None keeps the fixture's ContentGuard OFF; "pass" / "reject" turns
@@ -556,6 +556,9 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
     previous_hook = comfy.utils.PROGRESS_BAR_HOOK
     comfy.utils.set_progress_bar_global_hook(preview_hook)
     base = _apply_overrides(load_api_prompt(fixture), fixture, overrides or {}, {})
+    for key in remove_inputs or []:  # e.g. an older embedded definition without these links
+        node_id, name = key.rsplit(".", 1)
+        base[node_id]["inputs"].pop(name)
     records = []
     try:
         for index, stop in enumerate(stops):

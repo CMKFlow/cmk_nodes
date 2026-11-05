@@ -1224,8 +1224,19 @@ Aktuelle Implementierung:
 | Detailer Boundary | Modulbild, LOG, Branch-Dependency-Manifest | `safetensors` + JSON + internes Manifest | `MODEL` und `PROCESS` im aktuellen ComfyUI-Prozess |
 | FaceProcess Boundary | Modulbild, LOG, Branch-Dependency-Manifest | `safetensors` + JSON + internes Manifest | keine weitere Leitung |
 | FaceSwap Boundary | PROCESS, Modulbild, LOG | `safetensors` + JSON | `MODEL` wird read-only aktuell durchgereicht |
+| Z-Image Boundary (`z_image_boundary`) | ZIT-Bild, LOG, VISUAL-Provider des ZIT-Samplers (Schema `cmk_z_image_boundary_v3`) | `safetensors` + JSON, VISUAL als `.visual`/`.visual-tensors` | `MODEL` und diagnostic nur im aktuellen ComfyUI-Prozess (kein HIT nach Neustart) |
 | Hybrid SDXL Boundary (`sdxl_hybrid_boundary`, max. 8) | SDXL-Handoff-Bild, First-Pass-LOG, VISUAL, diagnostic, Checkpoint-/VAE-Identität, ContentGuard-Status `PASS` / `BYPASS` / `NOT INSPECTED` | Pickle-Envelope mit SHA-256 (Schema `cmk_hybrid_sdxl_image_boundary_v2`) | keine Modellreferenzen |
 | InstantID SDXL Handoff (`sdxl_handoff_boundary`, max. 8) | InstantID-Teilsampling für die Fortsetzung in Modul 15 | Pickle | unverändert, eigener Scope |
+
+**Z-Image Boundary und VISUAL (F-03).** Im Modul „10 KSampler Z-Image Turbo“
+(ab 0.1.2) führt der VISUAL-Ausgang des ZIT-Samplers in die Boundary
+(`VISUAL`, eingehende Pipe als `VISUAL IN`), das Gate erhält VISUAL ausschließlich
+vom Boundary-Ausgang. Wie bei den PostProcess-Boundaries (H-3) speichert die
+Boundary bei MISS die vom Sampler ergänzten Provider und veröffentlicht sie bei
+HIT selbst; VISUAL ist nicht Teil des Schlüssels. Ein HIT fordert daher weder
+ZIT-Loader noch Prompt-Vorbereitung noch Sampler an, auch wenn ComfyUIs
+Ausführungs-Cache die Sampler-Ausgabe nicht mehr hält. Eingebettete Definitionen
+ohne diese Links behalten ihr bisheriges Verhalten.
 
 **Hybrid SDXL Boundary und STOP AFTER HANDOFF.** Jeder tatsächlich berechnete
 Hybrid-First-Pass wird unter einem STOP-unabhängigen Schlüssel gespeichert
