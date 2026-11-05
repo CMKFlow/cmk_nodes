@@ -36,6 +36,20 @@ LOAD = "checkpoint.load_resources"
 RESOLVE = "prepare.resolve_postprocess_model"
 
 
+# Shipped standalone workflows whose embedded definitions were migrated in the
+# 2.7 showcase migration (tests/migration/migrate_showcase.py).
+MIGRATED_2_7 = {"CMK 2.6 · FaceProcess · Modul.json", "CMK 2.6 · FaceRebuild · Modul.json",
+                "CMK 2.6 · SmartDetailer · Modul.json"}
+
+
+def _named_links(doc):
+    nodes = {node["id"]: node for node in doc["nodes"]}
+    return sorted(
+        (origin, nodes[origin]["outputs"][origin_slot]["name"], target, nodes[target]["inputs"][target_slot]["name"], kind)
+        for _link, origin, origin_slot, target, target_slot, kind in doc["links"]
+    )
+
+
 def _model_source(fixture):
     prompt = json.loads((TESTS / "fixtures" / "api_prompts" / f"{fixture}.json").read_text(encoding="utf-8"))
     return prompt["1"]["inputs"]["MODEL SDXL (opt)"][0], prompt
@@ -61,7 +75,17 @@ class LegacyWorkflowsFrozen(unittest.TestCase):
                 self.assertEqual([o["type"] for o in new["outputs"]], ["CMK_MODEL_PIPE"])
                 self.assertNotIn("CMKCheckpointVAELoaderPipe", {n["type"] for n in shipped["nodes"]})
                 strip = lambda doc: {**doc, "nodes": [n for n in doc["nodes"] if n["id"] != old["id"]]}
-                self.assertEqual(strip(shipped), strip(legacy))
+                if name not in MIGRATED_2_7:
+                    self.assertEqual(strip(shipped), strip(legacy))
+                    continue
+                # 2.7 showcase migration: embedded definitions were replaced by the
+                # canonical ones and the frontend re-serialized the instance ports.
+                # The top-level graph keeps every connection (by port name), every
+                # widget value and every position.
+                self.assertEqual(_named_links(shipped), _named_links(legacy))
+                for key in ("widgets_values", "pos", "type", "mode"):
+                    self.assertEqual({n["id"]: n.get(key) for n in strip(shipped)["nodes"]},
+                                     {n["id"]: n.get(key) for n in strip(legacy)["nodes"]}, key)
 
 
 class LegacyCheckpointLoadsEagerly(ScenarioCase):
