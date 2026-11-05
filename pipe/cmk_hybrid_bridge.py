@@ -12,7 +12,7 @@ from ..cmk_distribution import (
     content_guard_prompt_token,
     effective_content_guard_enabled,
 )
-from ..engine.content_guard import GUARD_VERSION, get_content_guard
+from ..engine.content_guard import GUARD_VERSION, ContentGuardBlocked, get_content_guard
 from ..utils.tensor_utils import tensor_to_uint8_rgb
 from .cmk_log_pipe import cmk_add_block
 from .cmk_prompt_result_state import (
@@ -36,8 +36,10 @@ _HYBRID_HANDOFF_INPUTS = (
     "LOG SDXL",
     "VISUAL SDXL",
 )
-_HYBRID_BOUNDARY_SCOPE = "sdxl_handoff_boundary"
-_HYBRID_BOUNDARY_SCHEMA = "cmk_hybrid_sdxl_image_boundary_v1"
+# Own scope and capacity: the InstantID SDXL handoff cache keeps
+# "sdxl_handoff_boundary"; v1 Hybrid entries there are never read again.
+_HYBRID_BOUNDARY_SCOPE = "sdxl_hybrid_boundary"
+_HYBRID_BOUNDARY_SCHEMA = "cmk_hybrid_sdxl_image_boundary_v2"
 _HYBRID_BOUNDARY_GUARD_VERSION = f"{GUARD_VERSION}:hybrid-sdxl-handoff-v1"
 _HYBRID_BOUNDARY_MAX_ENTRIES = 8
 _HYBRID_FINGERPRINT_IGNORED_SOURCE_INPUTS = {
@@ -234,28 +236,96 @@ def _invalidate_hybrid_boundary(cache_key):
         pass
 
 
+_GUARD_PASS = "PASS · SDXL/ZIT HANDOFF"
+_GUARD_BYPASS = "BYPASS · BASELINE"
+_GUARD_NOT_INSPECTED = "NOT INSPECTED"
+_GUARD_STATUSES = {_GUARD_PASS, _GUARD_BYPASS, _GUARD_NOT_INSPECTED}
+# Payload checksums whose image passed the ContentGuard in this process, so a
+# NOT INSPECTED entry is inspected once and not on every lazy re-check.
+_INSPECTED_PAYLOADS = set()
+
+
 def _guard_hybrid_handoff_image(image, process):
     if not effective_content_guard_enabled(process):
-        return "BYPASS · BASELINE"
+        return _GUARD_BYPASS
     guard = get_content_guard()
     for item in image:
         guard.inspect_content(
             tensor_to_uint8_rgb(item), "target_intermediate",
         )
-    return "PASS · SDXL/ZIT HANDOFF"
+    return _GUARD_PASS
 
 
-def persist_hybrid_sdxl_boundary(process, image, log, visual, prompt, unique_id):
+def _model_identity(model):
+    """Checkpoint and VAE identity of the generation MODEL pipe (strings or None)."""
+    if not isinstance(model, dict):
+        return None
+    checkpoint = str(model.get("ckpt_name") or "").strip()
+    vae = str(model.get("vae_selection_name") or model.get("vae_name") or "").strip()
+    if not checkpoint or not vae:
+        return None
+    return {"checkpoint": checkpoint, "vae": vae}
+
+
+# Keys whose Hybrid first pass was computed in the active prompt.
+_COMPUTED_IN_PROMPT = {"prompt_id": None, "keys": set()}
+
+
+def _active_prompt_id():
+    try:
+        from .cmk_prompt_result_state import active_prompt_id
+
+        return active_prompt_id()
+    except Exception:
+        return None
+
+
+def _mark_computed_in_prompt(cache_key):
+    prompt_id = _active_prompt_id()
+    if prompt_id is None or not cache_key:
+        return
+    if _COMPUTED_IN_PROMPT["prompt_id"] != prompt_id:
+        _COMPUTED_IN_PROMPT.update(prompt_id=prompt_id, keys=set())
+    _COMPUTED_IN_PROMPT["keys"].add(cache_key)
+
+
+def _computed_in_this_prompt(cache_key):
+    prompt_id = _active_prompt_id()
+    return (
+        prompt_id is not None
+        and bool(cache_key)
+        and _COMPUTED_IN_PROMPT["prompt_id"] == prompt_id
+        and cache_key in _COMPUTED_IN_PROMPT["keys"]
+    )
+
+
+def persist_hybrid_sdxl_boundary(
+    process, image, log, visual, diagnostic, model, prompt, unique_id, *, inspect,
+):
+    """Store the computed Hybrid SDXL first pass (image, LOG, VISUAL, diagnostic).
+
+    ``inspect`` runs the ContentGuard before storing (STOP preview: the image is
+    published now).  Without it the entry is stored as NOT INSPECTED and every
+    reader inspects it before use, so no unapproved content is ever published.
+    """
     cache_key = _hybrid_boundary_cache_key(prompt, unique_id)
     if not cache_key:
         return None
-    guard_status = _guard_hybrid_handoff_image(image, process)
+    _mark_computed_in_prompt(cache_key)
+    if not effective_content_guard_enabled(process):
+        guard_status = _GUARD_BYPASS
+    elif inspect:
+        guard_status = _guard_hybrid_handoff_image(image, process)
+    else:
+        guard_status = _GUARD_NOT_INSPECTED
     image_snapshot = _cpu_snapshot(image)
     payload = {
         "contract": _hybrid_boundary_contract(process, cache_key, prompt),
         "image": image_snapshot,
         "log": _cpu_snapshot(log),
         "visual": _cpu_snapshot(visual or empty_visual()),
+        "diagnostic": _cpu_snapshot(diagnostic),
+        "model_identity": _model_identity(model),
         "metadata": {
             "content_guard_handoff": guard_status,
             "image_shape": tuple(getattr(image_snapshot, "shape", ())),
@@ -278,7 +348,9 @@ def persist_hybrid_sdxl_boundary(process, image, log, visual, prompt, unique_id)
             envelope,
             max_entries=_HYBRID_BOUNDARY_MAX_ENTRIES,
         )
-        print(f"SDXL/ZIT HANDOFF · PERSISTED · {cache_key[:12]}", flush=True)
+        if guard_status == _GUARD_PASS:
+            _INSPECTED_PAYLOADS.add(envelope["sha256"])
+        print(f"SDXL/ZIT HANDOFF · PERSISTED · {cache_key[:12]} · {guard_status}", flush=True)
         return cache_key
     except Exception as exc:
         _invalidate_hybrid_boundary(cache_key)
@@ -286,7 +358,10 @@ def persist_hybrid_sdxl_boundary(process, image, log, visual, prompt, unique_id)
         return None
 
 
-def load_hybrid_sdxl_boundary(process, prompt, unique_id):
+def _read_hybrid_boundary(process, prompt, unique_id):
+    """Validated v2 payload or None.  An invalid entry is removed; an entry the
+    ContentGuard rejects is removed as well and reported as MISS, so the caller
+    recomputes on the unchanged fresh path (and its guard) instead."""
     cache_key = _hybrid_boundary_cache_key(prompt, unique_id)
     if not cache_key:
         return None
@@ -301,7 +376,8 @@ def load_hybrid_sdxl_boundary(process, prompt, unique_id):
         payload_bytes = envelope.get("payload")
         if not isinstance(payload_bytes, bytes):
             raise ValueError("boundary payload is missing")
-        if hashlib.sha256(payload_bytes).hexdigest() != envelope.get("sha256"):
+        checksum = hashlib.sha256(payload_bytes).hexdigest()
+        if checksum != envelope.get("sha256"):
             raise ValueError("boundary payload checksum mismatch")
         payload = pickle.loads(payload_bytes)
         expected = _hybrid_boundary_contract(process, cache_key, prompt)
@@ -313,13 +389,13 @@ def load_hybrid_sdxl_boundary(process, prompt, unique_id):
         metadata = payload.get("metadata")
         if image is None or not isinstance(log, dict) or not isinstance(visual, dict):
             raise ValueError("boundary payload is incomplete")
+        if "diagnostic" not in payload or "model_identity" not in payload:
+            raise ValueError("boundary payload is incomplete")
         if not isinstance(metadata, dict):
             raise ValueError("boundary metadata is missing")
-        if (
-            effective_content_guard_enabled(process)
-            and metadata.get("content_guard_handoff") != "PASS · SDXL/ZIT HANDOFF"
-        ):
-            raise ValueError("boundary ContentGuard approval is missing")
+        guard_status = metadata.get("content_guard_handoff")
+        if guard_status not in _GUARD_STATUSES:
+            raise ValueError("boundary ContentGuard status is invalid")
         expected_shape = tuple(metadata.get("image_shape", ()))
         if expected_shape and tuple(getattr(image, "shape", ())) != expected_shape:
             raise ValueError("boundary image shape mismatch")
@@ -327,20 +403,6 @@ def load_hybrid_sdxl_boundary(process, prompt, unique_id):
             raise ValueError("boundary image dtype mismatch")
         if str(getattr(image, "device", "cpu")) != metadata.get("image_device"):
             raise ValueError("boundary image device mismatch")
-        log = cmk_add_block(
-            log,
-            "Hybrid Handoff",
-            35,
-            [
-                "MODE            : SDXL -> ZIT",
-                "SDXL BOUNDARY   : PERSISTENT CACHE HIT",
-                "SDXL SAMPLING   : NOT REQUESTED",
-                f"ZIT DENOISE     : {float(process.get('hybrid_zit_denoise', 0.20)):.2f}",
-            ],
-            True,
-        )
-        print(f"SDXL/ZIT HANDOFF · CACHE HIT · {cache_key[:12]}", flush=True)
-        return image, log, visual
     except Exception as exc:
         _invalidate_hybrid_boundary(cache_key)
         print(
@@ -349,6 +411,85 @@ def load_hybrid_sdxl_boundary(process, prompt, unique_id):
             flush=True,
         )
         return None
+    if (
+        effective_content_guard_enabled(process)
+        and guard_status != _GUARD_PASS
+        and checksum not in _INSPECTED_PAYLOADS
+    ):
+        try:
+            _guard_hybrid_handoff_image(image, process)
+        except ContentGuardBlocked as exc:
+            _invalidate_hybrid_boundary(cache_key)
+            print(
+                "[CMK SDXL/ZIT Boundary] MISS · ContentGuard rejected the cached "
+                f"handoff · entry removed · {exc}",
+                flush=True,
+            )
+            return None
+        _INSPECTED_PAYLOADS.add(checksum)
+        guard_status = _GUARD_PASS
+    payload["cache_key"] = cache_key
+    payload["guard_status"] = guard_status
+    return payload
+
+
+def load_hybrid_sdxl_boundary(process, prompt, unique_id):
+    """ZIT side: the stored handoff (IMAGE, LOG with handoff block, VISUAL)."""
+    if _computed_in_this_prompt(_hybrid_boundary_cache_key(prompt, unique_id)):
+        # The first pass ran in this prompt: take the fresh handoff, which also
+        # releases the SDXL models before ZIT, not the entry just stored.
+        return None
+    payload = _read_hybrid_boundary(process, prompt, unique_id)
+    if payload is None:
+        return None
+    log = cmk_add_block(
+        payload["log"],
+        "Hybrid Handoff",
+        35,
+        [
+            "MODE            : SDXL -> ZIT",
+            "SDXL BOUNDARY   : PERSISTENT CACHE HIT",
+            "SDXL SAMPLING   : NOT REQUESTED",
+            f"ZIT DENOISE     : {float(process.get('hybrid_zit_denoise', 0.20)):.2f}",
+        ],
+        True,
+    )
+    print(f"SDXL/ZIT HANDOFF · CACHE HIT · {payload['cache_key'][:12]}", flush=True)
+    return payload["image"], log, payload["visual"]
+
+
+def restore_hybrid_sdxl_first_pass(process, prompt, unique_id):
+    """SDXL side (STOP preview): the complete stored first pass, or None.
+
+    Returns image, the stored first-pass LOG extended by a cache-hit block,
+    VISUAL, diagnostic and the checkpoint/VAE identity.  None when the entry is
+    missing, invalid, rejected, or predates the stored model identity.
+    """
+    payload = _read_hybrid_boundary(process, prompt, unique_id)
+    if payload is None or payload.get("model_identity") is None:
+        return None
+    identity = payload["model_identity"]
+    log = cmk_add_block(
+        payload["log"],
+        "SDXL First Pass · Hybrid Boundary",
+        15,
+        [
+            "SDXL BOUNDARY   : PERSISTENT CACHE HIT",
+            "SDXL SAMPLING   : NOT REQUESTED",
+            "SDXL CHECKPOINT : NOT LOADED",
+            f"CONTENT GUARD   : {payload['guard_status']}",
+        ],
+        True,
+    )
+    print(f"SDXL FIRST PASS · HYBRID BOUNDARY HIT · {payload['cache_key'][:12]}", flush=True)
+    return {
+        "image": payload["image"],
+        "log": log,
+        "visual": payload["visual"],
+        "diagnostic": payload["diagnostic"],
+        "checkpoint": identity["checkpoint"],
+        "vae": identity["vae"],
+    }
 
 
 def _publish_hybrid_handoff(state_key, image, log, visual, process):

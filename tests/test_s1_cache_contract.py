@@ -72,19 +72,21 @@ class ScopeRegistry(_Workdir):
     def test_baseline_b4_unregistered_scopes(self):
         self.assertEqual(self._unregistered(), {"image_resize_boundary"})
 
-    def test_baseline_a32_shared_scopes(self):
-        self.assertEqual(
-            self._shared(),
-            {"sdxl_handoff_boundary": ["cmk_hybrid_bridge", "cmk_pipe_sampler"]},
-        )
-
     @unittest.expectedFailure  # B4
     def test_every_declared_scope_is_registered(self):
         self.assertEqual(self._unregistered(), set())
 
-    @unittest.expectedFailure  # A3.2
+    # A3.2 resolved: the Hybrid SDXL boundary has its own scope
+    # "sdxl_hybrid_boundary"; "sdxl_handoff_boundary" belongs to InstantID only.
     def test_no_scope_is_shared_between_caches(self):
         self.assertEqual(self._shared(), {})
+
+    def test_hybrid_and_instantid_handoff_scopes_are_separate_and_registered(self):
+        owners = {scope: sorted({name.split(".")[0] for name in names})
+                  for scope, names in self.inventory["declared"].items()}
+        self.assertEqual(owners.get("sdxl_hybrid_boundary"), ["cmk_hybrid_bridge"])
+        self.assertEqual(owners.get("sdxl_handoff_boundary"), ["cmk_pipe_sampler"])
+        self.assertIn("sdxl_hybrid_boundary", self.inventory["registered"])
 
     def test_registered_scopes_are_declared(self):
         # Every registered scope must belong to a cache that actually writes it.

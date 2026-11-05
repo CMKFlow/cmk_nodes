@@ -192,10 +192,12 @@ function assertV2Layout(node) {
     assert.deepEqual(node.getMinSize(), [450, 700]);
     assert.deepEqual(node.min_size, [450, 700]);
     assert.deepEqual(node.minSize, [450, 700]);
-    assert.equal(nodeBody.dataset.cmkStartV2, "true");
-    assert.equal(nodeWidgetGrid.style.overflowY, "auto");
-    assert.equal(nodeWidgetGrid.style.overflowX, "hidden");
-    assert.equal(nodeWidgetGrid.style.minHeight, "0");
+    // The v2 layout never writes inline styles onto the frontend's node body
+    // or widget grid: those are lost on every Vue remount and made the
+    // geometry depend on whether a refresh ran after mounting (STOP bug).
+    assert.equal(nodeBody.dataset.cmkStartV2, undefined);
+    assert.deepEqual({ ...nodeBody.style }, {});
+    assert.deepEqual({ ...nodeWidgetGrid.style }, {});
 }
 
 function assertPromptMinima(node, mode) {
@@ -248,11 +250,12 @@ assert.equal(node._cmkStartV2GenerationMode.button.style.height, "36px");
 assert.equal(node._cmkStartV2GenerationMode.button.style["min-height"], "36px");
 assert.equal(node._cmkStartV2GenerationMode.button.style["max-height"], "36px");
 assert.equal(node._cmkStartV2GenerationMode.widget.options.getMinHeight(), 36);
-assert.deepEqual(node._cmkStartV2GenerationMode.widget.computeLayoutSize(), {
-    minHeight: 36,
-    maxHeight: 36,
-    minWidth: 410,
-});
+// No computeLayoutSize: the frontend renders the header row as min-content, so
+// only the prompt rows take the free node height.
+assert.equal(node._cmkStartV2GenerationMode.widget.computeLayoutSize, undefined);
+for (const panel of [node._cmkStartV2Panels.engine, node._cmkStartV2Panels.strategy, node._cmkStartV2Panels.finish]) {
+    assert.equal(panel.widget.computeLayoutSize, undefined);
+}
 const sectionHeadings = [
     node._cmkStartV2Panels.engine.heading,
     node._cmkStartV2Panels.strategy.heading,
@@ -335,14 +338,32 @@ finish.dispatch("change");
 assert.equal(node._cmkStartV2GenerationMode.summary.textContent, "SDXL → ZIT");
 assert.equal(node._cmkStartV2Panels.finish.description.textContent, "SDXL generation → Z-Image Turbo finishing pass");
 const stop = byName(node, "stop_after_handoff");
-stop.value = true;
-stop.callback?.(true, node, stop);
-assert.equal(finish.disabled, true);
-assertV2Layout(node);
-stop.value = false;
-stop.callback?.(false, node, stop);
-assert.equal(finish.disabled, false);
-assertV2Layout(node);
+const geometry = (target) => ({
+    size: [...target.size],
+    order: target.widgets.map((widget) => widget.name),
+    hidden: target.widgets.map((widget) => widget.hidden === true),
+    prompts: ["GLOBAL PROMPT POS", "PROMPT NEG"].map((name) => {
+        const prompt = byName(target, name);
+        return [prompt.computeSize, prompt.options.getMinHeight?.(), prompt.options.rows, prompt.computedHeight];
+    }),
+});
+const beforeStop = geometry(node);
+let layoutChanges = 0;
+const originalTrigger = node.graph.trigger;
+node.graph.trigger = function (event, ...rest) {
+    if (event === "node:widget:changed") layoutChanges += 1;
+    return originalTrigger?.call(this, event, ...rest);
+};
+for (const value of [true, false, true, false]) {
+    stop.value = value;
+    stop.callback?.(value, node, stop);
+    assert.equal(finish.disabled, value);
+    assertV2Layout(node);
+    // STOP is a value-only change: same size, order, visibility and prompt geometry.
+    assert.deepEqual(geometry(node), beforeStop);
+}
+assert.equal(layoutChanges, 0);
+node.graph.trigger = originalTrigger;
 
 node.flags.advanced = true;
 node.setSize([450, 990]);

@@ -1224,6 +1224,23 @@ Aktuelle Implementierung:
 | Detailer Boundary | Modulbild, LOG, Branch-Dependency-Manifest | `safetensors` + JSON + internes Manifest | `MODEL` und `PROCESS` im aktuellen ComfyUI-Prozess |
 | FaceProcess Boundary | Modulbild, LOG, Branch-Dependency-Manifest | `safetensors` + JSON + internes Manifest | keine weitere Leitung |
 | FaceSwap Boundary | PROCESS, Modulbild, LOG | `safetensors` + JSON | `MODEL` wird read-only aktuell durchgereicht |
+| Hybrid SDXL Boundary (`sdxl_hybrid_boundary`, max. 8) | SDXL-Handoff-Bild, First-Pass-LOG, VISUAL, diagnostic, Checkpoint-/VAE-Identität, ContentGuard-Status `PASS` / `BYPASS` / `NOT INSPECTED` | Pickle-Envelope mit SHA-256 (Schema `cmk_hybrid_sdxl_image_boundary_v2`) | keine Modellreferenzen |
+| InstantID SDXL Handoff (`sdxl_handoff_boundary`, max. 8) | InstantID-Teilsampling für die Fortsetzung in Modul 15 | Pickle | unverändert, eigener Scope |
+
+**Hybrid SDXL Boundary und STOP AFTER HANDOFF.** Jeder tatsächlich berechnete
+Hybrid-First-Pass wird unter einem STOP-unabhängigen Schlüssel gespeichert
+(START-Felder ohne Wirkung auf den SDXL-Vorpass, darunter STOP, sind
+ausgenommen). Bei STOP stellt das SDXL-Gate den Eintrag vor jeder Anforderung von
+MODEL oder SAMPLED wieder her: IMAGE, PROCESS, LOG (alle Blöcke plus Block
+„SDXL First Pass · Hybrid Boundary“), VISUAL, diagnostic und die finale
+Stufenvorschau. MODEL ist dann der freigegebene Generationsdeskriptor
+(`model_role = generation_result`, `UNLOADED`), SAMPLED ist blockiert. Die
+ZIT-Seite liest denselben Eintrag, aber nie im Prompt, der den First Pass gerade
+berechnet hat; dort läuft der frische Handoff einschließlich SDXL-Freigabe.
+Ein Eintrag mit `NOT INSPECTED` wird bei aktivem ContentGuard vor jeder Verwendung
+geprüft; eine Ablehnung entfernt ihn und führt zur unveränderten Neuberechnung.
+STOP-Einträge werden vor dem Speichern geprüft. Der Speicherort liegt unter
+`ComfyUI/temp/` und übersteht keinen ComfyUI-Neustart.
 
 Diese Caches sind Beschleuniger, kein portables Projektformat. Nach einem Neustart, einer Codeänderung, einer geänderten Upstream-Konfiguration oder einer Cache-Bereinigung ist ein erster `MISS → STORED` erwartbar.
 

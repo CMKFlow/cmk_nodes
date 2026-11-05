@@ -238,6 +238,30 @@
       ]
     },
     {
+      "name": "hybrid_stop",
+      "workflow_file": "workflows/hybrid_stop.json",
+      "workflow_sha256": "eff989e52ea8effcdf076c12d3ec2511849f52cf129be331effc708155609c91",
+      "api_prompt_file": "api_prompts/hybrid_stop.json",
+      "api_prompt_sha256": "193b91c95fc26f474540a0381761f1c1b1278a0f16db7570591f128a5ff7b014",
+      "definitions": [
+        {
+          "name": "CMK Flow · 10 KSampler SDXL 1st Pass",
+          "signature": "45ad01b345bf736f7956d9cad60d3f2de63da613226c0d828a7f3a461e99219c",
+          "canonical_at_export": true
+        },
+        {
+          "name": "CMK Flow · 10 KSampler Z-Image Turbo",
+          "signature": "97cdae938cb1f1c40c5ddef8b380b521ff1afb84755869c1b7bacd3801d131f2",
+          "canonical_at_export": true
+        },
+        {
+          "name": "CMK Flow · 20 Refiner SDXL",
+          "signature": "822273defe455dfdefedc0149695811498348c62d7ab0dcb9a2a040e708ddee8",
+          "canonical_at_export": true
+        }
+      ]
+    },
+    {
       "name": "maskdetailer",
       "workflow_file": "workflows/maskdetailer.json",
       "workflow_sha256": "fdf3ff4402fbf62048a975636711f70c95757f1cc438387f027dc807b7db97a7",

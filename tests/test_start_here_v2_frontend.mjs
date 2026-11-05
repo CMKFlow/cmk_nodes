@@ -78,7 +78,8 @@ assert.match(frontend, /widget\.serialize = false/);
 assert.match(frontend, /TARGET_SIZE = \[600, 1225\]/);
 assert.match(frontend, /MINIMUM_SIZE = \[450, 700\]/);
 assert.match(frontend, /_cmkStartPromptMinimumScale = 0\.5/);
-assert.match(frontend, /overflowY = "auto"/);
+// No inline-style workaround on the frontend's node body or widget grid.
+assert.doesNotMatch(frontend, /applyCompactScroll|overflowY = |scrollbarGutter|data-cmk-start-v2/);
 assert.doesNotMatch(frontend, /MOSS/i);
 assert.match(legacy, /Number\(node\.properties\?\.cmkStartUiVersion\) === 2/);
 assert.match(legacy, /widgets_values = widgets/);

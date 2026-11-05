@@ -476,6 +476,130 @@ def run_fixture(
     return {"runs": records}
 
 
+HYBRID_START = "8332"
+HYBRID_SDXL_GATE = "8430:7417"
+HYBRID_SCOPES = ("sdxl_hybrid_boundary", "sdxl_handoff_boundary")
+
+
+def _scope_listing(workdir: Path) -> dict:
+    root = Path(workdir) / "temp" / "cmk"
+    return {scope: sorted(p.name for p in (root / scope).glob("*.pkl")) if (root / scope).is_dir() else []
+            for scope in HYBRID_SCOPES}
+
+
+def _payload_view(value):
+    """Comparable view of a LOG / diagnostic / VISUAL payload (tensors hashed)."""
+    from .comfy_runtime import tensor_hash
+
+    if hasattr(value, "shape") and hasattr(value, "dtype"):
+        return {"tensor": tensor_hash(value), "shape": list(value.shape)}
+    if isinstance(value, dict):
+        return {str(k): _payload_view(v) for k, v in sorted(value.items(), key=lambda kv: str(kv[0]))}
+    if isinstance(value, (list, tuple)):
+        return [_payload_view(v) for v in value]
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return type(value).__name__
+
+
+def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(False, True, False, True),
+                         mode: str = "classic", extra_model_paths: str | None = None, guard: str | None = None,
+                         evict_between_runs: bool = False, seed: int | None = None,
+                         preseed: dict | None = None, inspect: dict | None = None,
+                         overrides: dict | None = None, seeds: list | None = None,
+                         start_inputs: list | None = None) -> dict:
+    """Run a Hybrid fixture several times in one executor with STOP per run.
+
+    guard: None keeps the fixture's ContentGuard OFF; "pass" / "reject" turns
+    it ON and replaces CMKContentGuard.inspect_content (counted per role);
+    "reject" refuses only the SDXL/ZIT handoff role ("target_intermediate").  ``preseed`` writes files
+    into the cache root before the first run (e.g. a v1 entry).
+    """
+    from . import seams as seam_module
+    from .seams import install_generation_seams, reset_generation_calls
+
+    workdir = Path(workdir)
+    runtime, probes, seams = _session(workdir, extra_model_paths, mode, True, False, SELFCHECK_INPUT,
+                                      fake_postprocess=True)
+    install_generation_seams(seams, runtime)
+    guard_calls = []
+    if guard is not None:
+        content_guard = runtime.cmk_module("engine.content_guard")
+
+        def fake_inspect(self, image_rgb, role):
+            guard_calls.append(role)
+            if guard == "reject" and role == "target_intermediate":
+                raise content_guard.ContentGuardBlocked("CG_EXPLICIT_CONTENT", role)
+        seams.substitute(content_guard.CMKContentGuard, "inspect_content", "guard.inspect_content", fake_inspect)
+    for relative, data in (preseed or {}).items():
+        target = workdir / "temp" / "cmk" / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(bytes.fromhex(data))
+    import comfy.utils
+    import hashlib
+
+    import numpy as np
+    from comfy_execution.utils import get_executing_context
+
+    previews = []
+
+    def preview_hook(value, total, preview_image, prompt_id=None, node_id=None):
+        if preview_image is None:
+            return
+        image = preview_image[1]
+        node = node_id
+        if node is None:
+            context = get_executing_context()
+            node = None if context is None else context.node_id
+        previews.append([str(node), hashlib.sha256(np.asarray(image.convert("RGB")).tobytes()).hexdigest()])
+
+    previous_hook = comfy.utils.PROGRESS_BAR_HOOK
+    comfy.utils.set_progress_bar_global_hook(preview_hook)
+    base = _apply_overrides(load_api_prompt(fixture), fixture, overrides or {}, {})
+    records = []
+    try:
+        for index, stop in enumerate(stops):
+            prompt = json.loads(json.dumps(base))
+            start = prompt[HYBRID_START]["inputs"]
+            start["stop_after_handoff"] = bool(stop)
+            start.update((start_inputs or [{}] * len(stops))[index])
+            if guard is not None:
+                start["content_guard_enabled"] = True
+            run_seed = seeds[index] if seeds is not None else seed
+            if run_seed is not None:
+                for node in prompt.values():
+                    if node["class_type"] in {"CMKSamplerPrepareSDXLPipe", "CMKSamplerPrepareZImageTurboPipe"}:
+                        node["inputs"]["seed"] = int(run_seed)
+            reset_generation_calls()
+            guard_calls.clear()
+            previews.clear()
+            record = _run_once(runtime, probes, seams, workdir, prompt, inspect)
+            gate = runtime.output(HYBRID_SDXL_GATE)
+            record.update({
+                "stop": bool(stop),
+                "sampling": dict(seam_module.GENERATION_CALLS),
+                "guard_calls": list(guard_calls),
+                "final_previews": [list(item) for item in previews],
+                "scopes": _scope_listing(workdir),
+                "sdxl_gate": None if gate is None else {
+                    "model": _payload_view(gate[0][0]) if gate[0] else None,
+                    "sampled_blocked": type(gate[1][0]).__name__ if gate[1] else None,
+                    "log": _payload_view(gate[2][0]) if gate[2] else None,
+                    "image": _payload_view(gate[4][0]) if gate[4] else None,
+                    "visual": _payload_view(gate[5][0]) if gate[5] else None,
+                    "diagnostic": _payload_view(gate[6][0]) if gate[6] else None,
+                },
+            })
+            records.append(record)
+            if evict_between_runs and index + 1 < len(stops):
+                runtime.force_ram_release()
+    finally:
+        comfy.utils.set_progress_bar_global_hook(previous_hook)
+        seams.uninstall()
+        probes.uninstall()
+    return {"runs": records}
+
+
 def mask_detailer_sequence(workdir: str, extra_model_paths: str | None = None) -> dict:
     """Drive the MaskDetailer READY state machine with the real Intake node.
 

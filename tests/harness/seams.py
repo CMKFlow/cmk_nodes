@@ -138,9 +138,17 @@ class Seams:
 FAKE_MODEL_METADATA_KEYS = ("ckpt_name", "vae_name", "checkpoint_vae", "vae_source", "model_pipe_source")
 
 
+class _FakeLatentFormat:
+    """Stands in for model.model (BaseModel) where the Hybrid handoff converts x0."""
+
+    def process_latent_out(self, latent):
+        return latent
+
+
 def fake_checkpoint_resources(ckpt_name, vae_name, checkpoint_vae):
     """Same shape as loader.checkpoint_vae_loader.load_checkpoint_vae_resources."""
-    model = SimpleNamespace(cmk_s1_fake="model", ckpt_name=str(ckpt_name))
+    model = SimpleNamespace(cmk_s1_fake="model", cmk_s1_family="sdxl", ckpt_name=str(ckpt_name),
+                            model=_FakeLatentFormat())
     clip = SimpleNamespace(cmk_s1_fake="clip", ckpt_name=str(ckpt_name))
     vae = SimpleNamespace(cmk_s1_fake="vae", ckpt_name=str(ckpt_name))
     metadata = {
@@ -349,6 +357,144 @@ def install_postprocess_seams(seams: Seams, runtime) -> None:
     face_rebuild = runtime.cmk_module("nodes.instantid_face_rebuild_advanced")
     for cls in (face_rebuild.CMKInstantIDFaceRebuildSDXL, face_rebuild.CMKInstantIDFaceRebuildAdvancedSDXL):
         seams.substitute(cls, "_rebuild", "facerebuild.run", fake_face_rebuild_run)
+
+
+# -- generation (START HERE -> SDXL first pass -> Hybrid ZIT) ---------------
+# Sampling calls per family of the run in progress (reset by reset_generation_calls).
+GENERATION_CALLS = {"sdxl": 0, "zit": 0}
+
+
+def reset_generation_calls() -> None:
+    GENERATION_CALLS.update({"sdxl": 0, "zit": 0})
+
+
+def _fake_conditioning(text=""):
+    import torch
+
+    return [[torch.zeros((1, 1, 8)), {"cmk_s1_fake_text": str(text)[:40]}]]
+
+
+def _fake_latent(channels, width, height, batch=1):
+    import torch
+
+    return {"samples": torch.zeros((max(1, int(batch)), channels, max(1, int(height) // 8), max(1, int(width) // 8)))}
+
+
+def fake_vae_decode(self, vae, samples):
+    """Deterministic latent -> IMAGE (B, 8h, 8w, 3) without a VAE."""
+    import torch
+
+    latent = samples["samples"] if isinstance(samples, dict) else samples
+    value = torch.sigmoid(latent.float().mean(dim=1, keepdim=True))
+    image = value.repeat_interleave(8, dim=2).repeat_interleave(8, dim=3)
+    return (image.permute(0, 2, 3, 1).repeat(1, 1, 1, 3).contiguous(),)
+
+
+def fake_vae_encode(vae, image, channels=16):
+    import torch
+
+    pixels = image.float().mean(dim=-1)[:, None, ::8, ::8]
+    return {"samples": pixels.repeat(1, channels, 1, 1)}
+
+
+def _fake_model(family, name):
+    return SimpleNamespace(cmk_s1_fake="model", cmk_s1_family=family, ckpt_name=str(name), model=_FakeLatentFormat())
+
+
+def fake_call_node(names, *args):
+    """cmk_sampler_prepare._call_node without weights: CLIP, latents, VAE and
+    model patches of the SDXL and ZIT generation paths."""
+    name = names[0]
+    if name in {"CLIPTextEncodeSDXL", "CLIPTextEncode"}:
+        return (_fake_conditioning(args[-1] if args else ""),)
+    if name in {"ConditioningZeroOut", "ConditioningCombine", "ConditioningSetAreaPercentage",
+                "ConditioningSetTimestepRange"}:
+        return (args[0],)
+    if name == "EmptyLatentImage":
+        return (_fake_latent(4, args[0], args[1], args[2] if len(args) > 2 else 1),)
+    if name == "EmptySD3LatentImage":
+        return (_fake_latent(16, args[0], args[1], args[2] if len(args) > 2 else 1),)
+    if name == "VAEDecode":
+        return fake_vae_decode(None, args[0], args[1])
+    if name == "VAEEncode":
+        return (fake_vae_encode(args[0], args[1]),)
+    if name == "SetLatentNoiseMask":
+        return (args[0],)
+    if name in {"CLIPSetLastLayer", "PerturbedAttentionGuidance", "ModelSamplingDiscrete", "FreeU_V2",
+                "ModelSamplingAuraFlow"}:
+        return (args[0],)
+    raise RuntimeError(f"S1 generation seam: unexpected ComfyUI node {name}")
+
+
+def fake_call_node_kwargs(names, **kwargs):
+    name = names[0]
+    if name == "UNETLoader":
+        return (_fake_model("zit", kwargs.get("unet_name", "zit")),)
+    if name == "CLIPLoader":
+        return (SimpleNamespace(cmk_s1_fake="clip", ckpt_name=str(kwargs.get("clip_name", "clip"))),)
+    if name == "VAELoader":
+        return (SimpleNamespace(cmk_s1_fake="vae", ckpt_name=str(kwargs.get("vae_name", "vae"))),)
+    if name in {"CLIPTextEncode", "CLIPTextEncodeSDXL"}:
+        return (_fake_conditioning(kwargs.get("text", "")),)
+    raise RuntimeError(f"S1 generation seam: unexpected ComfyUI node {name} {sorted(kwargs)}")
+
+
+def _family(model):
+    return getattr(model, "cmk_s1_family", "sdxl")
+
+
+def fake_sample(model, noise, steps, cfg, sampler_name, scheduler, positive, negative, latent_image,
+                denoise=1.0, callback=None, seed=None, **kwargs):
+    """comfy.sample.sample: counts per family, returns a seed-determined latent
+    and feeds it as clean x0 to the preview callback (Hybrid handoff)."""
+    import torch
+
+    GENERATION_CALLS[_family(model)] += 1
+    generator = torch.Generator().manual_seed(int(seed or 0))
+    result = torch.randn(latent_image.shape, generator=generator)
+    if callback is not None:
+        last = int(kwargs.get("last_step") or steps)
+        callback(last - 1, result, result, steps)
+    return result
+
+
+def fake_ksampler_sample(self, model, seed, steps, cfg, sampler_name, scheduler, positive, negative,
+                         latent_image, denoise=1.0):
+    latent = latent_image["samples"]
+    samples = dict(latent_image)
+    samples["samples"] = fake_sample(model, None, steps, cfg, sampler_name, scheduler, positive, negative,
+                                     latent, denoise=denoise, seed=seed)
+    return (samples,)
+
+
+def fake_prepare_callback(model, steps, x0_output_dict=None):
+    def callback(step, x0, x, total_steps):
+        if x0_output_dict is not None:
+            x0_output_dict["x0"] = x0
+    return callback
+
+
+def install_generation_seams(seams: Seams, runtime) -> None:
+    """Run START HERE -> SDXL first pass -> Hybrid ZIT without weights.  The
+    nodes and their orchestration stay real; ComfyUI node calls, sampling,
+    latent preview and VAE decode are deterministic fakes.  Sampling calls are
+    counted per family in GENERATION_CALLS."""
+    import comfy.sample
+    import latent_preview
+    import nodes
+
+    prepare = runtime.cmk_module("pipe.cmk_sampler_prepare")
+    seams.substitute(prepare, "_call_node", "generation.call_node", fake_call_node, rebind=True)
+    seams.substitute(prepare, "_call_node_kwargs", "generation.call_node_kwargs", fake_call_node_kwargs, rebind=True)
+    seams.substitute(comfy.sample, "fix_empty_latent_channels", "generation.fix_latent",
+                     lambda model, latent, *args, **kwargs: latent)
+    seams.substitute(comfy.sample, "sample", "generation.sample", fake_sample)
+    seams.substitute(latent_preview, "prepare_callback", "generation.preview_callback", fake_prepare_callback)
+    seams.substitute(nodes.KSampler, "sample", "generation.ksampler", fake_ksampler_sample)
+    seams.substitute(nodes.VAEDecode, "decode", "generation.vae_decode", fake_vae_decode)
+    loader = runtime.cmk_module("pipe.loaders.checkpoint_vae_loader")
+    seams.substitute(loader, "_load_checkpoint_clip", "checkpoint.load_clip",
+                     lambda ckpt_name: SimpleNamespace(cmk_s1_fake="clip", ckpt_name=str(ckpt_name)), rebind=True)
 
 
 def install_standard(seams: Seams, runtime, *, stop_prepare: bool = True, fake_postprocess: bool = False) -> None:
