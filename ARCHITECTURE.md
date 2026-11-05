@@ -1237,6 +1237,11 @@ Stufenvorschau. MODEL ist dann der freigegebene Generationsdeskriptor
 (`model_role = generation_result`, `UNLOADED`), SAMPLED ist blockiert. Die
 ZIT-Seite liest denselben Eintrag, aber nie im Prompt, der den First Pass gerade
 berechnet hat; dort läuft der frische Handoff einschließlich SDXL-Freigabe.
+Die finale Stufenvorschau sendet bei einem HIT das SDXL-Gate
+(`CMKFamilyBranchGateSDXLSampled`) statt des nicht ausgeführten KSamplers; der
+Visualizer akzeptiert dieses Gate deshalb zusätzlich als Live-Quelle des
+First-Pass-Providers (`LIVE_PREVIEW_RELAYS` in `cmk_visualizer.js`), ohne die
+Provider-Identität zu ändern.
 Ein Eintrag mit `NOT INSPECTED` wird bei aktivem ContentGuard vor jeder Verwendung
 geprüft; eine Ablehnung entfernt ihn und führt zur unveränderten Neuberechnung.
 STOP-Einträge werden vor dem Speichern geprüft. Der Speicherort liegt unter

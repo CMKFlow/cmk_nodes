@@ -37,6 +37,9 @@ VISUALIZER_ON_FIRST_PASS = {  # topology of "CMK 2.6 · Flow · InOutpaint HYBRI
     "8334.VISUAL SDXL": ["8430:7417", 5],
 }
 RESTORE_BLOCK = "SDXL First Pass · Hybrid Boundary"
+FIRST_PASS_LIVE, HYBRID_SDXL_GATE = "8430:7415", "8430:7417"
+ZIT_CHAIN = {"CMKHybridZITInputPipe", "CMKZImageTurboLoaderPipe", "CMKSamplerPrepareZImageTurboPipe",
+             "CMKZImageTurboFinalizePipe", "CMKZImageBoundaryCache", "CMKFamilyBranchGateZImage"}
 
 
 def sdxl(runs):
@@ -130,8 +133,19 @@ class HybridStopSequence(ScenarioCase):
     def test_restored_stop_keeps_the_final_preview(self):
         fresh = self.fresh_stop["runs"][0]["final_previews"]
         restored = self.classic["runs"][1]["final_previews"]
+        # Pixel-identical image, sent for the first-pass stage: by the KSampler
+        # when computed, by the SDXL sampled gate on a boundary HIT.  The
+        # Visualizer maps both node ids to the first-pass provider
+        # (tests/test_visualizer_live_relay.mjs).
         self.assertEqual([item[1] for item in restored], [item[1] for item in fresh])
-        self.assertEqual([item[0].split(":")[0] for item in restored], ["8430"])  # same subgraph node
+        self.assertEqual([item[0] for item in fresh], [FIRST_PASS_LIVE])
+        self.assertEqual([item[0] for item in restored], [HYBRID_SDXL_GATE])
+
+    def test_stop_requests_no_zit_chain(self):
+        for run in (self.classic["runs"][1], self.classic["runs"][3], self.fresh_stop["runs"][0]):
+            executed = set(run["function_calls"])
+            self.assertEqual(executed & ZIT_CHAIN, set(), run["function_calls"])
+            self.assertEqual(run["sampling"]["zit"], 0)
 
 
 class HybridStopVisualizer(ScenarioCase):

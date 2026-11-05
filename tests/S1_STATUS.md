@@ -789,3 +789,25 @@ Vorbestehende Befunde (identisch mit HEAD, nicht Teil der Korrektur):
 | `.mjs` | 7 Dateien | 7 | – | – | 0 |
 
 Geschützte Caches unverändert.
+
+## STOP-Cache-HIT ohne sichtbare Vorschau (2026-11-05, reale Validierung)
+
+Befund im realen Workflow nach `ba5beda`: Hybrid-Boundary-HIT bei STOP, kein
+Sampling, aber keine Bildausgabe. Nachgewiesene Ursache (echtes Frontend 1.57.4,
+identische Vorschau): Der Visualizer ordnet Vorschauen dem First-Pass-Provider
+nur über dessen Live-Node `CMKKSamplerPipe` (`8430:7415`) zu; beim HIT sendet das
+SDXL-Gate (`8430:7417`) die Vorschau und sie wurde verworfen (0 statt 1 Bild).
+Backend-Daten und Vorschauversand waren korrekt.
+
+Korrektur (`web/js/cmk_visualizer.js`): `LIVE_PREVIEW_RELAYS` – das SDXL-Gate
+derselben Instanz ist zusätzliche Live-Quelle des Providers mit Live-Typ
+`CMKKSamplerPipe` (nur `live_node_ids`; Provider-ID und primärer Live-Node
+unverändert). Nach der Korrektur im echten Frontend: Gate-Vorschau sichtbar
+(1 Bild, auch nach Ausführungsende), KSampler unverändert, andere innere Nodes
+weiterhin nicht zugeordnet.
+
+Tests: neu `test_visualizer_live_relay.mjs` (lädt das echte Modul; Gegenprobe
+ohne Relay scheitert); Test-Loader bildet zusätzlich `/scripts/app.js` und
+`/scripts/api.js` ab; `test_s1_hybrid_stop.py` prüft jetzt die exakten
+Vorschau-Ziel-Nodes (frisch `8430:7415`, HIT `8430:7417`) und dass im STOP-Pfad
+keine Node der ZIT-Kette läuft (19 Tests).
