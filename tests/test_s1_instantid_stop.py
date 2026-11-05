@@ -120,6 +120,26 @@ class HiddenWidget(ScenarioCase):
         self.assertEqual(runs[1]["visual"]["8334"][-1]["provider_id"], FIRST_PASS)
 
 
+class HandoffPercent(ScenarioCase):
+    """The slider value passes ComfyUI's validation and reaches the sampler."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        percents = [{"instantid_handoff_percent": value} for value in (40, 50, 60, 70, 80)]
+        stops = [False] * 5
+        cls.inpaint = cls.run_case("hybrid_stop_sequence", fixture=FIXTURE, stops=stops, start_inputs=percents)
+        cls.text2image = cls.run_case("hybrid_stop_sequence", fixture=FIXTURE, stops=stops,
+                                      start_inputs=[{**TEXT2IMAGE, **item} for item in percents])
+
+    def test_sampler_and_instantid_use_the_step(self):
+        for sequence in (self.inpaint, self.text2image):
+            runs = sequence["runs"]
+            self.assertTrue(all(run["succeeded"] for run in runs), [run["errors"] for run in runs])
+            self.assertEqual([run["sampler_last_steps"] for run in runs], [[10], [13], [15], [18], [20]])
+            self.assertEqual([run["instantid_latents"][0]["start_step"] for run in runs], [10, 13, 15, 18, 20])
+
+
 class EvictedExecutorCache(ScenarioCase):
     """The handoff survives without ComfyUI's own cache."""
 

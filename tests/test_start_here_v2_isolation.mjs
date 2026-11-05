@@ -197,6 +197,18 @@ const check = (label, fn) => {
 check("v1 layout unchanged in all six modes", () => assert.deepEqual(current.v1, reference.v1));
 check("positional serialization unchanged (v1, v2)", () => assert.deepEqual(current.serialization, reference.serialization));
 
+// -- HYBRID HANDOFF range ---------------------------------------------------
+for (const [version, build] of [["v1", () => fakeNode(false)], ["v2", () => fakeNode(true)]]) {
+    for (const [saved, expected] of [[40, 40], [50, 50], [60, 60], [70, 70], [80, 80], [30, 70], [45, 70]]) {
+        const node = build();
+        byName(node, "instantid_handoff_percent").value = saved;
+        if (version === "v1") configureStartBase(node); else configureV2(node);
+        await settle();
+        check(`${version}: saved handoff ${saved}`, () => assert.equal(byName(node, "instantid_handoff_percent").value, expected));
+        check(`${version}: serialized handoff ${saved}`, () => assert.ok(serialized(node).includes(expected)));
+    }
+}
+
 // -- v2 isolation ----------------------------------------------------------
 function assertV2(node, label) {
     check(`${label}: v2 controls on top`, () => assert.deepEqual(node.widgets.slice(0, 5).map((w) => w.name), [
