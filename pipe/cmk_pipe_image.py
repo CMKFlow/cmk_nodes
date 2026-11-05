@@ -5,6 +5,7 @@ from .cmk_visual import empty_visual, register_provider
 from ..cmk_distribution import (
     content_guard_control_visible,
     effective_content_guard_enabled,
+    start_instantid_mode,
 )
 from ..utils.cmk_diagnostic import make_diagnostic_payload
 from comfy.utils import common_upscale
@@ -1093,11 +1094,8 @@ class CMKPipeCreateImage:
         inpaint_mask_expand = max(
             4, min(32, int(inputs.get("inpaint_mask_expand", 16) or 16))
         )
-        requested_instantid_mode = str(inputs.get("instantid_mode", "HYBRID") or "HYBRID").strip().upper()
-        instantid_mode = (
-            "HYBRID INPAINT"
-            if INPAINT_MODE
-            else ("ZERO-PASS" if requested_instantid_mode == "ZERO-PASS" else "HYBRID")
+        instantid_mode = start_instantid_mode(
+            INPAINT_MODE, inputs.get("instantid_mode", "HYBRID")
         )
         outpaint_on = inputs.get("outpaint_on", False)
         outpaint_overlap = max(0, min(256, int(inputs.get("outpaint_overlap", 32) or 0)))
