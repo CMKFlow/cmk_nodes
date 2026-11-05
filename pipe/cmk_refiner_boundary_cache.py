@@ -13,6 +13,11 @@ from ..cmk_distribution import (
     stop_after_handoff_prompt_state,
 )
 from ..utils.cmk_timing import cmk_timed_call
+from .cmk_persistent_cache import (
+    _INPUT_CONTENT_MEMO_KEY,
+    apply_input_content,
+    input_content_identities,
+)
 
 
 _CACHE_SCHEMA = "cmk_refiner_boundary_cache_v3"
@@ -146,6 +151,7 @@ def _canonical_node(prompt: dict, node_id: Any, memo: dict, stack: set):
             }
         else:
             canonical_inputs[str(input_name)] = _canonical_scalar(value)
+    apply_input_content(prompt, key, memo, canonical_inputs)
 
     payload = {
         "class_type": class_type,
@@ -169,7 +175,8 @@ def build_refiner_fingerprint(prompt: Any, unique_id: Any) -> tuple[str | None, 
 
     global _FINGERPRINT_MEMO_PROMPT_ID, _FINGERPRINT_MEMO
     prompt_id = id(prompt)
-    memo_key = str(unique_id)
+    input_content = input_content_identities(prompt)
+    memo_key = (str(unique_id), tuple(sorted(input_content.items())))
     with _FINGERPRINT_MEMO_LOCK:
         if _FINGERPRINT_MEMO_PROMPT_ID != prompt_id:
             _FINGERPRINT_MEMO_PROMPT_ID = prompt_id
@@ -203,7 +210,7 @@ def build_refiner_fingerprint(prompt: Any, unique_id: Any) -> tuple[str | None, 
             f"(resolved_id={resolved_id!r})"
         )
 
-    memo = {}
+    memo = {_INPUT_CONTENT_MEMO_KEY: input_content}
     payload = {
         "schema": _CACHE_SCHEMA,
         "image_1st_pass_root": {

@@ -365,6 +365,31 @@ for (const value of [true, false, true, false]) {
 assert.equal(layoutChanges, 0);
 node.graph.trigger = originalTrigger;
 
+// SDXL -> InstantID: STOP stays available across Text2Image <-> Inpaint, and
+// the mode widget that Inpaint hides cannot switch it off.
+{
+    const identity = fakeNode(true);
+    byName(identity, "instantid_enabled").value = true;
+    configureV2(identity);
+    const identityStop = byName(identity, "stop_after_handoff");
+    const identityMode = byName(identity, "INPAINT_MODE");
+    assert.equal(identity.properties.cmkStartV2State.strategy, "IDENTITY");
+    identityStop.value = true;
+    for (const inpaint of ["Inpaint", "Text2Image", "Inpaint"]) {
+        identityMode.value = inpaint;
+        identityMode.callback?.(inpaint, identity, identityMode);
+        assert.equal(identityStop.value, true);
+        assert.notEqual(identityStop.disabled, true);
+    }
+    byName(identity, "instantid_mode").value = "ZERO-PASS";
+    identityStop.callback?.(true, identity, identityStop);
+    assert.equal(identityStop.value, true);
+    identityMode.value = "Text2Image";
+    identityMode.callback?.("Text2Image", identity, identityMode);
+    assert.equal(identityStop.value, false);
+    assert.equal(identityStop.disabled, true);
+}
+
 node.flags.advanced = true;
 node.setSize([450, 990]);
 node._cmkStartV2GenerationMode.button.click();

@@ -492,7 +492,7 @@ def _payload_view(value):
     from .comfy_runtime import tensor_hash
 
     if hasattr(value, "shape") and hasattr(value, "dtype"):
-        return {"tensor": tensor_hash(value), "shape": list(value.shape)}
+        return {"tensor": tensor_hash(value) if hasattr(value, "detach") else "non-tensor", "shape": list(value.shape)}
     if isinstance(value, dict):
         return {str(k): _payload_view(v) for k, v in sorted(value.items(), key=lambda kv: str(kv[0]))}
     if isinstance(value, (list, tuple)):
@@ -502,18 +502,45 @@ def _payload_view(value):
     return type(value).__name__
 
 
+def _tensor_png_hash(runtime, image) -> str:
+    """The pixels the Visualizer writes for this IMAGE; comparable with _png_hash."""
+    import hashlib
+
+    rgb = runtime.cmk_module("utils.preview_payload")._as_rgb_uint8(image)
+    return hashlib.sha256(rgb.tobytes()).hexdigest()
+
+
+def boot_runtime(workdir, extra_model_paths):
+    from .comfy_runtime import boot
+
+    return boot(Path(workdir), extra_model_paths=extra_model_paths)
+
+
+def _write_inpaint_input(workdir: Path, spec: dict) -> None:
+    """RGBA source: uniform shade, alpha 0 (= masked) inside mask_box."""
+    from PIL import Image, ImageDraw
+
+    shade = int(spec.get("shade", 128))
+    image = Image.new("RGBA", (256, 256), (shade, shade, shade, 255))
+    ImageDraw.Draw(image).rectangle(tuple(spec.get("mask_box", (64, 64, 192, 192))), fill=(shade, shade, shade, 0))
+    image.save(Path(workdir) / "input" / spec["name"])
+
+
 def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(False, True, False, True),
                          mode: str = "classic", extra_model_paths: str | None = None, guard: str | None = None,
                          evict_between_runs: bool = False, seed: int | None = None,
                          preseed: dict | None = None, inspect: dict | None = None,
                          overrides: dict | None = None, seeds: list | None = None,
-                         start_inputs: list | None = None, remove_inputs: list | None = None) -> dict:
+                         start_inputs: list | None = None, remove_inputs: list | None = None,
+                         input_images: list | None = None) -> dict:
     """Run a Hybrid fixture several times in one executor with STOP per run.
 
     guard: None keeps the fixture's ContentGuard OFF; "pass" / "reject" turns
     it ON and replaces CMKContentGuard.inspect_content (counted per role);
     "reject" refuses only the SDXL/ZIT handoff role ("target_intermediate").  ``preseed`` writes files
-    into the cache root before the first run (e.g. a v1 entry).
+    into the cache root before the first run (e.g. a v1 entry).  ``input_images`` holds one entry per run
+    ({"name", "shade", "mask_box"}): that RGBA file is written into the input folder before the run, and
+    node 8437 reads it, so a file can change while its name stays the same.
     """
     from . import seams as seam_module
     from .seams import install_generation_seams, reset_generation_calls
@@ -573,14 +600,23 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
                 for node in prompt.values():
                     if node["class_type"] in {"CMKSamplerPrepareSDXLPipe", "CMKSamplerPrepareZImageTurboPipe"}:
                         node["inputs"]["seed"] = int(run_seed)
+            image_spec = (input_images or [None] * len(stops))[index]
+            if image_spec is not None:
+                _write_inpaint_input(workdir, image_spec)
+                prompt["8437"]["inputs"]["image"] = image_spec["name"]
             reset_generation_calls()
             guard_calls.clear()
             previews.clear()
             record = _run_once(runtime, probes, seams, workdir, prompt, inspect)
             gate = runtime.output(HYBRID_SDXL_GATE)
+            refiner_gate = runtime.output("8433:7812")
             record.update({
                 "stop": bool(stop),
+                "public_image_png": _tensor_png_hash(runtime, refiner_gate[1][0]) if refiner_gate and refiner_gate[1] else None,
                 "sampling": dict(seam_module.GENERATION_CALLS),
+                "inpaint_prepares": [dict(item) for item in seam_module.INPAINT_PREPARES],
+                "sampler_noise_masks": list(seam_module.SAMPLER_NOISE_MASKS),
+                "instantid_latents": [dict(item) for item in seam_module.INSTANTID_LATENTS],
                 "guard_calls": list(guard_calls),
                 "final_previews": [list(item) for item in previews],
                 "scopes": _scope_listing(workdir),
@@ -601,6 +637,58 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
         seams.uninstall()
         probes.uninstall()
     return {"runs": records}
+
+
+def stop_contract_matrix(workdir: str, extra_model_paths: str | None = None) -> dict:
+    """STOP decision of the real CMKPipeCreateImage PROCESS next to the
+    prompt-side decision, for every START HERE combination."""
+    import itertools
+
+    import torch
+
+    runtime = boot_runtime(workdir, extra_model_paths)
+    distribution = runtime.cmk_module("cmk_distribution")
+    node = runtime.cmk_module("pipe.cmk_pipe_image").CMKPipeCreateImage()
+    image = torch.zeros((1, 64, 64, 3))
+    mask = torch.zeros((1, 64, 64))
+    rows = []
+    for family, mode, enabled, requested, stop in itertools.product(
+        ("SDXL", "Hybrid", "Z-Image Turbo"), ("Text2Image", "Inpaint", True, False), (True, False),
+        ("HYBRID", "ZERO-PASS", "unexpected", None), (True, False),
+    ):
+        widgets = {"model_family": family, "INPAINT_MODE": mode, "instantid_enabled": enabled,
+                   "instantid_mode": requested, "stop_after_handoff": stop}
+        result = node.create_image(**widgets, IMAGE=image, MASK=mask, FILENAME="x.png", seed=1)
+        process = result["result"][0] if isinstance(result, dict) else result[0]
+        prompt = {"1": {"class_type": "CMKPipeCreateImage", "inputs": widgets}}
+        rows.append({"widgets": widgets, "process_mode": process.get("instantid_mode"),
+                     "process": distribution.stop_after_handoff_active(process),
+                     "prompt": distribution.stop_after_handoff_prompt_state(prompt)})
+    return {"rows": rows}
+
+
+def input_content_keys(workdir: str, extra_model_paths: str | None = None) -> dict:
+    """build_node_fingerprint around a same-name file replacement, with the
+    same prompt object: the memo must not hide the new content."""
+    runtime = boot_runtime(workdir, extra_model_paths)
+    cache = runtime.cmk_module("pipe.cmk_persistent_cache")
+    refiner = runtime.cmk_module("pipe.cmk_refiner_boundary_cache")
+    workdir = Path(workdir)
+    (workdir / "input").mkdir(parents=True, exist_ok=True)
+    prompt = load_api_prompt("instantid_inpaint")
+    prompt["8437"]["inputs"]["image"] = "same_name.png"
+    keys = {}
+
+    def key(mode):
+        prompt["8332"]["inputs"]["INPAINT_MODE"] = mode
+        fingerprint, _detail = cache.build_node_fingerprint(prompt, "8430:7415", ("CMKKSamplerPipe",), "s1")
+        refined, _detail = refiner.build_refiner_fingerprint(prompt, "8433:7810")
+        return [fingerprint, refined]
+
+    for label, spec in (("a", {"shade": 40}), ("pixels", {"shade": 200}), ("mask", {"shade": 200, "mask_box": (8, 8, 32, 32)})):
+        _write_inpaint_input(workdir, {"name": "same_name.png", **spec})
+        keys[label] = {"inpaint": key("Inpaint"), "text2image": key("Text2Image")}
+    return keys
 
 
 def mask_detailer_sequence(workdir: str, extra_model_paths: str | None = None) -> dict:

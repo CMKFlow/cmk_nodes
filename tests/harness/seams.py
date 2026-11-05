@@ -149,6 +149,7 @@ def fake_checkpoint_resources(ckpt_name, vae_name, checkpoint_vae):
     """Same shape as loader.checkpoint_vae_loader.load_checkpoint_vae_resources."""
     model = SimpleNamespace(cmk_s1_fake="model", cmk_s1_family="sdxl", ckpt_name=str(ckpt_name),
                             model=_FakeLatentFormat())
+    model.clone = lambda: model
     clip = SimpleNamespace(cmk_s1_fake="clip", ckpt_name=str(ckpt_name))
     vae = SimpleNamespace(cmk_s1_fake="vae", ckpt_name=str(ckpt_name))
     metadata = {
@@ -361,11 +362,74 @@ def install_postprocess_seams(seams: Seams, runtime) -> None:
 
 # -- generation (START HERE -> SDXL first pass -> Hybrid ZIT) ---------------
 # Sampling calls per family of the run in progress (reset by reset_generation_calls).
-GENERATION_CALLS = {"sdxl": 0, "zit": 0}
+GENERATION_CALLS = {"sdxl": 0, "zit": 0, "instantid": 0, "refiner": 0}
+INPAINT_PREPARES = []
+SAMPLER_NOISE_MASKS = []
+INSTANTID_LATENTS = []
 
 
 def reset_generation_calls() -> None:
-    GENERATION_CALLS.update({"sdxl": 0, "zit": 0})
+    GENERATION_CALLS.update({"sdxl": 0, "zit": 0, "instantid": 0, "refiner": 0})
+    INPAINT_PREPARES.clear()
+    SAMPLER_NOISE_MASKS.clear()
+    INSTANTID_LATENTS.clear()
+
+
+def _tensor_digest(value):
+    import hashlib
+
+    return None if value is None else hashlib.sha256(value.detach().cpu().numpy().tobytes()).hexdigest()
+
+
+def fake_fooocus_prepare(self, model, positive, negative, vae, image, mask, *, head="", patch="",
+                         noise_mask=False, replace_masked_content=False, spatial_strength=1.0, grow_mask_by=16):
+    """CMKFooocusInpaintPipeline.prepare without patch files or a VAE: the
+    latent derives from the real prepared IMAGE, the noise mask from the real
+    prepared MASK."""
+    import torch
+
+    INPAINT_PREPARES.append({"image": _tensor_digest(image), "mask": _tensor_digest(mask),
+                             "noise_mask": bool(noise_mask), "grow_mask_by": int(grow_mask_by)})
+    latent = fake_vae_encode(vae, image, channels=4)
+    if noise_mask:
+        latent["noise_mask"] = torch.as_tensor(mask).float().reshape((-1, 1) + tuple(mask.shape[-2:]))
+    return model, positive, negative, latent
+
+
+def fake_instantid_sample(self, MODEL, PROCESS, SAMPLED, LOG, *args, VISUAL=None, unique_id=None, **kwargs):
+    """CMKInstantIDSamplerSDXLPipe._sample without weights: counts the run and
+    returns the identity result on the real ports, built from the handoff."""
+    import torch
+
+    cmk_add_block = sys.modules[type(self).__module__].cmk_add_block
+    register_provider = sys.modules[type(self).__module__].register_provider
+    make_diagnostic_payload = sys.modules[type(self).__module__].make_diagnostic_payload
+    GENERATION_CALLS["instantid"] += 1
+    handoff = SAMPLED["instantid_keypoints_latent"]
+    INSTANTID_LATENTS.append({"digest": _tensor_digest(handoff["samples"]), "keys": sorted(handoff),
+                              "bridge": bool(SAMPLED.get("instantid_inpaint_bridge"))})
+    result = {"samples": torch.tanh(handoff["samples"])}
+    identity_image = fake_vae_decode(None, None, result)[0]
+    sampled = dict(SAMPLED)
+    sampled.update({"samples": result, "latent": result, "latent_image": result, "latent_1st_pass": result,
+                    "image_1st_pass": identity_image, "identity_applied": True,
+                    "instantid_workflow": "HYBRID INPAINT" if SAMPLED.get("instantid_inpaint_bridge") else "HYBRID"})
+    log = cmk_add_block(LOG, "InstantID Sampler SDXL", 45, ["fake"], True)
+    diagnostic = make_diagnostic_payload(title="InstantID", node="fake", previews=[], summary="fake", details="fake",
+                                         mode="InstantID", metadata={"identity_applied": True})
+    visual = register_provider(VISUAL, module_instance_id=unique_id or "instantid-sampler",
+                               module_type="CMKInstantIDSamplerSDXLPipe", module_label="Identity", sequence=15,
+                               channels={"result": identity_image}, status="completed", live_node_id=unique_id,
+                               branch="sdxl", stage_key="sdxl.identity")
+    return MODEL, PROCESS, sampled, log, identity_image, visual, diagnostic
+
+
+def fake_ksampler_advanced(self, model, add_noise, seed, steps, cfg, sampler_name, scheduler, positive, negative,
+                           latent_image, start_at_step, end_at_step, return_with_leftover_noise, denoise=1.0):
+    import torch
+
+    GENERATION_CALLS["refiner"] += 1
+    return ({"samples": torch.tanh(latent_image["samples"] + 0.1)},)
 
 
 def _fake_conditioning(text=""):
@@ -450,8 +514,10 @@ def fake_sample(model, noise, steps, cfg, sampler_name, scheduler, positive, neg
     import torch
 
     GENERATION_CALLS[_family(model)] += 1
+    SAMPLER_NOISE_MASKS.append(_tensor_digest(kwargs.get("noise_mask")))
     generator = torch.Generator().manual_seed(int(seed or 0))
-    result = torch.randn(latent_image.shape, generator=generator)
+    # The source latent shapes the result, so different inputs give different x0.
+    result = torch.randn(latent_image.shape, generator=generator) + latent_image.float()
     if callback is not None:
         last = int(kwargs.get("last_step") or steps)
         callback(last - 1, result, result, steps)
@@ -492,6 +558,13 @@ def install_generation_seams(seams: Seams, runtime) -> None:
     seams.substitute(latent_preview, "prepare_callback", "generation.preview_callback", fake_prepare_callback)
     seams.substitute(nodes.KSampler, "sample", "generation.ksampler", fake_ksampler_sample)
     seams.substitute(nodes.VAEDecode, "decode", "generation.vae_decode", fake_vae_decode)
+    seams.substitute(nodes.VAEEncode, "encode", "generation.vae_encode",
+                     lambda self, vae, pixels: (fake_vae_encode(vae, pixels, channels=4),))
+    seams.substitute(nodes.KSamplerAdvanced, "sample", "generation.ksampler_advanced", fake_ksampler_advanced)
+    fooocus = runtime.cmk_module("engine.fooocus_inpaint")
+    seams.substitute(fooocus.CMKFooocusInpaintPipeline, "prepare", "generation.fooocus_prepare", fake_fooocus_prepare)
+    instantid = runtime.cmk_module("pipe.instantid.cmk_instantid_sampler")
+    seams.substitute(instantid.CMKInstantIDSamplerSDXLPipe, "_sample", "generation.instantid", fake_instantid_sample)
     loader = runtime.cmk_module("pipe.loaders.checkpoint_vae_loader")
     seams.substitute(loader, "_load_checkpoint_clip", "checkpoint.load_clip",
                      lambda ckpt_name: SimpleNamespace(cmk_s1_fake="clip", ckpt_name=str(ckpt_name)), rebind=True)

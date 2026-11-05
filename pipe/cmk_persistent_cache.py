@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import os
 import pickle
@@ -10,7 +11,11 @@ import threading
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from ..cmk_distribution import CONTENT_GUARD_WIDGET, STOP_AFTER_HANDOFF_WIDGET
+from ..cmk_distribution import (
+    CONTENT_GUARD_WIDGET,
+    STOP_AFTER_HANDOFF_WIDGET,
+    instantid_inpaint_prompt_active,
+)
 
 
 PERSISTENT_DISK_SCOPES = (
@@ -98,6 +103,79 @@ def _canonical_scalar(value: Any):
     return repr(value)
 
 
+# SDXL -> InstantID Inpaint keeps the SDXL handoff across prompts, and that
+# handoff depends on the pixels and the mask of the source file.  The prompt
+# only names the file, so its IS_CHANGED content digest joins the identity.
+# Every other configuration keeps its keys bit-identical.
+_IMAGE_FILE_LOADERS = frozenset({
+    "LoadImage",
+    "LoadImageMask",
+    "CMKImageFileLoader",
+    "CMKLoadImage",
+    "CMKImageLoadAndResizePipe",
+})
+_INPUT_CONTENT_MEMO_KEY = "\0input_content"
+_INPUT_CONTENT_FIELD = "\0input_content"
+
+
+def _loader_content_digest(prompt: dict, node: dict) -> str | None:
+    import nodes  # type: ignore
+
+    loader = nodes.NODE_CLASS_MAPPINGS.get(str(node.get("class_type", "")))
+    is_changed = getattr(loader, "IS_CHANGED", None)
+    if is_changed is None:
+        return None
+    arguments = {
+        str(name): value
+        for name, value in (node.get("inputs", {}) or {}).items()
+        if not _is_link(prompt, value)
+    }
+    parameters = inspect.signature(is_changed).parameters
+    if not any(item.kind is item.VAR_KEYWORD for item in parameters.values()):
+        arguments = {
+            name: value for name, value in arguments.items() if name in parameters
+        }
+    digest = is_changed(**arguments)
+    return digest if isinstance(digest, str) else None
+
+
+def input_content_identities(prompt: Any) -> dict:
+    """Content digest per image-file loader of an InstantID Inpaint prompt."""
+    if not instantid_inpaint_prompt_active(prompt):
+        return {}
+    identities = {}
+    for node_id, node in prompt.items():
+        if (
+            not isinstance(node, dict)
+            or str(node.get("class_type", "")) not in _IMAGE_FILE_LOADERS
+        ):
+            continue
+        try:
+            digest = _loader_content_digest(prompt, node)
+        except Exception:
+            # An unreadable file also fails ComfyUI's own input validation.
+            digest = None
+        if digest:
+            identities[str(node_id)] = digest
+    return identities
+
+
+def apply_input_content(
+    prompt: dict,
+    node_id: str,
+    memo: dict,
+    canonical_inputs: dict,
+) -> None:
+    """Add a loader's content digest to its canonical inputs, if it has one."""
+    identities = memo.get(_INPUT_CONTENT_MEMO_KEY)
+    if identities is None:
+        identities = input_content_identities(prompt)
+        memo[_INPUT_CONTENT_MEMO_KEY] = identities
+    digest = identities.get(str(node_id))
+    if digest:
+        canonical_inputs[_INPUT_CONTENT_FIELD] = digest
+
+
 def _canonical_node(
     prompt: dict,
     node_id: Any,
@@ -143,6 +221,7 @@ def _canonical_node(
             }
         else:
             inputs[str(input_name)] = _canonical_scalar(value)
+    apply_input_content(prompt, key, memo, inputs)
 
     payload = {
         "class_type": class_type,
@@ -181,6 +260,7 @@ def _fingerprint_memo_key(
     exclude_inputs,
     include_node_identity,
     extra_identity,
+    input_content,
 ):
     return (
         str(unique_id),
@@ -189,6 +269,7 @@ def _fingerprint_memo_key(
         tuple(sorted(str(value) for value in exclude_inputs)),
         bool(include_node_identity),
         json.dumps(_canonical_scalar(extra_identity), sort_keys=True, default=str),
+        tuple(sorted(input_content.items())),
     )
 
 
@@ -206,6 +287,9 @@ def build_node_fingerprint(
 
     class_types_tuple = tuple(str(value) for value in class_types)
     excluded_tuple = tuple(str(value) for value in exclude_inputs)
+    # Part of the memo key: a Python id can return for a later prompt with the
+    # same text after the file behind it changed.
+    input_content = input_content_identities(prompt)
     memo_key = _fingerprint_memo_key(
         unique_id,
         class_types_tuple,
@@ -213,6 +297,7 @@ def build_node_fingerprint(
         excluded_tuple,
         include_node_identity,
         extra_identity,
+        input_content,
     )
 
     global _FINGERPRINT_MEMO_PROMPT_ID, _FINGERPRINT_MEMO
@@ -241,7 +326,7 @@ def build_node_fingerprint(
         return result
 
     excluded = set(excluded_tuple)
-    canonical_memo = {}
+    canonical_memo = {_INPUT_CONTENT_MEMO_KEY: input_content}
     canonical_inputs = {}
 
     for input_name, value in sorted(

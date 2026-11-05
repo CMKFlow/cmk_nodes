@@ -849,3 +849,34 @@ Unverändert: Der ZIT-Cache trifft nur im laufenden ComfyUI-Prozess.
 Der Full-Flow-Hash in `test_image_resize_port_contract.py` wurde nach der
 Migration aktualisiert (die fünf Vertragslinks sind unverändert). Geschützte
 Caches unverändert.
+
+## STOP AFTER HANDOFF für SDXL → InstantID Inpaint
+
+Vertrag: `start_instantid_mode` (`cmk_distribution.py`) ist die einzige Auflösung
+des InstantID-Modus; `CMKPipeCreateImage` und `stop_after_handoff_prompt_state`
+nutzen sie. `stop_after_handoff_active` und `_sdxl_handoff_enabled` akzeptieren
+`HYBRID INPAINT`. `stopSupported` (v2) lässt Identity + Inpaint zu.
+
+M7 für diesen Pfad: Auf den Handoff wirken Dateipixel, Alpha-Maske, die
+START-Parameter (im Prompt) und die Modelle. Der Prompt enthält von der Datei nur
+den Namen. Korrektur: `input_content_identities` nimmt in dieser Konfiguration den
+`IS_CHANGED`-SHA-256 der Bild-Loader in `_canonical_node` und in den Memo-Schlüssel
+auf (auch im Refiner-Duplikat). Andere Konfigurationen bleiben bitgleich.
+Offen bleibt: andere Konfigurationen und Modelldateien gleichen Namens (M7 allgemein).
+
+Harness: Fixture `instantid_inpaint` (Showcase ohne LoraManager-Stack, aus dem
+Frontend exportiert); neue Seams für Fooocus-Patch, VAEEncode, InstantID und
+KSamplerAdvanced. `test_s1_instantid_stop.py` (24): SDXL 1/0/0/0, InstantID und
+Refiner 1/0/1/0 für Text2Image und Inpaint; 192 Kombinationen PROCESS = Prompt;
+Dateitausch bei gleichem Namen ohne alten HIT; ContentGuard und Maske.
+Gegenproben: alter Code 13 Fehlschläge; ohne Inhaltsidentität 4.
+
+### Gesamtlauf nach STOP für InstantID Inpaint
+
+| Gruppe | Tests | PASS | erwarteter Fehlschlag | SKIP | unerwartet |
+|---|---|---|---|---|---|
+| S1 | 242 | 233 | 7 | 2 | 0 |
+| Bestand | 166 | 165 | – | – | 1 in `test_image_resize_port_contract.py` (Altfehler Sourcemap) |
+| `.mjs` | 9 Dateien | 9 | – | – | 0 |
+
+Geschützte Caches unverändert.

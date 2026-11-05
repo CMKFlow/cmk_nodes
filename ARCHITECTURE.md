@@ -1258,6 +1258,18 @@ geprüft; eine Ablehnung entfernt ihn und führt zur unveränderten Neuberechnun
 STOP-Einträge werden vor dem Speichern geprüft. Der Speicherort liegt unter
 `ComfyUI/temp/` und übersteht keinen ComfyUI-Neustart.
 
+**InstantID Handoff und STOP AFTER HANDOFF.** Modul 01 löst den wirksamen
+InstantID-Modus an genau einer Stelle auf (`start_instantid_mode`): Inpaint ist
+immer `HYBRID INPAINT`, das dort verborgene Widget hat keine Wirkung. STOP gilt
+für `HYBRID` und `HYBRID INPAINT`; PROCESS- und Prompt-Auswertung verwenden
+dieselbe Normalisierung. Der Handoff-Cache (`sdxl_handoff_boundary`) bedient beide
+Modi. Bei Inpaint ist der Eintrag die x0-Schätzung nach der Inpaint Bridge, also
+ein Latent ohne `noise_mask`; ContentGuard prüft x0 vor der Bridge. Weil der Prompt
+Bild und Maske nur über den Dateinamen benennt, trägt in der Konfiguration
+SDXL → InstantID Inpaint jeder Bild-Loader (`_IMAGE_FILE_LOADERS`) seinen
+`IS_CHANGED`-Inhaltshash im Fingerprint. Das gilt für alle Fingerprints dieses
+Prompts; alle anderen Konfigurationen behalten ihre Schlüssel bitgleich.
+
 Diese Caches sind Beschleuniger, kein portables Projektformat. Nach einem Neustart, einer Codeänderung, einer geänderten Upstream-Konfiguration oder einer Cache-Bereinigung ist ein erster `MISS → STORED` erwartbar.
 
 ### 6.5 Warum nicht anders

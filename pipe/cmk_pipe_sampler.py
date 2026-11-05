@@ -62,7 +62,7 @@ def _sdxl_handoff_enabled(pipe):
         and str(pipe.get("instantid_mode", "HYBRID") or "HYBRID")
         .strip()
         .upper()
-        == "HYBRID"
+        in {"HYBRID", "HYBRID INPAINT"}
         and int(pipe.get("instantid_end_at_step", 0) or 0) > 0
         and not pipe.get("hybrid_mode", False)
         and str(pipe.get("model_family", "sdxl")).strip().lower() == "sdxl"

@@ -42,8 +42,8 @@ export function stopSupported({ engine, strategy, finish, inpaint, instantidMode
         selection.engine === ENGINE_SDXL
         && selection.strategy === STRATEGY_IDENTITY
         && selection.finish === FINISH_REFINER
-        && !inpaint
-        && String(instantidMode || "HYBRID").trim().toUpperCase() === "HYBRID"
+        // Inpaint always uses HYBRID INPAINT; the mode widget is hidden there.
+        && (inpaint || String(instantidMode || "HYBRID").trim().toUpperCase() === "HYBRID")
     );
 }
 

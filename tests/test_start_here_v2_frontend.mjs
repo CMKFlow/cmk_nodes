@@ -48,7 +48,8 @@ const stopCases = [
     [{ engine: ENGINE_SDXL, strategy: STRATEGY_STANDARD, finish: FINISH_ZIT, inpaint: true, instantidMode: "HYBRID" }, true],
     [{ engine: ENGINE_SDXL, strategy: STRATEGY_IDENTITY, finish: FINISH_REFINER, inpaint: false, instantidMode: "HYBRID" }, true],
     [{ engine: ENGINE_SDXL, strategy: STRATEGY_IDENTITY, finish: FINISH_REFINER, inpaint: false, instantidMode: "ZERO-PASS" }, false],
-    [{ engine: ENGINE_SDXL, strategy: STRATEGY_IDENTITY, finish: FINISH_REFINER, inpaint: true, instantidMode: "HYBRID" }, false],
+    [{ engine: ENGINE_SDXL, strategy: STRATEGY_IDENTITY, finish: FINISH_REFINER, inpaint: true, instantidMode: "HYBRID" }, true],
+    [{ engine: ENGINE_SDXL, strategy: STRATEGY_IDENTITY, finish: FINISH_REFINER, inpaint: true, instantidMode: "ZERO-PASS" }, true],
     [{ engine: ENGINE_ZIT, strategy: STRATEGY_STANDARD, finish: FINISH_NONE, inpaint: false, instantidMode: "HYBRID" }, false],
 ];
 for (const [configuration, expected] of stopCases) {

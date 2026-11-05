@@ -316,6 +316,30 @@
           "canonical_at_export": false
         }
       ]
+    },
+    {
+      "name": "instantid_inpaint",
+      "workflow_file": "workflows/instantid_inpaint.json",
+      "workflow_sha256": "6dc9c004ca42f4a4c8d857c0cc7e678d22294630a16addf21fb58db7b7e78a54",
+      "api_prompt_file": "api_prompts/instantid_inpaint.json",
+      "api_prompt_sha256": "ac0a1675af0e8063e6063b5eddec6d49318a63d9815bdb37f49c107010ac3372",
+      "definitions": [
+        {
+          "name": "CMK Flow · 10 KSampler SDXL 1st Pass",
+          "signature": "45ad01b345bf736f7956d9cad60d3f2de63da613226c0d828a7f3a461e99219c",
+          "canonical_at_export": true
+        },
+        {
+          "name": "CMK Flow · 20 Refiner SDXL",
+          "signature": "822273defe455dfdefedc0149695811498348c62d7ab0dcb9a2a040e708ddee8",
+          "canonical_at_export": true
+        },
+        {
+          "name": "CMK Flow · 15S InstantID Regional SDXL",
+          "signature": "de2d48392be6e9a8e8613861044e893f3048bb83736cc9e2148ced8fcc0a88b7",
+          "canonical_at_export": true
+        }
+      ]
     }
   ]
 }

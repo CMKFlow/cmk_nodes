@@ -1,0 +1,509 @@
+{
+  "8332": {
+    "inputs": {
+      "MODEL FAMILY TABS": "SDXL",
+      "GLOBAL PROMPT POS": "a hand holds a GOLDEN PINEAPPLE",
+      "PROMPT NEG": "low quality, low resolution, blurry, soft focus, pixelated, oversaturated, underexposed, overexposed, flat lighting, watermark, logo, signature, frame",
+      "INPAINT_MODE": "Inpaint",
+      "resolution": "1024x1024",
+      "swap_dimensions": false,
+      "upscale_method": "lanczos",
+      "device": "cpu",
+      "outpaint_on": false,
+      "mask_fill_holes": true,
+      "fill_masked_area": "neutral",
+      "process_mode": "Custom",
+      "resize_mode": "Fit",
+      "crop_position": "Center",
+      "outpaint_overlap": 32,
+      "controlnet_enabled": "AUTO",
+      "instantid_enabled": true,
+      "instantid_handoff_percent": 70,
+      "stop_after_handoff": false,
+      "inpaint_mask_expand": 16,
+      "unload_models_after_use": true,
+      "live_preview_zit": "AUTO",
+      "content_guard_enabled": false,
+      "model_family": "SDXL",
+      "instantid_mode": "HYBRID",
+      "hybrid_sdxl_handoff": "90%",
+      "hybrid_zit_denoise": "0.20",
+      "HYBRID BALANCE": 3,
+      "PROCESS": [
+        "8437",
+        0
+      ],
+      "IMAGE": [
+        "8437",
+        1
+      ],
+      "MASK": [
+        "8437",
+        2
+      ],
+      "FILENAME": [
+        "8437",
+        3
+      ],
+      "LOG": [
+        "8437",
+        4
+      ]
+    },
+    "class_type": "CMKPipeCreateImage",
+    "_meta": {
+      "title": "CMK Flow · 01 START HERE · Create Image"
+    }
+  },
+  "8334": {
+    "inputs": {
+      "SAVE ENABLED": false,
+      "filename prefix": "image",
+      "output folder": "",
+      "use date folder": true,
+      "enable upscale": false,
+      "limit 4x MP": 0.5,
+      "limit 2x MP": 8,
+      "model 4x": "RealESRGAN_x4plus.pth",
+      "model 2x": "RealESRGAN-x2plus.pth",
+      "MODEL SDXL": [
+        "8433:7812",
+        0
+      ],
+      "PROCESS SDXL": [
+        "8433:7811",
+        0
+      ],
+      "IMAGE SDXL": [
+        "8433:7812",
+        1
+      ],
+      "LOG SDXL": [
+        "8433:7812",
+        2
+      ],
+      "VISUAL SDXL": [
+        "8433:7812",
+        3
+      ]
+    },
+    "class_type": "CMKVisualizer",
+    "_meta": {
+      "title": "CMK Flow · Visualizer"
+    }
+  },
+  "8437": {
+    "inputs": {
+      "image": "CMK Package · inpaint_reference2.png",
+      "opt_in": false
+    },
+    "class_type": "CMKLoadImage",
+    "_meta": {
+      "title": "CMK Flow · Load Image"
+    }
+  },
+  "8430:7414": {
+    "inputs": {
+      "ckpt_name": "juggernautXL_ragnarok.safetensors",
+      "vae_name": "ClearVAE_V2.2.safetensors",
+      "checkpoint_vae": true,
+      "PROCESS": [
+        "8332",
+        0
+      ]
+    },
+    "class_type": "CMKCheckpointVAELoaderPipe",
+    "_meta": {
+      "title": "CMK Flow · Checkpoint & VAE"
+    }
+  },
+  "8430:7415": {
+    "inputs": {
+      "SAMPLER": [
+        "8430:7416",
+        0
+      ],
+      "VISUAL": [
+        "8332",
+        4
+      ]
+    },
+    "class_type": "CMKKSamplerPipe",
+    "_meta": {
+      "title": "CMK KSampler -Pipe-"
+    }
+  },
+  "8430:7416": {
+    "inputs": {
+      "stop_at_clip_layer": -2,
+      "fooocus_patch": "inpaint_v25.fooocus.patch",
+      "fooocus_head": "fooocus_inpaint_head.pth",
+      "lora_name": "None",
+      "strength_model": 1,
+      "strength_clip": 1,
+      "freeu_enabled": true,
+      "freeu_b1": 1.3,
+      "freeu_b2": 1.4,
+      "freeu_s1": 0.9,
+      "freeu_s2": 0.2,
+      "steps_1st_pass": 25,
+      "cfg": 5,
+      "sampler": "euler_ancestral",
+      "sampling": "lcm",
+      "zsnr": false,
+      "pag_scale": 2.5,
+      "scheduler": "karras",
+      "seed": 1565304366,
+      "denoise": 1,
+      "inpaint_noise_mask": true,
+      "context_reference_enabled": false,
+      "context_reference_expand": 3,
+      "context_reference_blur": 5,
+      "replace_spatial_strength": 0.35,
+      "remove_blend_radius": 24,
+      "remove_mask_expand": 12,
+      "MODEL": [
+        "8430:7414",
+        0
+      ],
+      "PROCESS": [
+        "8332",
+        0
+      ],
+      "IMAGE": [
+        "8332",
+        2
+      ],
+      "LOG": [
+        "8332",
+        3
+      ]
+    },
+    "class_type": "CMKSamplerPrepareSDXLPipe",
+    "_meta": {
+      "title": "CMK Sampler Prepare SDXL -Pipe-"
+    }
+  },
+  "8430:7417": {
+    "inputs": {
+      "MODEL": [
+        "8430:7414",
+        0
+      ],
+      "PROCESS": [
+        "8332",
+        0
+      ],
+      "SAMPLED": [
+        "8430:7415",
+        0
+      ],
+      "LOG": [
+        "8430:7416",
+        1
+      ],
+      "VISUAL": [
+        "8430:7415",
+        1
+      ],
+      "diagnostic": [
+        "8430:7416",
+        2
+      ]
+    },
+    "class_type": "CMKFamilyBranchGateSDXLSampled",
+    "_meta": {
+      "title": "CMKFamilyBranchGateSDXLSampled"
+    }
+  },
+  "8438:7807": {
+    "inputs": {
+      "image": "CMK Package · face_identity_reference.png",
+      "opt_in": true
+    },
+    "class_type": "CMKLoadImage",
+    "_meta": {
+      "title": "SOURCE FACE"
+    }
+  },
+  "8438:7914": {
+    "inputs": {
+      "identity_strength": 1,
+      "pose_strength": 0.7,
+      "target_face": "Largest",
+      "instantid_start": 0,
+      "instantid_end": 1,
+      "instantid_model": "ip-adapter.bin",
+      "controlnet_model": "instantid/diffusion_pytorch_model.safetensors",
+      "provider": "CoreML",
+      "cfg": 4.5,
+      "noise": 0.75,
+      "conditioning_mode": "InstantID reference",
+      "reference_conditioning_weight": 0.75,
+      "reference_start_at_step": 8,
+      "MODEL": [
+        "8430:7417",
+        0
+      ],
+      "PROCESS": [
+        "8430:7417",
+        3
+      ],
+      "SAMPLED": [
+        "8430:7417",
+        1
+      ],
+      "LOG": [
+        "8430:7417",
+        2
+      ],
+      "source_face": [
+        "8438:7807",
+        1
+      ],
+      "VISUAL": [
+        "8430:7417",
+        5
+      ]
+    },
+    "class_type": "CMKInstantIDSamplerSDXLPipe",
+    "_meta": {
+      "title": "CMK InstantID Sampler SDXL -Pipe-"
+    }
+  },
+  "8438:7915": {
+    "inputs": {
+      "MODEL": [
+        "8438:7914",
+        0
+      ],
+      "PROCESS": [
+        "8430:7417",
+        3
+      ],
+      "SAMPLED": [
+        "8438:7914",
+        2
+      ],
+      "LOG": [
+        "8438:7914",
+        3
+      ],
+      "diagnostic": [
+        "8438:7914",
+        6
+      ]
+    },
+    "class_type": "CMKInstantIDBoundary",
+    "_meta": {
+      "title": "CMK InstantID Boundary"
+    }
+  },
+  "8438:7916": {
+    "inputs": {
+      "PROCESS": [
+        "8430:7417",
+        3
+      ]
+    },
+    "class_type": "CMKProcessForwardPipe",
+    "_meta": {
+      "title": "CMK Process Forward -Pipe-"
+    }
+  },
+  "8438:7917": {
+    "inputs": {
+      "flag": "instantid_enabled",
+      "PROCESS": [
+        "8430:7417",
+        3
+      ]
+    },
+    "class_type": "CMKProcessEnableFlag",
+    "_meta": {
+      "title": "CMK Process Enable Flag"
+    }
+  },
+  "8438:7918": {
+    "inputs": {
+      "ENABLE": [
+        "8438:7917",
+        0
+      ],
+      "MODEL BYPASS": [
+        "8430:7417",
+        0
+      ],
+      "SAMPLED BYPASS": [
+        "8430:7417",
+        1
+      ],
+      "LOG BYPASS": [
+        "8430:7417",
+        2
+      ],
+      "MODEL ACTIVE": [
+        "8438:7915",
+        0
+      ],
+      "SAMPLED ACTIVE": [
+        "8438:7915",
+        2
+      ],
+      "LOG ACTIVE": [
+        "8438:7915",
+        3
+      ],
+      "DIAGNOSTIC ACTIVE": [
+        "8438:7915",
+        4
+      ],
+      "VISUAL BYPASS": [
+        "8430:7417",
+        5
+      ],
+      "VISUAL ACTIVE": [
+        "8438:7914",
+        5
+      ]
+    },
+    "class_type": "CMKSamplerBypassGate",
+    "_meta": {
+      "title": "CMK Sampler Bypass Gate"
+    }
+  },
+  "8433:7808": {
+    "inputs": {
+      "ckpt_name": "refiner/sd_xl_refiner_1.0.safetensors",
+      "vae_name": "sdxl_vae.safetensors",
+      "checkpoint_vae": false
+    },
+    "class_type": "CMKCheckpointVAELoaderPipe",
+    "_meta": {
+      "title": "CMK Flow · Checkpoint & VAE"
+    }
+  },
+  "8433:7809": {
+    "inputs": {
+      "REFINER": [
+        "8433:7813",
+        0
+      ],
+      "VISUAL": [
+        "8438:7918",
+        4
+      ]
+    },
+    "class_type": "CMKRefinerPipe",
+    "_meta": {
+      "title": "CMK Refiner -Pipe-"
+    }
+  },
+  "8433:7810": {
+    "inputs": {
+      "MODEL": [
+        "8438:7918",
+        0
+      ],
+      "IMAGE_1ST_PASS": [
+        "8433:7809",
+        0
+      ],
+      "IMAGE_REFINED": [
+        "8433:7809",
+        1
+      ],
+      "LOG": [
+        "8433:7813",
+        1
+      ]
+    },
+    "class_type": "CMKRefinerBoundaryCache",
+    "_meta": {
+      "title": "CMK Boundary Cache"
+    }
+  },
+  "8433:7811": {
+    "inputs": {
+      "PROCESS": [
+        "8438:7916",
+        0
+      ]
+    },
+    "class_type": "CMKProcessForwardPipe",
+    "_meta": {
+      "title": "CMK Process Forward -Pipe-"
+    }
+  },
+  "8433:7812": {
+    "inputs": {
+      "MODEL": [
+        "8433:7810",
+        0
+      ],
+      "PROCESS": [
+        "8433:7811",
+        0
+      ],
+      "IMAGE": [
+        "8433:7810",
+        2
+      ],
+      "LOG": [
+        "8433:7810",
+        3
+      ],
+      "VISUAL": [
+        "8433:7809",
+        2
+      ],
+      "diagnostic": [
+        "8433:7813",
+        2
+      ]
+    },
+    "class_type": "CMKFamilyBranchGateSDXL",
+    "_meta": {
+      "title": "CMKFamilyBranchGateSDXL"
+    }
+  },
+  "8433:7813": {
+    "inputs": {
+      "use_prompt_lora_from_sampler": true,
+      "use_lora_from_1st_pass": false,
+      "lora_name": "None",
+      "strength_model": 1,
+      "strength_clip": 1,
+      "sampling_source": "1st pass",
+      "steps": 25,
+      "start_without_instantid": 80,
+      "start_with_instantid": 90,
+      "cfg": 4.8,
+      "sampler": "euler",
+      "sampling": "lcm",
+      "zsnr": false,
+      "pag_scale": 2.5,
+      "scheduler": "simple",
+      "MODEL": [
+        "8433:7808",
+        0
+      ],
+      "PROCESS": [
+        "8438:7916",
+        0
+      ],
+      "SAMPLED": [
+        "8438:7918",
+        1
+      ],
+      "LOG": [
+        "8438:7918",
+        2
+      ]
+    },
+    "class_type": "CMKRefinerPrepareSDXLPipe",
+    "_meta": {
+      "title": "CMK Refiner Prepare SDXL -Pipe-"
+    }
+  }
+}

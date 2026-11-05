@@ -103,6 +103,31 @@ def content_guard_prompt_token(prompt: Any, root_node_id: Any = None) -> str:
     return f"{distribution_mode().lower()}:{'on' if enabled else 'off'}"
 
 
+def _start_inpaint_mode(value: Any) -> bool:
+    """Module 01's INPAINT_MODE, as CMKPipeCreateImage resolves it."""
+    if isinstance(value, bool):
+        return value
+    return str(value or "Text2Image").strip().lower() == "inpaint"
+
+
+def _start_model_family(value: Any) -> str:
+    """Module 01's model family, as CMKPipeCreateImage resolves it."""
+    family = str(value or "SDXL").strip().lower()
+    if family == "hybrid":
+        return "hybrid"
+    if family in {"z-image turbo", "z image turbo", "z_image_turbo"}:
+        return "z_image_turbo"
+    return "sdxl"
+
+
+def start_instantid_mode(inpaint_mode: Any, requested_mode: Any) -> str:
+    """Effective InstantID mode.  Inpaint ignores the hidden mode widget."""
+    if _start_inpaint_mode(inpaint_mode):
+        return "HYBRID INPAINT"
+    requested = str(requested_mode or "HYBRID").strip().upper()
+    return "ZERO-PASS" if requested == "ZERO-PASS" else "HYBRID"
+
+
 def stop_after_handoff_active(process: Mapping[str, Any] | None = None) -> bool:
     """Return the effective preview-only state for a supported handoff."""
     if not isinstance(process, Mapping):
@@ -116,10 +141,30 @@ def stop_after_handoff_active(process: Mapping[str, Any] | None = None) -> bool:
         and str(process.get("instantid_mode", "HYBRID") or "HYBRID")
         .strip()
         .upper()
-        == "HYBRID"
+        in {"HYBRID", "HYBRID INPAINT"}
         and not process.get("hybrid_mode", False)
         and str(process.get("model_family", "sdxl")).strip().lower() == "sdxl"
     )
+
+
+def instantid_inpaint_prompt_active(prompt: Any) -> bool:
+    """True when module 01 selects SDXL -> InstantID in Inpaint mode."""
+    if not isinstance(prompt, Mapping):
+        return False
+    for node in prompt.values():
+        if not isinstance(node, Mapping):
+            continue
+        if str(node.get("class_type", "")) != "CMKPipeCreateImage":
+            continue
+        inputs = node.get("inputs")
+        if (
+            isinstance(inputs, Mapping)
+            and inputs.get("instantid_enabled", False)
+            and _start_inpaint_mode(inputs.get("INPAINT_MODE", "Text2Image"))
+            and _start_model_family(inputs.get("model_family", "SDXL")) == "sdxl"
+        ):
+            return True
+    return False
 
 
 def stop_after_handoff_prompt_state(
@@ -142,16 +187,19 @@ def stop_after_handoff_prompt_state(
         inputs = node.get("inputs")
         if not isinstance(inputs, Mapping):
             continue
+        # The same normalization CMKPipeCreateImage applies to PROCESS, so a
+        # hidden or unsupported widget value cannot produce another decision.
+        family = _start_model_family(inputs.get("model_family", "SDXL"))
         return stop_after_handoff_active({
             STOP_AFTER_HANDOFF_PROCESS_KEY: inputs.get(
                 STOP_AFTER_HANDOFF_WIDGET, False
             ),
             "instantid_enabled": inputs.get("instantid_enabled", False),
-            "instantid_mode": inputs.get("instantid_mode", "HYBRID"),
-            "model_family": inputs.get("model_family", "SDXL"),
-            "hybrid_mode": str(inputs.get("model_family", "SDXL"))
-            .strip()
-            .lower()
-            == "hybrid",
+            "instantid_mode": start_instantid_mode(
+                inputs.get("INPAINT_MODE", "Text2Image"),
+                inputs.get("instantid_mode", "HYBRID"),
+            ),
+            "model_family": family,
+            "hybrid_mode": family == "hybrid",
         })
     return False
