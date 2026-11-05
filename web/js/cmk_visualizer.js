@@ -161,7 +161,14 @@ function upstreamNode(node, wanted, visited = new Set()) {
   return null;
 }
 
-function remappedDeclaredProvider(outerNode, item) {
+// Nodes that publish a stage's preview in place of its live node.  On a
+// persistent Hybrid boundary HIT (STOP AFTER HANDOFF) the SDXL first pass is
+// not sampled; its sampled branch gate publishes the restored image instead.
+const LIVE_PREVIEW_RELAYS = {
+  CMKKSamplerPipe: new Set(["CMKFamilyBranchGateSDXLSampled"]),
+};
+
+export function remappedDeclaredProvider(outerNode, item) {
   const innerNodes = outerNode?.subgraph?.nodes || outerNode?.subgraph?._nodes || [];
   if (!innerNodes.length) return item;
   const visualProviders = innerNodes.filter((inner) => nodeKind(inner) === "CMKVisualProvider");
@@ -209,6 +216,9 @@ function remappedDeclaredProvider(outerNode, item) {
     ? innerNodes.filter(matchesLiveType)
     : [];
   const liveNode = liveNodes[0] || null;
+  const relayNodes = liveNodes.length
+    ? innerNodes.filter((inner) => LIVE_PREVIEW_RELAYS[liveType]?.has(nodeKind(inner)))
+    : [];
   const scopedNodeId = (inner) => inner ? `${outerNode.id}:${inner.id}` : null;
   return {
     ...item,
@@ -232,7 +242,7 @@ function remappedDeclaredProvider(outerNode, item) {
     provider_node_id: scopedNodeId(visualProvider) || item.provider_node_id,
     live_node_id: scopedNodeId(liveNode) || item.live_node_id,
     live_node_ids: liveNodes.length
-      ? liveNodes.map(scopedNodeId)
+      ? [...liveNodes, ...relayNodes].map(scopedNodeId)
       : (item.live_node_ids || (item.live_node_id ? [item.live_node_id] : [])),
     live_node_resolved: liveNodes.length > 0,
   };
@@ -427,7 +437,7 @@ function nodeIdMatches(expected, candidate) {
   return left === right || left.endsWith(`:${right}`) || right.endsWith(`:${left}`);
 }
 
-function providerForNode(state, ...nodeIds) {
+export function providerForNode(state, ...nodeIds) {
   const catalog = state.catalog || [];
   const liveMatch = catalog.find((provider) =>
     (provider.live_node_ids || [provider.live_node_id])
