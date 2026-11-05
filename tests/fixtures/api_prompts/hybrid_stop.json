@@ -1,0 +1,539 @@
+{
+  "8332": {
+    "inputs": {
+      "MODEL FAMILY TABS": "Hybrid",
+      "GLOBAL PROMPT POS": "Cinematic editorial portrait of an elegant female explorer standing in a futuristic botanical observatory, three-quarter view, looking toward the camera, one hand holding a small transparent glass sphere, the other resting naturally on a brass railing. Detailed expressive face, natural skin texture, anatomically correct hands, dark blue tailored coat with fine embroidered details, lush exotic plants, glass architecture, subtle mist, warm golden sunlight, realistic reflections, layered depth, balanced composition, sophisticated color grading, highly detailed, photorealistic",
+      "PROMPT NEG": "low quality, low resolution, blurry, soft focus, pixelated, oversaturated, underexposed, overexposed, flat lighting, bad anatomy, malformed body, deformed face, asymmetrical eyes, crossed eyes, malformed hands, deformed fingers, extra fingers, missing fingers, fused fingers, extra limbs, duplicate person, cropped head, cropped hands, floating objects, distorted perspective, plastic skin, waxy skin, excessive skin smoothing, text, caption, watermark, logo, signature, frame",
+      "INPAINT_MODE": "Text2Image",
+      "resolution": "1024x1024",
+      "swap_dimensions": false,
+      "device": "cpu",
+      "controlnet_enabled": "AUTO",
+      "unload_models_after_use": true,
+      "live_preview_zit": "AUTO",
+      "content_guard_enabled": false,
+      "HYBRID BALANCE": 2,
+      "stop_after_handoff": false,
+      "upscale_method": "lanczos",
+      "outpaint_on": false,
+      "mask_fill_holes": false,
+      "fill_masked_area": "neutral",
+      "process_mode": "Custom",
+      "resize_mode": "Fit",
+      "crop_position": "Center",
+      "outpaint_overlap": 32,
+      "model_family": "Hybrid",
+      "instantid_enabled": false,
+      "instantid_mode": "HYBRID",
+      "inpaint_mask_expand": 16,
+      "hybrid_sdxl_handoff": "90%",
+      "hybrid_zit_denoise": "0.20",
+      "instantid_handoff_percent": 70
+    },
+    "class_type": "CMKPipeCreateImage",
+    "_meta": {
+      "title": "CMK Flow · 01 START HERE · Create Image"
+    }
+  },
+  "8334": {
+    "inputs": {
+      "SAVE ENABLED": false,
+      "filename prefix": "image",
+      "output folder": "",
+      "use date folder": true,
+      "enable upscale": false,
+      "limit 4x MP": 0.5,
+      "limit 2x MP": 8,
+      "model 4x": "RealESRGAN_x4plus.pth",
+      "model 2x": "RealESRGAN-x2plus.pth",
+      "MODEL ZIT": [
+        "8431:7655",
+        0
+      ],
+      "PROCESS ZIT": [
+        "8431:7654",
+        0
+      ],
+      "IMAGE ZIT": [
+        "8431:7655",
+        1
+      ],
+      "LOG ZIT": [
+        "8431:7655",
+        2
+      ],
+      "VISUAL ZIT": [
+        "8431:7655",
+        3
+      ],
+      "MODEL SDXL": [
+        "8438:7812",
+        0
+      ],
+      "PROCESS SDXL": [
+        "8438:7811",
+        0
+      ],
+      "IMAGE SDXL": [
+        "8438:7812",
+        1
+      ],
+      "LOG SDXL": [
+        "8438:7812",
+        2
+      ],
+      "VISUAL SDXL": [
+        "8438:7812",
+        3
+      ]
+    },
+    "class_type": "CMKVisualizer",
+    "_meta": {
+      "title": "CMK Flow · Visualizer"
+    }
+  },
+  "8430:7414": {
+    "inputs": {
+      "ckpt_name": "juggernautXL_ragnarok.safetensors",
+      "vae_name": "ClearVAE_V2.2.safetensors",
+      "checkpoint_vae": true,
+      "PROCESS": [
+        "8332",
+        0
+      ]
+    },
+    "class_type": "CMKCheckpointVAELoaderPipe",
+    "_meta": {
+      "title": "CMK Flow · Checkpoint & VAE"
+    }
+  },
+  "8430:7415": {
+    "inputs": {
+      "SAMPLER": [
+        "8430:7416",
+        0
+      ],
+      "VISUAL": [
+        "8332",
+        4
+      ]
+    },
+    "class_type": "CMKKSamplerPipe",
+    "_meta": {
+      "title": "CMK KSampler -Pipe-"
+    }
+  },
+  "8430:7416": {
+    "inputs": {
+      "stop_at_clip_layer": -2,
+      "fooocus_patch": "inpaint_v25.fooocus.patch",
+      "fooocus_head": "fooocus_inpaint_head.pth",
+      "lora_name": "None",
+      "strength_model": 1,
+      "strength_clip": 1,
+      "freeu_enabled": true,
+      "freeu_b1": 1.3,
+      "freeu_b2": 1.4,
+      "freeu_s1": 0.9,
+      "freeu_s2": 0.2,
+      "steps_1st_pass": 25,
+      "cfg": 5,
+      "sampler": "euler_ancestral",
+      "sampling": "lcm",
+      "zsnr": false,
+      "pag_scale": 2.5,
+      "scheduler": "karras",
+      "seed": 1565304366,
+      "denoise": 1,
+      "inpaint_noise_mask": true,
+      "context_reference_enabled": false,
+      "context_reference_expand": 3,
+      "context_reference_blur": 5,
+      "replace_spatial_strength": 0.35,
+      "remove_blend_radius": 24,
+      "remove_mask_expand": 12,
+      "MODEL": [
+        "8430:7414",
+        0
+      ],
+      "PROCESS": [
+        "8332",
+        0
+      ],
+      "IMAGE": [
+        "8332",
+        2
+      ],
+      "LOG": [
+        "8332",
+        3
+      ]
+    },
+    "class_type": "CMKSamplerPrepareSDXLPipe",
+    "_meta": {
+      "title": "CMK Sampler Prepare SDXL -Pipe-"
+    }
+  },
+  "8430:7417": {
+    "inputs": {
+      "MODEL": [
+        "8430:7414",
+        0
+      ],
+      "PROCESS": [
+        "8332",
+        0
+      ],
+      "SAMPLED": [
+        "8430:7415",
+        0
+      ],
+      "LOG": [
+        "8430:7416",
+        1
+      ],
+      "VISUAL": [
+        "8430:7415",
+        1
+      ],
+      "diagnostic": [
+        "8430:7416",
+        2
+      ]
+    },
+    "class_type": "CMKFamilyBranchGateSDXLSampled",
+    "_meta": {
+      "title": "CMKFamilyBranchGateSDXLSampled"
+    }
+  },
+  "8431:7650": {
+    "inputs": {
+      "diffusion_model": "z_image_turbo_bf16.safetensors",
+      "text_encoder": "qwen_3_4b.safetensors",
+      "vae": "ae.safetensors",
+      "weight_dtype": "default",
+      "clip_device": "default",
+      "PROCESS": [
+        "8332",
+        1
+      ],
+      "LOG": [
+        "8431:7657",
+        1
+      ]
+    },
+    "class_type": "CMKZImageTurboLoaderPipe",
+    "_meta": {
+      "title": "CMK Z-Image Turbo Loader -Pipe-"
+    }
+  },
+  "8431:7651": {
+    "inputs": {
+      "seed": 1565304366,
+      "steps": 8,
+      "sampler": "res_multistep",
+      "scheduler": "simple",
+      "cfg": 1,
+      "model_shift": 3,
+      "inpaint_model_patch": "Z-Image-Turbo-Fun-Controlnet-Union-2.1.safetensors",
+      "MODEL": [
+        "8431:7650",
+        0
+      ],
+      "PROCESS": [
+        "8332",
+        1
+      ],
+      "LOG": [
+        "8431:7650",
+        1
+      ],
+      "IMAGE": [
+        "8431:7657",
+        0
+      ]
+    },
+    "class_type": "CMKSamplerPrepareZImageTurboPipe",
+    "_meta": {
+      "title": "CMK Sampler Prepare Z-Image Turbo -Pipe-"
+    }
+  },
+  "8431:7652": {
+    "inputs": {
+      "SAMPLER": [
+        "8431:7651",
+        0
+      ],
+      "VISUAL": [
+        "8431:7657",
+        2
+      ]
+    },
+    "class_type": "CMKKSamplerPipe",
+    "_meta": {
+      "title": "CMK KSampler -Pipe-"
+    }
+  },
+  "8431:7653": {
+    "inputs": {
+      "MODEL": [
+        "8431:7650",
+        0
+      ],
+      "PROCESS": [
+        "8332",
+        1
+      ],
+      "SAMPLED": [
+        "8431:7652",
+        0
+      ],
+      "LOG": [
+        "8431:7651",
+        1
+      ]
+    },
+    "class_type": "CMKZImageTurboFinalizePipe",
+    "_meta": {
+      "title": "CMK Z-Image Turbo Finalize -Pipe-"
+    }
+  },
+  "8431:7654": {
+    "inputs": {
+      "PROCESS": [
+        "8332",
+        1
+      ]
+    },
+    "class_type": "CMKZImageProcessForwardPipe",
+    "_meta": {
+      "title": "CMK Z-Image Process Forward -Pipe-"
+    }
+  },
+  "8431:7655": {
+    "inputs": {
+      "MODEL": [
+        "8431:7656",
+        0
+      ],
+      "PROCESS": [
+        "8332",
+        1
+      ],
+      "IMAGE": [
+        "8431:7656",
+        1
+      ],
+      "LOG": [
+        "8431:7656",
+        2
+      ],
+      "VISUAL": [
+        "8431:7652",
+        1
+      ],
+      "diagnostic": [
+        "8431:7656",
+        3
+      ]
+    },
+    "class_type": "CMKFamilyBranchGateZImage",
+    "_meta": {
+      "title": "CMKFamilyBranchGateZImage"
+    }
+  },
+  "8431:7656": {
+    "inputs": {
+      "MODEL": [
+        "8431:7653",
+        0
+      ],
+      "IMAGE": [
+        "8431:7653",
+        2
+      ],
+      "LOG": [
+        "8431:7653",
+        3
+      ],
+      "diagnostic": [
+        "8431:7653",
+        4
+      ]
+    },
+    "class_type": "CMKZImageBoundaryCache",
+    "_meta": {
+      "title": "CMK Boundary Cache"
+    }
+  },
+  "8431:7657": {
+    "inputs": {
+      "PROCESS ZIT": [
+        "8332",
+        1
+      ],
+      "IMAGE SOURCE": [
+        "8332",
+        2
+      ],
+      "LOG SOURCE": [
+        "8332",
+        3
+      ],
+      "VISUAL SOURCE": [
+        "8332",
+        4
+      ],
+      "SAMPLED SDXL": [
+        "8430:7417",
+        1
+      ],
+      "LOG SDXL": [
+        "8430:7417",
+        2
+      ],
+      "VISUAL SDXL": [
+        "8430:7417",
+        5
+      ]
+    },
+    "class_type": "CMKHybridZITInputPipe",
+    "_meta": {
+      "title": "CMK Hybrid SDXL → ZIT Bridge -Pipe-"
+    }
+  },
+  "8438:7808": {
+    "inputs": {
+      "ckpt_name": "refiner/sd_xl_refiner_1.0.safetensors",
+      "vae_name": "sdxl_vae.safetensors",
+      "checkpoint_vae": false
+    },
+    "class_type": "CMKCheckpointVAELoaderPipe",
+    "_meta": {
+      "title": "CMK Flow · Checkpoint & VAE"
+    }
+  },
+  "8438:7809": {
+    "inputs": {
+      "REFINER": [
+        "8438:7813",
+        0
+      ],
+      "VISUAL": [
+        "8430:7417",
+        5
+      ]
+    },
+    "class_type": "CMKRefinerPipe",
+    "_meta": {
+      "title": "CMK Refiner -Pipe-"
+    }
+  },
+  "8438:7810": {
+    "inputs": {
+      "MODEL": [
+        "8430:7417",
+        0
+      ],
+      "IMAGE_1ST_PASS": [
+        "8438:7809",
+        0
+      ],
+      "IMAGE_REFINED": [
+        "8438:7809",
+        1
+      ],
+      "LOG": [
+        "8438:7813",
+        1
+      ]
+    },
+    "class_type": "CMKRefinerBoundaryCache",
+    "_meta": {
+      "title": "CMK Boundary Cache"
+    }
+  },
+  "8438:7811": {
+    "inputs": {
+      "PROCESS": [
+        "8430:7417",
+        3
+      ]
+    },
+    "class_type": "CMKProcessForwardPipe",
+    "_meta": {
+      "title": "CMK Process Forward -Pipe-"
+    }
+  },
+  "8438:7812": {
+    "inputs": {
+      "MODEL": [
+        "8438:7810",
+        0
+      ],
+      "PROCESS": [
+        "8438:7811",
+        0
+      ],
+      "IMAGE": [
+        "8438:7810",
+        2
+      ],
+      "LOG": [
+        "8438:7810",
+        3
+      ],
+      "VISUAL": [
+        "8438:7809",
+        2
+      ],
+      "diagnostic": [
+        "8438:7813",
+        2
+      ]
+    },
+    "class_type": "CMKFamilyBranchGateSDXL",
+    "_meta": {
+      "title": "CMKFamilyBranchGateSDXL"
+    }
+  },
+  "8438:7813": {
+    "inputs": {
+      "use_prompt_lora_from_sampler": true,
+      "use_lora_from_1st_pass": false,
+      "lora_name": "None",
+      "strength_model": 1,
+      "strength_clip": 1,
+      "sampling_source": "1st pass",
+      "steps": 25,
+      "start_without_instantid": 80,
+      "start_with_instantid": 90,
+      "cfg": 4.8,
+      "sampler": "euler",
+      "sampling": "lcm",
+      "zsnr": false,
+      "pag_scale": 2.5,
+      "scheduler": "simple",
+      "MODEL": [
+        "8438:7808",
+        0
+      ],
+      "PROCESS": [
+        "8430:7417",
+        3
+      ],
+      "SAMPLED": [
+        "8430:7417",
+        1
+      ],
+      "LOG": [
+        "8430:7417",
+        2
+      ]
+    },
+    "class_type": "CMKRefinerPrepareSDXLPipe",
+    "_meta": {
+      "title": "CMK Refiner Prepare SDXL -Pipe-"
+    }
+  }
+}

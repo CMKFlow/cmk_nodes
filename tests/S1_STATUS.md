@@ -738,3 +738,54 @@ geändert, 23 waren bereits kanonisch); Bericht und Einzelheiten:
 Exit-Code ≠ 0 beim Prozessende; Einzel- und Runner-Nachlauf mit Exit-Code 0, nicht
 reproduzierbar. Der Nachlauf von `test_image_resize_port_contract.py` folgte der
 Hash-Aktualisierung nach der START-HERE-Rückstellung. Geschützte Caches unverändert.
+
+## STOP AFTER HANDOFF: UI-Geometrie und Hybrid-SDXL-Cache (2026-11-05)
+
+**Teil A – START HERE v2 (`web/js/cmk_flow_start_guidance_v2.js`).** Ursache: Der
+GENERATION-MODE-Header hatte `computeLayoutSize` und erhielt im Vue-Frontend eine
+dehnbare Rasterzeile; als Gegenmaßnahme setzte `applyCompactScroll()` bei jedem
+`refresh()` Inline-Styles auf das Widget-Raster, die ein Vue-Remount wieder
+verwarf. STOP löste über `refresh()` den Wechsel zwischen beiden Zuständen aus.
+Korrektur: Header ohne `computeLayoutSize` (wie die Panels), `applyCompactScroll`
+und die zugehörige CSS-Regel entfernt. Tests: `test_start_here_v2_lifecycle.mjs`
+(keine Inline-Styles, STOP 4× ohne Geometrieänderung und ohne Layout-Ereignis),
+`test_start_here_v2_frontend.mjs` (Workaround verboten).
+
+**Teil B – Hybrid-SDXL-Cache.** Ursache: STOP ist ein START-Widget und ändert die
+ComfyUI-Cache-Signatur aller Nachfolger; der SDXL-First-Pass hatte keinen
+laufübergreifenden CMK-Cache. Gemessen mit HEAD: SDXL-Sampling 1/1/0/1 für STOP
+aus/an/aus/an. Neu: eigener Scope `sdxl_hybrid_boundary` (Schema v2), Schreiben
+bei jedem berechneten Hybrid-First-Pass, Wiederherstellung im STOP-Pfad vor
+MODEL/SAMPLED, ZIT-Seite liest denselben Eintrag (nicht im eigenen Prompt).
+Fixture `hybrid_stop` (Showcase „Text2Image HYBRID“ ohne LoraManager-Stack, aus
+dem Frontend exportiert); Harness `install_generation_seams` und Szenario
+`hybrid_stop_sequence`. Neue Tests `test_s1_hybrid_stop.py` (18): Zähler 1/0/0/0
+in `classic`, `ram_pressure` und über simulierten Executor-Neustart, kein
+Checkpoint-Laden bei HIT, vollständiger STOP-Ausgabevertrag gegen frische
+STOP-Vorschau, Visualizer-Topologie, ContentGuard PASS / NOT INSPECTED /
+Ablehnung, v1-Eintrag ignoriert, keine Verdrängung von InstantID-Einträgen.
+A3.2 (geteilter Scope) ist damit behoben (`test_s1_cache_contract.py`).
+`test_zit_stop_after_handoff.py` (Stub-Unit-Tests der Bridge) auf den v2-Vertrag
+umgestellt (18 Tests, davon 7 neu: eigener Scope, NOT INSPECTED einmal geprüft,
+Ablehnung entfernt Eintrag, v1 abgelehnt, ZIT liest nie den Eintrag des eigenen
+Prompts, vollständige SDXL-Wiederherstellung, Modell-Identität erforderlich).
+Die ZIT-Seite erkennt den eigenen Prompt über eine Markierung `(prompt_id,
+Schlüssel)` in der Bridge, die jeder berechnete Hybrid-First-Pass setzt.
+
+Vorbestehende Befunde (identisch mit HEAD, nicht Teil der Korrektur):
+- ZIT sampelt in Lauf 3 trotz ZIT-Boundary-HIT (F-03: `VISUAL ACTIVE` des
+  ZIT-Gates vor der Boundary).
+- Showcase „Text2Image-FaceRebuild HYBRID“: PostProcess Setup hat keinen
+  `PROCESS SDXL`-Eingang; STOP endet dort in einem Validierungsfehler.
+- Im frischen STOP-Pfad sendet der KSampler seine Vorschau vor der
+  ContentGuard-Prüfung des Gates.
+
+### Gesamtlauf nach STOP-Korrektur (`_reports/full_suite_stop_hybrid.json`)
+
+| Gruppe | Tests | PASS | erwarteter Fehlschlag | SKIP | unerwartet |
+|---|---|---|---|---|---|
+| S1 | 213 | 204 | 7 | 2 | 0 |
+| Bestand | 166 | 165 | – | – | 1 in `test_image_resize_port_contract.py` (Altfehler Sourcemap) |
+| `.mjs` | 7 Dateien | 7 | – | – | 0 |
+
+Geschützte Caches unverändert.

@@ -25,6 +25,13 @@ sys.modules.setdefault(TEST_PACKAGE, package)
 guard_module = types.ModuleType(f"{TEST_PACKAGE}.engine.content_guard")
 guard_module.GUARD_VERSION = "test-guard-v1"
 guard_module.get_content_guard = lambda: None
+
+
+class _ContentGuardBlocked(RuntimeError):
+    pass
+
+
+guard_module.ContentGuardBlocked = _ContentGuardBlocked
 sys.modules[guard_module.__name__] = guard_module
 
 tensor_utils = types.ModuleType(f"{TEST_PACKAGE}.utils.tensor_utils")
@@ -152,6 +159,28 @@ def _process(*, stop=True):
     }
 
 
+MODEL = {"ckpt_name": "base-sdxl.safetensors", "vae_selection_name": "vae-sdxl.safetensors"}
+DIAGNOSTIC = {"type": "CMK_DIAGNOSTIC", "title": "Sampler Prepare"}
+
+
+def _persist(process, image, log, visual, prompt, *, inspect=True, diagnostic=DIAGNOSTIC, model=MODEL):
+    """The SDXL gate's call for a computed Hybrid first pass (v2 contract)."""
+    return bridge.persist_hybrid_sdxl_boundary(
+        process, image, log, visual, diagnostic, model, prompt, "3", inspect=inspect,
+    )
+
+
+class _Guard:
+    def __init__(self, error=None):
+        self.error = error
+        self.calls = 0
+
+    def inspect_content(self, _image, _context):
+        self.calls += 1
+        if self.error:
+            raise self.error
+
+
 class ZITStopAfterHandoffTests(unittest.TestCase):
     def setUp(self):
         result_state._results.clear()
@@ -226,9 +255,7 @@ class ZITStopAfterHandoffTests(unittest.TestCase):
         image = torch.rand((1, 8, 10, 3), dtype=torch.float32)
         log = {"blocks": ["sdxl"]}
         visual = {"version": 1, "providers": []}
-        key = bridge.persist_hybrid_sdxl_boundary(
-            _process(stop=True), image, log, visual, first_prompt, "3"
-        )
+        key = _persist(_process(stop=True), image, log, visual, first_prompt)
         self.assertIsNotNone(key)
 
         persistent.reset_persistent_fingerprint_memo()
@@ -296,10 +323,7 @@ class ZITStopAfterHandoffTests(unittest.TestCase):
         result_state._results.clear()
         stop_prompt = _prompt(stop=True, seed=23)
         resume_prompt = _prompt(stop=False, seed=23)
-        bridge.persist_hybrid_sdxl_boundary(
-            _process(stop=True), image, {"blocks": ["cached"]}, visual,
-            stop_prompt, "3",
-        )
+        _persist(_process(stop=True), image, {"blocks": ["cached"]}, visual, stop_prompt)
         persistent.reset_persistent_fingerprint_memo()
         resumed = bridge.CMKHybridZITInputPipe.select(
             **{
@@ -342,37 +366,21 @@ class ZITStopAfterHandoffTests(unittest.TestCase):
         prompt["1"]["inputs"]["content_guard_enabled"] = True
         process = dict(_process(), content_guard_enabled=True)
 
-        class Guard:
-            def __init__(self, error=None):
-                self.error = error
-                self.calls = 0
-
-            def inspect_content(self, _image, _context):
-                self.calls += 1
-                if self.error:
-                    raise self.error
-
-        passing = Guard()
+        passing = _Guard()
         with patch.object(bridge, "get_content_guard", return_value=passing):
-            key = bridge.persist_hybrid_sdxl_boundary(
-                process, torch.zeros((2, 2, 2, 3)), {}, {}, prompt, "3"
-            )
+            key = _persist(process, torch.zeros((2, 2, 2, 3)), {}, {}, prompt)
         self.assertEqual(passing.calls, 2)
         self.assertTrue(persistent.pickle_available(bridge._HYBRID_BOUNDARY_SCOPE, key))
 
         persistent.clear_persistent_disk_scopes(self.temp_root)
-        blocking = Guard(RuntimeError("blocked"))
+        blocking = _Guard(RuntimeError("blocked"))
         with patch.object(bridge, "get_content_guard", return_value=blocking):
             with self.assertRaisesRegex(RuntimeError, "blocked"):
-                bridge.persist_hybrid_sdxl_boundary(
-                    process, torch.zeros((1, 2, 2, 3)), {}, {}, prompt, "3"
-                )
+                _persist(process, torch.zeros((1, 2, 2, 3)), {}, {}, prompt)
         self.assertFalse(persistent.pickle_available(bridge._HYBRID_BOUNDARY_SCOPE, key))
 
     def test_registered_cache_cleanup_removes_boundary(self):
-        key = bridge.persist_hybrid_sdxl_boundary(
-            _process(), torch.zeros((1, 2, 2, 3)), {}, {}, _prompt(), "3"
-        )
+        key = _persist(_process(), torch.zeros((1, 2, 2, 3)), {}, {}, _prompt())
         self.assertTrue(persistent.pickle_available(bridge._HYBRID_BOUNDARY_SCOPE, key))
         inventory = persistent.clear_persistent_disk_scopes(self.temp_root)
         self.assertGreaterEqual(inventory[bridge._HYBRID_BOUNDARY_SCOPE]["entries"], 1)
@@ -380,22 +388,25 @@ class ZITStopAfterHandoffTests(unittest.TestCase):
 
     def test_payload_contains_no_model_or_latent(self):
         prompt = _prompt()
-        key = bridge.persist_hybrid_sdxl_boundary(
-            _process(), torch.zeros((1, 2, 2, 3)), {}, {"providers": []}, prompt, "3"
-        )
+        key = _persist(_process(), torch.zeros((1, 2, 2, 3)), {}, {"providers": []}, prompt)
         envelope = persistent.load_pickle(bridge._HYBRID_BOUNDARY_SCOPE, key)
+        self.assertEqual(envelope["schema"], "cmk_hybrid_sdxl_image_boundary_v2")
         payload = pickle.loads(envelope["payload"])
         self.assertEqual(
-            set(payload), {"contract", "image", "log", "visual", "metadata"}
+            set(payload),
+            {"contract", "image", "log", "visual", "diagnostic", "model_identity", "metadata"},
         )
-        self.assertNotIn("model", repr(payload).lower())
+        # Only the checkpoint/VAE identity strings, never model objects or latents.
+        self.assertEqual(payload["model_identity"],
+                         {"checkpoint": "base-sdxl.safetensors", "vae": "vae-sdxl.safetensors"})
+        self.assertEqual(payload["diagnostic"], DIAGNOSTIC)
         self.assertNotIn("latent", repr(payload).lower())
+        tensors = [name for name, value in payload.items() if isinstance(value, torch.Tensor)]
+        self.assertEqual(tensors, ["image"])
 
     def test_corrupt_boundary_is_rejected_and_removed(self):
         prompt = _prompt()
-        key = bridge.persist_hybrid_sdxl_boundary(
-            _process(), torch.zeros((1, 2, 2, 3)), {}, {"providers": []}, prompt, "3"
-        )
+        key = _persist(_process(), torch.zeros((1, 2, 2, 3)), {}, {"providers": []}, prompt)
         persistent.cache_path(bridge._HYBRID_BOUNDARY_SCOPE, key, ".pkl").write_bytes(
             b"corrupt"
         )
@@ -406,6 +417,84 @@ class ZITStopAfterHandoffTests(unittest.TestCase):
         self.assertFalse(
             persistent.pickle_available(bridge._HYBRID_BOUNDARY_SCOPE, key)
         )
+
+    def test_hybrid_boundary_has_its_own_scope(self):
+        self.assertEqual(bridge._HYBRID_BOUNDARY_SCOPE, "sdxl_hybrid_boundary")
+        self.assertIn("sdxl_hybrid_boundary", persistent.PERSISTENT_DISK_SCOPES)
+        self.assertEqual(bridge._HYBRID_BOUNDARY_MAX_ENTRIES, 8)
+
+    def _guarded(self, stop):
+        prompt = _prompt(stop=stop)
+        prompt["1"]["inputs"]["content_guard_enabled"] = True
+        return prompt, dict(_process(stop=stop), content_guard_enabled=True)
+
+    def test_not_inspected_entry_is_inspected_once_before_use(self):
+        bridge._INSPECTED_PAYLOADS.clear()
+        prompt, process = self._guarded(stop=False)
+        guard = _Guard()
+        with patch.object(bridge, "get_content_guard", return_value=guard):
+            key = _persist(process, torch.zeros((1, 2, 2, 3)), {}, {}, prompt, inspect=False)
+            self.assertEqual(guard.calls, 0)
+            envelope = persistent.load_pickle(bridge._HYBRID_BOUNDARY_SCOPE, key)
+            self.assertEqual(pickle.loads(envelope["payload"])["metadata"]["content_guard_handoff"], "NOT INSPECTED")
+            persistent.reset_persistent_fingerprint_memo()
+            self.assertIsNotNone(bridge.load_hybrid_sdxl_boundary(process, prompt, "4"))
+            self.assertIsNotNone(bridge.load_hybrid_sdxl_boundary(process, prompt, "4"))
+        self.assertEqual(guard.calls, 1)
+
+    def test_rejected_entry_is_removed_and_not_returned(self):
+        bridge._INSPECTED_PAYLOADS.clear()
+        prompt, process = self._guarded(stop=False)
+        key = _persist(process, torch.zeros((1, 2, 2, 3)), {}, {}, prompt, inspect=False)
+        blocking = _Guard(guard_module.ContentGuardBlocked("CG_EXPLICIT_CONTENT"))
+        with patch.object(bridge, "get_content_guard", return_value=blocking):
+            persistent.reset_persistent_fingerprint_memo()
+            self.assertIsNone(bridge.load_hybrid_sdxl_boundary(process, prompt, "4"))
+            self.assertIsNone(bridge.restore_hybrid_sdxl_first_pass(process, prompt, "3"))
+        self.assertEqual(blocking.calls, 1)
+        self.assertFalse(persistent.pickle_available(bridge._HYBRID_BOUNDARY_SCOPE, key))
+
+    def test_v1_entry_is_rejected_and_removed(self):
+        prompt = _prompt()
+        key = _persist(_process(), torch.zeros((1, 2, 2, 3)), {}, {}, prompt)
+        payload = pickle.dumps({"image": None}, protocol=pickle.HIGHEST_PROTOCOL)
+        import hashlib
+        persistent.save_pickle(bridge._HYBRID_BOUNDARY_SCOPE, key, {
+            "schema": "cmk_hybrid_sdxl_image_boundary_v1",
+            "sha256": hashlib.sha256(payload).hexdigest(), "payload": payload,
+        })
+        persistent.reset_persistent_fingerprint_memo()
+        self.assertIsNone(bridge.load_hybrid_sdxl_boundary(_process(stop=False), _prompt(stop=False), "4"))
+        self.assertFalse(persistent.pickle_available(bridge._HYBRID_BOUNDARY_SCOPE, key))
+
+    def test_zit_side_never_reads_the_entry_of_its_own_prompt(self):
+        prompt = _prompt(stop=False)
+        with patch.object(bridge, "_active_prompt_id", return_value="prompt-a"):
+            _persist(_process(stop=False), torch.zeros((1, 2, 2, 3)), {}, {}, prompt, inspect=False)
+            persistent.reset_persistent_fingerprint_memo()
+            self.assertIsNone(bridge.load_hybrid_sdxl_boundary(_process(stop=False), prompt, "4"))
+        with patch.object(bridge, "_active_prompt_id", return_value="prompt-b"):
+            persistent.reset_persistent_fingerprint_memo()
+            self.assertIsNotNone(bridge.load_hybrid_sdxl_boundary(_process(stop=False), prompt, "4"))
+
+    def test_sdxl_side_restore_returns_the_complete_first_pass(self):
+        image = torch.rand((1, 4, 6, 3), dtype=torch.float32)
+        log = {"blocks": [{"title": "Sampler Prepare", "lines": ["seed=7"], "order": 10, "enabled": True}]}
+        visual = {"version": 1, "providers": [{"provider_id": "p"}]}
+        _persist(_process(stop=False), image, log, visual, _prompt(stop=False), inspect=False)
+        persistent.reset_persistent_fingerprint_memo()
+        restored = bridge.restore_hybrid_sdxl_first_pass(_process(stop=True), _prompt(stop=True), "3")
+        torch.testing.assert_close(restored["image"], image)
+        self.assertEqual(restored["visual"], visual)
+        self.assertEqual(restored["diagnostic"], DIAGNOSTIC)
+        self.assertEqual((restored["checkpoint"], restored["vae"]), ("base-sdxl.safetensors", "vae-sdxl.safetensors"))
+        self.assertEqual(restored["log"]["blocks"][0], log["blocks"][0])
+        self.assertEqual(restored["log"]["blocks"][-1]["title"], "SDXL First Pass · Hybrid Boundary")
+
+    def test_sdxl_side_restore_needs_the_model_identity(self):
+        _persist(_process(), torch.zeros((1, 2, 2, 3)), {}, {}, _prompt(), model={})
+        persistent.reset_persistent_fingerprint_memo()
+        self.assertIsNone(bridge.restore_hybrid_sdxl_first_pass(_process(), _prompt(), "3"))
 
 
 if __name__ == "__main__":

@@ -1791,6 +1791,46 @@ def _upstream_sdxl_first_pass_hit(prompt, unique_id):
     return None
 
 
+_HYBRID_RESTORE_MARKER = "hybrid_boundary_restore"
+
+
+def _restore_hybrid_first_pass(PROCESS, prompt, unique_id, state_key):
+    """STOP preview of a Hybrid run: publish the persisted SDXL first pass as
+    this prompt's first-pass result, without requesting MODEL or SAMPLED.
+
+    The MODEL is the existing released-generation descriptor (resources not
+    loaded in this run); SAMPLED is not part of the restored result."""
+    if (
+        state_key is None
+        or not isinstance(PROCESS, dict)
+        or not bool(PROCESS.get("hybrid_mode", False))
+        or not stop_after_handoff_active(PROCESS)
+    ):
+        return None
+    from .cmk_hybrid_bridge import restore_hybrid_sdxl_first_pass
+
+    restored = restore_hybrid_sdxl_first_pass(PROCESS, prompt, unique_id)
+    if restored is None:
+        return None
+    result = {
+        "sampled": {},
+        "log": restored["log"],
+        "image": restored["image"],
+        "visual": restored["visual"],
+        "diagnostic": restored["diagnostic"],
+        "released_model_descriptor": make_released_generation_model_descriptor(
+            "sdxl", restored["checkpoint"], restored["vae"], "unloaded",
+        ),
+        _HYBRID_RESTORE_MARKER: True,
+    }
+    try:
+        publish_result(state_key, result)
+    except (IncompleteResultError, UnsafeSnapshotTypeError) as exc:
+        print(f"[CMK SDXL Result-State] HYBRID RESTORE NOT PUBLISHED: {exc}", flush=True)
+        return None
+    return _sdxl_first_pass_hit(state_key)
+
+
 class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
     @classmethod
     def INPUT_TYPES(cls):
@@ -1846,6 +1886,9 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
         if hit:
             print(f"[CMK DIAG DETAILER] SDXL_GATE HIT no_request {context}")
             return []
+        if _restore_hybrid_first_pass(PROCESS, prompt, unique_id, state_key) is not None:
+            print(f"[CMK DIAG DETAILER] SDXL_GATE HYBRID_BOUNDARY_HIT no_request {context}")
+            return []
         # Resolve converging branches one at a time. Requesting MODEL and
         # SAMPLED together lets ComfyUI open the shared sampler preparation
         # through two lazy paths after a process restart, executing module 10
@@ -1897,9 +1940,19 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
             result_process["family_active"] = False
             result_process["hybrid_prepass_complete"] = True
         hit = _sdxl_first_pass_hit(state_key)
+        if hit is None:
+            hit = _restore_hybrid_first_pass(PROCESS, prompt, unique_id, state_key)
         if hit is not None:
             print(f"[CMK DIAG DETAILER] SDXL_GATE EXECUTE_HIT {context}")
             model, sampled, result = hit
+            if result.get(_HYBRID_RESTORE_MARKER):
+                # Restored STOP preview: no sampled pipe exists in this run.
+                # Publish the approved image as the stage's final preview, as the
+                # KSampler does after a computed first pass.
+                from .cmk_final_preview import send_final_preview
+
+                sampled = ExecutionBlocker(None)
+                send_final_preview(result["image"])
             return (
                 model,
                 sampled,
@@ -1922,10 +1975,10 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
                 "CMK SDXL Sampler Branch Gate is missing " + ", ".join(missing)
             )
         sampled, image = _materialize_first_pass_image(inputs["SAMPLED"])
-        if (
-            bool(PROCESS.get("hybrid_mode", False))
-            and stop_after_handoff_active(PROCESS)
-        ):
+        if bool(PROCESS.get("hybrid_mode", False)):
+            # Every computed Hybrid first pass is stored under the STOP-independent
+            # key.  A STOP preview publishes the image now and is inspected before
+            # storing; otherwise the entry is NOT INSPECTED and readers inspect it.
             from .cmk_hybrid_bridge import persist_hybrid_sdxl_boundary
 
             persist_hybrid_sdxl_boundary(
@@ -1933,8 +1986,11 @@ class CMKFamilyBranchGateSDXLSampled(_CMKFamilyBranchGate):
                 image,
                 inputs["LOG"],
                 inputs.get("VISUAL"),
+                inputs.get("diagnostic"),
+                inputs["MODEL"],
                 prompt,
                 unique_id,
+                inspect=stop_after_handoff_active(PROCESS),
             )
         print(f"[CMK DIAG DETAILER] SDXL_GATE EXECUTE_MISS publish=YES {context}")
         _publish_sdxl_first_pass(

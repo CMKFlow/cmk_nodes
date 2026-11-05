@@ -24,6 +24,7 @@ PERSISTENT_DISK_SCOPES = (
     "upscale_save_boundary",
     "refiner_boundary",
     "sdxl_handoff_boundary",
+    "sdxl_hybrid_boundary",
 )
 
 

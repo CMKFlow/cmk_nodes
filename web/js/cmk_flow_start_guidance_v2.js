@@ -115,12 +115,14 @@ function installStyle() {
 .cmk-start-v2-finish { width:100%; height:${CONTROL_HEIGHT}px; box-sizing:border-box; appearance:none; padding:0 30px 0 10px; border:1px solid rgba(255,255,255,.08); border-radius:5px; background:rgba(255,255,255,.025); color:var(--input-text,#ddd); font-family:inherit; font-size:12px; font-weight:600; line-height:${CONTROL_HEIGHT}px; }
 .cmk-start-v2-finish:disabled { opacity:.45; cursor:not-allowed; }
 .cmk-start-v2-finish-description { overflow:hidden; color:color-mix(in srgb, var(--input-text,#ddd) 62%, transparent); font-family:inherit; font-size:10px; font-weight:400; line-height:15px; text-overflow:ellipsis; white-space:nowrap; }
-[data-cmk-start-v2="true"] > [data-testid="node-widgets"] { min-height:0; overflow-x:hidden; overflow-y:auto; align-content:start; overscroll-behavior:contain; scrollbar-gutter:stable; }
 `;
     document.head.append(style);
 }
 
-function fixedDomWidget(node, name, type, element, height, minimumWidth = 410, fixedLayout = false) {
+// Fixed-height DOM controls take no part in the constrained layout: without
+// computeLayoutSize the frontend renders their grid row as min-content, so only
+// the prompt fields grow with the node.
+function fixedDomWidget(node, name, type, element, height, minimumWidth = 410) {
     const widget = node.addDOMWidget(name, type, element, {
         hideOnZoom: false,
         getMinHeight: () => height,
@@ -128,9 +130,7 @@ function fixedDomWidget(node, name, type, element, height, minimumWidth = 410, f
     });
     widget.serialize = false;
     widget.computeSize = (width) => [Math.max(Number(width) || minimumWidth, minimumWidth), height];
-    widget.computeLayoutSize = fixedLayout
-        ? () => ({ minHeight: height, maxHeight: height, minWidth: minimumWidth })
-        : undefined;
+    widget.computeLayoutSize = undefined;
     return widget;
 }
 
@@ -261,8 +261,6 @@ function installModeHeader(node, state) {
         "cmk_start_v2_generation_mode",
         button,
         CONTROL_HEIGHT,
-        410,
-        true,
     );
     node._cmkStartV2GenerationMode = { widget, button, chevron, summary };
     return node._cmkStartV2GenerationMode;
@@ -292,25 +290,6 @@ function setDisabled(widget, disabled) {
     widget.disabled = Boolean(disabled);
     widget.options ??= {};
     widget.options.disabled = Boolean(disabled);
-}
-
-function applyCompactScroll(node) {
-    const id = node?.id;
-    if (id == null) return;
-    const rawId = String(id);
-    const escapedId = globalThis.CSS?.escape?.(rawId) ?? rawId.replace(/["\\]/g, "\\$&");
-    const body = document.querySelector?.(`[data-testid="node-body-${escapedId}"]`);
-    if (!(body instanceof Element)) return;
-    body.dataset.cmkStartV2 = "true";
-    body.style.minHeight = "0";
-    const grid = body.querySelector?.('[data-testid="node-widgets"]');
-    if (!(grid instanceof Element)) return;
-    grid.style.minHeight = "0";
-    grid.style.overflowX = "hidden";
-    grid.style.overflowY = "auto";
-    grid.style.alignContent = "start";
-    grid.style.overscrollBehavior = "contain";
-    grid.style.scrollbarGutter = "stable";
 }
 
 function installPanels(node, state) {
@@ -475,7 +454,6 @@ function refresh(node, restoreEngineResolution = false) {
         if (stop && !stopAllowed) stop.value = false;
         setDisabled(stop, !stopAllowed);
         renderPanels(node, state, selection, stopAllowed);
-        applyCompactScroll(node);
         syncCustomInpaintState(node, state);
         node.properties.cmkStartV2State = state;
         node.setDirtyCanvas?.(true, true);
@@ -536,7 +514,6 @@ export function configureV2(node) {
     }
     node.title = "CMK Flow · 01 START HERE v2 · Create Image";
     refresh(node);
-    applyCompactScroll(node);
     if (!node._cmkStartV2InitialSizeApplied && !node.__cmkLoadedFromWorkflow) {
         node.setSize?.([...TARGET_SIZE]);
         node._cmkStartV2InitialSizeApplied = true;
