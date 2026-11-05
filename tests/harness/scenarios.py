@@ -616,6 +616,7 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
                 "sampling": dict(seam_module.GENERATION_CALLS),
                 "inpaint_prepares": [dict(item) for item in seam_module.INPAINT_PREPARES],
                 "sampler_noise_masks": list(seam_module.SAMPLER_NOISE_MASKS),
+                "sampler_last_steps": list(seam_module.SAMPLER_LAST_STEPS),
                 "instantid_latents": [dict(item) for item in seam_module.INSTANTID_LATENTS],
                 "guard_calls": list(guard_calls),
                 "final_previews": [list(item) for item in previews],

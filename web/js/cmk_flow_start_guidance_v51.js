@@ -592,7 +592,7 @@ export function prepareStartMode(node, mode) {
             : "MODE";
     }
     const instantIDHandoff = state.widgetsByName.get("instantid_handoff_percent");
-    if (instantIDHandoff && ![60, 70, 80].includes(Number(instantIDHandoff.value))) {
+    if (instantIDHandoff && ![40, 50, 60, 70, 80].includes(Number(instantIDHandoff.value))) {
         instantIDHandoff.value = 70;
     }
     const instantIDToggle = state.widgetsByName.get("instantid_enabled");

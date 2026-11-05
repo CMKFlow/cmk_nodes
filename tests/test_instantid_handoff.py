@@ -45,11 +45,15 @@ class InstantIDHandoffTests(unittest.TestCase):
             handoff_percent=percent,
         )
 
-    def test_only_60_70_80_are_accepted_and_70_is_default(self):
+    def test_only_40_to_80_in_tens_are_accepted_and_70_is_default(self):
+        self.assertEqual(self.handoff(percent=40), (10, "40 %", 40))
+        self.assertEqual(self.handoff(percent=50), (13, "50 %", 50))
         self.assertEqual(self.handoff(percent=60), (15, "60 %", 60))
         self.assertEqual(self.handoff(percent=70), (18, "70 %", 70))
         self.assertEqual(self.handoff(percent=80), (20, "80 %", 80))
         self.assertEqual(self.handoff(percent=65), (18, "70 %", 70))
+        self.assertEqual(self.handoff(percent=45), (18, "70 %", 70))
+        self.assertEqual(self.handoff(percent=30), (18, "70 %", 70))
         self.assertEqual(self.handoff(percent="AUTO"), (18, "70 %", 70))
 
     def test_percentage_handoffs_scale_and_round_half_up(self):
@@ -99,12 +103,22 @@ class InstantIDHandoffTests(unittest.TestCase):
         )
         self.assertEqual(result, (1, "80 %", 80))
 
-    def test_ui_contract_is_slider_60_70_80_with_default_70(self):
+    def test_every_limit_uses_the_same_values(self):
+        for path, expected in (
+            (MODULE_PATH, "{40, 50, 60, 70, 80}"),
+            (START_PATH, "{40, 50, 60, 70, 80}"),
+            (START_UI_PATH, "[40, 50, 60, 70, 80]"),
+        ):
+            source = path.read_text(encoding="utf-8")
+            self.assertIn(expected, source)
+            self.assertNotIn(expected.replace("40, 50, ", ""), source)
+
+    def test_ui_contract_is_slider_40_to_80_with_default_70(self):
         source = START_PATH.read_text(encoding="utf-8")
         ui_source = START_UI_PATH.read_text(encoding="utf-8")
         self.assertIn('"instantid_handoff_percent": (', source)
         self.assertIn('"default": 70', source)
-        self.assertIn('"min": 60', source)
+        self.assertIn('"min": 40', source)
         self.assertIn('"max": 80', source)
         self.assertIn('"step": 10', source)
         self.assertIn('"display": "slider"', source)

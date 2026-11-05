@@ -871,6 +871,12 @@ Refiner 1/0/1/0 für Text2Image und Inpaint; 192 Kombinationen PROCESS = Prompt;
 Dateitausch bei gleichem Namen ohne alten HIT; ContentGuard und Maske.
 Gegenproben: alter Code 13 Fehlschläge; ohne Inhaltsidentität 4.
 
+### InstantID-Handoff ab 40 %
+
+HYBRID HANDOFF erlaubt 40–80 % in Zehnerschritten, Default 70 %. Die Werte stehen in
+Widget, `CMKPipeCreateImage`, `_resolve_instantid_handoff` und v1-UI. Bei 25 Schritten:
+40 % = Schritt 10, 50 % = Schritt 13.
+
 ### Gesamtlauf nach STOP für InstantID Inpaint
 
 | Gruppe | Tests | PASS | erwarteter Fehlschlag | SKIP | unerwartet |

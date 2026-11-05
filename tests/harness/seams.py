@@ -366,12 +366,14 @@ GENERATION_CALLS = {"sdxl": 0, "zit": 0, "instantid": 0, "refiner": 0}
 INPAINT_PREPARES = []
 SAMPLER_NOISE_MASKS = []
 INSTANTID_LATENTS = []
+SAMPLER_LAST_STEPS = []
 
 
 def reset_generation_calls() -> None:
     GENERATION_CALLS.update({"sdxl": 0, "zit": 0, "instantid": 0, "refiner": 0})
     INPAINT_PREPARES.clear()
     SAMPLER_NOISE_MASKS.clear()
+    SAMPLER_LAST_STEPS.clear()
     INSTANTID_LATENTS.clear()
 
 
@@ -407,7 +409,8 @@ def fake_instantid_sample(self, MODEL, PROCESS, SAMPLED, LOG, *args, VISUAL=None
     GENERATION_CALLS["instantid"] += 1
     handoff = SAMPLED["instantid_keypoints_latent"]
     INSTANTID_LATENTS.append({"digest": _tensor_digest(handoff["samples"]), "keys": sorted(handoff),
-                              "bridge": bool(SAMPLED.get("instantid_inpaint_bridge"))})
+                              "bridge": bool(SAMPLED.get("instantid_inpaint_bridge")),
+                              "start_step": SAMPLED.get("instantid_end_at_step")})
     result = {"samples": torch.tanh(handoff["samples"])}
     identity_image = fake_vae_decode(None, None, result)[0]
     sampled = dict(SAMPLED)
@@ -515,6 +518,7 @@ def fake_sample(model, noise, steps, cfg, sampler_name, scheduler, positive, neg
 
     GENERATION_CALLS[_family(model)] += 1
     SAMPLER_NOISE_MASKS.append(_tensor_digest(kwargs.get("noise_mask")))
+    SAMPLER_LAST_STEPS.append(kwargs.get("last_step"))
     generator = torch.Generator().manual_seed(int(seed or 0))
     # The source latent shapes the result, so different inputs give different x0.
     result = torch.randn(latent_image.shape, generator=generator) + latent_image.float()

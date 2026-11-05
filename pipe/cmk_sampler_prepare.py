@@ -290,7 +290,7 @@ def _resolve_instantid_handoff(
     """Resolve module 10's contribution before InstantID takes over."""
     raw_percent = str(handoff_percent or 70).strip()
     percent = int(raw_percent) if raw_percent.isdigit() else 70
-    if percent not in {60, 70, 80}:
+    if percent not in {40, 50, 60, 70, 80}:
         percent = 70
     if active and str(instantid_mode).strip().upper() == "ZERO-PASS":
         return 0, "ZERO-PASS", percent
