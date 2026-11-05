@@ -13,7 +13,7 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 COMFY_ROOT = PACKAGE_ROOT.parents[1]
 TEST_PACKAGE = "_cmk_image_resize_port_contract"
 WORKFLOW = PACKAGE_ROOT / "workflows" / "showcase" / "CMK 2.6 · Full Flow .json"
-WORKFLOW_SHA256 = "3b6c1c0958b0215e15e8a0b4732ced58a6fccd5e9f6de1a3ec001dd8a6ec71f8"
+WORKFLOW_SHA256 = "a08ff739260c5f7f6485387987d170ead7d6a1ab079d4ecf3deec64200d85985"  # 2.7 showcase migration
 
 EXPECTED_LINKS = {
     22541: (8455, 0, 8456, 0, "CMK_MODEL_PIPE", "MODEL", "MODEL (opt)"),

@@ -20,7 +20,7 @@ sys.path.insert(0, str(TESTS_ROOT))
 from validator import checks  # noqa: E402
 from validator.graph_model import load_definitions, load_workflow  # noqa: E402
 from validator.report import (  # noqa: E402
-    CONTRACTS, DRIFT, KNOWN_DEFECT, LEGACY_KNOWN, NO_CANONICAL, PENDING_REVIEW,
+    CONTRACTS, DRIFT, IDENTICAL, KNOWN_DEFECT, LEGACY_KNOWN, NO_CANONICAL, PENDING_REVIEW,
     PACKAGE_ROOT, canonical_definitions, classify_embedded_definitions, shipped_workflows,
 )
 
@@ -43,44 +43,20 @@ class EmbeddedDefinitionClassification(unittest.TestCase):
         unexplained = [row for row in self.rows if row["class"] in {DRIFT, NO_CANONICAL}]
         self.assertEqual(unexplained, [], "every difference must be legacy, a known defect or under review")
 
-    def test_baseline_pending_review_set(self):
-        self.assertEqual(self._keys(PENDING_REVIEW), [
-            ("CMK 2.6 · Flow · Inpaint Z-Image Turbo.json", "LoRA Stack · ZIT"),
-            ("CMK 2.6 · Full Flow .json", "CMK Flow · 15A InstantID Regional SDXL"),
-            ("CMK 2.6 · Full Flow .json", "CMK Flow · FaceRebuild SDXL · Advanced"),
-            ("CMK 2.6 · Full Flow .json", "CMK Flow · FaceSwap · Advanced"),
-            ("CMK 2.6 · Text2Image Identity 3.json", "CMK Flow · 15A InstantID Regional SDXL"),
-            ("CMK 2.6 · Text2Image Identity 3.json", "CMK Flow · FaceRebuild SDXL · Advanced"),
-            ("CMK 2.6 · Text2Image Identity 3.json", "CMK Flow · FaceSwap · Advanced"),
-        ])
-
-    @unittest.expectedFailure  # S1-REVIEW: owner decision pending
+    # 2.7 showcase migration: every embedded definition was brought to the
+    # canonical state, so there is no legacy, no known definition defect and
+    # nothing left under review.
     def test_shipped_workflows_have_no_unreviewed_drift(self):
         self.assertEqual(self._keys(PENDING_REVIEW), [])
 
-    def test_baseline_known_definition_defects(self):
-        self.assertEqual(self._keys(KNOWN_DEFECT), [
-            ("CMK 2.6 · FaceProcess · Modul.json", "CMK Flow · FaceProcess SDXL"),
-            ("CMK 2.6 · FaceRebuild · Modul.json", "CMK Flow · FaceRebuild SDXL"),
-            ("CMK 2.6 · FaceSwap · Modul.json", "CMK Flow · FaceSwap"),
-            ("CMK 2.6 · SmartDetailer · Modul.json", "CMK Flow · Detailer SDXL"),
-        ])
-
-    @unittest.expectedFailure  # F-04 / F-11
     def test_shipped_workflows_have_no_known_definition_defects(self):
         self.assertEqual(self._keys(KNOWN_DEFECT), [])
 
-    def test_legacy_entries_are_identity_matrix_or_frozen_pre_fix_modules(self):
-        # Identity Matrix (2.6), pre-H-4 Upscale & Save (K-3 Option A) and the
-        # pre-H-3/F-03 module definitions (E1 = a); nothing else is legacy.
-        modules = {
-            "CMK Flow · Upscale & Save", "CMK Flow · FaceSwap", "CMK Flow · FaceRebuild SDXL",
-            "CMK Flow · Detailer SDXL", "CMK Flow · Detailer SDXL · Advanced",
-            "CMK Flow · FaceProcess SDXL", "CMK Flow · FaceProcess SDXL · Advanced",
-        }
-        others = {key for key in self._keys(LEGACY_KNOWN) if key[0] != "Identity Processing Matrix.json"}
-        self.assertEqual({definition for _, definition in others} - modules, set())
-        self.assertIn(("CMK 2.6 · Full Flow .json", "CMK Flow · Upscale & Save"), others)
+    def test_shipped_workflows_have_no_legacy_definitions(self):
+        self.assertEqual(self._keys(LEGACY_KNOWN), [])
+
+    def test_shipped_workflows_use_only_canonical_definitions(self):
+        self.assertEqual(sorted({row["class"] for row in self.rows}), [IDENTICAL])
 
     def test_registry_entries_still_present(self):
         present = {(row["workflow"], row["definition"], row["signature"]) for row in self.rows}
@@ -109,16 +85,6 @@ class GatePaths(unittest.TestCase):
                     result.append((workflow.name, graph.name, finding["role"], tuple(finding["missing"])))
         return sorted(set(result))
 
-    def test_baseline_embedded_gate_paths(self):
-        missing = ("VISUAL ACTIVE", "VISUAL BYPASS")
-        self.assertEqual(self._embedded_gate_findings(), [
-            ("CMK 2.6 · FaceProcess · Modul.json", "CMK Flow · FaceProcess SDXL", "VISUAL", missing),
-            ("CMK 2.6 · FaceRebuild · Modul.json", "CMK Flow · FaceRebuild SDXL", "VISUAL", missing),
-            ("CMK 2.6 · FaceSwap · Modul.json", "CMK Flow · FaceSwap", "VISUAL", missing),
-            ("CMK 2.6 · SmartDetailer · Modul.json", "CMK Flow · Detailer SDXL", "VISUAL", missing),
-        ])
-
-    @unittest.expectedFailure  # F-04
     def test_embedded_gate_paths_complete(self):
         self.assertEqual(self._embedded_gate_findings(), [])
 

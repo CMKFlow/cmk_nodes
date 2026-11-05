@@ -705,3 +705,36 @@ Harness, F5 lokaler ENABLE-Check unverändert. Basis: Git `7e2dbfc`.
 Geschützte Caches unverändert. Danach nur `fixtures/manifest.json` um die beiden
 Legacy-Fixtures ergänzt; `test_s1_fixtures`, `test_s1_fixture_validation` und
 `test_s1_graph_contracts` erneut grün.
+
+## Showcase-Migration 2.7 (2026-11-05)
+
+Alle 37 Showcase-Workflows auf die kanonischen Subgraphen migriert (14 Dateien
+geändert, 23 waren bereits kanonisch); Bericht und Einzelheiten:
+`tests/migration/SHOWCASE_MIGRATION_2.7.md`, Werkzeug
+`tests/migration/migrate_showcase.py`. Keine Produkt-, Subgraph- oder Cache-Änderung.
+
+- **Register:** `legacy_registry.json`, `known_defects.json` (`definition_drift`) und
+  `drift_review.json` sind leer; alle 135 eingebetteten Definitionen sind `IDENTICAL`.
+  S1-REVIEW (7 Einträge) und F-04/F-11 der vier Modul-Showcases sind damit erledigt.
+  M8 (`stale_provider_metadata`) bleibt Befund; ein Eintrag (IPM 7900) ist durch die
+  Migration entfallen.
+- **Tests angepasst:** `test_s1_graph_contracts.py` (Zielzustand statt Baselines, drei
+  `expectedFailure` entfernt), `test_s1_postprocess_model.py` (portnamenbasierter
+  Vergleich für die drei migrierten Modul-Showcases), `test_stop_after_handoff_output_roots.py`
+  (IPM-Ausnahme entfernt), `test_image_resize_port_contract.py` (Full-Flow-Hash; die fünf
+  Vertragslinks sind unverändert).
+- `test_image_resize_port_contract.py` hat damit nur noch den Altfehler
+  `test_installed_frontend_hook_precedes_input_creation` (Sourcemap-Pfad).
+
+### Gesamtlauf nach Showcase-Migration (`_reports/full_suite_showcase_migration.json` + Nachläufe `*_rerun_*`)
+
+| Gruppe | Tests | PASS | erwarteter Fehlschlag | SKIP | unerwartet |
+|---|---|---|---|---|---|
+| S1 | 195 | 185 | 8 | 2 | 0 |
+| Bestand | 159 | 158 | – | – | 1 in `test_image_resize_port_contract.py` (Altfehler) |
+| `.mjs` | 7 Dateien | 7 | – | – | 0 |
+
+`test_s1_k5_od2.py` meldete im Gesamtlauf `OK` (27/27), endete aber einmalig mit
+Exit-Code ≠ 0 beim Prozessende; Einzel- und Runner-Nachlauf mit Exit-Code 0, nicht
+reproduzierbar. Der Nachlauf von `test_image_resize_port_contract.py` folgte der
+Hash-Aktualisierung nach der START-HERE-Rückstellung. Geschützte Caches unverändert.

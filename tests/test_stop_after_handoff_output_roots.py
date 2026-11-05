@@ -119,11 +119,10 @@ class StopAfterHandoffOutputRootTests(unittest.TestCase):
                         index for index, output in enumerate(gate.get("outputs", []))
                         if output.get("name") == "VISUAL"
                     ]
-                    if not visual_slots:
-                        # These six legacy 2.6 matrix definitions predate the VISUAL
-                        # gate port. The task explicitly forbids adding a new port.
-                        self.assertEqual(path.name, "Identity Processing Matrix.json")
-                        continue
+                    # Since the 2.7 showcase migration every shipped gate has the
+                    # VISUAL port (the former Identity Processing Matrix exception
+                    # is gone).
+                    self.assertTrue(visual_slots, f"{path}: {graph.get('name')}")
                     checked += len(compares)
                     for compare in compares:
                         link = _input_link(compare, "VISUAL", links)

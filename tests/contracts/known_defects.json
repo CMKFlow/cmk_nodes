@@ -1,43 +1,6 @@
 {
   "description": "Known contract violations. These are defects, not allowed legacy; they stay listed until fixed and are re-checked by test_known_defects_still_reproduce.",
-  "definition_drift": [
-    {
-      "workflow": "CMK 2.6 · FaceProcess · Modul.json",
-      "definition": "CMK Flow · FaceProcess SDXL",
-      "signatures": [
-        "20f3efb0909efc917b3f3378f8281c6484fa88077532f98457908d90486afa3b"
-      ],
-      "finding": "F-04/F-11",
-      "summary": "Embedded definition predates the canonical VISUAL wiring: gate VISUAL ACTIVE/BYPASS unconnected, SG_OUT.VISUAL taken from the compute node."
-    },
-    {
-      "workflow": "CMK 2.6 · FaceRebuild · Modul.json",
-      "definition": "CMK Flow · FaceRebuild SDXL",
-      "signatures": [
-        "082b684054888ac1717550622dc47fd899dd6730e444634be61cea6721c6dd48"
-      ],
-      "finding": "F-04/F-11",
-      "summary": "Embedded definition predates the canonical VISUAL wiring: gate VISUAL ACTIVE/BYPASS unconnected, SG_OUT.VISUAL taken from the compute node."
-    },
-    {
-      "workflow": "CMK 2.6 · FaceSwap · Modul.json",
-      "definition": "CMK Flow · FaceSwap",
-      "signatures": [
-        "608ad093b7703cffae11eb1dc6b9c82daca1f06e0fde6e063a184d2b30699051"
-      ],
-      "finding": "F-04/F-11",
-      "summary": "Embedded definition predates the canonical VISUAL wiring: gate VISUAL ACTIVE/BYPASS unconnected, SG_OUT.VISUAL taken from the compute node."
-    },
-    {
-      "workflow": "CMK 2.6 · SmartDetailer · Modul.json",
-      "definition": "CMK Flow · Detailer SDXL",
-      "signatures": [
-        "aaf2523fd2fdec599c88f0c3d0bcf7262792a81ce9e716ce76df1ab6370156d2"
-      ],
-      "finding": "F-04/F-11",
-      "summary": "Embedded definition predates the canonical VISUAL wiring: gate VISUAL ACTIVE/BYPASS unconnected, SG_OUT.VISUAL taken from the compute node."
-    }
-  ],
+  "definition_drift": [],
   "stale_provider_metadata": {
     "finding": "M8",
     "summary": "cmkVisualProviders reference inner nodes that do not exist in the definition.",
@@ -386,11 +349,6 @@
         "file": "Identity Processing Matrix.json",
         "node": "7894",
         "key": "faceswap"
-      },
-      {
-        "file": "Identity Processing Matrix.json",
-        "node": "7900",
-        "key": "first-pass"
       },
       {
         "file": "Identity Processing Matrix.json",
