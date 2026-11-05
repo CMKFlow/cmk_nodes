@@ -774,7 +774,8 @@ Schlüssel)` in der Bridge, die jeder berechnete Hybrid-First-Pass setzt.
 
 Vorbestehende Befunde (identisch mit HEAD, nicht Teil der Korrektur):
 - ZIT sampelt in Lauf 3 trotz ZIT-Boundary-HIT (F-03: `VISUAL ACTIVE` des
-  ZIT-Gates vor der Boundary).
+  ZIT-Gates vor der Boundary). **Behoben**, siehe „F-03: VISUAL über die
+  Z-Image-Boundary“.
 - Showcase „Text2Image-FaceRebuild HYBRID“: PostProcess Setup hat keinen
   `PROCESS SDXL`-Eingang; STOP endet dort in einem Validierungsfehler.
 - Im frischen STOP-Pfad sendet der KSampler seine Vorschau vor der
@@ -811,3 +812,40 @@ ohne Relay scheitert); Test-Loader bildet zusätzlich `/scripts/app.js` und
 `/scripts/api.js` ab; `test_s1_hybrid_stop.py` prüft jetzt die exakten
 Vorschau-Ziel-Nodes (frisch `8430:7415`, HIT `8430:7417`) und dass im STOP-Pfad
 keine Node der ZIT-Kette läuft (19 Tests).
+
+## F-03: VISUAL über die Z-Image-Boundary (2026-11-05)
+
+Ursache (nachgewiesen, Hybrid `classic`, ZIT-HIT nach Verdrängung): Die
+Z-Image-Boundary meldete `HIT_READY`, das ZIT-Gate forderte aber VISUAL direkt
+vom ZIT-Sampler an; dafür liefen ZIT-Loader (Modellladen), Prompt-Vorbereitung
+und Sampling.
+
+Korrektur (H-3-Vertrag übertragen):
+- `pipe/cmk_module_boundary_cache.py`: `CMKZImageBoundaryCache` =
+  `_VisualPublication` + `_ZImageBoundaryCore`; Eingänge `VISUAL IN`/`VISUAL`,
+  Ausgang `VISUAL`; VISUAL nicht im Schlüssel; Schema `cmk_z_image_boundary_v3`.
+- `subgraphs/CMK Flow · 10 KSampler Z-Image Turbo.json` (0.1.2): Sampler-VISUAL →
+  Boundary `VISUAL`, Bridge-VISUAL → Boundary `VISUAL IN`, Boundary-VISUAL → Gate;
+  öffentliche Ports unverändert.
+- 18 Showcases mit `tests/migration/migrate_showcase.py` migriert (konfliktfrei,
+  ausschließlich die ZIT-Definition ersetzt, UUID erhalten; im Frontend nach
+  Neustart fehlerfrei geladen; 135/135 Definitionen `IDENTICAL`).
+- Fixture `hybrid_stop` aus dem Frontend neu exportiert.
+
+Tests (`test_s1_hybrid_stop.py`, 23): ZIT-Sampling 1/0/0/0 in `classic` und
+`ram_pressure`; HIT ohne ZIT-Loader, Encode und Sampler; IMAGE/LOG/MODEL/
+diagnostic/VISUAL und Visualizer-Payload bei HIT gleich MISS; ältere Definition
+ohne die Links behält ihr Verhalten (Gegenprobe: sampelt beim HIT).
+Unverändert: Der ZIT-Cache trifft nur im laufenden ComfyUI-Prozess.
+
+### Gesamtlauf nach F-03 (`_reports/full_suite_f03.json` + Nachlauf `*_rerun_test_image_resize_port_contract`)
+
+| Gruppe | Tests | PASS | erwarteter Fehlschlag | SKIP | unerwartet |
+|---|---|---|---|---|---|
+| S1 | 218 | 209 | 7 | 2 | 0 |
+| Bestand | 166 | 165 | – | – | 1 in `test_image_resize_port_contract.py` (Altfehler Sourcemap) |
+| `.mjs` | 8 Dateien | 8 | – | – | 0 |
+
+Der Full-Flow-Hash in `test_image_resize_port_contract.py` wurde nach der
+Migration aktualisiert (die fünf Vertragslinks sind unverändert). Geschützte
+Caches unverändert.

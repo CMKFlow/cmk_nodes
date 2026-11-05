@@ -1832,7 +1832,7 @@
             "name": "VISUAL",
             "type": "CMK_VISUAL_PIPE",
             "linkIds": [
-              22198
+              12700
             ],
             "pos": [
               125.435546875,
@@ -1931,7 +1931,7 @@
             "name": "VISUAL",
             "type": "CMK_VISUAL_PIPE",
             "linkIds": [
-              22199
+              12701
             ],
             "pos": [
               1264,
@@ -2198,7 +2198,7 @@
                 "name": "VISUAL",
                 "type": "CMK_VISUAL_PIPE",
                 "links": [
-                  20663
+                  21946
                 ]
               }
             ],
@@ -2419,7 +2419,7 @@
                 "name": "VISUAL",
                 "shape": 7,
                 "type": "CMK_VISUAL_PIPE",
-                "link": 20663
+                "link": 21947
               },
               {
                 "localized_name": "diagnostic",
@@ -2459,7 +2459,7 @@
                 "name": "VISUAL",
                 "type": "CMK_VISUAL_PIPE",
                 "links": [
-                  22199
+                  12701
                 ]
               },
               {
@@ -2485,7 +2485,7 @@
             ],
             "size": [
               230,
-              90
+              130
             ],
             "flags": {
               "collapsed": true
@@ -2516,6 +2516,20 @@
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "link": 12342
+              },
+              {
+                "localized_name": "VISUAL IN",
+                "name": "VISUAL IN",
+                "shape": 7,
+                "type": "CMK_VISUAL_PIPE",
+                "link": 21945
+              },
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "shape": 7,
+                "type": "CMK_VISUAL_PIPE",
+                "link": 21946
               }
             ],
             "outputs": [
@@ -2549,6 +2563,14 @@
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
                   20664
+                ]
+              },
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "type": "CMK_VISUAL_PIPE",
+                "links": [
+                  21947
                 ]
               }
             ],
@@ -2609,7 +2631,7 @@
                 "name": "VISUAL SOURCE",
                 "shape": 7,
                 "type": "CMK_VISUAL_PIPE",
-                "link": 22198
+                "link": 12700
               },
               {
                 "localized_name": "SAMPLED SDXL",
@@ -2655,7 +2677,8 @@
                 "name": "VISUAL",
                 "type": "CMK_VISUAL_PIPE",
                 "links": [
-                  20662
+                  20662,
+                  21945
                 ]
               }
             ],
@@ -2914,7 +2937,7 @@
             "type": "IMAGE"
           },
           {
-            "id": 22198,
+            "id": 12700,
             "origin_id": -10,
             "origin_slot": 3,
             "target_id": 7657,
@@ -2978,7 +3001,7 @@
             "type": "CMK_VISUAL_PIPE"
           },
           {
-            "id": 22199,
+            "id": 12701,
             "origin_id": 7655,
             "origin_slot": 3,
             "target_id": -20,
@@ -2994,20 +3017,36 @@
             "type": "CMK_MODEL_PIPE"
           },
           {
-            "id": 20663,
-            "origin_id": 7652,
-            "origin_slot": 1,
-            "target_id": 7655,
-            "target_slot": 4,
-            "type": "CMK_VISUAL_PIPE"
-          },
-          {
             "id": 20664,
             "origin_id": 7656,
             "origin_slot": 3,
             "target_id": 7655,
             "target_slot": 5,
             "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 21945,
+            "origin_id": 7657,
+            "origin_slot": 2,
+            "target_id": 7656,
+            "target_slot": 4,
+            "type": "CMK_VISUAL_PIPE"
+          },
+          {
+            "id": 21946,
+            "origin_id": 7652,
+            "origin_slot": 1,
+            "target_id": 7656,
+            "target_slot": 5,
+            "type": "CMK_VISUAL_PIPE"
+          },
+          {
+            "id": 21947,
+            "origin_id": 7656,
+            "origin_slot": 4,
+            "target_id": 7655,
+            "target_slot": 4,
+            "type": "CMK_VISUAL_PIPE"
           }
         ],
         "extra": {}

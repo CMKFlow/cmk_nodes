@@ -329,8 +329,8 @@
         2
       ],
       "VISUAL": [
-        "8431:7652",
-        1
+        "8431:7656",
+        4
       ],
       "diagnostic": [
         "8431:7656",
@@ -359,6 +359,14 @@
       "diagnostic": [
         "8431:7653",
         4
+      ],
+      "VISUAL IN": [
+        "8431:7657",
+        2
+      ],
+      "VISUAL": [
+        "8431:7652",
+        1
       ]
     },
     "class_type": "CMKZImageBoundaryCache",

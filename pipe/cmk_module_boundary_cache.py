@@ -1413,11 +1413,13 @@ class CMKFaceRebuildBoundaryCache(_VisualPublication, _FaceRebuildBoundaryCore):
     RETURN_NAMES = (*_FaceRebuildBoundaryCore.RETURN_NAMES, "VISUAL")
 
 
-class CMKZImageBoundaryCache:
+class _ZImageBoundaryCore:
     """Persistent decoded ZIT boundary for inexpensive downstream iteration."""
 
     _SCOPE = "z_image_boundary"
-    _SCHEMA = "cmk_z_image_boundary_v2"
+    # v3: the boundary publishes the sampler's VISUAL providers (F-03); v2
+    # entries have no stored providers and are not read.
+    _SCHEMA = "cmk_z_image_boundary_v3"
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -1440,11 +1442,19 @@ class CMKZImageBoundaryCache:
     def _cache_key(self, prompt, unique_id):
         return build_node_fingerprint(
             prompt, unique_id, ("CMKZImageBoundaryCache",), self._SCHEMA,
+            exclude_inputs=VISUAL_INPUT_NAMES,
             include_node_identity=True,
         )
 
     def _ready(self, key):
         return bool(key) and key in _Z_IMAGE_SESSION and _disk_available(self._SCOPE, key)
+
+    def _module_disabled(self, prompt, unique_id) -> bool:
+        # The ZIT stage has no module switch; an inactive family never reaches it.
+        return False
+
+    def _result_cached(self, prompt, unique_id) -> bool:
+        return self._ready(self._cache_key(prompt, unique_id)[0])
 
     def check_lazy_status(self, MODEL=None, IMAGE=None, LOG=None, diagnostic=None, prompt=None, unique_id=None):
         key, detail = self._cache_key(prompt, unique_id)
@@ -1481,6 +1491,15 @@ class CMKZImageBoundaryCache:
             )
             print(f"[CMK Boundary Cache / ZIT] MISS {key[:12]} -> STORED")
         return MODEL, IMAGE, LOG, diagnostic
+
+
+class CMKZImageBoundaryCache(_VisualPublication, _ZImageBoundaryCore):
+    """ZIT boundary that also publishes the sampler's VISUAL providers, so a HIT
+    never requests the ZIT sampler (F-03).  Definitions without the VISUAL
+    links keep the previous behaviour (VISUAL output None)."""
+
+    RETURN_TYPES = (*_ZImageBoundaryCore.RETURN_TYPES, "CMK_VISUAL_PIPE")
+    RETURN_NAMES = (*_ZImageBoundaryCore.RETURN_NAMES, "VISUAL")
 
 
 class _FaceBoundaryCore:
