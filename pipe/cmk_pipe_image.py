@@ -946,14 +946,15 @@ class CMKPipeCreateImage:
                     "INT",
                     {
                         "default": 70,
-                        "min": 40,
+                        "min": 20,
                         "max": 80,
                         "step": 10,
                         "display": "slider",
                         "label": "HYBRID HANDOFF",
                         "tooltip": (
                             "InstantID HYBRID only. Selects the SDXL-to-InstantID "
-                            "handoff at 40 to 80 percent of the configured steps. "
+                            "handoff at 20 to 80 percent of the configured steps. "
+                            "The start node shows it inverted as the IDENTITY share. "
                             "Applies identically to Text2Image and Inpaint."
                         ),
                     },
@@ -1070,7 +1071,7 @@ class CMKPipeCreateImage:
         controlnet_enabled = bool(inputs.get("controlnet_enabled", False))
         raw_handoff_percent = str(inputs.get("instantid_handoff_percent", 70) or 70).strip()
         instantid_handoff_percent = int(raw_handoff_percent) if raw_handoff_percent.isdigit() else 70
-        if instantid_handoff_percent not in {40, 50, 60, 70, 80}:
+        if instantid_handoff_percent not in {20, 30, 40, 50, 60, 70, 80}:
             instantid_handoff_percent = 70
         stop_after_handoff = bool(inputs.get("stop_after_handoff", False))
         raw_mode = inputs.get("INPAINT_MODE", "Text2Image")

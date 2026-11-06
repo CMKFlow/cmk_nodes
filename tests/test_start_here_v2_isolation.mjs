@@ -197,15 +197,63 @@ const check = (label, fn) => {
 check("v1 layout unchanged in all six modes", () => assert.deepEqual(current.v1, reference.v1));
 check("positional serialization unchanged (v1, v2)", () => assert.deepEqual(current.serialization, reference.serialization));
 
-// -- HYBRID HANDOFF range ---------------------------------------------------
+// -- IDENTITY slider over the serialized handoff ------------------------------
+const VALID = [20, 30, 40, 50, 60, 70, 80];
 for (const [version, build] of [["v1", () => fakeNode(false)], ["v2", () => fakeNode(true)]]) {
-    for (const [saved, expected] of [[40, 40], [50, 50], [60, 60], [70, 70], [80, 80], [30, 70], [45, 70]]) {
+    const configure = version === "v1" ? configureStartBase : configureV2;
+    const referenceLength = current.serialization[version].length;
+    for (const [saved, expected] of [...VALID.map((value) => [value, value]), [10, 70], [45, 70], ["AUTO", 70]]) {
         const node = build();
         byName(node, "instantid_handoff_percent").value = saved;
-        if (version === "v1") configureStartBase(node); else configureV2(node);
+        configure(node);
         await settle();
+        const identity = byName(node, "IDENTITY SHARE");
+        const values = serialized(node);
         check(`${version}: saved handoff ${saved}`, () => assert.equal(byName(node, "instantid_handoff_percent").value, expected));
-        check(`${version}: serialized handoff ${saved}`, () => assert.ok(serialized(node).includes(expected)));
+        check(`${version}: identity for ${saved}`, () => assert.equal(identity.value, 100 - expected));
+        check(`${version}: serialized handoff ${saved}`, () => assert.equal(values[25], expected));
+        check(`${version}: identity is not serialized`, () => {
+            assert.equal(values.length, referenceLength);
+            assert.equal(identity.serialize, false);
+            assert.equal(identity.options.serialize, false);
+        });
+    }
+    for (const share of VALID) {
+        const node = build();
+        configure(node);
+        await settle();
+        const identity = byName(node, "IDENTITY SHARE");
+        identity.value = share;
+        identity.callback(share);
+        check(`${version}: ${share} % IDENTITY`, () => assert.equal(byName(node, "instantid_handoff_percent").value, 100 - share));
+        check(`${version}: ${share} % IDENTITY serialized`, () => assert.equal(serialized(node)[25], 100 - share));
+    }
+    const node = build();
+    configure(node);
+    await settle();
+    const identity = byName(node, "IDENTITY SHARE");
+    check(`${version}: slider contract`, () => {
+        assert.equal(identity.label, "SDXL");
+        assert.equal(identity.options.min, 20);
+        assert.equal(identity.options.max, 80);
+        assert.equal(identity.value, 30);
+    });
+}
+{
+    const shownFor = async (family, mode) => {
+        const node = fakeNode(false);
+        byName(node, "instantid_enabled").value = true;
+        byName(node, "model_family").value = family;
+        byName(node, "INPAINT_MODE").value = mode;
+        configureStartBase(node);
+        await settle();
+        return [shown(node, "IDENTITY SHARE"), shown(node, "instantid_handoff_percent"), shown(node, "HYBRID BALANCE")];
+    };
+    for (const mode of ["Text2Image", "Inpaint"]) {
+        const instantid = await shownFor("SDXL", mode);
+        const hybrid = await shownFor("Hybrid", mode);
+        check(`InstantID ${mode} shows only IDENTITY`, () => assert.deepEqual(instantid, [true, false, false]));
+        check(`SDXL -> ZIT ${mode} shows only HYBRID BALANCE`, () => assert.deepEqual(hybrid, [false, false, true]));
     }
 }
 

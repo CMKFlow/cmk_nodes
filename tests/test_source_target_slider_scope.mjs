@@ -15,6 +15,7 @@ const { installSourceTargetSlider } = await import("../web/js/cmk_source_target_
 installSourceTargetSlider({}, { value: 0, options: {} }, "CMK HYBRID BALANCE", "SDXL", "ZIT", 0, 4, 2);
 assert.ok(styleText.includes('content: "ZIT"'), "HYBRID BALANCE target label is installed");
 assert.ok(styleText.includes('content: "TARGET"'), "SAMPLING START target label is installed");
+assert.ok(styleText.includes('content: "IDENTITY " attr(data-cmk-identity-share)'), "IDENTITY label is installed");
 
 const selectors = styleText
     .split("}")
@@ -29,8 +30,8 @@ for (const selector of selectors) {
 }
 // The target labels address only the flex row whose slider is the owning one.
 const labelRules = selectors.filter((selector) => selector.endsWith("::after"));
-assert.equal(labelRules.length, 2);
+assert.equal(labelRules.length, 3);
 for (const selector of labelRules) {
-    assert.match(selector, /^\[data-testid="node-widget"\] div\.grid:has\(\[data-slot="slider"\]\[aria-label\^="(HYBRID BALANCE|SAMPLING START)"\]\)/);
+    assert.match(selector, /^\[data-testid="node-widget"\] div\.grid:has\(\[data-slot="slider"\]\[aria-label\^="(HYBRID BALANCE|SAMPLING START|IDENTITY SHARE)"\]\)/);
 }
 console.log("source/target slider scope: ok");

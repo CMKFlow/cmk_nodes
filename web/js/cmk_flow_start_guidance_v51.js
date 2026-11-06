@@ -1,5 +1,5 @@
 import { app } from "../../../scripts/app.js";
-import { installSourceTargetSlider } from "./cmk_source_target_slider.js";
+import { ensureSourceTargetSliderStyle, installSourceTargetSlider } from "./cmk_source_target_slider.js";
 
 const NODE_CLASS = "CMKPipeCreateImage";
 const BASE_NODE_HEIGHT = 800;
@@ -36,8 +36,12 @@ const MODE_PROMPT_HEIGHTS = Object.freeze({
 const NODE_SELECTOR = '[data-node-id], [data-testid^="node-body-"]';
 const LABEL_SELECTOR = '[data-testid="widget-layout-field-label"]';
 const HANDOFF_WIDGET_NAME = "instantid_handoff_percent";
-const HANDOFF_DISPLAY_CLASS = "cmk-handoff-percent-display";
-const HANDOFF_DISPLAY_STYLE_ID = "cmk-handoff-percent-display-style";
+// The serialized widget stays the technical handoff percent.  The start node
+// shows it inverted as the IDENTITY share through a frontend-only slider, which
+// is never serialized and never reaches the prompt.
+export const IDENTITY_SHARE_WIDGET_NAME = "IDENTITY SHARE";
+const VALID_HANDOFF_PERCENTS = [20, 30, 40, 50, 60, 70, 80];
+const DEFAULT_HANDOFF_PERCENT = 70;
 const MODE_INFO_NAME = "MODE INFO";
 const FAMILY_TABS_NAME = "MODEL FAMILY TABS";
 const MODE_INFO = {
@@ -226,18 +230,18 @@ function decorateNodeElement(nodeElement) {
     const widgets = [...node._cmkStartUi.widgetsByName.values()];
     for (const label of nodeElement.querySelectorAll(LABEL_SELECTOR)) {
         const text = label.textContent?.trim();
-        const widget = widgets.find((candidate) => (
+        const matches = widgets.filter((candidate) => (
             String(candidate?.label ?? "").trim() === text
             || String(candidate?.name ?? "").trim() === text
         ));
+        // HYBRID BALANCE and IDENTITY SHARE both carry the label SDXL.
+        const widget = matches.find((candidate) => visibleWidgets.has(candidate)) ?? matches[0];
         if (widget && label.parentElement) {
             label.parentElement.style.display = visibleWidgets.has(widget) ? "" : "none";
-            if (widget.name === HANDOFF_WIDGET_NAME) {
-                const input = label.parentElement.querySelector('[data-slot="number-field-input"]');
-                const numberField = input?.closest?.('[data-slot="number-field"]');
-                if (numberField) {
-                    numberField.classList.add(HANDOFF_DISPLAY_CLASS);
-                    numberField.dataset.cmkHandoffDisplay = `${Number(widget.value)} %`;
+            if (widget.name === IDENTITY_SHARE_WIDGET_NAME) {
+                const slider = label.parentElement.querySelector('[data-slot="slider"]');
+                if (slider?.parentElement) {
+                    slider.parentElement.dataset.cmkIdentityShare = `${Number(widget.value)} %`;
                 }
             }
         }
@@ -257,29 +261,6 @@ function scan(root = document) {
 function installDomBehavior() {
     if (window._cmkStartDomInstalled) return;
     window._cmkStartDomInstalled = true;
-    if (!document.getElementById(HANDOFF_DISPLAY_STYLE_ID)) {
-        const style = document.createElement("style");
-        style.id = HANDOFF_DISPLAY_STYLE_ID;
-        style.textContent = `
-.${HANDOFF_DISPLAY_CLASS}:not(:focus-within) [data-slot="number-field-input"] {
-    color: transparent !important;
-    caret-color: transparent !important;
-}
-.${HANDOFF_DISPLAY_CLASS}:not(:focus-within)::after {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: inherit;
-    content: attr(data-cmk-handoff-display);
-    font-size: 0.75rem;
-    line-height: 1rem;
-    pointer-events: none;
-}
-`;
-        document.head.append(style);
-    }
     const observer = new MutationObserver((records) => {
         for (const record of records) {
             for (const added of record.addedNodes) {
@@ -591,16 +572,50 @@ export function prepareStartMode(node, mode) {
             ? "MODE · SDXL INPAINT → ZIT FINISH"
             : "MODE";
     }
-    const instantIDHandoff = state.widgetsByName.get("instantid_handoff_percent");
-    if (instantIDHandoff && ![40, 50, 60, 70, 80].includes(Number(instantIDHandoff.value))) {
-        instantIDHandoff.value = 70;
-    }
+    syncIdentityShare(state);
     const instantIDToggle = state.widgetsByName.get("instantid_enabled");
     if (instantIDToggle) {
         instantIDToggle.label = inpaintMode && instantIDEnabled
             ? "INSTANTID · HYBRID INPAINT"
             : "INSTANTID";
     }
+}
+
+function syncIdentityShare(state) {
+    const handoff = state.widgetsByName.get(HANDOFF_WIDGET_NAME);
+    if (!handoff) return;
+    if (!VALID_HANDOFF_PERCENTS.includes(Number(handoff.value))) {
+        handoff.value = DEFAULT_HANDOFF_PERCENT;
+    }
+    const identity = state.widgetsByName.get(IDENTITY_SHARE_WIDGET_NAME);
+    if (identity) identity.value = 100 - Number(handoff.value);
+}
+
+function installIdentityShareSlider(node) {
+    const state = captureWidgets(node);
+    const handoff = state.widgetsByName.get(HANDOFF_WIDGET_NAME);
+    if (!handoff || state.widgetsByName.has(IDENTITY_SHARE_WIDGET_NAME)) return;
+    ensureSourceTargetSliderStyle();
+    const identity = node.addWidget?.(
+        "slider",
+        IDENTITY_SHARE_WIDGET_NAME,
+        100 - DEFAULT_HANDOFF_PERCENT,
+        (value) => {
+            const share = Math.max(20, Math.min(80, Math.round(Number(value) / 10) * 10));
+            handoff.value = 100 - share;
+            handoff.callback?.(handoff.value, node, handoff);
+            identity.value = share;
+            requestAnimationFrame(() => scan());
+        },
+        { ...handoff.options, min: 20, max: 80, serialize: false },
+    );
+    if (!identity) return;
+    identity.serialize = false;
+    identity.label = "SDXL";
+    identity.tooltip = "Share of the sampling steps that InstantID runs. "
+        + "This is time, not Identity Strength.";
+    captureWidgets(node);
+    syncIdentityShare(state);
 }
 
 // Ordered names of the widgets the start-node rules show for ``mode``.
@@ -634,6 +649,7 @@ export function startVisibleNames(node, mode) {
                 && (inpaintMode || instantIDMode === "HYBRID")
             )
         ))
+        .filter((name) => name !== IDENTITY_SHARE_WIDGET_NAME)
         .filter((name) => !["hybrid_sdxl_handoff", "hybrid_zit_denoise"].includes(name))
         .filter((name) => mode.startsWith("hybrid") || name !== "HYBRID BALANCE")
         .filter((name) => name !== "unload_zit_after")
@@ -702,6 +718,8 @@ export function startVisibleNames(node, mode) {
             "content_guard_enabled",
         );
     }
+    const handoffPosition = visibleNames.indexOf(HANDOFF_WIDGET_NAME);
+    if (handoffPosition >= 0) visibleNames[handoffPosition] = IDENTITY_SHARE_WIDGET_NAME;
     return visibleNames;
 }
 
@@ -890,16 +908,7 @@ export function configureStartBase(node, allowV2 = false) {
         instantIDMode._cmkOptionLabelsInstalled = true;
     }
 
-    const instantIDHandoff = getWidget(node, HANDOFF_WIDGET_NAME);
-    if (instantIDHandoff && !instantIDHandoff._cmkPercentDisplayCallbackInstalled) {
-        const originalHandoffCallback = instantIDHandoff.callback;
-        instantIDHandoff.callback = function () {
-            const result = originalHandoffCallback?.apply(this, arguments);
-            requestAnimationFrame(() => scan());
-            return result;
-        };
-        instantIDHandoff._cmkPercentDisplayCallbackInstalled = true;
-    }
+    installIdentityShareSlider(node);
 
     const resolution = getWidget(node, "resolution");
     if (resolution) {
