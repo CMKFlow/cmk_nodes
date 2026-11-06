@@ -1258,6 +1258,17 @@ geprüft; eine Ablehnung entfernt ihn und führt zur unveränderten Neuberechnun
 STOP-Einträge werden vor dem Speichern geprüft. Der Speicherort liegt unter
 `ComfyUI/temp/` und übersteht keinen ComfyUI-Neustart.
 
+**Regionalprompts im SDXL → ZIT-Finish.** Regional Conditioning gilt nur für die
+SDXL-Generierung; der SDXL-Refiner darf das zugehörige Conditioning weiterverwenden.
+Alle anderen nachgelagerten Verfahren erhalten nur globale semantische Inhalte, ohne
+regionale Tensoren und ohne Nachbildung des Layouts im Zielmodell. Regionale Nodes
+liegen nur auf dem PROCESS-SDXL-Zweig. Ist der globale positive Prompt leer, liest
+`CMKSamplerPrepareZImageTurboPipe` über den versteckten PROMPT die aktiven
+Regionaltexte oberhalb des SDXL-Handoffs und führt sie in Kettenreihenfolge zu
+einem globalen Text zusammen. Das ist eine feste Grenze: ZIT erhält nur diesen
+Text. Koordinaten, Strength, Start/End, Masken, Conditioning und Regionsnamen
+bleiben im SDXL-Pfad. Ein vorhandener globaler Prompt hat Vorrang.
+
 **InstantID Handoff und STOP AFTER HANDOFF.** Modul 01 löst den wirksamen
 InstantID-Modus an genau einer Stelle auf (`start_instantid_mode`): Inpaint ist
 immer `HYBRID INPAINT`, das dort verborgene Widget hat keine Wirkung. STOP gilt

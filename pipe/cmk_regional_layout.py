@@ -92,6 +92,48 @@ def parse_layout(value, width, height):
     return regions
 
 
+def _node_region_prompts(node):
+    """Active prompt texts of one regional node, as it would chain them."""
+    inputs = node.get("inputs", {}) or {}
+    if node.get("class_type") == "CMKRegionalLayoutSDXL":
+        value = inputs.get("regions_json")
+        if not isinstance(value, (str, dict)):
+            return []
+        return [region["prompt"] for region in parse_layout(value, 1, 1)]
+    prompts = (inputs.get(f"region_{index}_area_prompt") for index in range(1, 4))
+    return [text for text in map(cmk_clean_text, filter(lambda v: isinstance(v, str), prompts)) if text]
+
+
+def regional_prompt_texts(prompt, root_link):
+    """Region texts upstream of ``root_link``, in their PROCESS chain order.
+
+    The SDXL regions live in the SDXL PROCESS only, so the ZIT branch reads
+    them from the expanded prompt.  Only the semantic text is returned: geometry,
+    strength, timing, masks, conditioning and region names stay on the SDXL path.
+    A prompt that arrives through a link cannot be read here.
+    """
+    if not isinstance(prompt, dict):
+        return []
+    texts = []
+    seen = set()
+
+    def visit(link):
+        if not (isinstance(link, (list, tuple)) and len(link) == 2):
+            return
+        node_id = str(link[0])
+        node = prompt.get(node_id)
+        if node_id in seen or not isinstance(node, dict):
+            return
+        seen.add(node_id)
+        for _name, value in sorted((node.get("inputs", {}) or {}).items(), key=lambda item: str(item[0])):
+            visit(value)
+        if node.get("class_type") in {"CMKRegionalLayoutSDXL", "CMKRegionalConditioningSDXL"}:
+            texts.extend(_node_region_prompts(node))
+
+    visit(root_link)
+    return texts
+
+
 class CMKRegionalLayoutSDXL:
     """Append editor-defined regions to the established SDXL PROCESS pipe."""
 

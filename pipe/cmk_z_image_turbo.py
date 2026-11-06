@@ -9,6 +9,8 @@ from comfy_execution.graph_utils import ExecutionBlocker
 from ..cmk_common import SAMPLERS, SCHEDULERS
 from ..utils.cmk_diagnostic import make_diagnostic_payload
 from .cmk_log_pipe import cmk_add_block
+from .cmk_persistent_cache import _resolve_current_node
+from .cmk_regional_layout import regional_prompt_texts
 from ..utils.cmk_translation import translate_prompt
 from ..loader.cmk_lora_text_loader import CMKLoRATextLoader
 from .cmk_sampler_prepare import (
@@ -96,6 +98,25 @@ def _inpaint_patch_choices():
     return values or [DEFAULT_ZIT_INPAINT_PATCH]
 
 
+def _hybrid_regional_prompt(prompt, unique_id):
+    """Active SDXL region texts of the first pass this Hybrid finish continues."""
+    if not isinstance(prompt, dict):
+        return ""
+    _, current = _resolve_current_node(
+        prompt, unique_id, ("CMKSamplerPrepareZImageTurboPipe",)
+    )
+    if not isinstance(current, dict):
+        return ""
+    image_link = (current.get("inputs", {}) or {}).get("IMAGE")
+    if not isinstance(image_link, (list, tuple)) or not image_link:
+        return ""
+    bridge = prompt.get(str(image_link[0]))
+    if not isinstance(bridge, dict) or bridge.get("class_type") != "CMKHybridZITInputPipe":
+        return ""
+    texts = regional_prompt_texts(prompt, (bridge.get("inputs", {}) or {}).get("SAMPLED SDXL"))
+    return "\n".join(texts)
+
+
 class CMKSamplerPrepareZImageTurboPipe:
     """Prepare the proven ComfyUI-Core Z-Image Turbo sampling contract."""
 
@@ -150,6 +171,10 @@ class CMKSamplerPrepareZImageTurboPipe:
                 "LOG": ("CMK_LOG_PIPE",),
                 "IMAGE": ("IMAGE", {"lazy": True}),
             },
+            "hidden": {
+                "prompt": "PROMPT",
+                "unique_id": "UNIQUE_ID",
+            },
         }
 
     RETURN_TYPES = ("CMK_SAMPLER_PIPE", "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
@@ -182,7 +207,10 @@ class CMKSamplerPrepareZImageTurboPipe:
         inpaint_model_patch=DEFAULT_ZIT_INPAINT_PATCH,
         LOG=None,
         IMAGE=None,
+        prompt=None,
+        unique_id=None,
     ):
+        graph_prompt = prompt
         if PROCESS is None or (
             isinstance(PROCESS, dict) and not PROCESS.get("family_active", True)
         ):
@@ -232,9 +260,20 @@ class CMKSamplerPrepareZImageTurboPipe:
             PROCESS.get("effective_prompt_pos"),
             _clean_text(PROCESS.get("prompt_pos"), ""),
         )
+        # An empty global prompt in SDXL -> ZIT: the first pass was generated
+        # from its regional prompts, so ZIT continues from the same text.  LoRA
+        # trigger words alone do not count as a global prompt.
+        prompt_source_label = "GLOBAL"
+        trigger_words = _clean_text(PROCESS.get("opt_prompt_pos"), "")
+        if bool(PROCESS.get("hybrid_mode", False)) and (not prompt or prompt == trigger_words):
+            regional_prompt = _hybrid_regional_prompt(graph_prompt, unique_id)
+            if regional_prompt:
+                prompt = "\n".join(part for part in (regional_prompt, trigger_words) if part)
+                prompt_source_label = "REGIONAL PROMPTS"
         if not prompt:
             raise ValueError(
-                "CMK Sampler Prepare Z-Image Turbo -Pipe- requires PROMPT POS."
+                "CMK Sampler Prepare Z-Image Turbo -Pipe- requires PROMPT POS: "
+                "enter GLOBAL PROMPT POS or an active regional prompt."
             )
         translation = translate_prompt(prompt)
 
@@ -467,6 +506,7 @@ class CMKSamplerPrepareZImageTurboPipe:
             f"MODEL SHIFT     : {float(model_shift):g}",
             f"SEED            : {int(seed)}",
             f"TEXT ENCODER    : {text_encoder_status}",
+            f"PROMPT SOURCE   : {prompt_source_label}",
             "",
             "POSITIVE PROMPT:",
             prompt,

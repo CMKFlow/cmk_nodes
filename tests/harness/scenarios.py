@@ -510,6 +510,43 @@ def _tensor_png_hash(runtime, image) -> str:
     return hashlib.sha256(rgb.tobytes()).hexdigest()
 
 
+REGIONAL_NODE = "9001"
+
+
+def _add_inpaint_source(prompt: dict, image: str) -> None:
+    prompt["8437"] = {"class_type": "CMKLoadImage", "inputs": {"image": image, "opt_in": False}}
+    prompt[HYBRID_START]["inputs"].update({
+        "PROCESS": ["8437", 0], "IMAGE": ["8437", 1], "MASK": ["8437", 2], "FILENAME": ["8437", 3],
+        "LOG": ["8437", 4], "INPAINT_MODE": "Inpaint",
+    })
+
+
+def _insert_regional_node(runtime, prompt: dict, spec: dict) -> None:
+    """A regional node between START HERE and the SDXL branch, as in InOutpaint."""
+    start_outputs = {0: 0, 2: 1, 3: 2, 4: 3}  # PROCESS SDXL, IMAGE, LOG, VISUAL
+    for node_id, node in prompt.items():
+        if node_id.split(":")[0] not in {"8430", "8438", "8433"}:
+            continue
+        for name, value in node["inputs"].items():
+            if isinstance(value, list) and value[0] == HYBRID_START and value[1] in start_outputs:
+                node["inputs"][name] = [REGIONAL_NODE, start_outputs[value[1]]]
+    links = {"PROCESS": [HYBRID_START, 0], "IMAGE": [HYBRID_START, 2], "LOG": [HYBRID_START, 3],
+             "VISUAL": [HYBRID_START, 4]}
+    if "layout" in spec:
+        regions = [{"id": f"region-id-{index}", "name": f"REGION NAME {index}", "prompt": text, "strength": 1.5,
+                    "end": 0.65, "box": {"x": 0.1, "y": 0.2, "width": 0.3, "height": 0.4}}
+                   for index, text in enumerate(spec["layout"])]
+        layout = json.dumps({"version": 1, "width": 1024, "height": 1024, "regions": regions})
+        prompt[REGIONAL_NODE] = {"class_type": "CMKRegionalLayoutSDXL",
+                                 "inputs": {**links, "width": 1024, "height": 1024, "regions_json": layout}}
+    else:
+        node = runtime.cmk_module("pipe.cmk_regional_conditioning").CMKRegionalConditioningSDXL
+        widgets = {name: (spec_[1].get("default") if isinstance(spec_[1:], tuple) and spec_[1:] else "")
+                   for name, spec_ in node.INPUT_TYPES()["required"].items() if name not in links}
+        texts = {f"region_{index}_area_prompt": text for index, text in enumerate(spec["conditioning"], 1)}
+        prompt[REGIONAL_NODE] = {"class_type": "CMKRegionalConditioningSDXL", "inputs": {**widgets, **links, **texts}}
+
+
 def boot_runtime(workdir, extra_model_paths):
     from .comfy_runtime import boot
 
@@ -532,7 +569,8 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
                          preseed: dict | None = None, inspect: dict | None = None,
                          overrides: dict | None = None, seeds: list | None = None,
                          start_inputs: list | None = None, remove_inputs: list | None = None,
-                         input_images: list | None = None) -> dict:
+                         input_images: list | None = None, regional: list | None = None,
+                         inpaint_source: str | None = None) -> dict:
     """Run a Hybrid fixture several times in one executor with STOP per run.
 
     guard: None keeps the fixture's ContentGuard OFF; "pass" / "reject" turns
@@ -540,7 +578,9 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
     "reject" refuses only the SDXL/ZIT handoff role ("target_intermediate").  ``preseed`` writes files
     into the cache root before the first run (e.g. a v1 entry).  ``input_images`` holds one entry per run
     ({"name", "shade", "mask_box"}): that RGBA file is written into the input folder before the run, and
-    node 8437 reads it, so a file can change while its name stays the same.
+    node 8437 reads it, so a file can change while its name stays the same.  ``regional`` holds one entry
+    per run: None, or {"layout": [texts]} / {"conditioning": [texts]} for a regional node on the SDXL
+    PROCESS branch.  ``inpaint_source`` adds the Load Image node of InOutpaint to a fixture without one.
     """
     from . import seams as seam_module
     from .seams import install_generation_seams, reset_generation_calls
@@ -600,6 +640,11 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
                 for node in prompt.values():
                     if node["class_type"] in {"CMKSamplerPrepareSDXLPipe", "CMKSamplerPrepareZImageTurboPipe"}:
                         node["inputs"]["seed"] = int(run_seed)
+            if inpaint_source is not None:
+                _add_inpaint_source(prompt, inpaint_source)
+            regional_spec = (regional or [None] * len(stops))[index]
+            if regional_spec is not None:
+                _insert_regional_node(runtime, prompt, regional_spec)
             image_spec = (input_images or [None] * len(stops))[index]
             if image_spec is not None:
                 _write_inpaint_input(workdir, image_spec)
@@ -617,6 +662,8 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
                 "inpaint_prepares": [dict(item) for item in seam_module.INPAINT_PREPARES],
                 "sampler_noise_masks": list(seam_module.SAMPLER_NOISE_MASKS),
                 "sampler_last_steps": list(seam_module.SAMPLER_LAST_STEPS),
+                "zit_prompts": list(seam_module.ZIT_PROMPTS),
+                "regional_areas": [dict(item) for item in seam_module.REGIONAL_AREAS],
                 "instantid_latents": [dict(item) for item in seam_module.INSTANTID_LATENTS],
                 "guard_calls": list(guard_calls),
                 "final_previews": [list(item) for item in previews],
