@@ -367,6 +367,8 @@ INPAINT_PREPARES = []
 SAMPLER_NOISE_MASKS = []
 INSTANTID_LATENTS = []
 SAMPLER_LAST_STEPS = []
+ZIT_PROMPTS = []
+REGIONAL_AREAS = []
 
 
 def reset_generation_calls() -> None:
@@ -374,6 +376,8 @@ def reset_generation_calls() -> None:
     INPAINT_PREPARES.clear()
     SAMPLER_NOISE_MASKS.clear()
     SAMPLER_LAST_STEPS.clear()
+    ZIT_PROMPTS.clear()
+    REGIONAL_AREAS.clear()
     INSTANTID_LATENTS.clear()
 
 
@@ -473,6 +477,8 @@ def fake_call_node(names, *args):
     model patches of the SDXL and ZIT generation paths."""
     name = names[0]
     if name in {"CLIPTextEncodeSDXL", "CLIPTextEncode"}:
+        if name == "CLIPTextEncode":
+            ZIT_PROMPTS.append(args[-1])
         return (_fake_conditioning(args[-1] if args else ""),)
     if name in {"ConditioningZeroOut", "ConditioningCombine", "ConditioningSetAreaPercentage",
                 "ConditioningSetTimestepRange"}:
@@ -495,6 +501,10 @@ def fake_call_node(names, *args):
 
 def fake_call_node_kwargs(names, **kwargs):
     name = names[0]
+    if name.startswith("Conditioning"):
+        if name == "ConditioningSetAreaPercentage":
+            REGIONAL_AREAS.append({key: kwargs[key] for key in ("x", "y", "width", "height", "strength")})
+        return (next(iter(kwargs.values())),)
     if name == "UNETLoader":
         return (_fake_model("zit", kwargs.get("unet_name", "zit")),)
     if name == "CLIPLoader":

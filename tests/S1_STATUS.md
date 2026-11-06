@@ -881,6 +881,14 @@ im Prompt und nicht in `widgets_values`. Reka-Slider lassen sich von außen nich
 invertieren, deshalb ein eigenes Widget statt CSS-Spiegelung. Bei 25 Schritten:
 20/30/40/50/60/70/80 % Handoff = Schritt 5/8/10/13/15/18/20.
 
+### SDXL → ZIT mit ausschließlich regionalen Prompts
+
+Regionaltexte liegen nur im PROCESS SDXL; PROCESS ZIT kommt direkt aus START HERE.
+`CMKSamplerPrepareZImageTurboPipe` liest sie bei leerem globalem Prompt über den
+versteckten PROMPT oberhalb von `SAMPLED SDXL` (`regional_prompt_texts`). Nur Text,
+in Kettenreihenfolge, getrennt durch Zeilenumbruch. Literale Widget-Texte; ein per
+Link eingespeister Regionaltext ist so nicht lesbar. `test_s1_hybrid_regional_prompt.py`.
+
 ### Gesamtlauf nach STOP für InstantID Inpaint
 
 | Gruppe | Tests | PASS | erwarteter Fehlschlag | SKIP | unerwartet |
