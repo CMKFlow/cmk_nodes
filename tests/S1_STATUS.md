@@ -902,7 +902,7 @@ wenn es verbunden ist. `test_s1_visualizer_model.py`.
 `save_base_folder` liest `boolean_inpaint_mode` und `hybrid_inpaint_mode`. Der öffentliche
 MaskDetailer-PROCESS übernahm nur eine feste Feldliste ohne diese Kennzeichen, deshalb fiel
 die Kategorie auf `Text2Image` zurück. `_SOURCE_OPERATION_KEYS` reicht sie jetzt in Bypass
-und aktivem Pfad durch. `InstantID` als Stufenordner fehlt auf diesem Pfad weiterhin.
+und aktivem Pfad durch, ebenso `instantid_enabled` für den Stufenordner `InstantID`.
 Fehlen die Kennzeichen, ist die Bearbeitungsart unbekannt: Es gibt dann keinen
 Kategorieordner und eine Log-Zeile; Stufenordner und Datum bleiben.
 `test_s1_save_category.py`.

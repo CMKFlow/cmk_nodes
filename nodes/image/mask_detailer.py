@@ -213,9 +213,9 @@ def _json_safe(value):
     return str(value)
 
 
-# Fields that name the source operation.  The save category reads them, and the
+# Fields that name the source operation.  The save folders read them, and the
 # Mask Detailer process is the one that reaches the Visualizer.
-_SOURCE_OPERATION_KEYS = ("boolean_inpaint_mode", "hybrid_inpaint_mode")
+_SOURCE_OPERATION_KEYS = ("boolean_inpaint_mode", "hybrid_inpaint_mode", "instantid_enabled")
 
 
 def _source_operation(source):
