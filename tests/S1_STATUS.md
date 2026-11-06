@@ -889,6 +889,24 @@ versteckten PROMPT oberhalb von `SAMPLED SDXL` (`regional_prompt_texts`). Nur Te
 in Kettenreihenfolge, getrennt durch Zeilenumbruch. Literale Widget-Texte; ein per
 Link eingespeister Regionaltext ist so nicht lesbar. `test_s1_hybrid_regional_prompt.py`.
 
+### Visualizer: MODEL hinter dem MODEL-Forward
+
+Seit MODEL über `CMKModelForwardPipe` läuft, kommt es am Visualizer nur an, wenn dieser
+es anfordert. Der Visualizer forderte es hinter PostProcess Setup nicht an: Save brach
+ab, und die PostProcess-Freigabe am Ende entfiel. Alle Fixtures laufen mit
+`SAVE ENABLED = False`, deshalb blieb das unentdeckt. MODEL wird jetzt immer angefordert,
+wenn es verbunden ist. `test_s1_visualizer_model.py`.
+
+### Gesamtlauf nach Visualizer-MODEL-Korrektur
+
+| Gruppe | Tests | PASS | erwarteter Fehlschlag | SKIP | unerwartet |
+|---|---|---|---|---|---|
+| S1 | 267 | 258 | 7 | 2 | 0 |
+| Bestand | 167 | 166 | – | – | 1 in `test_image_resize_port_contract.py` (Altfehler Sourcemap) |
+| `.mjs` | 9 Dateien | 9 | – | – | 0 |
+
+Geschützte Caches unverändert.
+
 ### Gesamtlauf nach STOP für InstantID Inpaint
 
 | Gruppe | Tests | PASS | erwarteter Fehlschlag | SKIP | unerwartet |

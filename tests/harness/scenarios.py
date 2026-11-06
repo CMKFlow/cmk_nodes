@@ -513,6 +513,25 @@ def _tensor_png_hash(runtime, image) -> str:
 REGIONAL_NODE = "9001"
 
 
+def tensor_hash_of(value) -> str:
+    from .comfy_runtime import tensor_hash
+
+    return tensor_hash(value) if hasattr(value, "detach") else type(value).__name__
+
+
+def _add_postprocess_tail(prompt: dict) -> None:
+    visualizer = prompt["8334"]["inputs"]
+    family = {name: visualizer.pop(name) for name in list(visualizer)
+              if name.endswith((" ZIT", " SDXL"))}
+    prompt["9100"] = {"class_type": "CMKPostProcessSetupPipe", "inputs": {
+        **family, "postprocess_checkpoint": "juggernautXL_ragnarok.safetensors",
+        "postprocess_vae": "ClearVAE_V2.2.safetensors", "use_checkpoint_vae": True,
+    }}
+    prompt["9101"] = {"class_type": "CMKModelForwardPipe", "inputs": {"MODEL": ["9100", 0]}}
+    visualizer.update({"MODEL (opt)": ["9101", 0], "PROCESS": ["9100", 1], "IMAGE": ["9100", 2],
+                       "LOG": ["9100", 3], "VISUAL": ["9100", 4]})
+
+
 def _add_inpaint_source(prompt: dict, image: str) -> None:
     prompt["8437"] = {"class_type": "CMKLoadImage", "inputs": {"image": image, "opt_in": False}}
     prompt[HYBRID_START]["inputs"].update({
@@ -570,7 +589,8 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
                          overrides: dict | None = None, seeds: list | None = None,
                          start_inputs: list | None = None, remove_inputs: list | None = None,
                          input_images: list | None = None, regional: list | None = None,
-                         inpaint_source: str | None = None) -> dict:
+                         inpaint_source: str | None = None, postprocess_tail: bool = False,
+                         visualizer_inputs: dict | None = None) -> dict:
     """Run a Hybrid fixture several times in one executor with STOP per run.
 
     guard: None keeps the fixture's ContentGuard OFF; "pass" / "reject" turns
@@ -581,6 +601,8 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
     node 8437 reads it, so a file can change while its name stays the same.  ``regional`` holds one entry
     per run: None, or {"layout": [texts]} / {"conditioning": [texts]} for a regional node on the SDXL
     PROCESS branch.  ``inpaint_source`` adds the Load Image node of InOutpaint to a fixture without one.
+    ``postprocess_tail`` feeds the Visualizer through PostProcess Setup and a module's MODEL forward, as a
+    workflow with PostProcess modules does.
     """
     from . import seams as seam_module
     from .seams import install_generation_seams, reset_generation_calls
@@ -642,6 +664,9 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
                         node["inputs"]["seed"] = int(run_seed)
             if inpaint_source is not None:
                 _add_inpaint_source(prompt, inpaint_source)
+            if postprocess_tail:
+                _add_postprocess_tail(prompt)
+            prompt["8334"]["inputs"].update(visualizer_inputs or {})
             regional_spec = (regional or [None] * len(stops))[index]
             if regional_spec is not None:
                 _insert_regional_node(runtime, prompt, regional_spec)
@@ -658,6 +683,8 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
             record.update({
                 "stop": bool(stop),
                 "public_image_png": _tensor_png_hash(runtime, refiner_gate[1][0]) if refiner_gate and refiner_gate[1] else None,
+                "visualizer_model": (lambda output: None if not output else _payload_view(output[0][0]))(runtime.output("9101")),
+                "setup_image": (lambda output: None if not output else tensor_hash_of(output[2][0]))(runtime.output("9100")),
                 "sampling": dict(seam_module.GENERATION_CALLS),
                 "inpaint_prepares": [dict(item) for item in seam_module.INPAINT_PREPARES],
                 "sampler_noise_masks": list(seam_module.SAMPLER_NOISE_MASKS),
