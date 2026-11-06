@@ -532,6 +532,47 @@ def _add_postprocess_tail(prompt: dict) -> None:
                        "LOG": ["9100", 3], "VISUAL": ["9100", 4]})
 
 
+def _add_mask_detailer_tail(prompt: dict) -> None:
+    """Module nodes of the maskdetailer fixture behind PostProcess Setup."""
+    for node_id, node in load_api_prompt("maskdetailer").items():
+        if not node_id.startswith(("8417:", "8419")):
+            continue
+        node = json.loads(json.dumps(node))
+        for name, value in node["inputs"].items():
+            if isinstance(value, list) and value[0] == "1":
+                node["inputs"][name] = ["9100", value[1]]
+        prompt[node_id] = node
+    prompt["8334"]["inputs"].update({name: ["8417:8447", slot] for slot, name in enumerate(
+        ("MODEL (opt)", "PROCESS", "IMAGE", "LOG", "VISUAL"))})
+
+
+def mask_detailer_active_process(workdir: str, extra_model_paths: str | None = None) -> dict:
+    """The active route: Prepare keeps the source operation for the Visualizer."""
+    import torch
+
+    runtime = boot_runtime(workdir, extra_model_paths)
+    module = runtime.cmk_module("nodes.image.mask_detailer")
+    paths = runtime.cmk_module("utils.cmk_save_path")
+    model = {"model": object(), "clip": object(), "vae": object()}
+    module.resolve_postprocess_model = lambda value: model
+    module._node = lambda *args, **kwargs: ([],)
+    image = torch.zeros((1, 64, 64, 3))
+    results = {}
+    for label, process in (
+        ("inpaint", {"boolean_inpaint_mode": True, "source_model_family": "sdxl"}),
+        ("hybrid_inpaint", {"hybrid_inpaint_mode": True, "boolean_inpaint_mode": False,
+                            "source_model_family": "z_image_turbo"}),
+        ("text2image", {"boolean_inpaint_mode": False, "source_model_family": "sdxl"}),
+    ):
+        source = module._terminal_source(image, torch.ones((1, 64, 64)), module._source_metadata(process), {}, "s")
+        output = module.CMKMaskDetailerPrepare.prepare(
+            {"model_role": "postprocess"}, "None", 1.0, "", LOG={"blocks": []},
+            **{"MASK DETAILER SOURCE": source},
+        )
+        results[label] = paths.save_automatic_folders(output[1])
+    return results
+
+
 def _add_inpaint_source(prompt: dict, image: str) -> None:
     prompt["8437"] = {"class_type": "CMKLoadImage", "inputs": {"image": image, "opt_in": False}}
     prompt[HYBRID_START]["inputs"].update({
@@ -590,7 +631,7 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
                          start_inputs: list | None = None, remove_inputs: list | None = None,
                          input_images: list | None = None, regional: list | None = None,
                          inpaint_source: str | None = None, postprocess_tail: bool = False,
-                         visualizer_inputs: dict | None = None) -> dict:
+                         visualizer_inputs: dict | None = None, mask_detailer_tail: bool = False) -> dict:
     """Run a Hybrid fixture several times in one executor with STOP per run.
 
     guard: None keeps the fixture's ContentGuard OFF; "pass" / "reject" turns
@@ -666,6 +707,8 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
                 _add_inpaint_source(prompt, inpaint_source)
             if postprocess_tail:
                 _add_postprocess_tail(prompt)
+            if mask_detailer_tail:
+                _add_mask_detailer_tail(prompt)
             prompt["8334"]["inputs"].update(visualizer_inputs or {})
             regional_spec = (regional or [None] * len(stops))[index]
             if regional_spec is not None:

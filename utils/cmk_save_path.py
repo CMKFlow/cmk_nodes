@@ -31,8 +31,12 @@ _PROCESS_STAGE_MARKERS = (
 )
 
 
-def save_base_folder(process: dict) -> str:
-    """Return the source operation folder for a CMK process pipe."""
+def save_base_folder(process: dict) -> str | None:
+    """Return the source operation folder, or None when it is unknown.
+
+    Module 01 always records the operation.  Missing flags mean a path lost it,
+    which says nothing about the operation, so no category is claimed.
+    """
     family = str(
         process.get("source_model_family", process.get("model_family", "")) or ""
     ).strip().casefold()
@@ -47,7 +51,9 @@ def save_base_folder(process: dict) -> str:
         or generation_mode == "inpaint"
     ):
         return "Inpaint"
-    return "Text2Image"
+    if any(key in process for key in ("boolean_inpaint_mode", "hybrid_inpaint_mode", "generation_mode")):
+        return "Text2Image"
+    return None
 
 
 def normalize_save_process(process: dict) -> dict:
@@ -88,4 +94,12 @@ def save_stage_folders(process: dict) -> list[str]:
 
 def save_automatic_folders(process: dict) -> list[str]:
     process = normalize_save_process(process)
-    return [save_base_folder(process), *save_stage_folders(process)]
+    base = save_base_folder(process)
+    if base is None:
+        print(
+            "[CMK Save] Source operation unknown: PROCESS has no Inpaint flags, "
+            "saving without a category folder",
+            flush=True,
+        )
+        return save_stage_folders(process)
+    return [base, *save_stage_folders(process)]
