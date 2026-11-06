@@ -126,8 +126,9 @@ class HandoffPercent(ScenarioCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        percents = [{"instantid_handoff_percent": value} for value in (40, 50, 60, 70, 80)]
-        stops = [False] * 5
+        percents = [{"instantid_handoff_percent": 100 - share} for share in (80, 70, 60, 50, 40, 30, 20)]
+        stops = [False] * 7
+        cls.keys = cls.run_case("handoff_keys")
         cls.inpaint = cls.run_case("hybrid_stop_sequence", fixture=FIXTURE, stops=stops, start_inputs=percents)
         cls.text2image = cls.run_case("hybrid_stop_sequence", fixture=FIXTURE, stops=stops,
                                       start_inputs=[{**TEXT2IMAGE, **item} for item in percents])
@@ -136,8 +137,13 @@ class HandoffPercent(ScenarioCase):
         for sequence in (self.inpaint, self.text2image):
             runs = sequence["runs"]
             self.assertTrue(all(run["succeeded"] for run in runs), [run["errors"] for run in runs])
-            self.assertEqual([run["sampler_last_steps"] for run in runs], [[10], [13], [15], [18], [20]])
-            self.assertEqual([run["instantid_latents"][0]["start_step"] for run in runs], [10, 13, 15, 18, 20])
+            self.assertEqual([run["sampler_last_steps"] for run in runs], [[5], [8], [10], [13], [15], [18], [20]])
+            self.assertEqual([run["instantid_latents"][0]["start_step"] for run in runs], [5, 8, 10, 13, 15, 18, 20])
+
+    def test_cache_keys_follow_the_real_handoff(self):
+        for mode, keys in self.keys.items():
+            self.assertEqual(len(set(keys["first"])), 7, mode)
+            self.assertEqual(keys["first"], keys["again"], mode)
 
 
 class EvictedExecutorCache(ScenarioCase):

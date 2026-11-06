@@ -692,6 +692,24 @@ def input_content_keys(workdir: str, extra_model_paths: str | None = None) -> di
     return keys
 
 
+def handoff_keys(workdir: str, extra_model_paths: str | None = None) -> dict:
+    """KSampler fingerprint per technical handoff, computed twice per mode."""
+    runtime = boot_runtime(workdir, extra_model_paths)
+    cache = runtime.cmk_module("pipe.cmk_persistent_cache")
+    result = {}
+
+    for mode in ("Text2Image", "Inpaint"):
+        keys = {}
+        for label in ("first", "again"):
+            keys[label] = []
+            for handoff in (20, 30, 40, 50, 60, 70, 80):
+                prompt = load_api_prompt("instantid_inpaint")
+                prompt["8332"]["inputs"].update({"INPAINT_MODE": mode, "instantid_handoff_percent": handoff})
+                keys[label].append(cache.build_node_fingerprint(prompt, "8430:7415", ("CMKKSamplerPipe",), "s1")[0])
+        result[mode] = keys
+    return result
+
+
 def mask_detailer_sequence(workdir: str, extra_model_paths: str | None = None) -> dict:
     """Drive the MaskDetailer READY state machine with the real Intake node.
 

@@ -46,6 +46,42 @@ function ensureNativeSliderStyle() {
             .w-16:has(input[aria-label^="SAMPLING START"]) {
             display: none !important;
         }
+        [data-testid="node-widget"]:has([data-slot="slider"][aria-label^="IDENTITY SHARE"]) {
+            align-items: center;
+        }
+        [data-testid="node-widget"] div.grid:has([data-slot="slider"][aria-label^="IDENTITY SHARE"])
+            > [data-testid="widget-layout-field-label"] {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--fg-color, #ddd);
+        }
+        [data-testid="node-widget"] div.grid:has([data-slot="slider"][aria-label^="IDENTITY SHARE"])
+            > .relative > div {
+            border: 0 !important;
+            box-shadow: none !important;
+        }
+        [data-testid="node-widget"] div.grid:has([data-slot="slider"][aria-label^="IDENTITY SHARE"])
+            div.flex:has(> [data-slot="slider"]) {
+            gap: 10px !important;
+            padding: 0 2px !important;
+            background: transparent !important;
+        }
+        [data-testid="node-widget"] div.grid:has([data-slot="slider"][aria-label^="IDENTITY SHARE"])
+            div.flex:has(> [data-slot="slider"])::after {
+            content: "IDENTITY " attr(data-cmk-identity-share);
+            flex: 0 0 auto;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--fg-color, #ddd);
+        }
+        [data-testid="node-widget"] div.grid:has([data-slot="slider"][aria-label^="IDENTITY SHARE"])
+            [data-slot="slider-range"] {
+            display: none !important;
+        }
+        [data-testid="node-widget"] div.grid:has([data-slot="slider"][aria-label^="IDENTITY SHARE"])
+            .w-16:has(input[aria-label^="IDENTITY SHARE"]) {
+            display: none !important;
+        }
         [data-testid="node-widget"]:has([data-slot="slider"][aria-label^="HYBRID BALANCE"]) {
             align-items: center;
         }
@@ -90,6 +126,10 @@ function clampBalance(value, minimum = MIN_BALANCE, maximum = MAX_BALANCE, fallb
     const numeric = Number(value);
     if (!Number.isFinite(numeric) || numeric < minimum || numeric > maximum) return fallback;
     return Math.max(minimum, Math.min(maximum, Math.round(numeric)));
+}
+
+export function ensureSourceTargetSliderStyle() {
+    ensureNativeSliderStyle();
 }
 
 export function installSourceTargetSlider(

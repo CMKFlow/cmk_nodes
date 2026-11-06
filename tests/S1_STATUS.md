@@ -871,11 +871,15 @@ Refiner 1/0/1/0 für Text2Image und Inpaint; 192 Kombinationen PROCESS = Prompt;
 Dateitausch bei gleichem Namen ohne alten HIT; ContentGuard und Maske.
 Gegenproben: alter Code 13 Fehlschläge; ohne Inhaltsidentität 4.
 
-### InstantID-Handoff ab 40 %
+### InstantID: IDENTITY-Slider
 
-HYBRID HANDOFF erlaubt 40–80 % in Zehnerschritten, Default 70 %. Die Werte stehen in
-Widget, `CMKPipeCreateImage`, `_resolve_instantid_handoff` und v1-UI. Bei 25 Schritten:
-40 % = Schritt 10, 50 % = Schritt 13.
+`instantid_handoff_percent` bleibt der serialisierte Handoff (20–80 % in
+Zehnerschritten, Default 70 %, geprüft in Widget, `CMKPipeCreateImage`,
+`_resolve_instantid_handoff` und v1-UI). Sichtbar ist der Frontend-Slider
+`IDENTITY SHARE` mit `serialize: false`: IDENTITY = 100 − Handoff. Er steht nicht
+im Prompt und nicht in `widgets_values`. Reka-Slider lassen sich von außen nicht
+invertieren, deshalb ein eigenes Widget statt CSS-Spiegelung. Bei 25 Schritten:
+20/30/40/50/60/70/80 % Handoff = Schritt 5/8/10/13/15/18/20.
 
 ### Gesamtlauf nach STOP für InstantID Inpaint
 
