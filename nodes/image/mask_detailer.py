@@ -213,13 +213,22 @@ def _json_safe(value):
     return str(value)
 
 
+# Fields that name the source operation.  The save category reads them, and the
+# Mask Detailer process is the one that reaches the Visualizer.
+_SOURCE_OPERATION_KEYS = ("boolean_inpaint_mode", "hybrid_inpaint_mode")
+
+
+def _source_operation(source):
+    return {key: source[key] for key in _SOURCE_OPERATION_KEYS if key in source}
+
+
 def _source_metadata(process):
     source = process if isinstance(process, dict) else {}
     return {
         key: _json_safe(source.get(key))
         for key in (
             "type", "version", "prompt_pos", "prompt_neg", "source_model_family",
-            "model_family", "filename_string", "file_name",
+            "model_family", "filename_string", "file_name", *_SOURCE_OPERATION_KEYS,
         )
         if source.get(key) is not None
     }
@@ -241,6 +250,7 @@ def _terminal_source(image, mask, metadata, log, snapshot, ready=True):
         "terminal": True,
         "ready": bool(ready),
         "log": log,
+        **_source_operation(metadata),
     }
 
 
@@ -417,6 +427,8 @@ class CMKMaskDetailerIntake:
             status = "LOCKED"
 
         process_metadata = metadata.get("process") if isinstance(metadata.get("process"), dict) else {}
+        # A snapshot locked before these fields existed keeps its stored metadata.
+        process_metadata = {**process_metadata, **_source_operation(_source_metadata(PROCESS))}
         log = cmk_add_block(base_log, "Mask Detailer Intake", 49, [
             f"STATUS           : {status}",
             f"SNAPSHOT         : {snapshot}",
@@ -661,6 +673,7 @@ class CMKMaskDetailerPrepare:
             "result_contract": "mask_detailer",
             "filename_string": source.get("filename_string", ""),
             "file_name": source.get("file_name", source.get("filename_string", "")),
+            **_source_operation(source),
         }
         log = cmk_add_block(LOG, "Mask Detailer Prepare", 50, [
             "MODEL SOURCE     : MODEL",

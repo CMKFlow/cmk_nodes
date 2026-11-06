@@ -1011,7 +1011,10 @@ OUTPUT FOLDER / Text2Image|Inpaint / optionales Datum / optionales PROJECT FOLDE
 ```
 
 `Text2Image` beziehungsweise `Inpaint` stammt ausschließlich aus
-`PROCESS.boolean_inpaint_mode`. Relative Pfade werden bereinigt und dürfen das
+`PROCESS.boolean_inpaint_mode` und `PROCESS.hybrid_inpaint_mode`. Die Inpaint-Strategien
+Custom, Replace, Remove und Extend sowie Outpaint ändern die Kategorie nicht. Fehlen
+beide Kennzeichen, ist die Bearbeitungsart unbekannt: Es entsteht kein Kategorieordner,
+und das Log weist darauf hin. Relative Pfade werden bereinigt und dürfen das
 Output-Verzeichnis nicht verlassen. Speichern darf keine Bildverarbeitung
 rückwärts erzwingen, wenn die vorherige Modulgrenze unverändert ist.
 
