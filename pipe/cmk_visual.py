@@ -403,6 +403,12 @@ class CMKVisualizer:
         if model_required:
             ordered.append(ports[0])
         ordered.extend((ports[2], ports[3], ports[4]))
+        if not model_required:
+            # Save validates MODEL and the PostProcess spec is released here.
+            # MODEL runs through a forward node of its own, so it arrives only
+            # when requested.  It comes last: without a checkpoint it stays None
+            # and must not hold back the other inputs.
+            ordered.append(ports[0])
         for name in ordered:
             if name in connected and inputs.get(name) is None:
                 return [name]
