@@ -52,6 +52,17 @@ class SaveCategory(ScenarioCase):
         cls.mask_zit = run(inpaint_source=IMAGE, start_inputs=[{"outpaint_on": True}], **tail)
         cls.mask_text2image = run(**tail)
         cls.active = cls.run_case("mask_detailer_active_process")
+        cls.snapshots = cls.run_case("mask_detailer_snapshot_folders")
+        identity = {"fixture": "instantid_inpaint", "postprocess_tail": True}
+        cls.identity = {
+            mode: {
+                "direct": run(start_inputs=[{"INPAINT_MODE": mode}], **identity),
+                "mask_detailer": run(start_inputs=[{"INPAINT_MODE": mode}], mask_detailer_tail=True, **identity),
+            }
+            for mode in ("Inpaint", "Text2Image")
+        }
+        cls.identity_repeat = run(stops=[False, False], mask_detailer_tail=True, mode="ram_pressure",
+                                  evict_between_runs=True, **identity)
 
     def test_text2image(self):
         self.assertEqual(folders(self.text2image_zit["runs"][0]), [["Text2Image"]])
@@ -89,7 +100,31 @@ class SaveCategory(ScenarioCase):
 
     def test_active_mask_detailer_keeps_the_operation(self):
         self.assertEqual(self.active, {"inpaint": ["Inpaint"], "hybrid_inpaint": ["Inpaint"],
-                                       "text2image": ["Text2Image"]})
+                                       "text2image": ["Text2Image"],
+                                       "inpaint_instantid": ["Inpaint", "InstantID"],
+                                       "no_instantid": ["Inpaint"]})
+
+    def test_instantid_stage_with_and_without_mask_detailer(self):
+        for mode, category in (("Inpaint", "Inpaint"), ("Text2Image", "Text2Image")):
+            for path, result in self.identity[mode].items():
+                with self.subTest(mode=mode, path=path):
+                    self.assertEqual(folders(result["runs"][0]), [[category, "InstantID"]])
+
+    def test_no_instantid_stage_without_instantid(self):
+        self.assertEqual(folders(self.mask_sdxl["runs"][0]), [["Inpaint"]])
+        self.assertEqual(folders(self.mask_text2image["runs"][0]), [["Text2Image"]])
+
+    def test_cache_hit_keeps_the_stage(self):
+        first, second = self.identity_repeat["runs"]
+        self.assertEqual(second["sampling"]["sdxl"], 0)
+        self.assertEqual(folders(first), [["Inpaint", "InstantID"]])
+        self.assertEqual(folders(second), [["Inpaint", "InstantID"]])
+
+    def test_snapshot_metadata(self):
+        self.assertEqual(self.snapshots["stored"], {"with_process": ["Inpaint", "InstantID"],
+                                                    "from_sidecar": ["Inpaint", "InstantID"]})
+        self.assertEqual(self.snapshots["older"]["with_process"], ["Inpaint", "InstantID"])
+        self.assertEqual(self.snapshots["older"]["from_sidecar"], [])
 
 
 class PureRule(unittest.TestCase):

@@ -563,6 +563,8 @@ def mask_detailer_active_process(workdir: str, extra_model_paths: str | None = N
         ("hybrid_inpaint", {"hybrid_inpaint_mode": True, "boolean_inpaint_mode": False,
                             "source_model_family": "z_image_turbo"}),
         ("text2image", {"boolean_inpaint_mode": False, "source_model_family": "sdxl"}),
+        ("inpaint_instantid", {"boolean_inpaint_mode": True, "instantid_enabled": True, "source_model_family": "sdxl"}),
+        ("no_instantid", {"boolean_inpaint_mode": True, "instantid_enabled": False, "source_model_family": "sdxl"}),
     ):
         source = module._terminal_source(image, torch.ones((1, 64, 64)), module._source_metadata(process), {}, "s")
         output = module.CMKMaskDetailerPrepare.prepare(
@@ -570,6 +572,54 @@ def mask_detailer_active_process(workdir: str, extra_model_paths: str | None = N
             **{"MASK DETAILER SOURCE": source},
         )
         results[label] = paths.save_automatic_folders(output[1])
+    return results
+
+
+def mask_detailer_snapshot_folders(workdir: str, extra_model_paths: str | None = None) -> dict:
+    """Save folders after Intake and Prepare, read from a locked snapshot.
+
+    "stored" keeps the sidecar written at capture time, "older" removes the
+    operation flags as a snapshot locked before they existed has none.
+    """
+    from PIL import Image
+
+    import torch
+
+    runtime = boot_runtime(workdir, extra_model_paths)
+    module = runtime.cmk_module("nodes.image.mask_detailer")
+    paths = runtime.cmk_module("utils.cmk_save_path")
+    model = {"model": object(), "clip": object(), "vae": object()}
+    module.resolve_postprocess_model = lambda value: model
+    module._node = lambda *args, **kwargs: ([],)
+    Path(workdir, "input").mkdir(parents=True, exist_ok=True)
+    process = {"boolean_inpaint_mode": True, "instantid_enabled": True, "source_model_family": "sdxl",
+               "model_family": "sdxl"}
+    image = torch.zeros((1, 64, 64, 3))
+    results = {}
+
+    def folders(label, **inputs):
+        output = module.CMKMaskDetailerIntake.intake(IMAGE=image, LOG={"blocks": []}, unique_id=label, **inputs)
+        prepared = module.CMKMaskDetailerPrepare.prepare(
+            {"model_role": "postprocess"}, "None", 1.0, "", LOG={"blocks": []},
+            **{"MASK DETAILER SOURCE": output["result"][3]},
+        )
+        return paths.save_automatic_folders(prepared[1])
+
+    for label in ("stored", "older"):
+        module.CMKMaskDetailerIntake.intake(PROCESS=process, IMAGE=image, LOG={"blocks": []}, unique_id=label)
+        captured = module.CMKMaskDetailerIntake.intake(capture_current=True, unique_id=label)
+        snapshot = captured["result"][3]["snapshot"]
+        painted = Image.new("RGBA", (64, 64), (0, 0, 0, 255))
+        painted.paste((0, 0, 0, 0), (8, 8, 32, 32))
+        painted.save(Path(workdir, "input", snapshot))
+        sidecar = module._snapshot_files(label)[2]
+        if label == "older":
+            metadata = json.loads(sidecar.read_text(encoding="utf-8"))
+            for key in module._SOURCE_OPERATION_KEYS:
+                metadata["process"].pop(key, None)
+            sidecar.write_text(json.dumps(metadata), encoding="utf-8")
+        results[label] = {"with_process": folders(label, PROCESS=process, image=snapshot)}
+        results[label]["from_sidecar"] = folders(label, image=snapshot)
     return results
 
 
