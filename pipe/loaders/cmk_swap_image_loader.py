@@ -192,6 +192,7 @@ class CMKSwapImageLoaderPipe:
                 {
                     "default": True,
                     "label": "CONTENT GUARD",
+                    "advanced": True,
                     "tooltip": (
                         "Baseline only. Enables source and target ContentGuard "
                         "checks in CMK FaceSwap Image."

@@ -43,6 +43,11 @@ class FaceSwapImageContentGuardTests(unittest.TestCase):
             True,
         )
 
+    def test_baseline_control_sits_in_advanced_inputs(self):
+        options = self._required(distribution.BASELINE)[distribution.CONTENT_GUARD_PROCESS_KEY][1]
+        self.assertIs(options["advanced"], True)
+        self.assertEqual(options["label"], "CONTENT GUARD")
+
     def test_release_omits_control_and_forces_on(self):
         self.assertNotIn(
             distribution.CONTENT_GUARD_PROCESS_KEY,
