@@ -184,9 +184,15 @@ def fake_detect_image(self, image_rgb, settings):
     return [{"index": 0, "bbox": raw.bbox, "kps": kps, "det_score": 0.99, "raw": raw}]
 
 
+SWAP_GUARD_STATES = []
+
+
 def fake_swap_selected_with_mask(self, target_rgb, source_rgb, source_selected_face, target_selected_face, settings, *, content_guard_enabled=True):
-    """Invert the centre box; return (result, paste_mask) like the real engine."""
+    """Invert the centre box; return (result, paste_mask) like the real engine.
+    The ContentGuard state the node hands over is recorded."""
     import numpy as np
+
+    SWAP_GUARD_STATES.append(bool(content_guard_enabled))
 
     result = target_rgb.copy()
     x1, y1, x2, y2 = _center_box(target_rgb)

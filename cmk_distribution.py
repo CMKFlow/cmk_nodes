@@ -87,14 +87,17 @@ def content_guard_prompt_state(prompt: Any, root_node_id: Any = None) -> bool:
         else prompt.values()
     )
     nodes = list(nodes)
-    for node in nodes:
-        if not isinstance(node, Mapping):
-            continue
-        if str(node.get("class_type", "")) != "CMKPipeCreateImage":
-            continue
-        inputs = node.get("inputs")
-        if isinstance(inputs, Mapping):
-            return bool(inputs.get(CONTENT_GUARD_WIDGET, True))
+    # Module 01 owns the switch in a generation flow; a standalone FaceSwap
+    # image flow has it on its image loader instead.
+    for class_type in ("CMKPipeCreateImage", "CMKSwapImageLoaderPipe"):
+        for node in nodes:
+            if not isinstance(node, Mapping):
+                continue
+            if str(node.get("class_type", "")) != class_type:
+                continue
+            inputs = node.get("inputs")
+            if isinstance(inputs, Mapping):
+                return bool(inputs.get(CONTENT_GUARD_WIDGET, True))
     return True
 
 

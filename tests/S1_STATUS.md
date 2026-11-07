@@ -897,6 +897,20 @@ ab, und die PostProcess-Freigabe am Ende entfiel. Alle Fixtures laufen mit
 `SAVE ENABLED = False`, deshalb blieb das unentdeckt. MODEL wird jetzt immer angefordert,
 wenn es verbunden ist. `test_s1_visualizer_model.py`.
 
+### ContentGuard-Schalter erreicht die ausführende Node
+
+Zwei Ursachen. Standalone FaceSwap: `CMKFaceSwapImagePipe` las den Guard nur aus
+`PROCESS`; der Eingang ist im Showcase offen und lässt sich mit dem Loader nicht
+verbinden (`CMK_RESULT_PROCESS` gegen `CMK_PIPE`), also galt immer ON. Ohne PROCESS
+liest die Node jetzt den Schalter aus dem Graphen; `content_guard_prompt_state` kennt
+dafür neben START HERE auch `CMKSwapImageLoaderPipe` (START HERE hat Vorrang).
+Full Flow: Der Generation-Completion-Schlüssel enthielt den Guard nicht; ein Treffer
+stellte nach dem Umschalten den alten PROCESS mit altem Guard-Wert wieder her. Der
+Schlüssel enthält jetzt `content_guard_prompt_token`. `test_s1_content_guard_switch.py`.
+
+Gesamtlauf: S1 291 (282 PASS, 7 erwarteter Fehlschlag, 2 SKIP), Bestand 168 (167 + 1
+Altfehler Sourcemap), `.mjs` 9/9. Geschützte Caches unverändert.
+
 ### Speicherkategorie hinter dem MaskDetailer
 
 `save_base_folder` liest `boolean_inpaint_mode` und `hybrid_inpaint_mode`. Der öffentliche

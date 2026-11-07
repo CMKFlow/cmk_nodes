@@ -12,6 +12,7 @@ from typing import Any, Mapping
 import numpy as np
 import torch
 
+from ..cmk_distribution import content_guard_prompt_token
 from .cmk_persistent_cache import build_node_fingerprint
 from .cmk_prompt_result_state import UnsafeSnapshotTypeError, snapshot_value
 
@@ -115,6 +116,9 @@ def build_completion_key(
         "model_family": family,
         "generation_mode": mode,
         "roots": roots,
+        # The entry stores PROCESS, and PROCESS carries the guard state that
+        # every later module enforces.  The roots exclude the guard widget.
+        "content_guard": content_guard_prompt_token(prompt),
     }
     encoded = json.dumps(
         identity,
