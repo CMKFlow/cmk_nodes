@@ -1,0 +1,533 @@
+{
+ "8332": {
+  "_meta": {
+   "title": "CMK Flow · 01 START HERE · Create Image"
+  },
+  "class_type": "CMKPipeCreateImage",
+  "inputs": {
+   "FILENAME": [
+    "8437",
+    3
+   ],
+   "GLOBAL PROMPT POS": "a hand holds a GOLDEN PINEAPPLE",
+   "HYBRID BALANCE": 3,
+   "IMAGE": [
+    "8437",
+    1
+   ],
+   "INPAINT_MODE": "Inpaint",
+   "LOG": [
+    "8437",
+    4
+   ],
+   "MASK": [
+    "8437",
+    2
+   ],
+   "MODEL FAMILY TABS": "SDXL",
+   "PROCESS": [
+    "8437",
+    0
+   ],
+   "PROMPT NEG": "low quality, low resolution, blurry, soft focus, pixelated, oversaturated, underexposed, overexposed, flat lighting, watermark, logo, signature, frame",
+   "content_guard_enabled": false,
+   "controlnet_enabled": "AUTO",
+   "crop_position": "Center",
+   "device": "cpu",
+   "fill_masked_area": "neutral",
+   "hybrid_sdxl_handoff": "90%",
+   "hybrid_zit_denoise": "0.20",
+   "inpaint_mask_expand": 16,
+   "instantid_enabled": true,
+   "instantid_handoff_percent": 70,
+   "instantid_mode": "HYBRID",
+   "live_preview_zit": "AUTO",
+   "mask_fill_holes": true,
+   "model_family": "SDXL",
+   "outpaint_on": false,
+   "outpaint_overlap": 32,
+   "process_mode": "Custom",
+   "resize_mode": "Fit",
+   "resolution": "1024x1024",
+   "stop_after_handoff": false,
+   "swap_dimensions": false,
+   "unload_models_after_use": true,
+   "upscale_method": "lanczos"
+  }
+ },
+ "8334": {
+  "_meta": {
+   "title": "CMK Flow · Visualizer"
+  },
+  "class_type": "CMKVisualizer",
+  "inputs": {
+   "IMAGE SDXL": [
+    "8433:7812",
+    1
+   ],
+   "LOG SDXL": [
+    "8433:7812",
+    2
+   ],
+   "MODEL SDXL": [
+    "8433:7812",
+    0
+   ],
+   "PROCESS SDXL": [
+    "8433:7811",
+    0
+   ],
+   "SAVE ENABLED": false,
+   "VISUAL SDXL": [
+    "8433:7812",
+    3
+   ],
+   "enable upscale": false,
+   "filename prefix": "image",
+   "limit 2x MP": 8,
+   "limit 4x MP": 0.5,
+   "model 2x": "RealESRGAN-x2plus.pth",
+   "model 4x": "RealESRGAN_x4plus.pth",
+   "output folder": "",
+   "use date folder": true
+  }
+ },
+ "8430:7414": {
+  "_meta": {
+   "title": "CMK Flow · Checkpoint & VAE"
+  },
+  "class_type": "CMKCheckpointVAELoaderPipe",
+  "inputs": {
+   "PROCESS": [
+    "8332",
+    0
+   ],
+   "checkpoint_vae": true,
+   "ckpt_name": "juggernautXL_ragnarok.safetensors",
+   "vae_name": "ClearVAE_V2.2.safetensors"
+  }
+ },
+ "8430:7415": {
+  "_meta": {
+   "title": "CMK KSampler -Pipe-"
+  },
+  "class_type": "CMKKSamplerPipe",
+  "inputs": {
+   "SAMPLER": [
+    "8430:7416",
+    0
+   ],
+   "VISUAL": [
+    "8332",
+    4
+   ]
+  }
+ },
+ "8430:7416": {
+  "_meta": {
+   "title": "CMK Sampler Prepare SDXL -Pipe-"
+  },
+  "class_type": "CMKSamplerPrepareSDXLPipe",
+  "inputs": {
+   "IMAGE": [
+    "8332",
+    2
+   ],
+   "LOG": [
+    "8332",
+    3
+   ],
+   "MODEL": [
+    "8430:7414",
+    0
+   ],
+   "PROCESS": [
+    "8332",
+    0
+   ],
+   "cfg": 5,
+   "context_reference_blur": 5,
+   "context_reference_enabled": false,
+   "context_reference_expand": 3,
+   "denoise": 1,
+   "fooocus_head": "fooocus_inpaint_head.pth",
+   "fooocus_patch": "inpaint_v25.fooocus.patch",
+   "freeu_b1": 1.3,
+   "freeu_b2": 1.4,
+   "freeu_enabled": true,
+   "freeu_s1": 0.9,
+   "freeu_s2": 0.2,
+   "inpaint_noise_mask": true,
+   "lora_name": "None",
+   "pag_scale": 2.5,
+   "remove_blend_radius": 24,
+   "remove_mask_expand": 12,
+   "replace_spatial_strength": 0.35,
+   "sampler": "euler_ancestral",
+   "sampling": "lcm",
+   "scheduler": "karras",
+   "seed": 1565304366,
+   "steps_1st_pass": 25,
+   "stop_at_clip_layer": -2,
+   "strength_clip": 1,
+   "strength_model": 1,
+   "zsnr": false
+  }
+ },
+ "8430:7417": {
+  "_meta": {
+   "title": "CMKFamilyBranchGateSDXLSampled"
+  },
+  "class_type": "CMKFamilyBranchGateSDXLSampled",
+  "inputs": {
+   "LOG": [
+    "8430:7416",
+    1
+   ],
+   "MODEL": [
+    "8430:7414",
+    0
+   ],
+   "PROCESS": [
+    "8332",
+    0
+   ],
+   "SAMPLED": [
+    "8430:7415",
+    0
+   ],
+   "VISUAL": [
+    "8430:7415",
+    1
+   ],
+   "diagnostic": [
+    "8430:7416",
+    2
+   ]
+  }
+ },
+ "8433:7808": {
+  "_meta": {
+   "title": "CMK Flow · Checkpoint & VAE"
+  },
+  "class_type": "CMKCheckpointVAELoaderPipe",
+  "inputs": {
+   "checkpoint_vae": false,
+   "ckpt_name": "refiner/sd_xl_refiner_1.0.safetensors",
+   "vae_name": "sdxl_vae.safetensors"
+  }
+ },
+ "8433:7809": {
+  "_meta": {
+   "title": "CMK Refiner -Pipe-"
+  },
+  "class_type": "CMKRefinerPipe",
+  "inputs": {
+   "REFINER": [
+    "8433:7813",
+    0
+   ],
+   "VISUAL": [
+    "8438:7918",
+    4
+   ]
+  }
+ },
+ "8433:7810": {
+  "_meta": {
+   "title": "CMK Boundary Cache"
+  },
+  "class_type": "CMKRefinerBoundaryCache",
+  "inputs": {
+   "IMAGE_1ST_PASS": [
+    "8433:7809",
+    0
+   ],
+   "IMAGE_REFINED": [
+    "8433:7809",
+    1
+   ],
+   "LOG": [
+    "8433:7813",
+    1
+   ],
+   "MODEL": [
+    "8438:7918",
+    0
+   ]
+  }
+ },
+ "8433:7811": {
+  "_meta": {
+   "title": "CMK Process Forward -Pipe-"
+  },
+  "class_type": "CMKProcessForwardPipe",
+  "inputs": {
+   "PROCESS": [
+    "8438:7916",
+    0
+   ]
+  }
+ },
+ "8433:7812": {
+  "_meta": {
+   "title": "CMKFamilyBranchGateSDXL"
+  },
+  "class_type": "CMKFamilyBranchGateSDXL",
+  "inputs": {
+   "IMAGE": [
+    "8433:7810",
+    2
+   ],
+   "LOG": [
+    "8433:7810",
+    3
+   ],
+   "MODEL": [
+    "8433:7810",
+    0
+   ],
+   "PROCESS": [
+    "8433:7811",
+    0
+   ],
+   "VISUAL": [
+    "8433:7809",
+    2
+   ],
+   "diagnostic": [
+    "8433:7813",
+    2
+   ]
+  }
+ },
+ "8433:7813": {
+  "_meta": {
+   "title": "CMK Refiner Prepare SDXL -Pipe-"
+  },
+  "class_type": "CMKRefinerPrepareSDXLPipe",
+  "inputs": {
+   "LOG": [
+    "8438:7918",
+    2
+   ],
+   "MODEL": [
+    "8433:7808",
+    0
+   ],
+   "PROCESS": [
+    "8438:7916",
+    0
+   ],
+   "SAMPLED": [
+    "8438:7918",
+    1
+   ],
+   "cfg": 4.8,
+   "lora_name": "None",
+   "pag_scale": 2.5,
+   "sampler": "euler",
+   "sampling": "lcm",
+   "sampling_source": "1st pass",
+   "scheduler": "simple",
+   "start_with_instantid": 90,
+   "start_without_instantid": 80,
+   "steps": 25,
+   "strength_clip": 1,
+   "strength_model": 1,
+   "use_lora_from_1st_pass": false,
+   "use_prompt_lora_from_sampler": true,
+   "zsnr": false
+  }
+ },
+ "8437": {
+  "_meta": {
+   "title": "CMK Flow · Load Image"
+  },
+  "class_type": "CMKLoadImage",
+  "inputs": {
+   "image": "CMK Package · inpaint_reference2.png",
+   "opt_image_file": "CMK Package · inpaint_reference2.png",
+   "opt_in": true
+  }
+ },
+ "8438:7807": {
+  "_meta": {
+   "title": "SOURCE FACE"
+  },
+  "class_type": "CMKLoadImage",
+  "inputs": {
+   "image": "CMK Package · face_identity_reference.png",
+   "opt_image_file": "CMK Package · face_reference.png",
+   "opt_in": true
+  }
+ },
+ "8438:7914": {
+  "_meta": {
+   "title": "CMK InstantID Sampler SDXL -Pipe-"
+  },
+  "class_type": "CMKInstantIDSamplerSDXLPipe",
+  "inputs": {
+   "LOG": [
+    "8430:7417",
+    2
+   ],
+   "MODEL": [
+    "8430:7417",
+    0
+   ],
+   "PROCESS": [
+    "8430:7417",
+    3
+   ],
+   "SAMPLED": [
+    "8430:7417",
+    1
+   ],
+   "VISUAL": [
+    "8430:7417",
+    5
+   ],
+   "cfg": 4.5,
+   "conditioning_mode": "InstantID reference",
+   "controlnet_model": "instantid/diffusion_pytorch_model.safetensors",
+   "identity_strength": 1,
+   "instantid_end": 1,
+   "instantid_model": "ip-adapter.bin",
+   "instantid_start": 0,
+   "noise": 0.75,
+   "pose_strength": 0.7,
+   "provider": "CoreML",
+   "reference_conditioning_weight": 0.75,
+   "reference_start_at_step": 8,
+   "source_face": [
+    "8438:7807",
+    1
+   ],
+   "target_face": "Largest"
+  }
+ },
+ "8438:7915": {
+  "_meta": {
+   "title": "CMK InstantID Boundary"
+  },
+  "class_type": "CMKInstantIDBoundary",
+  "inputs": {
+   "LOG": [
+    "8438:7914",
+    3
+   ],
+   "MODEL": [
+    "8438:7914",
+    0
+   ],
+   "PROCESS": [
+    "8430:7417",
+    3
+   ],
+   "SAMPLED": [
+    "8438:7914",
+    2
+   ],
+   "diagnostic": [
+    "8438:7914",
+    6
+   ]
+  }
+ },
+ "8438:7916": {
+  "_meta": {
+   "title": "CMK Process Forward -Pipe-"
+  },
+  "class_type": "CMKProcessForwardPipe",
+  "inputs": {
+   "PROCESS": [
+    "8430:7417",
+    3
+   ]
+  }
+ },
+ "8438:7917": {
+  "_meta": {
+   "title": "CMK Process Enable Flag"
+  },
+  "class_type": "CMKProcessEnableFlag",
+  "inputs": {
+   "PROCESS": [
+    "8430:7417",
+    3
+   ],
+   "flag": "instantid_enabled"
+  }
+ },
+ "8438:7918": {
+  "_meta": {
+   "title": "CMK Sampler Bypass Gate"
+  },
+  "class_type": "CMKSamplerBypassGate",
+  "inputs": {
+   "DIAGNOSTIC ACTIVE": [
+    "8438:7915",
+    4
+   ],
+   "ENABLE": [
+    "8438:7917",
+    0
+   ],
+   "LOG ACTIVE": [
+    "8438:7915",
+    3
+   ],
+   "LOG BYPASS": [
+    "8430:7417",
+    2
+   ],
+   "MODEL ACTIVE": [
+    "8438:7915",
+    0
+   ],
+   "MODEL BYPASS": [
+    "8430:7417",
+    0
+   ],
+   "SAMPLED ACTIVE": [
+    "8438:7915",
+    2
+   ],
+   "SAMPLED BYPASS": [
+    "8430:7417",
+    1
+   ],
+   "VISUAL ACTIVE": [
+    "8438:7914",
+    5
+   ],
+   "VISUAL BYPASS": [
+    "8430:7417",
+    5
+   ]
+  }
+ },
+ "8444": {
+  "_meta": {
+   "title": "CMK Flow · Load Image"
+  },
+  "class_type": "CMKLoadImage",
+  "inputs": {
+   "image": "CMK Package · black.png",
+   "opt_image_file": "CMK Package · face_reference.png",
+   "opt_in": true
+  }
+ },
+ "8445": {
+  "_meta": {
+   "title": "CMK Flow · Load Image"
+  },
+  "class_type": "CMKLoadImage",
+  "inputs": {
+   "image": "CMK Package · black.png",
+   "opt_image_file": "CMK Package · portrait_reference_00002.png",
+   "opt_in": true
+  }
+ }
+}
