@@ -405,6 +405,9 @@ function installPairWidget(node) {
 function ensureInstalled(node) {
     if (!isTarget(node)) return;
     installPairWidget(node);
+    // Visible label only; the widget keeps its name for serialization.
+    const guard = (node.widgets ?? []).find((widget) => widget?.name === "content_guard_enabled");
+    if (guard) guard.label = "CONTENT GUARD";
     const state = node._cmkSwapImagePairV1;
     if (state?.widget) {
         state.root.value = state.widget.value ?? state.root.value;
