@@ -5,8 +5,9 @@ const NODE_CLASS = "CMKInstantIDFaceRebuildAdvancedSDXL";
 const STANDARD_NODE_CLASS = "CMKInstantIDFaceRebuildSDXL";
 const NODE_SIZE = [600, 1400];
 const STANDARD_MIN_SIZE = [450, 590];
+// SAMPLING START (SOURCE/TARGET) stays in the standard view.
 const ADVANCED = new Set([
-    "DETECT MODEL", "DETECT SIZE", "instantid_model", "SAMPLING START",
+    "DETECT MODEL", "DETECT SIZE", "instantid_model",
     "controlnet_model", "provider", "cfg", "identity_noise",
 ]);
 const TECHNICAL_LABELS = {
