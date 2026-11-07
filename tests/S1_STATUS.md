@@ -897,6 +897,17 @@ ab, und die PostProcess-Freigabe am Ende entfiel. Alle Fixtures laufen mit
 `SAVE ENABLED = False`, deshalb blieb das unentdeckt. MODEL wird jetzt immer angefordert,
 wenn es verbunden ist. `test_s1_visualizer_model.py`.
 
+### CMK Multi Image Loader
+
+Virtueller Frontend-Node (`web/js/cmk_multi_image_loader*.js`) mit vier Slots CN, ID A, ID B,
+ID C. Er erscheint nie im Backend-Prompt: Nach `app.graphToPrompt` setzt `injectReferences`
+den Dateinamen jedes Slots als festen Wert in `opt_image_file` der verbundenen Verbraucher,
+rekursiv über Subgraph-Grenzen und Reroutes. Deaktiviert: `""`. Aktiv ohne Datei:
+„CMK Multi Image Loader · <Slot>: no file selected“ (Validierungsfehler am Verbraucher).
+Verbraucher fehlt im Prompt oder hat eine andere Klasse: `MultiImageInjectionError`.
+`test_multi_image_loader_core.mjs`, `test_s1_multi_image_loader.py` (Prompts aus dem echten
+Frontend in `fixtures/multi_image_loader/`).
+
 ### ContentGuard-Schalter erreicht die ausführende Node
 
 Zwei Ursachen. Standalone FaceSwap: `CMKFaceSwapImagePipe` las den Guard nur aus

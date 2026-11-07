@@ -939,6 +939,52 @@ def completion_guard_keys(workdir: str, extra_model_paths: str | None = None) ->
     return keys
 
 
+def multi_image_loader_keys(workdir: str, extra_model_paths: str | None = None) -> dict:
+    """ComfyUI cache keys and CMK fingerprints for prompts that the real
+    frontend produced with a CMK Multi Image Loader (fixtures/multi_image_loader)."""
+    import asyncio
+    import hashlib
+    import shutil
+
+    runtime = boot_runtime(workdir, extra_model_paths)
+    import execution
+    from comfy_execution.caching import CacheKeySetInputSignature
+    from comfy_execution.graph import DynamicPrompt
+
+    sampler = runtime.cmk_module("pipe.cmk_pipe_sampler")
+    refiner = runtime.cmk_module("pipe.cmk_refiner_boundary_cache")
+    family = runtime.cmk_module("pipe.cmk_family_result")
+    loader = runtime.cmk_module("pipe.loaders.cmk_load_image").CMKLoadImage
+    folder = Path(__file__).resolve().parents[1] / "fixtures" / "multi_image_loader"
+    result = {}
+    for path in sorted(folder.glob("*.json")):
+        prompt = json.loads(path.read_text(encoding="utf-8"))
+        dynamic = DynamicPrompt(prompt)
+        is_changed = execution.IsChangedCache("cmk-multi", dynamic, None)
+        keyset = CacheKeySetInputSignature(dynamic, list(prompt), is_changed)
+        asyncio.run(keyset.add_keys(list(prompt)))
+        comfy = {node_id: hashlib.sha256(repr(keyset.get_data_key(node_id)).encode()).hexdigest()
+                 for node_id in prompt}
+        result[path.stem] = {
+            "comfy": comfy,
+            "references": {node_id: node["inputs"]["opt_image_file"] for node_id, node in prompt.items()
+                           if isinstance(node["inputs"].get("opt_image_file"), str)},
+            "handoff": sampler._sdxl_handoff_cache_key(prompt, "8430:7415"),
+            "instantid_boundary": family._sampled_boundary_key(prompt, "8438:7915", include_content_guard=True),
+            "refiner": refiner.build_refiner_fingerprint(prompt, "8433:7810")[0],
+        }
+    # Content changes behind an unchanged reference keep reaching the consumer.
+    target = Path(workdir) / "input" / "cmk_multi_content.png"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    digests = []
+    for source in (SELFCHECK_INPUT, "cmk_s1_input_replacement.png"):
+        write_selfcheck_input(Path(workdir), source)
+        shutil.copy(Path(workdir) / "input" / SELFCHECK_INPUT, target)
+        digests.append(loader.IS_CHANGED("ignored.png", opt_image_file="cmk_multi_content.png", opt_in=True))
+    result["content_digests"] = digests
+    return result
+
+
 def mask_detailer_sequence(workdir: str, extra_model_paths: str | None = None) -> dict:
     """Drive the MaskDetailer READY state machine with the real Intake node.
 
