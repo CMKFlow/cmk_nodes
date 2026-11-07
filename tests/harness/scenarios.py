@@ -778,6 +778,8 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
                 "public_image_png": _tensor_png_hash(runtime, refiner_gate[1][0]) if refiner_gate and refiner_gate[1] else None,
                 "visualizer_model": (lambda output: None if not output else _payload_view(output[0][0]))(runtime.output("9101")),
                 "setup_image": (lambda output: None if not output else tensor_hash_of(output[2][0]))(runtime.output("9100")),
+                "setup_guard": (lambda output: None if not output or not isinstance(output[1][0], dict)
+                                else output[1][0].get("content_guard_enabled", "missing"))(runtime.output("9100")),
                 "sampling": dict(seam_module.GENERATION_CALLS),
                 "inpaint_prepares": [dict(item) for item in seam_module.INPAINT_PREPARES],
                 "sampler_noise_masks": list(seam_module.SAMPLER_NOISE_MASKS),
@@ -875,6 +877,66 @@ def handoff_keys(workdir: str, extra_model_paths: str | None = None) -> dict:
                 keys[label].append(cache.build_node_fingerprint(prompt, "8430:7415", ("CMKKSamplerPipe",), "s1")[0])
         result[mode] = keys
     return result
+
+
+def standalone_faceswap_guard(workdir: str, extra_model_paths: str | None = None) -> dict:
+    """The standalone FaceSwap image flow as shipped: loader -> FaceSwap with
+    the PROCESS input left open.  Returns the guard state handed to the engine."""
+    import shutil
+
+    from . import seams as seam_module
+
+    workdir = Path(workdir)
+    runtime, probes, seams = _session(workdir, extra_model_paths, "classic", True, True, SELFCHECK_INPUT)
+    for name in ("cmk_s1_target.png", "cmk_s1_source.png"):
+        shutil.copy(workdir / "input" / SELFCHECK_INPUT, workdir / "input" / name)
+    pair = json.dumps({"target": "cmk_s1_target.png", "source": "cmk_s1_source.png"})
+    results = {}
+    try:
+        for label, guard, process_link, with_widget in (
+            ("on", True, False, True), ("off", False, False, True),
+            ("on_unpack", True, True, True), ("off_unpack", False, True, True),
+        ):
+            loader = {"RESOLUTION": "SDXL 832x1152", "SWAP DIMENSIONS": False, "RESIZE METHOD": "lanczos",
+                      "CROP": False, "CROP POSITION": "center", "IMAGE PAIR": pair}
+            if with_widget:
+                loader["content_guard_enabled"] = guard
+            swap = {"GLOBAL ENABLE": True, "ENABLE": True, "SWAP MODEL": "hyperswap_1b_256.onnx",
+                    "DETECT MODEL": "buffalo_l", "TARGET FACE": "Largest", "SOURCE FACE": "Largest",
+                    "PATCH ENHANCER": False, "PATCH ENHANCER MODEL": "GFPGAN", "PATCH ENHANCER STRENGTH": 0.75,
+                    "bbox_dilation": 0, "drop_size": 10, "QUALITY PROFILE": "Automatic", "POST RESTORE": False,
+                    "POST RESTORE MODEL": "GFPGANv1.4.pth", "RESTORE VISIBILITY": 1,
+                    "IMAGE_TARGET": ["1", 1], "IMAGE_SOURCE": ["1", 2], "opt_log": ["1", 3]}
+            prompt = {"1": {"class_type": "CMKSwapImageLoaderPipe", "inputs": loader},
+                      "2": {"class_type": "CMKFaceSwapImagePipe", "inputs": swap},
+                      "3": {"class_type": "CMKVisualizer", "inputs": {"PROCESS": ["1", 0], "IMAGE": ["2", 0],
+                                                                       "LOG": ["2", 2], "SAVE ENABLED": False}}}
+            if process_link:
+                prompt["4"] = {"class_type": "CMKResultUnpackPipe", "inputs": {
+                    "PROCESS": ["1", 0], "IMAGE": ["1", 1], "LOG": ["1", 3]}}
+                swap["PROCESS"] = ["4", 1]
+            seam_module.SWAP_GUARD_STATES.clear()
+            record = _run_once(runtime, probes, seams, workdir, prompt, {})
+            results[label] = {"succeeded": record["succeeded"], "errors": record["errors"],
+                              "engine_guard": list(seam_module.SWAP_GUARD_STATES)}
+    finally:
+        seams.uninstall()
+        probes.uninstall()
+    return results
+
+
+def completion_guard_keys(workdir: str, extra_model_paths: str | None = None) -> dict:
+    """Generation-completion key for the same generation with the guard ON and OFF."""
+    runtime = boot_runtime(workdir, extra_model_paths)
+    completion = runtime.cmk_module("pipe.cmk_generation_completion_cache")
+    keys = {}
+    for label, guard in (("on", True), ("off", False), ("on_again", True)):
+        prompt = load_api_prompt("hybrid_stop")
+        prompt[HYBRID_START]["inputs"]["content_guard_enabled"] = guard
+        roots = {"IMAGE": ["8431:7655", 1], "PROCESS": ["8431:7654", 0]}
+        keys[label] = completion.build_completion_key(prompt, roots, model_family="hybrid",
+                                                      generation_mode="sdxl_zit_hybrid")[0]
+    return keys
 
 
 def mask_detailer_sequence(workdir: str, extra_model_paths: str | None = None) -> dict:

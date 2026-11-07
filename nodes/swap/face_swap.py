@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import folder_paths
 
-from ...cmk_distribution import effective_content_guard_enabled
+from ...cmk_distribution import content_guard_prompt_state, effective_content_guard_enabled
 from ...engine.detector_engine import CMKDetectorEngine, DetectorSettings
 from ...engine.swap_selected_engine import CMKSelectedSwapEngine, SelectedSwapSettings
 from ...engine.content_guard import ContentGuardBlocked, cleanup_content_guard_abort
@@ -499,7 +499,7 @@ class CMKFaceSwapImagePipe:
                 "VISUAL": ("CMK_VISUAL_PIPE",),
                 "opt_diagnostic": ("CMK_DIAGNOSTIC",),
             },
-            "hidden": {"unique_id": "UNIQUE_ID"},
+            "hidden": {"unique_id": "UNIQUE_ID", "prompt": "PROMPT"},
         }
 
     @staticmethod
@@ -590,7 +590,13 @@ class CMKFaceSwapImagePipe:
         restore_model = str(inputs.get("POST RESTORE MODEL", inputs.get("RESTORE MODEL", "none")) or "none")
         restore_visibility = _clamp_float(inputs.get("RESTORE VISIBILITY", 1.0), 0.0, 1.0, 1.0)
         process = inputs.get("PROCESS")
-        content_guard_enabled = effective_content_guard_enabled(process)
+        # Without a connected PROCESS the switch is read from the graph, as the
+        # image loader of a standalone FaceSwap flow holds it.
+        content_guard_enabled = (
+            effective_content_guard_enabled(process)
+            if isinstance(process, dict)
+            else content_guard_prompt_state(inputs.get("prompt"), unique_id)
+        )
         family = str(process.get("source_model_family", process.get("model_family", ""))).lower() if isinstance(process, dict) else ""
         effective_profile = quality_profile
         if quality_profile == "Automatic":
