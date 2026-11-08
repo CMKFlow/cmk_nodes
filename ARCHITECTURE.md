@@ -2176,6 +2176,43 @@ Unzulässig sind:
   anschließend erneut in der eigentlichen Boundary-Funktion,
 - positionsabhängige Annahmen über die Reihenfolge der Module.
 
+### Inaktive Gates vor der Cache-Schlüsselbildung entkoppeln
+
+ComfyUI nimmt jeden verlinkten Vorfahren in die Cache-Signatur einer Node auf,
+auch den ACTIVE-Pfad eines Lazy-Gates, das BYPASS wählt. Ohne Gegenmaßnahme
+invalidierten Regler und Bildreferenzen eines deaktivierten Moduls jede
+nachgelagerte Verarbeitung (ComfyUI-Schlüssel und CMK-Fingerprints).
+
+Der Prompt-Handler `cmk_prompt_gate_pruning.on_prompt` (registriert über
+`PromptServer.add_on_prompt_handler`, vor Validierung und Queue) entfernt
+deshalb die Eingänge `* ACTIVE` von Gates, deren Entscheidung der Prompt
+bereits enthält. Einziger Owner der Entscheidung ist
+`cmk_distribution.gate_prompt_state`:
+
+| Gate | inaktiv, wenn |
+|---|---|
+| `CMKModuleBypassGate` | `ENABLE` literal `False`, oder literal `True` und STOP AFTER HANDOFF wirksam (`stop_after_handoff_prompt_state`, wie zur Laufzeit) |
+| `CMKSamplerBypassGate` | `ENABLE` literal `False`, oder `ENABLE` ← `CMKProcessEnableFlag(flag="instantid_enabled")` mit genau einer Modul-01-Quelle, die zugleich die einzige Modul-01-Node oberhalb des Gates ist, und dort `instantid_enabled` literal `False`, eine Nicht-SDXL-Familie oder wirksames STOP AFTER HANDOFF |
+
+Jeder andere Zustand ist `unknown`; dann wird nichts entfernt. Würde die
+Bereinigung eine Gate-Entscheidung verändern, unterbleibt sie vollständig.
+Der Handler arbeitet auf einer Kopie und gibt bei jedem Fehler die
+unveränderte Anfrage zurück. Gespeicherte Workflows und das Frontend bleiben
+unberührt; nur der ausführbare Prompt (und damit `/history`) ist bereinigt.
+
+Die entfernten Links stehen in `_meta.cmk_pruned_inputs` des Gates. `_meta`
+gehört weder zur ComfyUI-Signatur noch zum CMK-Fingerprint. Ein aus `/history`
+erneut gesendeter Prompt erhält die Links vor der erneuten Bereinigung zurück;
+wird das Gate dabei aktiviert, ist der ACTIVE-Pfad vollständig vorhanden.
+Fehlen die Links ohne gespeicherte Kopie (manuell veränderter API-Prompt),
+endet die Ausführung mit einem Fehler, nie mit einem stillen Bypass-Ergebnis.
+
+`CMK_PROMPT_GATE_PRUNING=0` schaltet die Bereinigung ab (Rollback); das
+Zurückschreiben gespeicherter Links bleibt aktiv. Einführung und Rückbau
+ändern einmalig die Schlüssel nachgelagerter Knoten in Prompts mit inaktiven
+Gates; bestehende persistente Einträge bleiben gültig und werden nur nicht
+getroffen.
+
 ### Diagnoseinstrumentierung
 
 Die temporäre Diagnoseinstrumentierung protokolliert mit Zeitstempel:

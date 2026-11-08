@@ -39,7 +39,18 @@ class FixtureValidation(unittest.TestCase):
             }
         finally:
             shutil.rmtree(root, ignore_errors=True)
-        invalid = {name: (r["error"], r["node_errors"]) for name, r in results.items() if not r["valid"]}
+        # A fixture of a shipped workflow with third-party nodes (not loaded by
+        # the harness) may fail only because such a declared node is missing.
+        third_party = {entry["name"]: set(entry.get("third_party_nodes", ())) for entry in manifest["fixtures"]}
+        invalid = {}
+        for name, r in results.items():
+            if r["valid"]:
+                continue
+            error = r["error"] or {}
+            missing = (error.get("extra_info") or {}).get("class_type")
+            if error.get("type") == "missing_node_type" and missing in third_party[name]:
+                continue
+            invalid[name] = (r["error"], r["node_errors"])
         self.assertEqual(invalid, {})
 
 

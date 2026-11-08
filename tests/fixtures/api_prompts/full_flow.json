@@ -1,0 +1,3407 @@
+{
+  "8332": {
+    "inputs": {
+      "MODEL FAMILY TABS": "SDXL",
+      "GLOBAL PROMPT POS": "Cinematic editorial portrait of an elegant female explorer, three-quarter view, looking toward the camera, one hand holding a small transparent glass sphere. Detailed expressive face, natural skin texture, anatomically correct hands, dark blue tailored coat with fine embroidered details, photorealistic",
+      "PROMPT NEG": "",
+      "INPAINT_MODE": "Inpaint",
+      "resolution": "832x1152",
+      "swap_dimensions": false,
+      "upscale_method": "lanczos",
+      "device": "cpu",
+      "outpaint_on": false,
+      "mask_fill_holes": true,
+      "fill_masked_area": "neutral",
+      "process_mode": "Custom",
+      "resize_mode": "Fit",
+      "crop_position": "Center",
+      "outpaint_overlap": 32,
+      "controlnet_enabled": "AUTO",
+      "instantid_enabled": true,
+      "stop_after_handoff": false,
+      "inpaint_mask_expand": 16,
+      "unload_models_after_use": true,
+      "live_preview_zit": "AUTO",
+      "content_guard_enabled": false,
+      "model_family": "SDXL",
+      "instantid_mode": "HYBRID",
+      "hybrid_sdxl_handoff": "90%",
+      "hybrid_zit_denoise": "0.20",
+      "HYBRID BALANCE": 3,
+      "instantid_handoff_percent": 70,
+      "PROCESS": [
+        "8438",
+        0
+      ],
+      "IMAGE": [
+        "8438",
+        1
+      ],
+      "MASK": [
+        "8438",
+        2
+      ],
+      "FILENAME": [
+        "8438",
+        3
+      ],
+      "LOG": [
+        "8438",
+        4
+      ],
+      "LoRA SDXL": [
+        "8493:8488",
+        0
+      ],
+      "LoRA ZIT": [
+        "8493:8489",
+        0
+      ]
+    },
+    "class_type": "CMKPipeCreateImage",
+    "_meta": {
+      "title": "CMK Flow · 01 START HERE · Create Image"
+    }
+  },
+  "8334": {
+    "inputs": {
+      "SAVE ENABLED": false,
+      "filename prefix": "image",
+      "output folder": "",
+      "use date folder": true,
+      "enable upscale": false,
+      "limit 4x MP": 0.5,
+      "limit 2x MP": 8,
+      "model 4x": "RealESRGAN_x4plus.pth",
+      "model 2x": "RealESRGAN-x2plus.pth",
+      "MODEL (opt)": [
+        "8456",
+        0
+      ],
+      "PROCESS": [
+        "8456",
+        1
+      ],
+      "IMAGE": [
+        "8456",
+        2
+      ],
+      "LOG": [
+        "8456",
+        3
+      ],
+      "VISUAL": [
+        "8456",
+        4
+      ]
+    },
+    "class_type": "CMKVisualizer",
+    "_meta": {
+      "title": "CMK Flow · Visualizer"
+    }
+  },
+  "8434": {
+    "inputs": {
+      "postprocess_checkpoint": "Realism By Stable Yogi (Pony)XL_V3VAE.safetensors",
+      "postprocess_vae": "ClearVAE_V2.2.safetensors",
+      "use_checkpoint_vae": true,
+      "MODEL ZIT": [
+        "8431:7655",
+        0
+      ],
+      "PROCESS ZIT": [
+        "8431:7654",
+        0
+      ],
+      "IMAGE ZIT": [
+        "8431:7655",
+        1
+      ],
+      "LOG ZIT": [
+        "8431:7655",
+        2
+      ],
+      "VISUAL ZIT": [
+        "8431:7655",
+        3
+      ],
+      "MODEL SDXL": [
+        "8433:7812",
+        0
+      ],
+      "PROCESS SDXL": [
+        "8433:7811",
+        0
+      ],
+      "IMAGE SDXL": [
+        "8433:7812",
+        1
+      ],
+      "LOG SDXL": [
+        "8433:7812",
+        2
+      ],
+      "VISUAL SDXL": [
+        "8433:7812",
+        3
+      ]
+    },
+    "class_type": "CMKPostProcessSetupPipe",
+    "_meta": {
+      "title": "CMK Flow · 30 PostProcess Setup"
+    }
+  },
+  "8438": {
+    "inputs": {
+      "image": "CMK Package · clipspace-mask-1792499379891.png",
+      "opt_in": false
+    },
+    "class_type": "CMKLoadImage",
+    "_meta": {
+      "title": "CMK Flow · Load Inpaint Image"
+    }
+  },
+  "8439": {
+    "inputs": {
+      "image": "CMK Package · face_reference.png"
+    },
+    "class_type": "CMKImageFileLoader",
+    "_meta": {
+      "title": "CMK Image File Loader - Source Face"
+    }
+  },
+  "8456": {
+    "inputs": {
+      "SCALE ENABLE": false,
+      "scale_method": "Scale to Max Dimension",
+      "interpolation": "lanczos",
+      "largest_size": 1600,
+      "MODEL (opt)": [
+        "8455:8452",
+        0
+      ],
+      "PROCESS": [
+        "8455:8452",
+        1
+      ],
+      "IMAGE": [
+        "8455:8452",
+        2
+      ],
+      "LOG": [
+        "8455:8452",
+        3
+      ],
+      "VISUAL": [
+        "8455:8452",
+        4
+      ]
+    },
+    "class_type": "CMKImageResize",
+    "_meta": {
+      "title": "CMK Flow · Image Resize"
+    }
+  },
+  "8493:8484": {
+    "inputs": {
+      "group_mode": true,
+      "default_active": true,
+      "allow_strength_adjustment": true,
+      "toggle_trigger_words": {
+        "__value__": []
+      },
+      "orinalMessage": "",
+      "trigger_words": [
+        "8493:8485",
+        1
+      ]
+    },
+    "class_type": "TriggerWord Toggle (LoraManager)",
+    "_meta": {
+      "title": "TriggerWord Toggle (LoraManager)"
+    }
+  },
+  "8493:8485": {
+    "inputs": {
+      "__lm_autocomplete_meta_text": {
+        "version": 1,
+        "textWidgetName": "text",
+        "lastAccepted": {
+          "start": 160,
+          "end": 199,
+          "insertedText": "<lora:SDXL/slider/Breast Sag Slider:1>,",
+          "textSnapshot": "<lora:Super_Skin_Detailer_By_Stable_Yogi_PD0_V1:1.00>, <lora:SDXL/conditions/Age/Older_woman_v4:1.00><lora:SDXL/conditions/Age/Older Women and Younger Men:1.00><lora:SDXL/slider/Breast Sag Slider:1>,"
+        }
+      },
+      "text": "",
+      "loras": {
+        "__value__": []
+      }
+    },
+    "class_type": "Lora Stacker (LoraManager)",
+    "_meta": {
+      "title": "Lora Stacker (LoraManager)"
+    }
+  },
+  "8493:8486": {
+    "inputs": {
+      "__lm_autocomplete_meta_text": {
+        "version": 1,
+        "textWidgetName": "text",
+        "lastAccepted": {
+          "start": 169,
+          "end": 202,
+          "insertedText": "<lora:ZIT/general/NSFW MASTER:1>,",
+          "textSnapshot": "<lora:ZIT/charakters/Nina_ZIT:0.80>,<lora:ZIT/positions/InstaPic:1>,<lora:ZIT/charakters/Annamilf:1>,<lora:ZIT/charakters/Mila_ZIT:1>,<lora:ZIT/charakters/Gothic_ZIT:1>,<lora:ZIT/general/NSFW MASTER:1>,"
+        }
+      },
+      "text": "",
+      "loras": {
+        "__value__": []
+      },
+      "lora_stack": [
+        "8493:8490",
+        0
+      ]
+    },
+    "class_type": "Lora Stacker (LoraManager)",
+    "_meta": {
+      "title": "Lora Stacker (LoraManager)"
+    }
+  },
+  "8493:8487": {
+    "inputs": {
+      "group_mode": true,
+      "default_active": true,
+      "allow_strength_adjustment": true,
+      "toggle_trigger_words": {
+        "__value__": []
+      },
+      "orinalMessage": "",
+      "trigger_words": [
+        "8493:8366",
+        0
+      ]
+    },
+    "class_type": "TriggerWord Toggle (LoraManager)",
+    "_meta": {
+      "title": "TriggerWord Toggle (LoraManager)"
+    }
+  },
+  "8493:8488": {
+    "inputs": {
+      "lora_stack": [
+        "8493:8485",
+        0
+      ],
+      "active_loras": [
+        "8493:8485",
+        2
+      ],
+      "trigger_words": [
+        "8493:8484",
+        0
+      ]
+    },
+    "class_type": "CMKLoRASDXLPackPipe",
+    "_meta": {
+      "title": "CMK LoRA SDXL Pack -Pipe-"
+    }
+  },
+  "8493:8489": {
+    "inputs": {
+      "lora_stack": [
+        "8493:8486",
+        0
+      ],
+      "active_loras": [
+        "8493:8486",
+        2
+      ],
+      "trigger_words": [
+        "8493:8487",
+        0
+      ]
+    },
+    "class_type": "CMKLoRAZITPackPipe",
+    "_meta": {
+      "title": "CMK LoRA ZIT Pack -Pipe-"
+    }
+  },
+  "8493:8490": {
+    "inputs": {
+      "__lm_autocomplete_meta_text": {
+        "version": 1,
+        "textWidgetName": "text",
+        "lastAccepted": {
+          "start": 381,
+          "end": 425,
+          "insertedText": "<lora:ZIT/Slider/Z-High_Low_Angle-Slider:1>,",
+          "textSnapshot": "<lora:ZIT/Slider/Z-Age-Slider:0.80>, <lora:ZIT/Slider/Z-Breast-Slider:0.80>, <lora:ZIT/Slider/Z-Fat-Slider:1.00>, <lora:ZIT/Slider/Z-Hip-Slider:1.00>, <lora:ZIT/Slider/Z-Light-Slider:1.00>, <lora:ZIT/Slider/Z-Detail-Slider:1.00>, <lora:ZIT/Slider/Z-Makeup-Slider:1>, <lora:ZIT/Slider/Z-Muscle-Slider:1>, <lora:ZIT/Slider/Z-Tattoo-Slider:1>, <lora:ZIT/Slider/Z-Skin-Color-Slider:1>,<lora:ZIT/Slider/Z-High_Low_Angle-Slider:1>,"
+        }
+      },
+      "text": "",
+      "loras": {
+        "__value__": []
+      }
+    },
+    "class_type": "Lora Stacker (LoraManager)",
+    "_meta": {
+      "title": "Lora Stacker (LoraManager)"
+    }
+  },
+  "8493:8366": {
+    "inputs": {
+      "trigger_words_1": [
+        "8493:8486",
+        1
+      ]
+    },
+    "class_type": "CMKTriggerWordsConcatenate",
+    "_meta": {
+      "title": "CMK Flow · TriggerWords Concatenate"
+    }
+  },
+  "8459:8457": {
+    "inputs": {
+      "image": "CMK Package · controlnet_reference.png",
+      "opt_in": true
+    },
+    "class_type": "CMKLoadImage",
+    "_meta": {
+      "title": "CMK Flow · Load Image"
+    }
+  },
+  "8459:7697": {
+    "inputs": {
+      "IMAGE SOURCE": "Reference Image",
+      "REFERENCE IMAGE": "CMK Package · controlnet_reference.png",
+      "select_reference_image": "Referenzbild auswählen …",
+      "APPLY MASK": false,
+      "STRENGTH": 1,
+      "RESOLUTION": 1024,
+      "sdxl_controlnet_model": "controlnetxlCNXL_2vxpswa7AnytestV4.safetensors",
+      "sdxl_preprocessor": "LineArtPreprocessor",
+      "sdxl_start_percent": 0,
+      "sdxl_end_percent": 30,
+      "sdxl_invert_hint": false,
+      "zit_low_threshold": 0.1,
+      "zit_high_threshold": 0.32,
+      "zit_model_patch": "Z-Image-Turbo-Fun-Controlnet-Union.safetensors",
+      "PROCESS SDXL": [
+        "8332",
+        0
+      ],
+      "PROCESS ZIT": [
+        "8332",
+        1
+      ],
+      "IMAGE": [
+        "8332",
+        2
+      ],
+      "ENABLE": [
+        "8459:8458",
+        0
+      ],
+      "LOG": [
+        "8332",
+        3
+      ],
+      "VISUAL": [
+        "8332",
+        4
+      ],
+      "REFERENCE IMAGE INPUT": [
+        "8459:8457",
+        1
+      ],
+      "REFERENCE IMAGE NAME": [
+        "8459:8457",
+        3
+      ]
+    },
+    "class_type": "CMKCombinedControlNetPreparePipe",
+    "_meta": {
+      "title": "CMK Flow · 05 ControlNet Combined"
+    }
+  },
+  "8459:7698": {
+    "inputs": {
+      "ENABLE": [
+        "8459:8458",
+        0
+      ],
+      "PROCESS SDXL BYPASS": [
+        "8332",
+        0
+      ],
+      "PROCESS ZIT BYPASS": [
+        "8332",
+        1
+      ],
+      "IMAGE BYPASS": [
+        "8332",
+        2
+      ],
+      "LOG BYPASS": [
+        "8332",
+        3
+      ],
+      "PROCESS SDXL ACTIVE": [
+        "8459:7697",
+        0
+      ],
+      "PROCESS ZIT ACTIVE": [
+        "8459:7697",
+        1
+      ],
+      "IMAGE ACTIVE": [
+        "8459:7697",
+        2
+      ],
+      "LOG ACTIVE": [
+        "8459:7697",
+        3
+      ],
+      "DIAGNOSTIC ACTIVE": [
+        "8459:7697",
+        5
+      ]
+    },
+    "class_type": "CMKCombinedControlNetBypassGate",
+    "_meta": {
+      "title": "CMK Combined ControlNet Bypass Gate"
+    }
+  },
+  "8459:8458": {
+    "inputs": {
+      "flag": "controlnet_enabled",
+      "PROCESS": [
+        "8332",
+        0
+      ]
+    },
+    "class_type": "CMKProcessEnableFlag",
+    "_meta": {
+      "title": "CMK Process Enable Flag"
+    }
+  },
+  "8430:7414": {
+    "inputs": {
+      "ckpt_name": "juggernautXL_ragnarok.safetensors",
+      "vae_name": "ClearVAE_V2.2.safetensors",
+      "checkpoint_vae": true,
+      "PROCESS": [
+        "8459:7698",
+        0
+      ]
+    },
+    "class_type": "CMKCheckpointVAELoaderPipe",
+    "_meta": {
+      "title": "CMK Flow · Checkpoint & VAE"
+    }
+  },
+  "8430:7415": {
+    "inputs": {
+      "SAMPLER": [
+        "8430:7416",
+        0
+      ],
+      "VISUAL": [
+        "8459:7697",
+        4
+      ]
+    },
+    "class_type": "CMKKSamplerPipe",
+    "_meta": {
+      "title": "CMK KSampler -Pipe-"
+    }
+  },
+  "8430:7416": {
+    "inputs": {
+      "stop_at_clip_layer": -2,
+      "fooocus_patch": "inpaint_v25.fooocus.patch",
+      "fooocus_head": "fooocus_inpaint_head.pth",
+      "lora_name": "None",
+      "strength_model": 1,
+      "strength_clip": 1,
+      "freeu_enabled": true,
+      "freeu_b1": 1.3,
+      "freeu_b2": 1.4,
+      "freeu_s1": 0.9,
+      "freeu_s2": 0.2,
+      "steps_1st_pass": 25,
+      "cfg": 5,
+      "sampler": "euler_ancestral",
+      "sampling": "lcm",
+      "zsnr": false,
+      "pag_scale": 2.5,
+      "scheduler": "karras",
+      "seed": 1565304366,
+      "denoise": 1,
+      "inpaint_noise_mask": true,
+      "context_reference_enabled": false,
+      "context_reference_expand": 3,
+      "context_reference_blur": 5,
+      "replace_spatial_strength": 0.35,
+      "remove_blend_radius": 24,
+      "remove_mask_expand": 12,
+      "MODEL": [
+        "8430:7414",
+        0
+      ],
+      "PROCESS": [
+        "8459:7698",
+        0
+      ],
+      "IMAGE": [
+        "8459:7698",
+        2
+      ],
+      "LOG": [
+        "8459:7698",
+        3
+      ]
+    },
+    "class_type": "CMKSamplerPrepareSDXLPipe",
+    "_meta": {
+      "title": "CMK Sampler Prepare SDXL -Pipe-"
+    }
+  },
+  "8430:7417": {
+    "inputs": {
+      "MODEL": [
+        "8430:7414",
+        0
+      ],
+      "PROCESS": [
+        "8459:7698",
+        0
+      ],
+      "SAMPLED": [
+        "8430:7415",
+        0
+      ],
+      "LOG": [
+        "8430:7416",
+        1
+      ],
+      "VISUAL": [
+        "8430:7415",
+        1
+      ],
+      "diagnostic": [
+        "8430:7416",
+        2
+      ]
+    },
+    "class_type": "CMKFamilyBranchGateSDXLSampled",
+    "_meta": {
+      "title": "CMKFamilyBranchGateSDXLSampled"
+    }
+  },
+  "8431:7650": {
+    "inputs": {
+      "diffusion_model": "z_image_turbo_bf16.safetensors",
+      "text_encoder": "qwen_3_4b.safetensors",
+      "vae": "ae.safetensors",
+      "weight_dtype": "default",
+      "clip_device": "default",
+      "PROCESS": [
+        "8459:7698",
+        1
+      ],
+      "LOG": [
+        "8431:7657",
+        1
+      ]
+    },
+    "class_type": "CMKZImageTurboLoaderPipe",
+    "_meta": {
+      "title": "CMK Z-Image Turbo Loader -Pipe-"
+    }
+  },
+  "8431:7651": {
+    "inputs": {
+      "seed": 1565304366,
+      "steps": 8,
+      "sampler": "res_multistep",
+      "scheduler": "simple",
+      "cfg": 1,
+      "model_shift": 3,
+      "inpaint_model_patch": "Z-Image-Turbo-Fun-Controlnet-Union-2.1.safetensors",
+      "MODEL": [
+        "8431:7650",
+        0
+      ],
+      "PROCESS": [
+        "8459:7698",
+        1
+      ],
+      "LOG": [
+        "8431:7650",
+        1
+      ],
+      "IMAGE": [
+        "8431:7657",
+        0
+      ]
+    },
+    "class_type": "CMKSamplerPrepareZImageTurboPipe",
+    "_meta": {
+      "title": "CMK Sampler Prepare Z-Image Turbo -Pipe-"
+    }
+  },
+  "8431:7652": {
+    "inputs": {
+      "SAMPLER": [
+        "8431:7651",
+        0
+      ],
+      "VISUAL": [
+        "8431:7657",
+        2
+      ]
+    },
+    "class_type": "CMKKSamplerPipe",
+    "_meta": {
+      "title": "CMK KSampler -Pipe-"
+    }
+  },
+  "8431:7653": {
+    "inputs": {
+      "MODEL": [
+        "8431:7650",
+        0
+      ],
+      "PROCESS": [
+        "8459:7698",
+        1
+      ],
+      "SAMPLED": [
+        "8431:7652",
+        0
+      ],
+      "LOG": [
+        "8431:7651",
+        1
+      ]
+    },
+    "class_type": "CMKZImageTurboFinalizePipe",
+    "_meta": {
+      "title": "CMK Z-Image Turbo Finalize -Pipe-"
+    }
+  },
+  "8431:7654": {
+    "inputs": {
+      "PROCESS": [
+        "8459:7698",
+        1
+      ]
+    },
+    "class_type": "CMKZImageProcessForwardPipe",
+    "_meta": {
+      "title": "CMK Z-Image Process Forward -Pipe-"
+    }
+  },
+  "8431:7655": {
+    "inputs": {
+      "MODEL": [
+        "8431:7656",
+        0
+      ],
+      "PROCESS": [
+        "8459:7698",
+        1
+      ],
+      "IMAGE": [
+        "8431:7656",
+        1
+      ],
+      "LOG": [
+        "8431:7656",
+        2
+      ],
+      "VISUAL": [
+        "8431:7656",
+        4
+      ],
+      "diagnostic": [
+        "8431:7656",
+        3
+      ]
+    },
+    "class_type": "CMKFamilyBranchGateZImage",
+    "_meta": {
+      "title": "CMKFamilyBranchGateZImage"
+    }
+  },
+  "8431:7656": {
+    "inputs": {
+      "MODEL": [
+        "8431:7653",
+        0
+      ],
+      "IMAGE": [
+        "8431:7653",
+        2
+      ],
+      "LOG": [
+        "8431:7653",
+        3
+      ],
+      "diagnostic": [
+        "8431:7653",
+        4
+      ],
+      "VISUAL IN": [
+        "8431:7657",
+        2
+      ],
+      "VISUAL": [
+        "8431:7652",
+        1
+      ]
+    },
+    "class_type": "CMKZImageBoundaryCache",
+    "_meta": {
+      "title": "CMK Boundary Cache"
+    }
+  },
+  "8431:7657": {
+    "inputs": {
+      "PROCESS ZIT": [
+        "8459:7698",
+        1
+      ],
+      "IMAGE SOURCE": [
+        "8459:7698",
+        2
+      ],
+      "LOG SOURCE": [
+        "8459:7698",
+        3
+      ],
+      "VISUAL SOURCE": [
+        "8459:7697",
+        4
+      ],
+      "SAMPLED SDXL": [
+        "8430:7417",
+        1
+      ],
+      "LOG SDXL": [
+        "8430:7417",
+        2
+      ],
+      "VISUAL SDXL": [
+        "8430:7417",
+        5
+      ]
+    },
+    "class_type": "CMKHybridZITInputPipe",
+    "_meta": {
+      "title": "CMK Hybrid SDXL → ZIT Bridge -Pipe-"
+    }
+  },
+  "8465:8400": {
+    "inputs": {
+      "image": "CMK Package · face_reference.png",
+      "opt_in": true,
+      "opt_LOG": [
+        "8430:7417",
+        2
+      ],
+      "opt_image_file": [
+        "8439",
+        0
+      ]
+    },
+    "class_type": "CMKLoadImage",
+    "_meta": {
+      "title": "SOURCE FACE A"
+    }
+  },
+  "8465:8401": {
+    "inputs": {
+      "enable_source_b": false,
+      "identity_strength_a": 1,
+      "pose_strength_a": 0.7,
+      "target_face_a": "Leftmost",
+      "identity_strength_b": 1,
+      "pose_strength_b": 0.7,
+      "target_face_b": "Rightmost",
+      "instantid_start": 0,
+      "instantid_end": 1,
+      "instantid_model": "ip-adapter.bin",
+      "controlnet_model": "instantid/diffusion_pytorch_model.safetensors",
+      "provider": "CoreML",
+      "cfg": 4.5,
+      "noise": 0.75,
+      "conditioning_mode": "InstantID reference",
+      "reference_conditioning_weight": 0.75,
+      "reference_start_at_step": 8,
+      "MODEL": [
+        "8430:7417",
+        0
+      ],
+      "PROCESS": [
+        "8430:7417",
+        3
+      ],
+      "SAMPLED": [
+        "8430:7417",
+        1
+      ],
+      "LOG": [
+        "8465:8400",
+        4
+      ],
+      "source_face_a": [
+        "8465:8400",
+        1
+      ],
+      "source_face_b": [
+        "8465:8406",
+        1
+      ],
+      "VISUAL": [
+        "8430:7417",
+        5
+      ],
+      "LOG_B": [
+        "8465:8406",
+        4
+      ]
+    },
+    "class_type": "CMKInstantIDRegionalAdvancedSDXLPipe",
+    "_meta": {
+      "title": "CMK InstantID Regional Advanced SDXL -Pipe-"
+    }
+  },
+  "8465:8402": {
+    "inputs": {
+      "MODEL": [
+        "8465:8401",
+        0
+      ],
+      "PROCESS": [
+        "8430:7417",
+        3
+      ],
+      "SAMPLED": [
+        "8465:8401",
+        2
+      ],
+      "LOG": [
+        "8465:8401",
+        3
+      ],
+      "diagnostic": [
+        "8465:8401",
+        6
+      ]
+    },
+    "class_type": "CMKInstantIDBoundary",
+    "_meta": {
+      "title": "CMK InstantID Boundary"
+    }
+  },
+  "8465:8403": {
+    "inputs": {
+      "PROCESS": [
+        "8430:7417",
+        3
+      ]
+    },
+    "class_type": "CMKProcessForwardPipe",
+    "_meta": {
+      "title": "CMK Process Forward -Pipe-"
+    }
+  },
+  "8465:8404": {
+    "inputs": {
+      "flag": "instantid_enabled",
+      "PROCESS": [
+        "8430:7417",
+        3
+      ]
+    },
+    "class_type": "CMKProcessEnableFlag",
+    "_meta": {
+      "title": "CMK Process Enable Flag"
+    }
+  },
+  "8465:8405": {
+    "inputs": {
+      "ENABLE": [
+        "8465:8404",
+        0
+      ],
+      "MODEL BYPASS": [
+        "8430:7417",
+        0
+      ],
+      "SAMPLED BYPASS": [
+        "8430:7417",
+        1
+      ],
+      "LOG BYPASS": [
+        "8430:7417",
+        2
+      ],
+      "MODEL ACTIVE": [
+        "8465:8402",
+        0
+      ],
+      "SAMPLED ACTIVE": [
+        "8465:8402",
+        2
+      ],
+      "LOG ACTIVE": [
+        "8465:8402",
+        3
+      ],
+      "DIAGNOSTIC ACTIVE": [
+        "8465:8402",
+        4
+      ],
+      "VISUAL BYPASS": [
+        "8430:7417",
+        5
+      ],
+      "VISUAL ACTIVE": [
+        "8465:8401",
+        5
+      ]
+    },
+    "class_type": "CMKSamplerBypassGate",
+    "_meta": {
+      "title": "CMK Sampler Bypass Gate"
+    }
+  },
+  "8465:8406": {
+    "inputs": {
+      "image": "CMK Package · faceswap_reference.png",
+      "opt_in": false,
+      "opt_LOG": [
+        "8465:8400",
+        4
+      ]
+    },
+    "class_type": "CMKLoadImage",
+    "_meta": {
+      "title": "SOURCE FACE B"
+    }
+  },
+  "8433:7808": {
+    "inputs": {
+      "ckpt_name": "refiner/sd_xl_refiner_1.0.safetensors",
+      "vae_name": "sdxl_vae.safetensors",
+      "checkpoint_vae": false
+    },
+    "class_type": "CMKCheckpointVAELoaderPipe",
+    "_meta": {
+      "title": "CMK Flow · Checkpoint & VAE"
+    }
+  },
+  "8433:7809": {
+    "inputs": {
+      "REFINER": [
+        "8433:7813",
+        0
+      ],
+      "VISUAL": [
+        "8465:8405",
+        4
+      ]
+    },
+    "class_type": "CMKRefinerPipe",
+    "_meta": {
+      "title": "CMK Refiner -Pipe-"
+    }
+  },
+  "8433:7810": {
+    "inputs": {
+      "MODEL": [
+        "8465:8405",
+        0
+      ],
+      "IMAGE_1ST_PASS": [
+        "8433:7809",
+        0
+      ],
+      "IMAGE_REFINED": [
+        "8433:7809",
+        1
+      ],
+      "LOG": [
+        "8433:7813",
+        1
+      ]
+    },
+    "class_type": "CMKRefinerBoundaryCache",
+    "_meta": {
+      "title": "CMK Boundary Cache"
+    }
+  },
+  "8433:7811": {
+    "inputs": {
+      "PROCESS": [
+        "8465:8403",
+        0
+      ]
+    },
+    "class_type": "CMKProcessForwardPipe",
+    "_meta": {
+      "title": "CMK Process Forward -Pipe-"
+    }
+  },
+  "8433:7812": {
+    "inputs": {
+      "MODEL": [
+        "8433:7810",
+        0
+      ],
+      "PROCESS": [
+        "8433:7811",
+        0
+      ],
+      "IMAGE": [
+        "8433:7810",
+        2
+      ],
+      "LOG": [
+        "8433:7810",
+        3
+      ],
+      "VISUAL": [
+        "8433:7809",
+        2
+      ],
+      "diagnostic": [
+        "8433:7813",
+        2
+      ]
+    },
+    "class_type": "CMKFamilyBranchGateSDXL",
+    "_meta": {
+      "title": "CMKFamilyBranchGateSDXL"
+    }
+  },
+  "8433:7813": {
+    "inputs": {
+      "use_prompt_lora_from_sampler": true,
+      "use_lora_from_1st_pass": false,
+      "lora_name": "None",
+      "strength_model": 1,
+      "strength_clip": 1,
+      "sampling_source": "1st pass",
+      "steps": 25,
+      "start_without_instantid": 80,
+      "start_with_instantid": 90,
+      "cfg": 4.8,
+      "sampler": "euler",
+      "sampling": "lcm",
+      "zsnr": false,
+      "pag_scale": 2.5,
+      "scheduler": "simple",
+      "MODEL": [
+        "8433:7808",
+        0
+      ],
+      "PROCESS": [
+        "8465:8403",
+        0
+      ],
+      "SAMPLED": [
+        "8465:8405",
+        1
+      ],
+      "LOG": [
+        "8465:8405",
+        2
+      ]
+    },
+    "class_type": "CMKRefinerPrepareSDXLPipe",
+    "_meta": {
+      "title": "CMK Refiner Prepare SDXL -Pipe-"
+    }
+  },
+  "8444:8370": {
+    "inputs": {
+      "enable": true,
+      "limit_4x_mp": 0.5,
+      "limit_2x_mp": 1.5,
+      "model_4x": "RealESRGAN_x4plus.pth",
+      "model_2x": "RealESRGAN-x2plus.pth",
+      "IMAGE": [
+        "8434",
+        2
+      ],
+      "LOG": [
+        "8434",
+        3
+      ],
+      "save_enabled": false
+    },
+    "class_type": "CMK_SmartUpscalerPipe",
+    "_meta": {
+      "title": "CMK Smart Upscaler -Pipe-"
+    }
+  },
+  "8444:8372": {
+    "inputs": {
+      "IMAGE": [
+        "8444:8370",
+        0
+      ],
+      "LOG": [
+        "8444:8370",
+        1
+      ],
+      "diagnostic": [
+        "8444:8370",
+        3
+      ]
+    },
+    "class_type": "CMKUpscaleSaveBoundaryCache",
+    "_meta": {
+      "title": "CMK Boundary Cache"
+    }
+  },
+  "8444:8373": {
+    "inputs": {
+      "ENABLE": false,
+      "IMAGE BYPASS": [
+        "8434",
+        2
+      ],
+      "LOG BYPASS": [
+        "8434",
+        3
+      ],
+      "IMAGE ACTIVE": [
+        "8434",
+        2
+      ],
+      "LOG ACTIVE": [
+        "8434",
+        3
+      ],
+      "DIAGNOSTIC ACTIVE": [
+        "8444:8372",
+        3
+      ],
+      "VISUAL BYPASS": [
+        "8434",
+        4
+      ],
+      "VISUAL ACTIVE": [
+        "8444:8418",
+        0
+      ]
+    },
+    "class_type": "CMKModuleBypassGate",
+    "_meta": {
+      "title": "CMK Module Bypass Gate"
+    }
+  },
+  "8444:8374": {
+    "inputs": {
+      "VISUAL": [
+        "8444:8373",
+        4
+      ],
+      "enable": false
+    },
+    "class_type": "CMKVisualCompare",
+    "_meta": {
+      "title": "CMK Preview & Compare"
+    }
+  },
+  "8444:8497": {
+    "inputs": {
+      "SAVE ENABLED": false,
+      "FILENAME PREFIX": "image",
+      "OUTPUT FOLDER": "",
+      "USE DATE FOLDER": true,
+      "PROCESS": [
+        "8434",
+        1
+      ],
+      "IMAGE": [
+        "8444:8372",
+        1
+      ],
+      "LOG": [
+        "8444:8372",
+        2
+      ]
+    },
+    "class_type": "CMKSaveEndpoint",
+    "_meta": {
+      "title": "CMK Save Endpoint"
+    }
+  },
+  "8444:8418": {
+    "inputs": {
+      "label": "Upscale & Save",
+      "sequence": 90,
+      "live_node_type": "",
+      "branch": "result",
+      "stage_key": "result.upscale_save",
+      "VISUAL": [
+        "8434",
+        4
+      ],
+      "IMAGE": [
+        "8444:8372",
+        1
+      ],
+      "BEFORE": [
+        "8434",
+        2
+      ],
+      "enable": false
+    },
+    "class_type": "CMKVisualProvider",
+    "_meta": {
+      "title": "CMK Visual Provider -Pipe-"
+    }
+  },
+  "8445:7718": {
+    "inputs": {
+      "sam_model_name": "sam_vit_b_01ec64.pth",
+      "sam_device_mode": "CPU",
+      "detailer_global_enable": false,
+      "use_prompt_lora_from_sampler": true,
+      "use_lora_from_1st_pass": false,
+      "use_1st_pass_sampling": true,
+      "lora_name": "None",
+      "strength_model": 1,
+      "strength_clip": 1,
+      "prompt_pos": "",
+      "prompt_neg": "",
+      "steps": 25,
+      "cfg": 7,
+      "sampler": "euler",
+      "scheduler": "simple",
+      "stop_at_clip_layer": -2,
+      "pag_scale": 2.5,
+      "sampling": "v_prediction",
+      "zsnr": true,
+      "freeu_enabled": true,
+      "freeu_b1": 1.3,
+      "freeu_b2": 1.4,
+      "freeu_s1": 0.9,
+      "freeu_s2": 0.2,
+      "MODEL": [
+        "8434",
+        0
+      ],
+      "PROCESS": [
+        "8434",
+        1
+      ],
+      "IMAGE": [
+        "8444:8373",
+        1
+      ],
+      "LOG": [
+        "8444:8373",
+        2
+      ]
+    },
+    "class_type": "CMKDetailerPreparePipe",
+    "_meta": {
+      "title": "CMK Detailer Prepare -Pipe-"
+    }
+  },
+  "8445:7719": {
+    "inputs": {
+      "enable": true,
+      "output_image_proceed": true,
+      "model_name": "bbox/face/face_yolov8s.pt",
+      "bbox_threshold": 0.5,
+      "bbox_dilation": 0,
+      "crop_factor": 2,
+      "drop_size": 10,
+      "guide_size": 512,
+      "guide_size_for": true,
+      "max_size": 768,
+      "denoise": 70,
+      "noise_mask": true,
+      "force_inpaint": true,
+      "DETAILER": [
+        "8445:7718",
+        0
+      ],
+      "opt_log": [
+        "8445:7718",
+        1
+      ],
+      "VISUAL": [
+        "8444:8373",
+        4
+      ],
+      "opt_diagnostic": [
+        "8445:7718",
+        2
+      ]
+    },
+    "class_type": "CMK_SmartDetailerPipe",
+    "_meta": {
+      "title": "CMK Smart Detailer -Pipe-"
+    }
+  },
+  "8445:7706": {
+    "inputs": {
+      "MODEL": [
+        "8434",
+        0
+      ],
+      "IMAGE": [
+        "8445:7719",
+        2
+      ],
+      "LOG": [
+        "8445:7719",
+        3
+      ],
+      "VISUAL IN": [
+        "8444:8373",
+        4
+      ],
+      "VISUAL": [
+        "8445:7719",
+        4
+      ],
+      "IMAGE IN": [
+        "8444:8373",
+        1
+      ],
+      "LOG IN": [
+        "8444:8373",
+        2
+      ],
+      "diagnostic": [
+        "8445:7719",
+        5
+      ]
+    },
+    "class_type": "CMKDetailerBoundaryCache",
+    "_meta": {
+      "title": "CMK Boundary Cache"
+    }
+  },
+  "8445:7707": {
+    "inputs": {
+      "PROCESS": [
+        "8434",
+        1
+      ]
+    },
+    "class_type": "CMKResultProcessForwardPipe",
+    "_meta": {
+      "title": "CMK Result Process Forward -Pipe-"
+    }
+  },
+  "8445:7708": {
+    "inputs": {
+      "VISUAL": [
+        "8445:7709",
+        4
+      ],
+      "enable": false
+    },
+    "class_type": "CMKVisualCompare",
+    "_meta": {
+      "title": "CMK Preview & Compare"
+    }
+  },
+  "8445:7709": {
+    "inputs": {
+      "ENABLE": false,
+      "IMAGE BYPASS": [
+        "8444:8373",
+        1
+      ],
+      "LOG BYPASS": [
+        "8444:8373",
+        2
+      ],
+      "IMAGE ACTIVE": [
+        "8445:7706",
+        1
+      ],
+      "LOG ACTIVE": [
+        "8445:7706",
+        2
+      ],
+      "DIAGNOSTIC ACTIVE": [
+        "8445:7706",
+        4
+      ],
+      "VISUAL BYPASS": [
+        "8444:8373",
+        4
+      ],
+      "VISUAL ACTIVE": [
+        "8445:7706",
+        3
+      ]
+    },
+    "class_type": "CMKModuleBypassGate",
+    "_meta": {
+      "title": "CMK Module Bypass Gate"
+    }
+  },
+  "8445:8498": {
+    "inputs": {
+      "MODEL": [
+        "8434",
+        0
+      ]
+    },
+    "class_type": "CMKModelForwardPipe",
+    "_meta": {
+      "title": "CMK Model Forward -Pipe-"
+    }
+  },
+  "8446:7879": {
+    "inputs": {
+      "sam_model_name": "sam_vit_b_01ec64.pth",
+      "sam_device_mode": "CPU",
+      "detailer_global_enable": false,
+      "use_prompt_lora_from_sampler": true,
+      "use_lora_from_1st_pass": false,
+      "use_1st_pass_sampling": true,
+      "lora_name": "None",
+      "strength_model": 1,
+      "strength_clip": 1,
+      "prompt_pos": "CMK_SmartDetailerPipe",
+      "prompt_neg": "",
+      "steps": 25,
+      "cfg": 7,
+      "sampler": "euler",
+      "scheduler": "simple",
+      "stop_at_clip_layer": -2,
+      "pag_scale": 2.5,
+      "sampling": "v_prediction",
+      "zsnr": true,
+      "freeu_enabled": true,
+      "freeu_b1": 1.3,
+      "freeu_b2": 1.4,
+      "freeu_s1": 0.9,
+      "freeu_s2": 0.2,
+      "MODEL": [
+        "8445:8498",
+        0
+      ],
+      "PROCESS": [
+        "8445:7707",
+        0
+      ],
+      "IMAGE": [
+        "8445:7709",
+        1
+      ],
+      "LOG": [
+        "8445:7709",
+        2
+      ]
+    },
+    "class_type": "CMKDetailerPreparePipe",
+    "_meta": {
+      "title": "CMK Detailer Prepare -Pipe-"
+    }
+  },
+  "8446:7880": {
+    "inputs": {
+      "enable": false,
+      "output_image_proceed": false,
+      "model_name": "bbox/div/hand_yolov8n.pt",
+      "bbox_threshold": 0.5,
+      "bbox_dilation": 0,
+      "crop_factor": 2,
+      "drop_size": 10,
+      "guide_size": 512,
+      "guide_size_for": true,
+      "max_size": 768,
+      "denoise": 90,
+      "noise_mask": true,
+      "force_inpaint": true,
+      "DETAILER": [
+        "8446:7879",
+        0
+      ],
+      "opt_log": [
+        "8446:7879",
+        1
+      ],
+      "opt_diagnostic": [
+        "8446:7879",
+        2
+      ]
+    },
+    "class_type": "CMK_SmartDetailerPipe",
+    "_meta": {
+      "title": "CMK Smart Detailer -Pipe-"
+    }
+  },
+  "8446:7881": {
+    "inputs": {
+      "MODEL": [
+        "8445:8498",
+        0
+      ],
+      "IMAGE": [
+        "8446:7885",
+        0
+      ],
+      "LOG": [
+        "8446:7884",
+        3
+      ],
+      "VISUAL IN": [
+        "8445:7709",
+        4
+      ],
+      "VISUAL": [
+        "8446:7885",
+        1
+      ],
+      "IMAGE IN": [
+        "8445:7709",
+        1
+      ],
+      "LOG IN": [
+        "8445:7709",
+        2
+      ],
+      "diagnostic": [
+        "8446:7884",
+        5
+      ]
+    },
+    "class_type": "CMKDetailerBoundaryCache",
+    "_meta": {
+      "title": "CMK Boundary Cache"
+    }
+  },
+  "8446:7882": {
+    "inputs": {
+      "PROCESS": [
+        "8445:7707",
+        0
+      ]
+    },
+    "class_type": "CMKResultProcessForwardPipe",
+    "_meta": {
+      "title": "CMK Result Process Forward -Pipe-"
+    }
+  },
+  "8446:7883": {
+    "inputs": {
+      "enable": true,
+      "output_image_proceed": false,
+      "model_name": "bbox/face/face_yolov8s.pt",
+      "bbox_threshold": 0.5,
+      "bbox_dilation": 0,
+      "crop_factor": 2,
+      "drop_size": 10,
+      "guide_size": 512,
+      "guide_size_for": true,
+      "max_size": 768,
+      "denoise": 90,
+      "noise_mask": true,
+      "force_inpaint": true,
+      "DETAILER": [
+        "8446:7879",
+        0
+      ],
+      "opt_log": [
+        "8446:7880",
+        3
+      ],
+      "opt_diagnostic": [
+        "8446:7880",
+        5
+      ]
+    },
+    "class_type": "CMK_SmartDetailerPipe",
+    "_meta": {
+      "title": "CMK Smart Detailer -Pipe-"
+    }
+  },
+  "8446:7884": {
+    "inputs": {
+      "enable": false,
+      "output_image_proceed": false,
+      "model_name": "bbox/div/hand_yolov8n.pt",
+      "bbox_threshold": 0.5,
+      "bbox_dilation": 0,
+      "crop_factor": 2,
+      "drop_size": 10,
+      "guide_size": 512,
+      "guide_size_for": true,
+      "max_size": 768,
+      "denoise": 95,
+      "noise_mask": true,
+      "force_inpaint": true,
+      "DETAILER": [
+        "8446:7879",
+        0
+      ],
+      "opt_log": [
+        "8446:7883",
+        3
+      ],
+      "opt_diagnostic": [
+        "8446:7883",
+        5
+      ]
+    },
+    "class_type": "CMK_SmartDetailerPipe",
+    "_meta": {
+      "title": "CMK Smart Detailer -Pipe-"
+    }
+  },
+  "8446:7885": {
+    "inputs": {
+      "feather": 5,
+      "alpha": 255,
+      "image": [
+        "8445:7709",
+        1
+      ],
+      "segs": [
+        "8446:7880",
+        1
+      ],
+      "segs_2": [
+        "8446:7883",
+        1
+      ],
+      "segs_3": [
+        "8446:7884",
+        1
+      ],
+      "VISUAL": [
+        "8445:7709",
+        4
+      ]
+    },
+    "class_type": "CMK_SEGSConcate",
+    "_meta": {
+      "title": "CMK SEGS CONCAT"
+    }
+  },
+  "8446:7886": {
+    "inputs": {
+      "VISUAL": [
+        "8446:7887",
+        4
+      ],
+      "enable": false
+    },
+    "class_type": "CMKVisualCompare",
+    "_meta": {
+      "title": "CMK Preview & Compare"
+    }
+  },
+  "8446:7887": {
+    "inputs": {
+      "ENABLE": false,
+      "IMAGE BYPASS": [
+        "8445:7709",
+        1
+      ],
+      "LOG BYPASS": [
+        "8445:7709",
+        2
+      ],
+      "IMAGE ACTIVE": [
+        "8446:7881",
+        1
+      ],
+      "LOG ACTIVE": [
+        "8446:7881",
+        2
+      ],
+      "DIAGNOSTIC ACTIVE": [
+        "8446:7881",
+        4
+      ],
+      "VISUAL BYPASS": [
+        "8445:7709",
+        4
+      ],
+      "VISUAL ACTIVE": [
+        "8446:7881",
+        3
+      ]
+    },
+    "class_type": "CMKModuleBypassGate",
+    "_meta": {
+      "title": "CMK Module Bypass Gate"
+    }
+  },
+  "8446:8499": {
+    "inputs": {
+      "MODEL": [
+        "8445:8498",
+        0
+      ]
+    },
+    "class_type": "CMKModelForwardPipe",
+    "_meta": {
+      "title": "CMK Model Forward -Pipe-"
+    }
+  },
+  "8442:7842": {
+    "inputs": {
+      "enable": true,
+      "process_mode": "detailer",
+      "select_face": "All Faces",
+      "refine_mode": "Sharpen",
+      "detect_model": "bbox/face/face_yolov8m.pt",
+      "detect_bbox_threshold": 0.5,
+      "detect_bbox_dilation": 0,
+      "detect_crop_factor": 1.2,
+      "detect_drop_size": 10,
+      "detail_guide_size": 512,
+      "detail_guide_size_for": true,
+      "detail_max_size": 768,
+      "detail_denoise": 80,
+      "detail_noise_mask": true,
+      "detail_force_inpaint": true,
+      "detail_paste_feather": 20,
+      "FACE": [
+        "8442:7845",
+        0
+      ],
+      "opt_log": [
+        "8442:7845",
+        1
+      ],
+      "VISUAL": [
+        "8446:7887",
+        4
+      ],
+      "opt_diagnostic": [
+        "8442:7845",
+        2
+      ]
+    },
+    "class_type": "CMKFaceProcessPipe",
+    "_meta": {
+      "title": "CMK FaceProcess -Pipe-"
+    }
+  },
+  "8442:7843": {
+    "inputs": {
+      "PROCESS": [
+        "8446:7882",
+        0
+      ]
+    },
+    "class_type": "CMKResultProcessForwardPipe",
+    "_meta": {
+      "title": "CMK Result Process Forward -Pipe-"
+    }
+  },
+  "8442:7844": {
+    "inputs": {
+      "MODEL": [
+        "8446:8499",
+        0
+      ],
+      "IMAGE": [
+        "8442:7842",
+        0
+      ],
+      "LOG": [
+        "8442:7842",
+        4
+      ],
+      "VISUAL IN": [
+        "8446:7887",
+        4
+      ],
+      "VISUAL": [
+        "8442:7842",
+        5
+      ],
+      "IMAGE IN": [
+        "8446:7887",
+        1
+      ],
+      "LOG IN": [
+        "8446:7887",
+        2
+      ],
+      "diagnostic": [
+        "8442:7842",
+        6
+      ]
+    },
+    "class_type": "CMKFaceBoundaryCache",
+    "_meta": {
+      "title": "CMK Boundary Cache"
+    }
+  },
+  "8442:7845": {
+    "inputs": {
+      "sam_model_name": "sam_vit_b_01ec64.pth",
+      "sam_device_mode": "AUTO",
+      "face_global_enable": false,
+      "use_prompt_lora_from_sampler": true,
+      "use_lora_from_1st_pass": false,
+      "use_1st_pass_sampling": true,
+      "lora_name": "None",
+      "strength_model": 1,
+      "strength_clip": 1,
+      "prompt_pos": "",
+      "prompt_neg": "",
+      "steps": 30,
+      "cfg": 3,
+      "sampler": "euler",
+      "scheduler": "simple",
+      "stop_at_clip_layer": -2,
+      "pag_scale": 2.5,
+      "sampling": "v_prediction",
+      "zsnr": true,
+      "freeu_enabled": true,
+      "freeu_b1": 1.3,
+      "freeu_b2": 1.4,
+      "freeu_s1": 0.9,
+      "freeu_s2": 0.2,
+      "MODEL": [
+        "8446:8499",
+        0
+      ],
+      "PROCESS": [
+        "8446:7882",
+        0
+      ],
+      "IMAGE": [
+        "8446:7887",
+        1
+      ],
+      "LOG": [
+        "8446:7887",
+        2
+      ]
+    },
+    "class_type": "CMKFaceProcessPreparePipe",
+    "_meta": {
+      "title": "CMK FaceProcess Prepare -Pipe-"
+    }
+  },
+  "8442:7846": {
+    "inputs": {
+      "VISUAL": [
+        "8442:7847",
+        4
+      ],
+      "enable": false
+    },
+    "class_type": "CMKVisualCompare",
+    "_meta": {
+      "title": "CMK Preview & Compare"
+    }
+  },
+  "8442:7847": {
+    "inputs": {
+      "ENABLE": false,
+      "IMAGE BYPASS": [
+        "8446:7887",
+        1
+      ],
+      "LOG BYPASS": [
+        "8446:7887",
+        2
+      ],
+      "IMAGE ACTIVE": [
+        "8442:7844",
+        1
+      ],
+      "LOG ACTIVE": [
+        "8442:7844",
+        2
+      ],
+      "DIAGNOSTIC ACTIVE": [
+        "8442:7844",
+        4
+      ],
+      "VISUAL BYPASS": [
+        "8446:7887",
+        4
+      ],
+      "VISUAL ACTIVE": [
+        "8442:7844",
+        3
+      ]
+    },
+    "class_type": "CMKModuleBypassGate",
+    "_meta": {
+      "title": "CMK Module Bypass Gate"
+    }
+  },
+  "8442:8495": {
+    "inputs": {
+      "MODEL": [
+        "8446:8499",
+        0
+      ]
+    },
+    "class_type": "CMKModelForwardPipe",
+    "_meta": {
+      "title": "CMK Model Forward -Pipe-"
+    }
+  },
+  "8443:8391": {
+    "inputs": {
+      "feather": 5,
+      "alpha": 255,
+      "image": [
+        "8442:7847",
+        1
+      ],
+      "segs": [
+        "8443:8396",
+        2
+      ],
+      "segs_2": [
+        "8443:8397",
+        2
+      ],
+      "segs_3": [
+        "8443:8398",
+        2
+      ],
+      "VISUAL": [
+        "8442:7847",
+        4
+      ]
+    },
+    "class_type": "CMK_SEGSConcate",
+    "_meta": {
+      "title": "CMK SEGS CONCAT"
+    }
+  },
+  "8443:8392": {
+    "inputs": {
+      "PROCESS": [
+        "8442:7843",
+        0
+      ]
+    },
+    "class_type": "CMKResultProcessForwardPipe",
+    "_meta": {
+      "title": "CMK Result Process Forward -Pipe-"
+    }
+  },
+  "8443:8393": {
+    "inputs": {
+      "MODEL": [
+        "8442:8495",
+        0
+      ],
+      "IMAGE": [
+        "8443:8391",
+        0
+      ],
+      "LOG": [
+        "8443:8398",
+        4
+      ],
+      "VISUAL IN": [
+        "8442:7847",
+        4
+      ],
+      "VISUAL": [
+        "8443:8391",
+        1
+      ],
+      "IMAGE IN": [
+        "8442:7847",
+        1
+      ],
+      "LOG IN": [
+        "8442:7847",
+        2
+      ],
+      "diagnostic": [
+        "8443:8398",
+        6
+      ]
+    },
+    "class_type": "CMKFaceBoundaryCache",
+    "_meta": {
+      "title": "CMK Boundary Cache"
+    }
+  },
+  "8443:8394": {
+    "inputs": {
+      "VISUAL": [
+        "8443:8399",
+        4
+      ],
+      "enable": false
+    },
+    "class_type": "CMKVisualCompare",
+    "_meta": {
+      "title": "CMK Preview & Compare"
+    }
+  },
+  "8443:8395": {
+    "inputs": {
+      "sam_model_name": "sam_vit_b_01ec64.pth",
+      "sam_device_mode": "AUTO",
+      "face_global_enable": false,
+      "use_prompt_lora_from_sampler": true,
+      "use_lora_from_1st_pass": false,
+      "use_1st_pass_sampling": true,
+      "lora_name": "None",
+      "strength_model": 1,
+      "strength_clip": 1,
+      "prompt_pos": "",
+      "prompt_neg": "",
+      "steps": 30,
+      "cfg": 3,
+      "sampler": "euler_ancestral",
+      "scheduler": "karras",
+      "stop_at_clip_layer": -2,
+      "pag_scale": 2.5,
+      "sampling": "v_prediction",
+      "zsnr": true,
+      "freeu_enabled": true,
+      "freeu_b1": 1.3,
+      "freeu_b2": 1.4,
+      "freeu_s1": 0.9,
+      "freeu_s2": 0.2,
+      "MODEL": [
+        "8442:8495",
+        0
+      ],
+      "PROCESS": [
+        "8442:7843",
+        0
+      ],
+      "IMAGE": [
+        "8442:7847",
+        1
+      ],
+      "LOG": [
+        "8442:7847",
+        2
+      ]
+    },
+    "class_type": "CMKFaceProcessPreparePipe",
+    "_meta": {
+      "title": "CMK FaceProcess Prepare -Pipe-"
+    }
+  },
+  "8443:8396": {
+    "inputs": {
+      "enable": false,
+      "process_mode": "restore",
+      "select_face": "Leftmost",
+      "refine_mode": "Sharpen",
+      "detect_model": "bbox/face/face_yolov8m.pt",
+      "detect_bbox_threshold": 0.5,
+      "detect_bbox_dilation": 0,
+      "detect_crop_factor": 1.3,
+      "detect_drop_size": 10,
+      "restore_model": "GFPGANv1.4.pth",
+      "restore_facedetection": "retinaface_resnet50",
+      "restore_visibility": 1,
+      "restore_codeformer_weight": 0.5,
+      "FACE": [
+        "8443:8395",
+        0
+      ],
+      "opt_log": [
+        "8443:8395",
+        1
+      ],
+      "opt_diagnostic": [
+        "8443:8395",
+        2
+      ]
+    },
+    "class_type": "CMKFaceProcessPipe",
+    "_meta": {
+      "title": "CMK FaceProcess -Pipe-"
+    }
+  },
+  "8443:8397": {
+    "inputs": {
+      "enable": true,
+      "process_mode": "restore",
+      "select_face": "Center",
+      "refine_mode": "Detail",
+      "detect_model": "bbox/face/face_yolov8m.pt",
+      "detect_bbox_threshold": 0.5,
+      "detect_bbox_dilation": 0,
+      "detect_crop_factor": 1.3,
+      "detect_drop_size": 10,
+      "restore_model": "GFPGANv1.4.pth",
+      "restore_facedetection": "retinaface_resnet50",
+      "restore_visibility": 1,
+      "restore_codeformer_weight": 0.5,
+      "FACE": [
+        "8443:8395",
+        0
+      ],
+      "opt_log": [
+        "8443:8396",
+        4
+      ],
+      "opt_diagnostic": [
+        "8443:8396",
+        6
+      ]
+    },
+    "class_type": "CMKFaceProcessPipe",
+    "_meta": {
+      "title": "CMK FaceProcess -Pipe-"
+    }
+  },
+  "8443:8398": {
+    "inputs": {
+      "enable": false,
+      "process_mode": "restore",
+      "select_face": "Rightmost",
+      "refine_mode": "Sharpen",
+      "detect_model": "bbox/face/face_yolov8m.pt",
+      "detect_bbox_threshold": 0.5,
+      "detect_bbox_dilation": 0,
+      "detect_crop_factor": 1.3,
+      "detect_drop_size": 10,
+      "restore_model": "GFPGANv1.4.pth",
+      "restore_facedetection": "retinaface_resnet50",
+      "restore_visibility": 1,
+      "restore_codeformer_weight": 0.5,
+      "FACE": [
+        "8443:8395",
+        0
+      ],
+      "opt_log": [
+        "8443:8397",
+        4
+      ],
+      "opt_diagnostic": [
+        "8443:8397",
+        6
+      ]
+    },
+    "class_type": "CMKFaceProcessPipe",
+    "_meta": {
+      "title": "CMK FaceProcess -Pipe-"
+    }
+  },
+  "8443:8399": {
+    "inputs": {
+      "ENABLE": false,
+      "IMAGE BYPASS": [
+        "8442:7847",
+        1
+      ],
+      "LOG BYPASS": [
+        "8442:7847",
+        2
+      ],
+      "IMAGE ACTIVE": [
+        "8443:8393",
+        1
+      ],
+      "LOG ACTIVE": [
+        "8443:8393",
+        2
+      ],
+      "DIAGNOSTIC ACTIVE": [
+        "8443:8393",
+        4
+      ],
+      "VISUAL BYPASS": [
+        "8442:7847",
+        4
+      ],
+      "VISUAL ACTIVE": [
+        "8443:8393",
+        3
+      ]
+    },
+    "class_type": "CMKModuleBypassGate",
+    "_meta": {
+      "title": "CMK Module Bypass Gate"
+    }
+  },
+  "8443:8496": {
+    "inputs": {
+      "MODEL": [
+        "8442:8495",
+        0
+      ]
+    },
+    "class_type": "CMKModelForwardPipe",
+    "_meta": {
+      "title": "CMK Model Forward -Pipe-"
+    }
+  },
+  "8435:7822": {
+    "inputs": {
+      "image": "CMK Package · face_identity_reference.png",
+      "opt_in": "image",
+      "opt_image_file": [
+        "8439",
+        0
+      ]
+    },
+    "class_type": "CMKLoadImage",
+    "_meta": {
+      "title": "CMK Flow · Load Image"
+    }
+  },
+  "8435:7823": {
+    "inputs": {
+      "FACEREBUILD ENABLE": true,
+      "CMK FACE REBUILD STANDARD SEPARATOR 1": "",
+      "TARGET FACE": "Leftmost",
+      "PASTEBACK NECK": true,
+      "SAMPLING START": 0,
+      "IDENTITY STRENGTH": 1,
+      "POSE STRENGTH": 0.7,
+      "CMK FACE REBUILD STANDARD SEPARATOR 2": "",
+      "HEAD AREA": 0.75,
+      "NECK AREA": 0.4,
+      "MASK FEATHER": 32,
+      "WORKING RESOLUTION": "1024",
+      "CMK FACE REBUILD STANDARD SEPARATOR 3": "",
+      "TOTAL STEPS": 20,
+      "sampler": "euler_ancestral",
+      "scheduler": "karras",
+      "DETECT MODEL": "buffalo_l",
+      "DETECT SIZE": 640,
+      "instantid_model": "ip-adapter.bin",
+      "controlnet_model": "instantid/diffusion_pytorch_model.safetensors",
+      "provider": "CoreML",
+      "cfg": 4.5,
+      "identity_noise": 0.75,
+      "MODEL": [
+        "8443:8496",
+        0
+      ],
+      "PROCESS": [
+        "8443:8392",
+        0
+      ],
+      "IMAGE": [
+        "8443:8399",
+        1
+      ],
+      "LOG": [
+        "8443:8399",
+        2
+      ],
+      "SOURCE FACE": [
+        "8435:7822",
+        1
+      ],
+      "VISUAL": [
+        "8443:8399",
+        4
+      ]
+    },
+    "class_type": "CMKInstantIDFaceRebuildSDXL",
+    "_meta": {
+      "title": "CMK FaceRebuild SDXL"
+    }
+  },
+  "8435:7824": {
+    "inputs": {
+      "MODEL": [
+        "8435:7823",
+        0
+      ],
+      "IMAGE": [
+        "8435:7823",
+        2
+      ],
+      "LOG": [
+        "8435:7823",
+        3
+      ],
+      "diagnostic": [
+        "8435:7823",
+        5
+      ],
+      "VISUAL IN": [
+        "8443:8399",
+        4
+      ],
+      "VISUAL": [
+        "8435:7823",
+        4
+      ]
+    },
+    "class_type": "CMKFaceRebuildBoundaryCache",
+    "_meta": {
+      "title": "CMK Boundary Cache"
+    }
+  },
+  "8435:7825": {
+    "inputs": {
+      "PROCESS": [
+        "8443:8392",
+        0
+      ]
+    },
+    "class_type": "CMKResultProcessForwardPipe",
+    "_meta": {
+      "title": "CMK Result Process Forward -Pipe-"
+    }
+  },
+  "8435:7826": {
+    "inputs": {
+      "VISUAL": [
+        "8435:7827",
+        4
+      ],
+      "enable": true
+    },
+    "class_type": "CMKVisualCompare",
+    "_meta": {
+      "title": "CMK Preview & Compare"
+    }
+  },
+  "8435:7827": {
+    "inputs": {
+      "ENABLE": true,
+      "IMAGE BYPASS": [
+        "8443:8399",
+        1
+      ],
+      "LOG BYPASS": [
+        "8443:8399",
+        2
+      ],
+      "IMAGE ACTIVE": [
+        "8435:7824",
+        1
+      ],
+      "LOG ACTIVE": [
+        "8435:7824",
+        2
+      ],
+      "DIAGNOSTIC ACTIVE": [
+        "8435:7824",
+        3
+      ],
+      "VISUAL BYPASS": [
+        "8443:8399",
+        4
+      ],
+      "VISUAL ACTIVE": [
+        "8435:7824",
+        4
+      ]
+    },
+    "class_type": "CMKModuleBypassGate",
+    "_meta": {
+      "title": "CMK Module Bypass Gate"
+    }
+  },
+  "8435:8417": {
+    "inputs": {
+      "MODEL": [
+        "8443:8496",
+        0
+      ]
+    },
+    "class_type": "CMKModelForwardPipe",
+    "_meta": {
+      "title": "CMK Model Forward -Pipe-"
+    }
+  },
+  "8440:8380": {
+    "inputs": {
+      "image": "CMK Package · face_identity_reference.png",
+      "opt_in": false,
+      "opt_image_file": [
+        "8439",
+        0
+      ]
+    },
+    "class_type": "CMKLoadImage",
+    "_meta": {
+      "title": "CMK Flow · Load Image"
+    }
+  },
+  "8440:8381": {
+    "inputs": {
+      "image": "CMK Package · faceswap_reference.png",
+      "opt_in": false,
+      "opt_image_file": [
+        "8439",
+        0
+      ]
+    },
+    "class_type": "CMKLoadImage",
+    "_meta": {
+      "title": "CMK Flow · Load Image"
+    }
+  },
+  "8440:8382": {
+    "inputs": {
+      "image": "CMK Package · portrait_reference_00002.png",
+      "opt_in": false,
+      "opt_image_file": [
+        "8439",
+        0
+      ]
+    },
+    "class_type": "CMKLoadImage",
+    "_meta": {
+      "title": "CMK Flow · Load Image"
+    }
+  },
+  "8440:8383": {
+    "inputs": {
+      "FACEREBUILD ENABLE": false,
+      "CMK FACE REBUILD SEPARATOR 1": "",
+      "FACE 1 ENABLE": false,
+      "TARGET FACE 1": "Leftmost",
+      "PASTEBACK NECK 1": false,
+      "SAMPLING START 1": 0,
+      "IDENTITY STRENGTH 1": 1,
+      "POSE STRENGTH 1": 0.7,
+      "CMK FACE REBUILD SEPARATOR 2": "",
+      "FACE 2 ENABLE": true,
+      "TARGET FACE 2": "Center",
+      "PASTEBACK NECK 2": false,
+      "SAMPLING START 2": 0,
+      "IDENTITY STRENGTH 2": 1,
+      "POSE STRENGTH 2": 0.7,
+      "CMK FACE REBUILD SEPARATOR 3": "",
+      "FACE 3 ENABLE": false,
+      "TARGET FACE 3": "Rightmost",
+      "PASTEBACK NECK 3": false,
+      "SAMPLING START 3": 0,
+      "IDENTITY STRENGTH 3": 1,
+      "POSE STRENGTH 3": 0.7,
+      "CMK FACE REBUILD SEPARATOR 4": "",
+      "HEAD AREA": 0.75,
+      "NECK AREA": 0.4,
+      "MASK FEATHER": 32,
+      "WORKING RESOLUTION": "1024",
+      "CMK FACE REBUILD SEPARATOR 5": "",
+      "TOTAL STEPS": 20,
+      "sampler": "euler_ancestral",
+      "scheduler": "karras",
+      "DETECT MODEL": "buffalo_l",
+      "DETECT SIZE": 640,
+      "instantid_model": "ip-adapter.bin",
+      "controlnet_model": "instantid/diffusion_pytorch_model.safetensors",
+      "provider": "CoreML",
+      "cfg": 4.5,
+      "identity_noise": 0.75,
+      "MODEL": [
+        "8435:8417",
+        0
+      ],
+      "PROCESS": [
+        "8435:7825",
+        0
+      ],
+      "IMAGE": [
+        "8435:7827",
+        1
+      ],
+      "LOG": [
+        "8435:7827",
+        2
+      ],
+      "SOURCE FACE 1": [
+        "8440:8380",
+        1
+      ],
+      "SOURCE FACE 2": [
+        "8440:8381",
+        1
+      ],
+      "SOURCE FACE 3": [
+        "8440:8382",
+        1
+      ],
+      "VISUAL": [
+        "8435:7827",
+        4
+      ]
+    },
+    "class_type": "CMKInstantIDFaceRebuildAdvancedSDXL",
+    "_meta": {
+      "title": "CMK FaceRebuild SDXL · Advanced"
+    }
+  },
+  "8440:8384": {
+    "inputs": {
+      "MODEL": [
+        "8440:8383",
+        0
+      ],
+      "IMAGE": [
+        "8440:8383",
+        2
+      ],
+      "LOG": [
+        "8440:8383",
+        3
+      ],
+      "diagnostic": [
+        "8440:8383",
+        5
+      ],
+      "VISUAL IN": [
+        "8435:7827",
+        4
+      ],
+      "VISUAL": [
+        "8440:8383",
+        4
+      ]
+    },
+    "class_type": "CMKFaceRebuildBoundaryCache",
+    "_meta": {
+      "title": "CMK Boundary Cache"
+    }
+  },
+  "8440:8385": {
+    "inputs": {
+      "PROCESS": [
+        "8435:7825",
+        0
+      ]
+    },
+    "class_type": "CMKResultProcessForwardPipe",
+    "_meta": {
+      "title": "CMK Result Process Forward -Pipe-"
+    }
+  },
+  "8440:8386": {
+    "inputs": {
+      "VISUAL": [
+        "8440:8387",
+        4
+      ],
+      "enable": false
+    },
+    "class_type": "CMKVisualCompare",
+    "_meta": {
+      "title": "CMK Preview & Compare"
+    }
+  },
+  "8440:8387": {
+    "inputs": {
+      "ENABLE": false,
+      "IMAGE BYPASS": [
+        "8435:7827",
+        1
+      ],
+      "LOG BYPASS": [
+        "8435:7827",
+        2
+      ],
+      "IMAGE ACTIVE": [
+        "8440:8384",
+        1
+      ],
+      "LOG ACTIVE": [
+        "8440:8384",
+        2
+      ],
+      "DIAGNOSTIC ACTIVE": [
+        "8440:8384",
+        3
+      ],
+      "VISUAL BYPASS": [
+        "8435:7827",
+        4
+      ],
+      "VISUAL ACTIVE": [
+        "8440:8384",
+        4
+      ]
+    },
+    "class_type": "CMKModuleBypassGate",
+    "_meta": {
+      "title": "CMK Module Bypass Gate"
+    }
+  },
+  "8440:8481": {
+    "inputs": {
+      "MODEL": [
+        "8435:8417",
+        0
+      ]
+    },
+    "class_type": "CMKModelForwardPipe",
+    "_meta": {
+      "title": "CMK Model Forward -Pipe-"
+    }
+  },
+  "8436:7849": {
+    "inputs": {
+      "GLOBAL ENABLE": true,
+      "ENABLE": true,
+      "SWAP MODEL": "hyperswap_1b_256.onnx",
+      "DETECT MODEL": "buffalo_l",
+      "TARGET FACE": "Center",
+      "SOURCE FACE": "Largest",
+      "PATCH ENHANCER": true,
+      "PATCH ENHANCER MODEL": "GFPGAN",
+      "PATCH ENHANCER STRENGTH": 1,
+      "bbox_dilation": 0,
+      "drop_size": 10,
+      "QUALITY PROFILE": "Automatic",
+      "POST RESTORE": true,
+      "POST RESTORE MODEL": "GFPGANv1.4.pth",
+      "RESTORE VISIBILITY": 1,
+      "IMAGE_TARGET": [
+        "8436:7852",
+        2
+      ],
+      "IMAGE_SOURCE": [
+        "8436:7850",
+        1
+      ],
+      "PROCESS": [
+        "8436:7852",
+        1
+      ],
+      "opt_log": [
+        "8436:7852",
+        3
+      ],
+      "VISUAL": [
+        "8440:8387",
+        4
+      ]
+    },
+    "class_type": "CMKFaceSwapImagePipe",
+    "_meta": {
+      "title": "CMK FaceSwap Image -Pipe-"
+    }
+  },
+  "8436:7850": {
+    "inputs": {
+      "image": "CMK Package · face_reference.png",
+      "opt_in": "image",
+      "opt_image_file": [
+        "8439",
+        0
+      ]
+    },
+    "class_type": "CMKLoadImage",
+    "_meta": {
+      "title": "CMK Flow · Load Image"
+    }
+  },
+  "8436:7851": {
+    "inputs": {
+      "MODEL (opt)": [
+        "8436:7852",
+        0
+      ],
+      "IMAGE": [
+        "8436:7849",
+        0
+      ],
+      "LOG": [
+        "8436:7849",
+        2
+      ],
+      "diagnostic": [
+        "8436:7849",
+        4
+      ],
+      "VISUAL IN": [
+        "8440:8387",
+        4
+      ],
+      "VISUAL": [
+        "8436:7849",
+        3
+      ]
+    },
+    "class_type": "CMKFaceSwapBoundaryCache",
+    "_meta": {
+      "title": "CMK Boundary Cache"
+    }
+  },
+  "8436:7852": {
+    "inputs": {
+      "MODEL (opt)": [
+        "8440:8481",
+        0
+      ],
+      "PROCESS": [
+        "8440:8385",
+        0
+      ],
+      "IMAGE": [
+        "8440:8387",
+        1
+      ],
+      "LOG": [
+        "8440:8387",
+        2
+      ]
+    },
+    "class_type": "CMKResultUnpackPipe",
+    "_meta": {
+      "title": "CMK Result Unpack -Pipe-"
+    }
+  },
+  "8436:7853": {
+    "inputs": {
+      "MODEL (opt)": [
+        "8436:7856",
+        0
+      ],
+      "PROCESS": [
+        "8436:7852",
+        1
+      ],
+      "IMAGE": [
+        "8436:7856",
+        1
+      ],
+      "LOG": [
+        "8436:7856",
+        2
+      ]
+    },
+    "class_type": "CMKResultPackPipe",
+    "_meta": {
+      "title": "CMK Result Pack -Pipe-"
+    }
+  },
+  "8436:7854": {
+    "inputs": {
+      "PROCESS": [
+        "8440:8385",
+        0
+      ]
+    },
+    "class_type": "CMKResultProcessForwardPipe",
+    "_meta": {
+      "title": "CMKResultProcessForward -Pipe-"
+    }
+  },
+  "8436:7855": {
+    "inputs": {
+      "VISUAL": [
+        "8436:7856",
+        4
+      ],
+      "enable": true
+    },
+    "class_type": "CMKVisualCompare",
+    "_meta": {
+      "title": "CMK Preview & Compare"
+    }
+  },
+  "8436:7856": {
+    "inputs": {
+      "ENABLE": true,
+      "MODEL BYPASS": [
+        "8436:7852",
+        0
+      ],
+      "IMAGE BYPASS": [
+        "8436:7852",
+        2
+      ],
+      "LOG BYPASS": [
+        "8436:7852",
+        3
+      ],
+      "MODEL ACTIVE": [
+        "8436:7851",
+        0
+      ],
+      "IMAGE ACTIVE": [
+        "8436:7851",
+        1
+      ],
+      "LOG ACTIVE": [
+        "8436:7851",
+        2
+      ],
+      "DIAGNOSTIC ACTIVE": [
+        "8436:7851",
+        3
+      ],
+      "VISUAL BYPASS": [
+        "8440:8387",
+        4
+      ],
+      "VISUAL ACTIVE": [
+        "8436:7851",
+        4
+      ]
+    },
+    "class_type": "CMKModuleBypassGate",
+    "_meta": {
+      "title": "CMK Module Bypass Gate"
+    }
+  },
+  "8441:8461": {
+    "inputs": {
+      "GLOBAL ENABLE": false,
+      "ENABLE": false,
+      "SWAP MODEL": "hyperswap_1b_256.onnx",
+      "DETECT MODEL": "buffalo_l",
+      "TARGET FACE": "Leftmost",
+      "SOURCE FACE": "Largest",
+      "PATCH ENHANCER": true,
+      "PATCH ENHANCER MODEL": "GFPGAN",
+      "PATCH ENHANCER STRENGTH": 1,
+      "bbox_dilation": 0,
+      "drop_size": 10,
+      "QUALITY PROFILE": "Automatic",
+      "POST RESTORE": true,
+      "POST RESTORE MODEL": "GFPGANv1.4.pth",
+      "RESTORE VISIBILITY": 1,
+      "IMAGE_TARGET": [
+        "8441:8411",
+        2
+      ],
+      "IMAGE_SOURCE": [
+        "8441:8462",
+        1
+      ],
+      "PROCESS": [
+        "8441:8411",
+        1
+      ],
+      "opt_log": [
+        "8441:8411",
+        3
+      ]
+    },
+    "class_type": "CMKFaceSwapImagePipe",
+    "_meta": {
+      "title": "CMK FaceSwap Image -Pipe-"
+    }
+  },
+  "8441:8462": {
+    "inputs": {
+      "image": "CMK Package · face_identity_reference.png",
+      "opt_in": false,
+      "opt_image_file": [
+        "8439",
+        0
+      ]
+    },
+    "class_type": "CMKLoadImage",
+    "_meta": {
+      "title": "CMK Flow · Load Image"
+    }
+  },
+  "8441:8463": {
+    "inputs": {
+      "MODEL (opt)": [
+        "8441:8411",
+        0
+      ],
+      "IMAGE": [
+        "8441:8408",
+        0
+      ],
+      "LOG": [
+        "8441:8410",
+        2
+      ],
+      "diagnostic": [
+        "8441:8410",
+        4
+      ],
+      "VISUAL IN": [
+        "8436:7856",
+        4
+      ],
+      "VISUAL": [
+        "8441:8408",
+        1
+      ]
+    },
+    "class_type": "CMKFaceSwapBoundaryCache",
+    "_meta": {
+      "title": "CMK Boundary Cache"
+    }
+  },
+  "8441:8464": {
+    "inputs": {
+      "VISUAL": [
+        "8441:7507",
+        4
+      ],
+      "enable": false
+    },
+    "class_type": "CMKVisualCompare",
+    "_meta": {
+      "title": "CMK Preview & Compare"
+    }
+  },
+  "8441:8494": {
+    "inputs": {
+      "GLOBAL ENABLE": false,
+      "ENABLE": true,
+      "SWAP MODEL": "hyperswap_1b_256.onnx",
+      "DETECT MODEL": "buffalo_l",
+      "TARGET FACE": "Center",
+      "SOURCE FACE": "Largest",
+      "PATCH ENHANCER": true,
+      "PATCH ENHANCER MODEL": "GFPGAN",
+      "PATCH ENHANCER STRENGTH": 1,
+      "bbox_dilation": 0,
+      "drop_size": 10,
+      "QUALITY PROFILE": "Automatic",
+      "POST RESTORE": true,
+      "POST RESTORE MODEL": "GFPGANv1.4.pth",
+      "RESTORE VISIBILITY": 1,
+      "IMAGE_TARGET": [
+        "8441:8411",
+        2
+      ],
+      "IMAGE_SOURCE": [
+        "8441:8407",
+        1
+      ],
+      "PROCESS": [
+        "8441:8411",
+        1
+      ],
+      "opt_log": [
+        "8441:8461",
+        2
+      ],
+      "opt_diagnostic": [
+        "8441:8461",
+        4
+      ]
+    },
+    "class_type": "CMKFaceSwapImagePipe",
+    "_meta": {
+      "title": "CMK FaceSwap Image -Pipe-"
+    }
+  },
+  "8441:8407": {
+    "inputs": {
+      "image": "CMK Package · face_reference.png",
+      "opt_in": false,
+      "opt_image_file": [
+        "8439",
+        0
+      ]
+    },
+    "class_type": "CMKLoadImage",
+    "_meta": {
+      "title": "CMK Flow · Load Image"
+    }
+  },
+  "8441:8408": {
+    "inputs": {
+      "feather": 5,
+      "alpha": 255,
+      "image": [
+        "8441:8411",
+        2
+      ],
+      "segs": [
+        "8441:8461",
+        1
+      ],
+      "segs_2": [
+        "8441:8410",
+        1
+      ],
+      "segs_3": [
+        "8441:8494",
+        1
+      ],
+      "VISUAL": [
+        "8436:7856",
+        4
+      ]
+    },
+    "class_type": "CMK_SEGSConcate",
+    "_meta": {
+      "title": "CMK SEGS CONCAT"
+    }
+  },
+  "8441:8409": {
+    "inputs": {
+      "image": "CMK Package · portrait_reference_00002.png",
+      "opt_in": false,
+      "opt_image_file": [
+        "8439",
+        0
+      ]
+    },
+    "class_type": "CMKLoadImage",
+    "_meta": {
+      "title": "CMK Flow · Load Image"
+    }
+  },
+  "8441:8410": {
+    "inputs": {
+      "GLOBAL ENABLE": false,
+      "ENABLE": false,
+      "SWAP MODEL": "hyperswap_1b_256.onnx",
+      "DETECT MODEL": "buffalo_l",
+      "TARGET FACE": "Rightmost",
+      "SOURCE FACE": "Largest",
+      "PATCH ENHANCER": true,
+      "PATCH ENHANCER MODEL": "GFPGAN",
+      "PATCH ENHANCER STRENGTH": 1,
+      "bbox_dilation": 0,
+      "drop_size": 10,
+      "QUALITY PROFILE": "Automatic",
+      "POST RESTORE": true,
+      "POST RESTORE MODEL": "GFPGANv1.4.pth",
+      "RESTORE VISIBILITY": 1,
+      "IMAGE_TARGET": [
+        "8441:8411",
+        2
+      ],
+      "IMAGE_SOURCE": [
+        "8441:8409",
+        1
+      ],
+      "PROCESS": [
+        "8441:8411",
+        1
+      ],
+      "opt_log": [
+        "8441:8494",
+        2
+      ],
+      "opt_diagnostic": [
+        "8441:8494",
+        4
+      ]
+    },
+    "class_type": "CMKFaceSwapImagePipe",
+    "_meta": {
+      "title": "CMK FaceSwap Image -Pipe-"
+    }
+  },
+  "8441:8411": {
+    "inputs": {
+      "MODEL (opt)": [
+        "8436:7853",
+        0
+      ],
+      "PROCESS": [
+        "8436:7854",
+        0
+      ],
+      "IMAGE": [
+        "8436:7853",
+        2
+      ],
+      "LOG": [
+        "8436:7853",
+        3
+      ]
+    },
+    "class_type": "CMKResultUnpackPipe",
+    "_meta": {
+      "title": "CMK Result Unpack -Pipe-"
+    }
+  },
+  "8441:8412": {
+    "inputs": {
+      "MODEL (opt)": [
+        "8441:7507",
+        0
+      ],
+      "PROCESS": [
+        "8441:8411",
+        1
+      ],
+      "IMAGE": [
+        "8441:7507",
+        1
+      ],
+      "LOG": [
+        "8441:7507",
+        2
+      ]
+    },
+    "class_type": "CMKResultPackPipe",
+    "_meta": {
+      "title": "CMK Result Pack -Pipe-"
+    }
+  },
+  "8441:8413": {
+    "inputs": {
+      "PROCESS": [
+        "8436:7854",
+        0
+      ]
+    },
+    "class_type": "CMKResultProcessForwardPipe",
+    "_meta": {
+      "title": "CMKResultProcessForward -Pipe-"
+    }
+  },
+  "8441:7507": {
+    "inputs": {
+      "ENABLE": false,
+      "MODEL BYPASS": [
+        "8441:8411",
+        0
+      ],
+      "IMAGE BYPASS": [
+        "8441:8411",
+        2
+      ],
+      "LOG BYPASS": [
+        "8441:8411",
+        3
+      ],
+      "MODEL ACTIVE": [
+        "8441:8463",
+        0
+      ],
+      "IMAGE ACTIVE": [
+        "8441:8463",
+        1
+      ],
+      "LOG ACTIVE": [
+        "8441:8463",
+        2
+      ],
+      "DIAGNOSTIC ACTIVE": [
+        "8441:8463",
+        3
+      ],
+      "VISUAL BYPASS": [
+        "8436:7856",
+        4
+      ],
+      "VISUAL ACTIVE": [
+        "8441:8463",
+        4
+      ]
+    },
+    "class_type": "CMKModuleBypassGate",
+    "_meta": {
+      "title": "CMK Module Bypass Gate"
+    }
+  },
+  "8455:8447": {
+    "inputs": {
+      "lora_name": "None",
+      "lora_strength": 1,
+      "prompt_pos": "",
+      "fill_mask_holes": true,
+      "solid_mask": true,
+      "MODEL": [
+        "8455:8453",
+        0
+      ],
+      "MASK DETAILER SOURCE": [
+        "8455:8451",
+        3
+      ],
+      "PROCESS": [
+        "8455:8451",
+        0
+      ],
+      "LOG": [
+        "8455:8451",
+        2
+      ],
+      "VISUAL": [
+        "8441:7507",
+        4
+      ]
+    },
+    "class_type": "CMKMaskDetailerPrepare",
+    "_meta": {
+      "title": "CMK Mask Detailer · Prepare"
+    }
+  },
+  "8455:8448": {
+    "inputs": {
+      "seed": 0,
+      "steps": 30,
+      "cfg": 7,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "karras",
+      "denoise": 0.55,
+      "mask_expand": 8,
+      "mask_feather": 12,
+      "MODEL": [
+        "8455:8447",
+        0
+      ],
+      "MASK DETAILER PROCESS": [
+        "8455:8447",
+        1
+      ],
+      "LOG": [
+        "8455:8447",
+        2
+      ],
+      "VISUAL": [
+        "8455:8447",
+        3
+      ]
+    },
+    "class_type": "CMKMaskDetailerProcess",
+    "_meta": {
+      "title": "CMK Mask Detailer · Process"
+    }
+  },
+  "8455:8449": {
+    "inputs": {
+      "VISUAL": [
+        "8455:8452",
+        4
+      ],
+      "enable": false
+    },
+    "class_type": "CMKVisualCompare",
+    "_meta": {
+      "title": "CMK Preview & Compare"
+    }
+  },
+  "8455:8451": {
+    "inputs": {
+      "capture_current": false,
+      "image": "None",
+      "status": "NO SNAPSHOT",
+      "CAPTURE CURRENT IMAGE": null,
+      "PROCESS": [
+        "8455:8453",
+        1
+      ],
+      "IMAGE": [
+        "8455:8453",
+        2
+      ],
+      "LOG": [
+        "8455:8453",
+        3
+      ]
+    },
+    "class_type": "CMKMaskDetailerIntake",
+    "_meta": {
+      "title": "CMK Mask Detailer · Intake"
+    }
+  },
+  "8455:8452": {
+    "inputs": {
+      "enabled": false,
+      "READY": [
+        "8455:8451",
+        4
+      ],
+      "MODEL BYPASS": [
+        "8455:8453",
+        0
+      ],
+      "PROCESS BYPASS": [
+        "8455:8453",
+        1
+      ],
+      "IMAGE BYPASS": [
+        "8455:8453",
+        2
+      ],
+      "LOG BYPASS": [
+        "8455:8453",
+        3
+      ],
+      "VISUAL BYPASS": [
+        "8441:7507",
+        4
+      ],
+      "MODEL ACTIVE": [
+        "8455:8448",
+        0
+      ],
+      "PROCESS ACTIVE": [
+        "8455:8448",
+        1
+      ],
+      "IMAGE ACTIVE": [
+        "8455:8448",
+        2
+      ],
+      "LOG ACTIVE": [
+        "8455:8448",
+        3
+      ],
+      "VISUAL ACTIVE": [
+        "8455:8448",
+        4
+      ]
+    },
+    "class_type": "CMKMaskDetailerFlowGate",
+    "_meta": {
+      "title": "CMK Mask Detailer Flow Gate"
+    }
+  },
+  "8455:8453": {
+    "inputs": {
+      "MODEL (opt)": [
+        "8441:8412",
+        0
+      ],
+      "PROCESS": [
+        "8441:8413",
+        0
+      ],
+      "IMAGE": [
+        "8441:8412",
+        2
+      ],
+      "LOG": [
+        "8441:8412",
+        3
+      ]
+    },
+    "class_type": "CMKResultUnpackPipe",
+    "_meta": {
+      "title": "CMK Result Unpack -Pipe-"
+    }
+  },
+  "8455:8454": {
+    "inputs": {
+      "diagnostic_1": [
+        "8455:8447",
+        4
+      ],
+      "diagnostic_2": [
+        "8455:8448",
+        5
+      ]
+    },
+    "class_type": "CMKDiagnosticConcat",
+    "_meta": {
+      "title": "CMK Diagnostic Concat"
+    }
+  }
+}

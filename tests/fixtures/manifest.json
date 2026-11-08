@@ -340,6 +340,102 @@
           "canonical_at_export": true
         }
       ]
+    },
+    {
+      "name": "full_flow",
+      "workflow_file": "workflows/full_flow.json",
+      "workflow_sha256": "b692eda0b61833f7b1258ff3803547b3fb7ab5c5727cb8a43aa00034fcad6e6b",
+      "api_prompt_file": "api_prompts/full_flow.json",
+      "api_prompt_sha256": "62bb5e9a9b219c3c0fa856e32493cd3d39d6083025ba82b186028dcdee39053c",
+      "definitions": [
+        {
+          "name": "CMK Flow · 10 KSampler SDXL 1st Pass",
+          "signature": "45ad01b345bf736f7956d9cad60d3f2de63da613226c0d828a7f3a461e99219c",
+          "canonical_at_export": true
+        },
+        {
+          "name": "CMK Flow · 10 KSampler Z-Image Turbo",
+          "signature": "f5db49e1c31cb8909979cc3e47084959df616453b959c31749d121729309c33c",
+          "canonical_at_export": true
+        },
+        {
+          "name": "CMK Flow · 20 Refiner SDXL",
+          "signature": "822273defe455dfdefedc0149695811498348c62d7ab0dcb9a2a040e708ddee8",
+          "canonical_at_export": true
+        },
+        {
+          "name": "CMK Flow · FaceRebuild SDXL",
+          "signature": "db2a5fac900093504c08e4125d45fae2dccd5c5670491c95fc9647bf62d5628d",
+          "canonical_at_export": true
+        },
+        {
+          "name": "CMK Flow · FaceSwap",
+          "signature": "0414ca1752d4bf9a4160a2534b747c56be52705cd981b9fefaa387f785859091",
+          "canonical_at_export": true
+        },
+        {
+          "name": "CMK Flow · FaceRebuild SDXL · Advanced",
+          "signature": "47e2c598cccccf8792dd7c4e798b5a654a45520981e58c12ac22b406225b90a6",
+          "canonical_at_export": true
+        },
+        {
+          "name": "CMK Flow · FaceSwap · Advanced",
+          "signature": "48b260d44e6e61a4c826758264df8ed7c5a7e27e0f5d4f7bc36a333cab4a13b0",
+          "canonical_at_export": true
+        },
+        {
+          "name": "CMK Flow · FaceProcess SDXL",
+          "signature": "91fe7e7642c621d20d505521870cc1f4a68bd664cc6b3e16fdc8373f97e11b13",
+          "canonical_at_export": true
+        },
+        {
+          "name": "CMK Flow · FaceProcess SDXL · Advanced",
+          "signature": "0b05917308ed75a6da33ff86640edfefe558959a8a07fae5956469541f922c7b",
+          "canonical_at_export": true
+        },
+        {
+          "name": "CMK Flow · Upscale & Save",
+          "signature": "0b4f2ddda4390dba0205a8c179cad0b3c012caf6f9685fb1541e9480bda14888",
+          "canonical_at_export": true
+        },
+        {
+          "name": "CMK Flow · Detailer SDXL",
+          "signature": "bb18fdf7c186156a7ab05f7e987841a7799bbe71c761d7a100168545de627b87",
+          "canonical_at_export": true
+        },
+        {
+          "name": "CMK Flow · Detailer SDXL · Advanced",
+          "signature": "fa76d08efadb92c3d1447f1043d0ed15dadfa5248e283cd668d6f38bfeef73ca",
+          "canonical_at_export": true
+        },
+        {
+          "name": "CMK Flow · MaskDetailer SDXL",
+          "signature": "32a17f54b4f5bde359053268909f5a9f588df677cdf19d1a5203c068ebdbab69",
+          "canonical_at_export": true
+        },
+        {
+          "name": "CMK Flow · 05 ControlNet",
+          "signature": "13e403fa0ece8a24e793e8c2f27b64745e62ea4df74e8e6cd637eb117676f793",
+          "canonical_at_export": true
+        },
+        {
+          "name": "CMK Flow · 15A InstantID Regional SDXL",
+          "signature": "9825c6e479092f43b01b08fb7766395b528fff668f77d06e1eaf7ec8d654b371",
+          "canonical_at_export": true
+        },
+        {
+          "name": "LoRA Stack · combined",
+          "signature": "a560897f96cf358140ad7c44916ba4749d3fb3c57f2cee1d1969ef9cf59e0a8d",
+          "canonical_at_export": true
+        }
+      ],
+      "frontend_version": "1.57.6",
+      "source": "workflows/showcase/CMK 2.6 · Full Flow .json",
+      "third_party_nodes": [
+        "Lora Stacker (LoraManager)",
+        "TriggerWord Toggle (LoraManager)"
+      ],
+      "usage": "cache keys only (tests/test_s1_gate_pruning.py); the harness does not load ComfyUI-Lora-Manager"
     }
   ]
 }

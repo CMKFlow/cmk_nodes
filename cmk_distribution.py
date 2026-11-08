@@ -206,3 +206,132 @@ def stop_after_handoff_prompt_state(
             "hybrid_mode": family == "hybrid",
         })
     return False
+
+
+# Gate decisions read from the expanded prompt before ComfyUI forms cache keys.
+# The prompt gate pruning and the SDXL completion graph share these helpers so
+# that a gate's activation rule exists only once.
+GATE_ACTIVE = "active"
+GATE_INACTIVE = "inactive"
+GATE_UNKNOWN = "unknown"
+MODULE_GATE_CLASS = "CMKModuleBypassGate"
+INSTANTID_GATE_CLASS = "CMKSamplerBypassGate"
+PRUNABLE_GATE_CLASSES = frozenset({MODULE_GATE_CLASS, INSTANTID_GATE_CLASS})
+
+
+def prompt_node(prompt: Any, node_id: Any):
+    """The node behind an id of an expanded prompt, or None."""
+    if not isinstance(prompt, Mapping):
+        return None
+    node = prompt.get(node_id)
+    if not isinstance(node, Mapping):
+        node = prompt.get(str(node_id))
+    return node if isinstance(node, Mapping) else None
+
+
+def prompt_link(prompt: Any, value: Any) -> bool:
+    """True for an input value that links to a node of the prompt."""
+    return (
+        isinstance(value, (list, tuple))
+        and len(value) == 2
+        and isinstance(value[1], int)
+        and prompt_node(prompt, value[0]) is not None
+    )
+
+
+def prompt_process_sources(prompt: Any, process_link: Any) -> dict:
+    """Every module 01 node a PROCESS link originates from, keyed by node id."""
+    pending = [process_link[0]] if prompt_link(prompt, process_link) else []
+    visited = set()
+    sources = {}
+    while pending:
+        node_id = pending.pop()
+        key = str(node_id)
+        if key in visited:
+            continue
+        visited.add(key)
+        node = prompt_node(prompt, node_id)
+        if node is None:
+            continue
+        if str(node.get("class_type", "")) == "CMKPipeCreateImage":
+            sources[key] = node
+            continue
+        for value in (node.get("inputs", {}) or {}).values():
+            if prompt_link(prompt, value):
+                pending.append(value[0])
+    return sources
+
+
+def _instantid_gate_prompt_state(prompt: Mapping[Any, Any], gate_id: Any, enable: Any) -> str:
+    """CMKProcessEnableFlag(instantid_enabled) as module 01 will resolve it.
+
+    PROCESS["instantid_enabled"] is written only by CMKPipeCreateImage, as
+    ``bool(widget) and model_family == "sdxl"``; the flag reads False while
+    STOP AFTER HANDOFF is effective.  The prompt decides only when every
+    deciding input is a literal of one unambiguous module 01 node.
+    """
+    if not prompt_link(prompt, enable):
+        return GATE_UNKNOWN
+    flag = prompt_node(prompt, enable[0])
+    flag_inputs = flag.get("inputs") if flag is not None else None
+    if (
+        str(flag.get("class_type", "")) != "CMKProcessEnableFlag"
+        or not isinstance(flag_inputs, Mapping)
+        or flag_inputs.get("flag") != "instantid_enabled"
+    ):
+        return GATE_UNKNOWN
+    sources = prompt_process_sources(prompt, flag_inputs.get("PROCESS"))
+    starts = [
+        node for node in _prompt_nodes_upstream_of(prompt, gate_id)
+        if isinstance(node, Mapping) and str(node.get("class_type", "")) == "CMKPipeCreateImage"
+    ]
+    if len(sources) != 1 or len(starts) != 1 or next(iter(sources.values())) is not starts[0]:
+        return GATE_UNKNOWN
+    start_inputs = starts[0].get("inputs")
+    if not isinstance(start_inputs, Mapping):
+        return GATE_UNKNOWN
+    enabled = start_inputs.get("instantid_enabled")
+    if enabled is False:
+        return GATE_INACTIVE
+    if enabled is not True:
+        return GATE_UNKNOWN
+    family = start_inputs.get("model_family")
+    if not isinstance(family, str):
+        return GATE_UNKNOWN
+    if _start_model_family(family) != "sdxl":
+        return GATE_INACTIVE
+    stop = start_inputs.get(STOP_AFTER_HANDOFF_WIDGET, False)
+    if not isinstance(stop, bool):
+        return GATE_UNKNOWN
+    if not stop:
+        return GATE_ACTIVE
+    for name in ("INPAINT_MODE", "instantid_mode"):
+        if name in start_inputs and not isinstance(start_inputs[name], (str, bool)):
+            return GATE_UNKNOWN
+    return GATE_INACTIVE if stop_after_handoff_prompt_state(prompt, gate_id) else GATE_ACTIVE
+
+
+def gate_prompt_state(prompt: Any, gate_id: Any) -> str:
+    """Whether a CMK gate will select its ACTIVE inputs in this prompt.
+
+    Module gates decide ``bool(ENABLE) and not STOP`` at runtime; with a
+    literal ENABLE the prompt holds exactly that decision.  Anything that the
+    prompt cannot decide is GATE_UNKNOWN.
+    """
+    node = prompt_node(prompt, gate_id)
+    if node is None:
+        return GATE_UNKNOWN
+    class_type = str(node.get("class_type", ""))
+    inputs = node.get("inputs")
+    if class_type not in PRUNABLE_GATE_CLASSES or not isinstance(inputs, Mapping):
+        return GATE_UNKNOWN
+    enable = inputs.get("ENABLE")
+    if enable is False:
+        return GATE_INACTIVE
+    if class_type == MODULE_GATE_CLASS:
+        if enable is True:
+            return GATE_INACTIVE if stop_after_handoff_prompt_state(prompt, gate_id) else GATE_ACTIVE
+        return GATE_UNKNOWN
+    if enable is True:
+        return GATE_ACTIVE
+    return _instantid_gate_prompt_state(prompt, gate_id, enable)
