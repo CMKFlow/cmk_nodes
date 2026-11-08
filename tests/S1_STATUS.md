@@ -907,6 +907,12 @@ rekursiv über Subgraph-Grenzen und Reroutes. Deaktiviert: `""`. Aktiv ohne Date
 Verbraucher fehlt im Prompt oder hat eine andere Klasse: `MultiImageInjectionError`.
 `test_multi_image_loader_core.mjs`, `test_s1_multi_image_loader.py` (Prompts aus dem echten
 Frontend in `fixtures/multi_image_loader/`).
+Titel „CMK Image Multi-File Loader“, Ausgänge `image_file_cn/_a/_b/_c` (alte Namen werden
+beim Laden per Index umbenannt). `beforeRegisterVueAppNodeDefs` ergänzt die Platzhalter-Definition
+um Kategorie, Badge `cmk-flow` und die `image`-Spezifikation des Image File Loader (gleiche
+Dateiauswahl). Node Dimension: `FRONTEND_ONLY_TYPES` in `cmk_node_dimensions.js`, weil ComfyUI für
+reine Frontend-Nodes keine Extension-Hooks aufruft. Clean View zeigt wie bei allen CMK-Nodes nur
+den Sammelanschluss.
 
 ### ContentGuard-Schalter erreicht die ausführende Node
 

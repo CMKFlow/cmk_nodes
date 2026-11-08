@@ -1,10 +1,12 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import {
+    NODE_TITLE,
     NODE_TYPE,
     PROPERTY,
     SLOTS,
     injectReferences,
+    migrateOutputNames,
     normalizeState,
 } from "./cmk_multi_image_loader_core.js";
 
@@ -131,7 +133,6 @@ async function installUi(node) {
     const combo = ComfyWidgets.COMBO(node, "image", [choices, { image_upload: true }], app).widget;
     combo.serialize = false;
     combo.options = { ...(combo.options || {}), serialize: false };
-    combo.label = "IMAGE FILE";
     node._cmkMultiImage.combo = combo;
     const upload = ComfyWidgets.IMAGEUPLOAD(node, "upload", ["IMAGEUPLOAD", { imageInputName: "image" }], app);
     if (upload?.widget) upload.widget.serialize = false;
@@ -170,12 +171,15 @@ function registerNode() {
         }
 
         onConfigure() {
+            migrateOutputNames(this);
+            // The former default title; a title the user set stays.
+            if (this.title === "CMK Multi Image Loader") this.title = NODE_TITLE;
             state(this);
             renderSlots(this);
             showSelectedFile(this);
         }
     }
-    CMKMultiImageLoaderNode.title = "CMK Multi Image Loader";
+    CMKMultiImageLoaderNode.title = NODE_TITLE;
     CMKMultiImageLoaderNode.category = "CMK/Flow/Input";
     CMKMultiImageLoaderNode.description = "Manages four image_file references (CN, ID A, ID B, ID C). No image processing.";
     LiteGraph.registerNodeType(NODE_TYPE, CMKMultiImageLoaderNode);
@@ -192,10 +196,34 @@ function installPromptInjection() {
     app._cmkMultiImageInjection = true;
 }
 
+// The frontend builds a placeholder definition for frontend-only nodes.  Give it
+// the CMK name, category and source (badge "cmk-flow"), and the input spec of
+// the CMK Image File Loader so the file widget renders as in that loader.
+function describeNode(definitions) {
+    const list = Array.isArray(definitions) ? definitions : Object.values(definitions ?? {});
+    const definition = list.find((item) => item?.name === NODE_TYPE);
+    if (!definition) return;
+    const fileSource = list.find((item) => item?.name === FILE_SOURCE_CLASS);
+    const imageSpec = fileSource?.input?.required?.image;
+    Object.assign(definition, {
+        display_name: NODE_TITLE,
+        category: "CMK/Flow/Input",
+        python_module: "custom_nodes.cmk-flow",
+        description: "Manages four image_file references (CN, ID A, ID B, ID C). No image processing.",
+        output: SLOTS.map(() => "STRING"),
+        output_name: SLOTS.map((slot) => slot.output),
+        output_is_list: SLOTS.map(() => false),
+    });
+    if (imageSpec) definition.input = { required: { image: imageSpec }, optional: {} };
+}
+
 app.registerExtension({
     name: "cmk.multi_image_loader",
     registerCustomNodes() {
         registerNode();
+    },
+    beforeRegisterVueAppNodeDefs(definitions) {
+        describeNode(definitions);
     },
     setup() {
         installPromptInjection();
