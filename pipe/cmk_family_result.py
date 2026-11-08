@@ -39,12 +39,14 @@ except ImportError:  # Direct source loading in contract tests.
 try:
     from ..cmk_distribution import (
         content_guard_prompt_token,
+        prompt_process_sources,
         stop_after_handoff_active,
         stop_after_handoff_prompt_state,
     )
 except ImportError:  # Direct source loading in contract tests.
     from cmk_distribution import (
         content_guard_prompt_token,
+        prompt_process_sources,
         stop_after_handoff_active,
         stop_after_handoff_prompt_state,
     )
@@ -3271,7 +3273,7 @@ class _CMKPostProcessBoundarySDXLPipe(_CMKSinglePostProcessBoundary):
                         "InstantID bypass gate ENABLE does not read "
                         "instantid_enabled"
                     )
-                enable_sources = process_source_nodes(enable_inputs.get("PROCESS"))
+                enable_sources = prompt_process_sources(prompt, enable_inputs.get("PROCESS"))
                 if len(enable_sources) != 1:
                     return None, (
                         "InstantID bypass gate PROCESS does not identify exactly "

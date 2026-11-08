@@ -420,6 +420,17 @@ def _session(workdir, extra_model_paths, mode, install_seams, stop_prepare, inpu
     return runtime, probes, seams
 
 
+def _submit(runtime, prompt, gate_pruning):
+    """The prompt as /prompt hands it to the queue: through CMK's on_prompt handler."""
+    if not gate_pruning:
+        return prompt, []
+    pruning = runtime.cmk_module("cmk_prompt_gate_pruning")
+    submitted = pruning.on_prompt({"prompt": prompt})["prompt"]
+    pruned = sorted(node_id for node_id, node in submitted.items()
+                    if pruning.PRUNED_META_KEY in (node.get("_meta") or {}))
+    return submitted, pruned
+
+
 def _run_once(runtime, probes, seams, workdir, prompt, inspect):
     probes.function_calls.clear()
     probes.lazy_requests.clear()
@@ -447,6 +458,9 @@ def run_fixture(
     upstream_visual: bool = False,
     drop_model: bool = False,
     fake_postprocess: bool = False,
+    gate_pruning: bool = False,
+    run_overrides: list | None = None,
+    remove_inputs: list | None = None,
 ) -> dict:
     """Execute an exported fixture with the real PromptExecutor.
 
@@ -464,10 +478,19 @@ def run_fixture(
         prompt = _inject_upstream_visual(prompt, fixture)
     if drop_model:
         prompt["1"]["inputs"].pop("MODEL SDXL (opt)", None)
+    for key in remove_inputs or []:
+        node_id, name = key.rsplit(".", 1)
+        prompt[node_id]["inputs"].pop(name, None)
     records = []
     try:
         for index in range(runs):
-            records.append(_run_once(runtime, probes, seams, Path(workdir), prompt, inspect))
+            run_prompt = prompt
+            if run_overrides is not None:
+                run_prompt = _apply_overrides(prompt, fixture, run_overrides[index], {})
+            run_prompt, pruned = _submit(runtime, run_prompt, gate_pruning)
+            record = _run_once(runtime, probes, seams, Path(workdir), run_prompt, inspect)
+            record["pruned_gates"] = pruned
+            records.append(record)
             if evict_between_runs and index + 1 < runs:
                 runtime.force_ram_release()
     finally:
@@ -681,7 +704,8 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
                          start_inputs: list | None = None, remove_inputs: list | None = None,
                          input_images: list | None = None, regional: list | None = None,
                          inpaint_source: str | None = None, postprocess_tail: bool = False,
-                         visualizer_inputs: dict | None = None, mask_detailer_tail: bool = False) -> dict:
+                         visualizer_inputs: dict | None = None, mask_detailer_tail: bool = False,
+                         gate_pruning: bool = False) -> dict:
     """Run a Hybrid fixture several times in one executor with STOP per run.
 
     guard: None keeps the fixture's ContentGuard OFF; "pass" / "reject" turns
@@ -770,7 +794,9 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
             reset_generation_calls()
             guard_calls.clear()
             previews.clear()
+            prompt, pruned = _submit(runtime, prompt, gate_pruning)
             record = _run_once(runtime, probes, seams, workdir, prompt, inspect)
+            record["pruned_gates"] = pruned
             gate = runtime.output(HYBRID_SDXL_GATE)
             refiner_gate = runtime.output("8433:7812")
             record.update({
@@ -1236,3 +1262,100 @@ def manifest_keys(workdir: str, fixture: str, extra_model_paths: str | None = No
                              "complete": manifest["complete"],
                              "boundary_key": boundary._cache_key(prompt, boundary_id)[0]})
     return {"rows": rows}
+
+
+FULL_FLOW_REFERENCES = {  # consumer of the identity reference per module
+    "instantid": "8465:8400", "facerebuild": "8435:7822", "facerebuild_adv": "8440:8380",
+    "faceswap": "8436:7850", "faceswap_adv": "8441:8462",
+}
+FULL_FLOW_MODULE_SWITCHES = {  # inner nodes fed by the module's ENABLE widget
+    "facerebuild": {"8435:7827.ENABLE", "8435:7823.FACEREBUILD ENABLE", "8435:7826.enable"},
+    "faceswap": {"8436:7856.ENABLE", "8436:7849.GLOBAL ENABLE", "8436:7855.enable"},
+}
+FULL_FLOW_START = "8332"
+
+
+def full_flow_prompt(instantid=False, stop=False, facerebuild=False, faceswap=True, references=None, overrides=None):
+    """The shipped Full Flow with every identity consumer fed a literal reference,
+    as the Multi Image Loader delivers it."""
+    prompt = load_api_prompt("full_flow")
+    start = prompt[FULL_FLOW_START]["inputs"]
+    start["instantid_enabled"] = bool(instantid)
+    start["stop_after_handoff"] = bool(stop)
+    for module, enabled in (("facerebuild", facerebuild), ("faceswap", faceswap)):
+        for key in FULL_FLOW_MODULE_SWITCHES[module]:
+            node_id, name = key.rsplit(".", 1)
+            prompt[node_id]["inputs"][name] = bool(enabled)
+    refs = {module: "CMK Package · faceswap_reference.png" for module in FULL_FLOW_REFERENCES}
+    refs.update(references or {})
+    for module, node_id in FULL_FLOW_REFERENCES.items():
+        prompt[node_id]["inputs"]["opt_image_file"] = refs[module]
+    for key, value in (overrides or {}).items():
+        node_id, name = key.rsplit(".", 1)
+        prompt[node_id]["inputs"][name] = value
+    return prompt
+
+
+def gate_pruning_keys(workdir: str, cases: dict, extra_model_paths: str | None = None) -> dict:
+    """ComfyUI cache signatures and CMK fingerprints of Full Flow prompts, raw and
+    after CMK's on_prompt handler.  ``cases`` maps a label to full_flow_prompt kwargs."""
+    import asyncio
+    import copy
+    import hashlib
+
+    runtime = boot_runtime(workdir, extra_model_paths)
+    import execution
+    from comfy_execution.caching import CacheKeySetInputSignature
+    from comfy_execution.graph import DynamicPrompt
+
+    import nodes
+
+    # Third-party nodes of the shipped flow (LoRA Manager) are not loaded by the
+    # harness; a signature needs only their class name and inputs.
+    for node in load_api_prompt("full_flow").values():
+        if node["class_type"] not in nodes.NODE_CLASS_MAPPINGS:
+            nodes.NODE_CLASS_MAPPINGS[node["class_type"]] = type(
+                "CMKSignatureStub", (), {"INPUT_TYPES": classmethod(lambda cls: {"required": {}})})
+    pruning = runtime.cmk_module("cmk_prompt_gate_pruning")
+    persistent = runtime.cmk_module("pipe.cmk_persistent_cache")
+    refiner = runtime.cmk_module("cmk_refiner_boundary_cache")
+    family = runtime.cmk_module("pipe.cmk_family_result")
+
+    def keys(prompt):
+        work = copy.deepcopy(prompt)
+        dynamic = DynamicPrompt(work)
+        is_changed = execution.IsChangedCache("cmk-gate-pruning", dynamic, None)
+        keyset = CacheKeySetInputSignature(dynamic, list(work), is_changed)
+        asyncio.run(keyset.add_keys(list(work)))
+        comfy = {node_id: hashlib.sha256(repr(keyset.get_data_key(node_id)).encode()).hexdigest()[:16]
+                 for node_id in work}
+        cmk = {"refiner": (refiner.build_refiner_fingerprint(copy.deepcopy(prompt), "8433:7810")[0] or "")[:16]}
+        for node_id, node in prompt.items():
+            if "Boundary" in node["class_type"]:
+                cmk[node_id] = (persistent.build_node_fingerprint(
+                    copy.deepcopy(prompt), node_id, [node["class_type"]], "probe", include_node_identity=True)[0]
+                    or "")[:16]
+        completion = family.CMKPostProcessSetupPipe._completion_key(copy.deepcopy(prompt), "8434")
+        cmk["completion"] = (completion[0] or "")[:16] or f"none: {completion[1]}"
+        return {"comfy": comfy, "cmk": cmk}
+
+    result = {}
+    for label, kwargs in cases.items():
+        raw = full_flow_prompt(**kwargs)
+        pruned = pruning.on_prompt({"prompt": raw})["prompt"]
+        again = pruning.on_prompt({"prompt": pruned})["prompt"]
+        raw_keys = keys(raw)
+        repeat = keys(raw)["comfy"]
+        result[label] = {
+            # Output nodes whose IS_CHANGED differs per evaluation (Visualizer,
+            # Visual Compare) and their descendants: never comparable.
+            "unstable": sorted(n for n in repeat if repeat[n] != raw_keys["comfy"][n]
+                               or raw[n]["class_type"] in {"CMKVisualizer", "CMKVisualCompare"}),
+            "raw": raw_keys, "pruned": keys(pruned),
+            "pruned_gates": sorted(n for n, node in pruned.items()
+                                   if pruning.PRUNED_META_KEY in (node.get("_meta") or {})),
+            "idempotent": again == pruned,
+            "active_inputs_kept": all(pruned[n]["inputs"] == raw[n]["inputs"] for n in raw
+                                      if pruning.PRUNED_META_KEY not in (pruned[n].get("_meta") or {})),
+        }
+    return result

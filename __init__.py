@@ -25,6 +25,7 @@ from .utils.cmk_persistent_cache_control import (
 )
 from .utils.cmk_statistics import collect_statistics as _collect_statistics
 from .pipe.cmk_prompt_result_state import register_prompt_result_provider
+from .cmk_prompt_gate_pruning import register as _cmk_register_gate_pruning
 
 _EXECUTION_CACHE_BOOT_STATUS = _apply_execution_cache_config()
 _PROMPT_RESULT_PROVIDER = register_prompt_result_provider()
@@ -92,6 +93,10 @@ async def _cmk_packaged_reference_view(request, handler):
         raise web.HTTPNotFound(text="CMK reference asset not found")
     return await handler(request)
 
+
+# Inactive CMK gates must not carry unused module inputs into ComfyUI's cache
+# keys; see cmk_prompt_gate_pruning (CMK_PROMPT_GATE_PRUNING=0 disables it).
+_cmk_register_gate_pruning(PromptServer.instance)
 
 if not getattr(PromptServer.instance, "_cmk_reference_view_middleware", False):
     PromptServer.instance.app.middlewares.append(_cmk_packaged_reference_view)
