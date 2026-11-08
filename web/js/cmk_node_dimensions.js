@@ -17,7 +17,12 @@ const BUILTIN_MINIMUMS = {
     CMKInstantIDSamplerSDXLPipe: [450, 800],
     CMKInstantIDFaceRebuildSDXL: [450, 590],
     CMKFaceSwapImagePipe: [380, 400],
+    CMKMultiImageLoader: [300, 420],
 };
+// CMK nodes registered by the frontend only.  ComfyUI does not call
+// beforeRegisterNodeDef / nodeCreated for them, so the same handlers are
+// attached to their prototypes.
+const FRONTEND_ONLY_TYPES = ["CMKMultiImageLoader"];
 const BUILTIN_DEFAULTS = {
     CMKCheckpointVAELoader: [600, 240],
     CMKControlNetPrepare: [540, 420],
@@ -43,6 +48,7 @@ const BUILTIN_DEFAULTS = {
     CMK_SourcePathInfo: [240, 100],
     CMKSplitVideoIntoSegments: [600, 910],
     CMKVideoCompare: [1180, 600],
+    CMKMultiImageLoader: [360, 420],
 };
 
 function text(value) {
@@ -462,11 +468,35 @@ function applyTypeDefault(node) {
     }, 0);
 }
 
+function installFrontendOnlyType(type) {
+    const nodeType = window.LiteGraph?.registered_node_types?.[type];
+    if (!nodeType || nodeType.__cmkDimensionsFrontendOnly) return;
+    nodeType.__cmkDimensionsFrontendOnly = true;
+    installTypeMinimum(nodeType, { name: type });
+    const originalConfigure = nodeType.prototype.onConfigure;
+    nodeType.prototype.onConfigure = function() {
+        this.__cmkLoadedFromWorkflow = true;
+        const result = originalConfigure?.apply(this, arguments);
+        setTimeout(() => enforceBuiltInMinimum(this), 0);
+        return result;
+    };
+    const originalAdded = nodeType.prototype.onAdded;
+    nodeType.prototype.onAdded = function() {
+        const result = originalAdded?.apply(this, arguments);
+        // The nodeCreated handler of this extension.
+        installMenu(this);
+        applyTypeDefault(this);
+        setTimeout(() => enforceBuiltInMinimum(this), 0);
+        return result;
+    };
+}
+
 app.registerExtension({
     name: "cmk.node.dimensions.v1",
 
     setup() {
         installManualResizeTracking();
+        FRONTEND_ONLY_TYPES.forEach(installFrontendOnlyType);
     },
 
     beforeRegisterNodeDef(nodeType, nodeData) {

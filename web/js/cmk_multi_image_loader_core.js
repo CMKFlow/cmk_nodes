@@ -7,12 +7,28 @@
 
 export const NODE_TYPE = "CMKMultiImageLoader";
 export const PROPERTY = "cmkMultiImageLoader";
+export const NODE_TITLE = "CMK Image Multi-File Loader";
+// Outputs are addressed by index; `legacy` names come from workflows saved
+// before the outputs were renamed.
 export const SLOTS = [
-    { output: "CONTROLNET", short: "CN" },
-    { output: "IDENTITY A", short: "ID A" },
-    { output: "IDENTITY B", short: "ID B" },
-    { output: "IDENTITY C", short: "ID C" },
+    { output: "image_file_cn", short: "CN", legacy: "CONTROLNET" },
+    { output: "image_file_a", short: "ID A", legacy: "IDENTITY A" },
+    { output: "image_file_b", short: "ID B", legacy: "IDENTITY B" },
+    { output: "image_file_c", short: "ID C", legacy: "IDENTITY C" },
 ];
+
+// Renames saved outputs in place; links refer to the slot index and stay intact.
+export function migrateOutputNames(node) {
+    (node?.outputs ?? []).forEach((output, index) => {
+        const slot = SLOTS[index];
+        if (!slot || !output) return;
+        if (output.name === slot.legacy || output.name !== slot.output) {
+            output.name = slot.output;
+            if (output.label === slot.legacy) output.label = slot.output;
+            if (output.localized_name === slot.legacy) output.localized_name = slot.output;
+        }
+    });
+}
 
 const MUTED = 2;
 const BYPASSED = 4;
