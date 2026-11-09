@@ -1,0 +1,29 @@
+{
+  "published": true,
+  "displayName": "CMK 2.7 · Flow · InOutpaint SDXL-ZIT HYBRID",
+  "kind": "task",
+  "order": 211,
+  "category": "TASK WORKFLOWS",
+  "category_en": "TASK WORKFLOWS",
+  "description": "Zeigt InOutpaint, Remove und Extend im HYBRID-Modus – jeweils von der Vorbereitung über den SDXL 1st-Pass bis zum abschließenden ZIT-Pass.",
+  "description_en": "Shows InOutpaint, Remove, and Extend in HYBRID mode – from preparation through the SDXL 1st pass to the final ZIT pass.",
+  "cmkHighlight": "Die unterschiedlichen Inpaint-Aufgaben werden zentral in 01 START HERE vorbereitet und anschließend durch denselben HYBRID-Prozess geführt.",
+  "cmkHighlight_en": "The different inpainting tasks are prepared centrally in 01 START HERE and then run through the same HYBRID process.",
+  "previews": [
+    {
+      "src": "assets/showcase/TASK WORKFLOWS/11 - CMK 2.7 · Flow · InOutpaint SDXL-ZIT HYBRID/CMK 2.7 · Flow · InOutpaint SDXL-ZIT HYBRID - 1 - Replace.webp",
+      "label": "Replace",
+      "label_en": "Replace"
+    },
+    {
+      "src": "assets/showcase/TASK WORKFLOWS/11 - CMK 2.7 · Flow · InOutpaint SDXL-ZIT HYBRID/CMK 2.7 · Flow · InOutpaint SDXL-ZIT HYBRID - 2 - Remove.webp",
+      "label": "Remove",
+      "label_en": "Remove"
+    },
+    {
+      "src": "assets/showcase/TASK WORKFLOWS/11 - CMK 2.7 · Flow · InOutpaint SDXL-ZIT HYBRID/CMK 2.7 · Flow · InOutpaint SDXL-ZIT HYBRID - 3 - Extend.webp",
+      "label": "Extend",
+      "label_en": "Extend"
+    }
+  ]
+}

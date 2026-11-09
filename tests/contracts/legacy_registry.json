@@ -1,4 +1,117 @@
 {
   "description": "Historical definition states that are allowed to differ from the canonical subgraphs. Entries are matched by workflow, definition name and normalised topology signature (tests/validator/graph_model.py). Never auto-migrated.",
-  "entries": []
+  "entries": [
+    {
+      "workflow": "CMK 2.6 · Flow · Text2Image ControlNet HYBRID.json",
+      "definition": "CMK Flow · 05 ControlNet",
+      "signatures": [
+        "13e403fa0ece8a24e793e8c2f27b64745e62ea4df74e8e6cd637eb117676f793"
+      ],
+      "reason": "Embedded before 05 ControlNet gained the optional opt_image_file input; still valid, not migrated (no preventive migration)."
+    },
+    {
+      "workflow": "CMK 2.6 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT.json",
+      "definition": "CMK Flow · 05 ControlNet",
+      "signatures": [
+        "13e403fa0ece8a24e793e8c2f27b64745e62ea4df74e8e6cd637eb117676f793"
+      ],
+      "reason": "Embedded before 05 ControlNet gained the optional opt_image_file input; still valid, not migrated (no preventive migration)."
+    },
+    {
+      "workflow": "CMK 2.6 · Flow · Text2Image ControlNet Z-Image Turbo.json",
+      "definition": "CMK Flow · 05 ControlNet",
+      "signatures": [
+        "13e403fa0ece8a24e793e8c2f27b64745e62ea4df74e8e6cd637eb117676f793"
+      ],
+      "reason": "Embedded before 05 ControlNet gained the optional opt_image_file input; still valid, not migrated (no preventive migration)."
+    },
+    {
+      "workflow": "CMK 2.6 · Flow · Text2Image-ControlNet SDXL.json",
+      "definition": "CMK Flow · 05 ControlNet",
+      "signatures": [
+        "13e403fa0ece8a24e793e8c2f27b64745e62ea4df74e8e6cd637eb117676f793"
+      ],
+      "reason": "Embedded before 05 ControlNet gained the optional opt_image_file input; still valid, not migrated (no preventive migration)."
+    },
+    {
+      "workflow": "CMK 2.6 · Full Flow .json",
+      "definition": "CMK Flow · 05 ControlNet",
+      "signatures": [
+        "13e403fa0ece8a24e793e8c2f27b64745e62ea4df74e8e6cd637eb117676f793"
+      ],
+      "reason": "Embedded before 05 ControlNet gained the optional opt_image_file input; still valid, not migrated (no preventive migration)."
+    },
+    {
+      "workflow": "CMK 2.6 · InOutPaint.json",
+      "definition": "CMK Flow · 05 ControlNet",
+      "signatures": [
+        "13e403fa0ece8a24e793e8c2f27b64745e62ea4df74e8e6cd637eb117676f793"
+      ],
+      "reason": "Embedded before 05 ControlNet gained the optional opt_image_file input; still valid, not migrated (no preventive migration)."
+    },
+    {
+      "workflow": "CMK 2.6 · Text2Image Identity 1.json",
+      "definition": "CMK Flow · 05 ControlNet",
+      "signatures": [
+        "13e403fa0ece8a24e793e8c2f27b64745e62ea4df74e8e6cd637eb117676f793"
+      ],
+      "reason": "Embedded before 05 ControlNet gained the optional opt_image_file input; still valid, not migrated (no preventive migration)."
+    },
+    {
+      "workflow": "CMK 2.6 · Text2Image Identity 3.json",
+      "definition": "CMK Flow · 05 ControlNet",
+      "signatures": [
+        "13e403fa0ece8a24e793e8c2f27b64745e62ea4df74e8e6cd637eb117676f793"
+      ],
+      "reason": "Embedded before 05 ControlNet gained the optional opt_image_file input; still valid, not migrated (no preventive migration)."
+    },
+    {
+      "workflow": "CMK 2.6 · Text2Image.json",
+      "definition": "CMK Flow · 05 ControlNet",
+      "signatures": [
+        "13e403fa0ece8a24e793e8c2f27b64745e62ea4df74e8e6cd637eb117676f793"
+      ],
+      "reason": "Embedded before 05 ControlNet gained the optional opt_image_file input; still valid, not migrated (no preventive migration)."
+    },
+    {
+      "workflow": "CMK 2.7 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT.json",
+      "definition": "CMK Flow · 05 ControlNet",
+      "signatures": [
+        "13e403fa0ece8a24e793e8c2f27b64745e62ea4df74e8e6cd637eb117676f793"
+      ],
+      "reason": "Embedded before 05 ControlNet gained the optional opt_image_file input; still valid, not migrated (no preventive migration)."
+    },
+    {
+      "workflow": "CMK 2.7 · Flow · Text2Image ControlNet SDXL-ZIT HYBRID.json",
+      "definition": "CMK Flow · 05 ControlNet",
+      "signatures": [
+        "13e403fa0ece8a24e793e8c2f27b64745e62ea4df74e8e6cd637eb117676f793"
+      ],
+      "reason": "Embedded before 05 ControlNet gained the optional opt_image_file input; still valid, not migrated (no preventive migration)."
+    },
+    {
+      "workflow": "CMK 2.7 · Flow · Text2Image ControlNet SDXL.json",
+      "definition": "CMK Flow · 05 ControlNet",
+      "signatures": [
+        "13e403fa0ece8a24e793e8c2f27b64745e62ea4df74e8e6cd637eb117676f793"
+      ],
+      "reason": "Embedded before 05 ControlNet gained the optional opt_image_file input; still valid, not migrated (no preventive migration)."
+    },
+    {
+      "workflow": "CMK 2.7 · Flow · Text2Image ControlNet ZIT.json",
+      "definition": "CMK Flow · 05 ControlNet",
+      "signatures": [
+        "13e403fa0ece8a24e793e8c2f27b64745e62ea4df74e8e6cd637eb117676f793"
+      ],
+      "reason": "Embedded before 05 ControlNet gained the optional opt_image_file input; still valid, not migrated (no preventive migration)."
+    },
+    {
+      "workflow": "Identity Processing Matrix.json",
+      "definition": "GENERATION",
+      "signatures": [
+        "f4c0bc065cc77a370dbbe1ed35a65763985e73dfbae8256f2e1cc473f7749f0d"
+      ],
+      "reason": "Workflow-local helper subgraph without a package definition."
+    }
+  ]
 }

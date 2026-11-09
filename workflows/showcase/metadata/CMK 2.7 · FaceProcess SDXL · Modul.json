@@ -1,0 +1,24 @@
+{
+  "published": true,
+  "displayName": "CMK 2.7 · FaceProcess SDXL · Modul",
+  "kind": "module",
+  "order": 304,
+  "category": "MODULE WORKFLOWS",
+  "category_en": "MODULE WORKFLOWS",
+  "description": "Zeigt FaceProcess als fertiges CMK-Modul in einem Stand-alone-Workflow und macht dessen äußere Verwendung sowie den internen Aufbau nachvollziehbar.",
+  "description_en": "Shows FaceProcess as a complete CMK module in a standalone workflow, making both its external use and internal structure easy to understand.",
+  "cmkHighlight": "Der diskrete FaceProcess-Ablauf ist zu einem wiederverwendbaren Modul mit einheitlicher Schnittstelle gekapselt.",
+  "cmkHighlight_en": "The discrete FaceProcess sequence is encapsulated in a reusable module with a consistent interface.",
+  "previews": [
+    {
+      "src": "assets/showcase/MODULE WORKFLOWS/04 - CMK 2.7 · FaceProcess SDXL · Modul/CMK 2.7 · FaceProcess SDXL · Modul - 1 - Restore.webp",
+      "label": "Restore",
+      "label_en": "Restore"
+    },
+    {
+      "src": "assets/showcase/MODULE WORKFLOWS/04 - CMK 2.7 · FaceProcess SDXL · Modul/CMK 2.7 · FaceProcess SDXL · Modul - 2 - Detailer.webp",
+      "label": "Detailer",
+      "label_en": "Detailer"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 {
-  "published": true,
+  "published": false,
   "displayName": "CMK 2.6 · Full Flow ",
   "kind": "system",
   "order": 401,
@@ -11,11 +11,5 @@
   "cmkHighlight_en": "The Full Flow serves as an integration and compatibility reference: SDXL, Z-Image Turbo, HYBRID, and the downstream modules are connected within a shared architecture and can be selectively enabled or bypassed using their respective switches.",
   "info": "Der Full Flow ist keine Empfehlung für den täglichen Einsatz, sondern eine vollständige Systemreferenz zum Testen und Nachvollziehen der CMK-Architektur.",
   "info_en": "The Full Flow is not intended as a recommendation for everyday use, but as a complete system reference for testing and understanding the CMK architecture.",
-  "previews": [
-    {
-      "src": "assets/showcase/SYSTEM WORKFLOW/CMK 2.6 · Full Flow /CMK 2.6 · Full Flow.webp",
-      "label": "Workflow",
-      "label_en": "Workflow"
-    }
-  ]
+  "previews": []
 }

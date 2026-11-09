@@ -44,6 +44,12 @@ _SHOWCASE_METADATA = _SHOWCASE_WORKFLOWS / "metadata"
 _REFERENCE_ASSETS = Path(__file__).resolve().parent / "assets" / "references"
 _REFERENCE_FILENAMES = (
     "black.png",
+    "clipspace-mask-1792011765214.png",
+    "clipspace-painted-masked-1793926244053.png",
+    "clipspace-painted-masked-1794035317507.png",
+    "face_00003.png",
+    "face_identity_referenceII.png",
+    "portrait_reference_00001.png",
     "clipspace-mask-1792499379891.png",
     "controlnet_reference.png",
     "controlnet_reference4.png",
@@ -65,6 +71,7 @@ _PACKAGED_REFERENCES.update({
     filename: filename
     for filename in ("black.png", "controlnet_reference4.png", "faceswap_reference.png")
 })
+_PLAIN_PACKAGED_REFERENCES = frozenset(_REFERENCE_FILENAMES)
 _VIDEO_WORKFLOW_TEMPLATE = (
     Path(__file__).resolve().parent
     / "workflows"
@@ -91,6 +98,17 @@ async def _cmk_packaged_reference_view(request, handler):
         if path.is_file():
             return web.FileResponse(path)
         raise web.HTTPNotFound(text="CMK reference asset not found")
+    # Plain names stored by the FaceSwap image pair: the user's input file wins.
+    filename = request.query.get("filename", "")
+    if (
+        request.method == "GET"
+        and request.path.rstrip("/").endswith("/view")
+        and filename in _PLAIN_PACKAGED_REFERENCES
+        and not request.query.get("subfolder")
+        and not (Path(folder_paths.get_input_directory()) / filename).is_file()
+        and (_REFERENCE_ASSETS / filename).is_file()
+    ):
+        return web.FileResponse(_REFERENCE_ASSETS / filename)
     return await handler(request)
 
 

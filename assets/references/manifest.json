@@ -2,9 +2,24 @@
   "schema": "cmk.reference-assets.v1",
   "assets": [
     {
+      "package_file": "clipspace-mask-1792011765214.png",
+      "original_file": "clipspace-mask-1792011765214.png",
+      "sha256": "4c7f64b6cedd7ddb215acc8d4ec6e7e9eaf186c74cab86ab5104b8b62279d291"
+    },
+    {
       "package_file": "clipspace-mask-1792499379891.png",
       "original_file": "clipspace-mask-1792499379891.png",
       "sha256": "2d6e2de3df2d0fa0f3e5d94d2d28aeec2ec09cb1061d05a0770a0c4f62c53472"
+    },
+    {
+      "package_file": "clipspace-painted-masked-1793926244053.png",
+      "original_file": "clipspace-painted-masked-1793926244053.png",
+      "sha256": "193d2bb44ea0b44e960cc758ed1507a8cb68a9fb108bb14433906caa0e012ecf"
+    },
+    {
+      "package_file": "clipspace-painted-masked-1794035317507.png",
+      "original_file": "clipspace-painted-masked-1794035317507.png",
+      "sha256": "d02d113d3cc8fcb73de0ad3d64770e163a266e54d54149328162d6b96c944b24"
     },
     {
       "package_file": "controlnet_reference.png",
@@ -22,9 +37,19 @@
       "sha256": "ee75a396ec154d2304277364bd8be58e609118a6664f97ab65920888a44bde9f"
     },
     {
+      "package_file": "face_00003.png",
+      "original_file": "face_00003.png",
+      "sha256": "a08a6370749096d40f0cb65f2c619557a3c39e395773b16071aa67b9b606988e"
+    },
+    {
       "package_file": "face_identity_reference.png",
       "original_file": "portrait_reference_00003.png",
       "sha256": "916911957d8ce4805358a28ade90ddbc495aa649fce54dd94f8c896d46007f0a"
+    },
+    {
+      "package_file": "face_identity_referenceII.png",
+      "original_file": "face_identity_referenceII.png",
+      "sha256": "474778f441f8c52ad8bde4e1d379966698f25fe6d780a8b6d3ff13733a49b6b5"
     },
     {
       "package_file": "face_reference.png",
@@ -50,6 +75,11 @@
       "package_file": "mask_detailer_reference.png",
       "original_file": "mask_detailer_reference.png",
       "sha256": "9878f5bb242f919c592692717e28d85b7fecf96a6f7419199981d1e3501c25f9"
+    },
+    {
+      "package_file": "portrait_reference_00001.png",
+      "original_file": "portrait_reference_00001.png",
+      "sha256": "62bf9829fccfa950570db66ba32fcf89a0f1402f16e24b63908ae7968f2b3616"
     },
     {
       "package_file": "portrait_reference_00002.png",

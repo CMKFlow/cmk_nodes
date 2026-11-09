@@ -15,6 +15,12 @@ from ..cmk_log_pipe import cmk_add_block
 
 _CMK_REFERENCE_FILENAMES = (
     "black.png",
+    "clipspace-mask-1792011765214.png",
+    "clipspace-painted-masked-1793926244053.png",
+    "clipspace-painted-masked-1794035317507.png",
+    "face_00003.png",
+    "face_identity_referenceII.png",
+    "portrait_reference_00001.png",
     "clipspace-mask-1792499379891.png",
     "face_reference.png",
     "controlnet_reference.png",

@@ -1,5 +1,5 @@
 {
-  "published": true,
+  "published": false,
   "displayName": "CMK 2.6 · FaceSwap · Modul",
   "kind": "module",
   "order": 306,
@@ -9,16 +9,5 @@
   "description_en": "Shows FaceSwap as a complete CMK module in a standalone workflow, making both its external use and internal structure easy to understand.",
   "cmkHighlight": "Der diskrete FaceSwap-Prozess ist zu einem wiederverwendbaren Modul mit einheitlicher Schnittstelle gekapselt.",
   "cmkHighlight_en": "The discrete FaceSwap process is encapsulated in a reusable module with a consistent interface.",
-  "previews": [
-    {
-      "src": "assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceSwap · Modul/CMK 2.5 · FaceSwap · Modul.webp",
-      "label": "Modul",
-      "label_en": "Modul"
-    },
-    {
-      "src": "assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceSwap · Modul/CMK 2.5 · FaceSwap · Modul - Aufbau.webp",
-      "label": "Aufbau",
-      "label_en": "Aufbau"
-    }
-  ]
+  "previews": []
 }

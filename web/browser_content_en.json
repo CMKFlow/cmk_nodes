@@ -2,7 +2,7 @@
   "flows": {
     "CMKPipeCreateImage": {
       "previewAlt": "CMK Flow Create Image node",
-      "description": "Central v2 entry point for Text2Image and Inpaint with engine, strategy, and finish selection using the existing CMK processing paths.",
+      "description": "Central entry point for Text2Image and Inpaint with engine, strategy, and finish selection using the existing CMK processing paths.",
       "features": [
         "Choose SDXL or Z-Image Turbo and a compatible finish",
         "Choose Standard or the existing InstantID identity strategy",
@@ -11,31 +11,6 @@
         "Provide the image, mask, and prompts centrally for the downstream flow"
       ],
       "placementNote": "Place as the central starting module before optional ControlNet or the first KSampler. Connect IMAGE and MASK for Inpaint; Remove Object only requires the mask."
-    },
-    "CMKRegionalConditioningSDXL": {
-      "previewAlt": "CMK Flow Regional Conditioning SDXL",
-      "description": "Adds up to three spatially limited prompt regions to the global SDXL conditioning.",
-      "features": [
-        "Use up to three independently controlled regions",
-        "Use standard presets for position and area of effect",
-        "Set the position, strength, and duration of each region individually"
-      ],
-      "placementNote": "Place directly after 01 START HERE and before optional ControlNet or 10 KSampler SDXL."
-    },
-    "CMKCheckpointVAELoaderPipe": {
-      "previewAlt": "CMK Flow Checkpoint and VAE node",
-      "description": "Selects the image model and matching image decoder.",
-      "features": [
-        "Provides the model for a sampler or refiner"
-      ],
-      "placementNote": "Place before the KSampler or Refiner and connect MODEL to its MODEL input."
-    },
-    "CMKPostProcessModelPipe": {
-      "description": "Selects the SDXL model for standalone post-processing without loading it up front.",
-      "features": [
-        "Loads the model only when an active module needs it"
-      ],
-      "placementNote": "Place before CMK Load Image and connect MODEL to its MODEL SDXL input. Keep using Checkpoint & VAE for samplers or the refiner."
     },
     "CMKLoadImage": {
       "previewAlt": "CMK Flow Load Image node",
@@ -69,14 +44,6 @@
       ],
       "placementNote": "Place on the family-neutral path after the PostProcess Boundary and before Upscale & Save or the Visualizer."
     },
-    "CMKSwapImageLoaderPipe": {
-      "previewAlt": "CMK Flow FaceSwap Image Input with target and source image selection",
-      "description": "Loads target and source images for FaceSwap.",
-      "features": [
-        "Prepares both required images together"
-      ],
-      "placementNote": "Place directly before FaceSwap Image."
-    },
     "CMKImageFileLoader": {
       "previewAlt": "CMK Image File Loader preview",
       "description": "Provides a selected image file as a technical file reference for CMK workflows.",
@@ -84,20 +51,6 @@
         "Select an image file",
         "Output a technical file reference"
       ]
-    },
-    "CMKControlNetPreparePipe": {
-      "description": "Optionally adds image guidance for the following generation step.",
-      "features": [
-        "Uses composition or contours of an image as guidance"
-      ],
-      "placementNote": "Place between Create Image and the first KSampler. Omit it when no image guidance is needed."
-    },
-    "CMKZITControlNetPreparePipe": {
-      "description": "Optionally adds Canny image guidance for ZIT.",
-      "features": [
-        "Uses image contours as structural guidance for ZIT"
-      ],
-      "placementNote": "Place between Create Image and the ZIT KSampler. Omit it when no image guidance is needed."
     },
     "CMKPostProcessSetupPipe": {
       "previewAlt": "CMK Flow · 30 PostProcess Setup",
@@ -109,86 +62,6 @@
       ],
       "placementNote": "Use the Combined variant immediately after the final SDXL and ZIT generation stages and before Detailer, FaceRebuild, or FaceProcess. Model-free paths do not materialize the configured postprocess model."
     },
-    "CMKPostProcessBoundarySDXLPipe": {
-      "previewAlt": "CMK Flow PostProcess Boundary SDXL",
-      "description": "Ends a pure SDXL generation path and provides an independent working context for downstream PostProcess modules.",
-      "features": [
-        "Pass the generated image to PostProcess",
-        "Release the SDXL generation model",
-        "Load a separate PostProcess model only when needed"
-      ],
-      "placementNote": "Place directly after the final SDXL generation module and before Detailer, FaceRebuild, or FaceProcess."
-    },
-    "CMKPostProcessBoundaryZITPipe": {
-      "previewAlt": "CMK Flow PostProcess Boundary ZIT",
-      "description": "Ends a pure Z-Image Turbo generation path and provides an independent working context for downstream PostProcess modules.",
-      "features": [
-        "Pass the generated image to PostProcess",
-        "Release the ZIT generation model",
-        "Load a separate PostProcess model only when needed"
-      ],
-      "placementNote": "Place directly after the ZIT finalizer and before compatible Detailer, FaceRebuild, or FaceProcess."
-    },
-    "CMKInstantIDSamplerSDXLPipe": {
-      "description": "Continues the SDXL sampling started by module 10 on the same sigma schedule and applies InstantID while preserving the established composition.",
-      "features": [
-        "Select the source face inside the module",
-        "Control identity attention and InstantID ControlNet strength separately",
-        "Continue the noisy layout latent without adding new noise",
-        "Use the separate clean x0 estimate for InstantID keypoints",
-        "Inherit steps, handoff step, seed, sampler, scheduler, and denoise from module 10"
-      ],
-      "placementNote": "Place directly after 10 KSampler SDXL 1st Pass and before 20 Refiner SDXL.",
-      "dependencyNote": "Requires antelopev2, the InstantID IP-Adapter model, and the matching InstantID SDXL ControlNet model."
-    },
-    "CMKInstantIDFaceRebuildPrepare": {
-      "description": "Detects the largest target face and prepares a local head/neck ROI with separate reconstruction and final pasteback masks.",
-      "features": [
-        "Uses the existing InsightFace detector",
-        "Keeps the neck as generation context while final neck pasteback is independently switchable and off by default",
-        "Creates deterministic edge-clipped geometry",
-        "Scales the ROI to an SDXL-ready working resolution"
-      ],
-      "placementNote": "Place before the existing Inpaint Hybrid path and route the target ROI and mask through module 10 and InstantID module 15.",
-      "dependencyNote": "Requires an InsightFace analysis model; antelopev2 is recommended."
-    },
-    "CMKInstantIDFaceRebuildPasteback": {
-      "description": "Returns the rebuilt ROI to the unchanged target and verifies that no pixel outside the final mask support changed.",
-      "features": [
-        "Restores the original ROI size",
-        "Composites only inside the explicit pasteback mask",
-        "Reports the outside-mask integrity result"
-      ],
-      "placementNote": "Place after decoding the module 15 result and connect the original target, pasteback mask, and rebuild context from Prepare."
-    },
-    "CMKInstantIDFaceRebuildPreparePipe": {
-      "description": "Inserts Face Rebuild after module 01 while preserving the canonical CMK PROCESS, IMAGE, and LOG flow order.",
-      "features": [
-        "Copies and configures the SDXL process for Inpaint Hybrid",
-        "Outputs PROCESS, IMAGE, and LOG for direct module 10 wiring",
-        "Leaves Source Face exclusively to module 15's internal picker"
-      ],
-      "placementNote": "Insert after 01 START HERE and before 10 KSampler SDXL; select Source Face in the visible module 15."
-    },
-    "CMKInstantIDFaceRebuildPastebackPipe": {
-      "description": "Rejoins the rebuilt head ROI with the canonical CMK MODEL, PROCESS, IMAGE, and LOG contract.",
-      "features": [
-        "Passes MODEL and PROCESS through unchanged",
-        "Returns the verified pasteback as the canonical IMAGE",
-        "Appends the integrity result to the canonical LOG"
-      ],
-      "placementNote": "Insert after the decoded InstantID result and continue with the next CMK image module."
-    },
-    "CMKInstantIDFaceDetailerSDXL": {
-      "description": "Rebuilds a local target ROI as a regular InstantID Img2Img detailer without Fooocus Inpaint, a first pass, or a handoff bridge.",
-      "features": [
-        "Uses the VAE-encoded target ROI as the direct Img2Img latent",
-        "Uses the unchanged target ROI directly for KPS",
-        "Adds noise at an absolute sampling start step",
-        "Does not change or depend on module 15 orchestration"
-      ],
-      "placementNote": "Use between Face Rebuild Prepare and Pasteback with a CMK checkpoint MODEL and a separate Source Face."
-    },
     "CMKVisualizer": {
       "previewAlt": "CMK Flow · Visualizer as the central visual workspace for CMK Flow 2.0",
       "description": "Displays the processing stages registered in the VISUAL pipe and can optionally upscale and save the final image.",
@@ -196,17 +69,6 @@
         "Display all registered processing stages in one place and optionally upscale and save the final image"
       ],
       "placementNote": "CMK Visualizer is the mandatory final stage of every CMK Flow chain. Connect VISUAL together with the final result pipes from the preceding module."
-    },
-    "CMK_SaveProjectImage": {
-      "description": "Saves the finished image with a project name and optional date folder.",
-      "features": [
-        "Saves the result at the end of processing"
-      ],
-      "placementNote": "Place after the desired image processing as the final module.",
-      "recommendedBefore": [
-        "Upscale & Save",
-        "completed image processing"
-      ]
     },
     "CMK Flow · 02 SDXL LoRA Stack": {
       "displayName": "SDXL LoRA Stack",
@@ -423,6 +285,36 @@
         "Provide separate LoRA stacks for both generation paths"
       ],
       "placementNote": "Place in the preprocess section and connect both LoRA outputs to the corresponding inputs of module 01."
+    },
+    "CMKMultiImageLoader": {
+      "description": "Manages up to four image references centrally in a single module: one ControlNet reference and three independent identity references. The selected images can be enabled individually and passed to several modules without selecting the same file more than once.",
+      "features": [
+        "CN – ControlNet: reference image for the spatial and structural control of image generation",
+        "ID A – Identity A: first identity reference, for example for InstantID, FaceRebuild or FaceSwap",
+        "ID B – Identity B: second independent identity reference",
+        "ID C – Identity C: third independent identity reference",
+        "Enable or disable image sources individually",
+        "Switch between image sources and show their preview",
+        "Select images directly or load them through the file browser",
+        "Pass the same image reference to several modules at once",
+        "Keep disabled image sources stored without passing them to downstream modules"
+      ],
+      "info_en": "The Multi-File Loader passes file references instead of decoded image data. The images themselves are loaded only in the connected modules. Disabled image sources deliver an empty reference, so downstream modules can fall back to their own settings. Thanks to conditional cache dependencies, changing references in provably inactive processing branches does not cause unnecessary recomputation.",
+      "previewAlt": "CMK Image Multi-File Loader"
+    },
+    "CMKRegionalLayoutSDXL": {
+      "description": "Extends global SDXL conditioning with freely definable image regions and individual prompts. Regions can be created, positioned and edited directly with the mouse on the layout canvas, with no fixed limit on their number.",
+      "features": [
+        "Create any number of image regions directly with the mouse",
+        "Freely move, scale and name regions",
+        "Set individual prompts and conditioning strengths for each region",
+        "Adjust duration and further settings individually",
+        "Select background images manually or take them automatically from Inpaint or ControlNet references",
+        "Pass the regional layout to downstream modules through the PROCESS pipe"
+      ],
+      "info_en": "Spatially limited conditioning takes effect during SDXL generation. In a subsequent ZIT finish, the active regional prompt texts are applied as global conditioning, but the individual region boundaries are not.",
+      "placementNote": "Place directly after 01 START HERE and before optional ControlNet or 10 KSampler SDXL.",
+      "previewAlt": "CMK Flow 07 Regional Layout"
     }
   }
 }

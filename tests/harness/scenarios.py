@@ -1359,3 +1359,24 @@ def gate_pruning_keys(workdir: str, cases: dict, extra_model_paths: str | None =
                                       if pruning.PRUNED_META_KEY not in (pruned[n].get("_meta") or {})),
         }
     return result
+
+
+def swap_loader_packaged_references(workdir: str, extra_model_paths: str | None = None) -> dict:
+    """CMKSwapImageLoaderPipe with an empty input folder: shipped pairs name package files plainly."""
+    from pathlib import Path as _Path
+
+    runtime = boot_runtime(workdir, extra_model_paths)
+    module = runtime.cmk_module("pipe.loaders.cmk_swap_image_loader")
+    loader = module.CMKSwapImageLoaderPipe
+    pair = json.dumps({"target": "mask_detailer_reference.png", "source": "portrait_reference_00001.png"})
+    missing = json.dumps({"target": "not_in_the_package.png", "source": "portrait_reference_00001.png"})
+    input_dir = _Path(workdir) / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    fresh = {"validate": loader.VALIDATE_INPUTS(**{"IMAGE PAIR": pair}),
+             "changed": loader.IS_CHANGED(**{"IMAGE PAIR": pair}),
+             "resolved": _Path(module._resolve_image_path("portrait_reference_00001.png")).name,
+             "missing": loader.VALIDATE_INPUTS(**{"IMAGE PAIR": missing})}
+    (input_dir / "portrait_reference_00001.png").write_bytes((_Path(__file__).resolve().parents[2] / "assets" / "references" / "black.png").read_bytes())
+    own = _Path(module._resolve_image_path("portrait_reference_00001.png")).resolve()
+    fresh["user_file_wins"] = own == (input_dir / "portrait_reference_00001.png").resolve()
+    return fresh

@@ -177,17 +177,17 @@ class CurrentPackageContractTests(unittest.TestCase):
     def test_current_showcase_reference_counts(self):
         browser = statistics.flow_browser_statistics(PACKAGE_ROOT)
         showcase = statistics.showcase_statistics(PACKAGE_ROOT)
-        self.assertEqual((browser["total"], browser["visible"], browser["hidden"]), (37, 35, 2))
+        self.assertEqual((browser["total"], browser["visible"], browser["hidden"]), (65, 31, 34))
         self.assertEqual(browser["categories"], {
-            "REAL-WORLD WORKFLOWS": 4,
-            "TASK WORKFLOWS": 19,
-            "MODULE WORKFLOWS": 10,
-            "SYSTEM WORKFLOW": 1,
+            "REAL-WORLD WORKFLOWS": 8,
+            "TASK WORKFLOWS": 32,
+            "MODULE WORKFLOWS": 20,
+            "SYSTEM WORKFLOW": 2,
             "COMPARISONS": 2,
             "LEGACY": 1,
         })
         self.assertEqual(showcase, {
-            "galleries": 35, "screenshots": 95, "bytes": 52_655_910,
+            "galleries": 31, "screenshots": 50, "bytes": 27_086_638,
         })
         self.assertFalse((
             PACKAGE_ROOT / "workflows" / "showcase" /

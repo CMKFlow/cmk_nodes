@@ -52,11 +52,16 @@ class EmbeddedDefinitionClassification(unittest.TestCase):
     def test_shipped_workflows_have_no_known_definition_defects(self):
         self.assertEqual(self._keys(KNOWN_DEFECT), [])
 
-    def test_shipped_workflows_have_no_legacy_definitions(self):
-        self.assertEqual(self._keys(LEGACY_KNOWN), [])
+    def test_legacy_definitions_are_the_registered_ones(self):
+        # 05 ControlNet gained opt_image_file after these workflows were saved;
+        # Identity Processing Matrix carries a workflow-local helper subgraph.
+        registered = sorted({(entry["workflow"], entry["definition"]) for entry in _registry("legacy_registry.json")["entries"]})
+        self.assertEqual(self._keys(LEGACY_KNOWN), registered)
+        self.assertEqual(sorted({definition for _, definition in registered}),
+                         ["CMK Flow · 05 ControlNet", "GENERATION"])
 
-    def test_shipped_workflows_use_only_canonical_definitions(self):
-        self.assertEqual(sorted({row["class"] for row in self.rows}), [IDENTICAL])
+    def test_shipped_workflows_use_only_canonical_or_registered_definitions(self):
+        self.assertEqual(sorted({row["class"] for row in self.rows}), sorted({IDENTICAL, LEGACY_KNOWN}))
 
     def test_registry_entries_still_present(self):
         present = {(row["workflow"], row["definition"], row["signature"]) for row in self.rows}

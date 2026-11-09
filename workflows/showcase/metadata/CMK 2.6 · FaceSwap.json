@@ -1,5 +1,5 @@
 {
-  "published": true,
+  "published": false,
   "displayName": "CMK 2.6 · FaceSwap",
   "kind": "module",
   "order": 305,
@@ -9,11 +9,5 @@
   "description_en": "Shows FaceSwap as a discrete standalone process, making it easy to follow the transfer of a reference face onto a selected target face through to the final result.\n\nThe preview render shows each processing step and the changes leading to the final result.",
   "cmkHighlight": "",
   "cmkHighlight_en": "",
-  "previews": [
-    {
-      "src": "assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceSwap/CMK 2.5 · FaceSwap.webp",
-      "label": "Vorschau",
-      "label_en": "Vorschau"
-    }
-  ]
+  "previews": []
 }

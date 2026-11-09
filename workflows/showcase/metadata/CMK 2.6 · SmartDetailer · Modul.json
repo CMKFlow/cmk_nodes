@@ -1,5 +1,5 @@
 {
-  "published": true,
+  "published": false,
   "displayName": "CMK 2.6 · SmartDetailer · Modul",
   "kind": "module",
   "order": 310,
@@ -9,16 +9,5 @@
   "description_en": "Shows the same SmartDetailer sequence as a complete CMK module in a standalone workflow, making both the module view and its internal structure easy to understand.",
   "cmkHighlight": "Der diskrete Erkennungs- und Detailer-Prozess wird als wiederverwendbares Modul mit einheitlicher Schnittstelle gekapselt.",
   "cmkHighlight_en": "The discrete detection and detailing process is encapsulated in a reusable module with a consistent interface.",
-  "previews": [
-    {
-      "src": "assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · SmartDetailer · Modul/CMK 2.5 · SmartDetailer · Modul.webp",
-      "label": "Modul",
-      "label_en": "Modul"
-    },
-    {
-      "src": "assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · SmartDetailer · Modul/CMK 2.5 · SmartDetailer · Modul - Aufbau.webp",
-      "label": "Aufbau",
-      "label_en": "Aufbau"
-    }
-  ]
+  "previews": []
 }

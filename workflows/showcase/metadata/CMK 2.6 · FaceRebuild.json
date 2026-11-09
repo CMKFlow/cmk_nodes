@@ -1,5 +1,5 @@
 {
-  "published": true,
+  "published": false,
   "displayName": "CMK 2.6 · FaceRebuild",
   "kind": "module",
   "order": 303,
@@ -9,11 +9,5 @@
   "description_en": "Shows FaceRebuild as a discrete standalone process, making it easy to follow the reconstruction of a selected target face through to the final pasteback.\n\nThe preview render shows each processing step and the changes leading to the final result.",
   "cmkHighlight": "",
   "cmkHighlight_en": "",
-  "previews": [
-    {
-      "src": "assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · FaceRebuild/CMK 2.5 · FaceRebuild.webp",
-      "label": "Vorschau",
-      "label_en": "Vorschau"
-    }
-  ]
+  "previews": []
 }

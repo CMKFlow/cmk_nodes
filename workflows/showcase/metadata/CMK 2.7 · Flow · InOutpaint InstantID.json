@@ -1,0 +1,19 @@
+{
+  "published": true,
+  "displayName": "CMK 2.7 · Flow · InOutpaint InstantID",
+  "kind": "task",
+  "order": 212,
+  "category": "TASK WORKFLOWS",
+  "category_en": "TASK WORKFLOWS",
+  "description": "Führt ein SDXL-Inpaint mit InstantID-Unterstützung aus – von der Vorbereitung über den 1st-Pass und die Identity-Stufe bis zum abschließenden 2nd-Pass.",
+  "description_en": "Runs an SDXL inpainting workflow with InstantID support—from preparation through the 1st pass and identity stage to the final 2nd pass.",
+  "cmkHighlight": "InstantID wird in den laufenden SDXL-Prozess eingebunden und übernimmt die Identitätsführung zwischen 1st-Pass und 2nd-Pass.",
+  "cmkHighlight_en": "InstantID is integrated into the active SDXL process and provides identity guidance between the 1st and 2nd passes.",
+  "previews": [
+    {
+      "src": "assets/showcase/TASK WORKFLOWS/12 - CMK 2.7 · Flow · InOutpaint InstantID/CMK 2.7 · Flow · InOutpaint InstantID.webp",
+      "label": "Workflow",
+      "label_en": "Workflow"
+    }
+  ]
+}

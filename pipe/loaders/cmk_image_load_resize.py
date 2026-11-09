@@ -27,6 +27,12 @@ CMK_PACKAGED_REFERENCES = {
     f"CMK Package · {filename}": filename
     for filename in (
         "clipspace-mask-1792499379891.png",
+        "clipspace-mask-1792011765214.png",
+        "clipspace-painted-masked-1793926244053.png",
+        "clipspace-painted-masked-1794035317507.png",
+        "face_00003.png",
+        "face_identity_referenceII.png",
+        "portrait_reference_00001.png",
         "face_reference.png",
         "controlnet_reference.png",
         "detailer_reference.png",

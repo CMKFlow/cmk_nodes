@@ -9,7 +9,7 @@ const EXTENSION_DIRECTORY = decodeURIComponent(
 );
 const NODE_PACK = `custom_nodes.${EXTENSION_DIRECTORY}`;
 const ALLOWED_STATUS = new Set(["STABLE", "BETA", "EXPERIMENTAL"]);
-const PREVIEW_CACHE_VERSION = "20261018-cmk265-previews-r7";
+const PREVIEW_CACHE_VERSION = "20261018-cmk270-previews-r1";
 const MEMORY_DISPLAY_KEY = "cmk-flow-memory-display";
 const MEMORY_POLL_MS = 2000;
 
@@ -214,6 +214,7 @@ function addStyles() {
     .cmk-flow-section-title { margin: 0 0 9px; color: #52d3cf; font-size: 13px; font-weight: 700; }
     .cmk-flow-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
     .cmk-flow-card { min-width: 0; padding: 15px 16px; border: 1px solid #303a42; border-radius: 11px; background: rgba(25,32,38,.8); }
+    .cmk-showcase-description { white-space: pre-line; }
     .cmk-flow-card ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; color: #c4ccd0; }
     .cmk-flow-card li { display: grid; grid-template-columns: 14px 1fr; gap: 7px; }
     .cmk-flow-card li::before { content: ""; width: 7px; height: 7px; margin-top: 7px; border: 2px solid #43c8c5; border-radius: 50%; }
@@ -365,20 +366,19 @@ function catalogOrder(metadata, fallback) {
 }
 
 function discoverCuratedNodes(nodeRegistry, nodeMetadata, englishContent) {
-  const packagedControlNetImplementations = new Set([
-    "CMKControlNetPreparePipe",
-    "CMKZITControlNetPreparePipe",
-    "CMKCombinedControlNetPreparePipe",
-  ]);
-  return Object.entries(nodeRegistry)
-    .filter(([nodeType, nodeDef]) => (
-      (
-        String(nodeDef?.category || "").startsWith("CMK/Flow/")
-        || nodeType === "CMKVisualizer"
-        || nodeMetadata[nodeType]?.flowPublished === true
-      )
-      && !packagedControlNetImplementations.has(nodeType)
-    ))
+  // The catalog is closed: only nodes published in flow_node_metadata.json appear.
+  // Frontend-only nodes have no /object_info entry; the metadata describes them.
+  const frontendOnly = Object.entries(nodeMetadata)
+    .filter(([nodeType, metadata]) => metadata?.frontendOnly && LiteGraph.registered_node_types?.[nodeType])
+    .map(([nodeType, metadata]) => [nodeType, {
+      name: nodeType,
+      display_name: metadata.frontendOnly.displayName,
+      category: `CMK/Flow/${metadata.category || "Input"}`,
+      input: {},
+      output_name: metadata.frontendOnly.outputs || [],
+    }]);
+  return [...Object.entries(nodeRegistry), ...frontendOnly]
+    .filter(([nodeType]) => nodeMetadata[nodeType]?.flowPublished === true)
     .map(([nodeType, nodeDef]) => {
       const metadata = { ...(nodeMetadata[nodeType] || {}), ...(language === "en" ? englishContent.flows?.[nodeType] : {}) };
       const displayName = nodeDef.display_name || nodeDef.name || nodeType;

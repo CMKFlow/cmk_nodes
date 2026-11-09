@@ -42,6 +42,10 @@ MIGRATED_2_7 = {"CMK 2.6 · FaceProcess · Modul.json", "CMK 2.6 · FaceRebuild 
                 "CMK 2.6 · SmartDetailer · Modul.json"}
 
 
+# Replaced by its CMK 2.7 Flow Browser version (other checkpoint selected there).
+REPLACED_BY_2_7 = {"FaceSwap vs FaceRebuild.json"}
+
+
 def _named_links(doc):
     nodes = {node["id"]: node for node in doc["nodes"]}
     return sorted(
@@ -64,6 +68,8 @@ class LegacyWorkflowsFrozen(unittest.TestCase):
 
     def test_shipped_workflows_only_swap_the_model_source(self):
         for name in LEGACY["sha256"]:
+            if name in REPLACED_BY_2_7:
+                continue
             with self.subTest(workflow=name):
                 legacy = json.loads((LEGACY_DIR / name).read_text(encoding="utf-8"))
                 shipped = json.loads((PACKAGE / "workflows" / "showcase" / name).read_text(encoding="utf-8"))

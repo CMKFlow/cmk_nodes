@@ -1,5 +1,5 @@
 {
-  "published": true,
+  "published": false,
   "displayName": "CMK 2.6 · Flow · Text2Image – Regional Conditioning HYBRID",
   "kind": "task",
   "order": 210,
@@ -9,11 +9,5 @@
   "description_en": "Places multiple prompt elements precisely within defined image regions, then carries the resulting SDXL image through the ZIT finish of the HYBRID process.",
   "cmkHighlight": "Regional Conditioning wirkt im SDXL-Teil des HYBRID-Pfads; Z-Image Turbo übernimmt anschließend das erzeugte Bild und führt den finalen Finish aus.",
   "cmkHighlight_en": "Regional Conditioning operates within the SDXL stage of the HYBRID path; Z-Image Turbo then takes over the generated image and applies the final finishing pass.",
-  "previews": [
-    {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image - Regional Conditioning HYBRID/CMK 2.6 · Flow · Text2Image - Regional Conditioning HYBRID.webp",
-      "label": "Workflow",
-      "label_en": "Workflow"
-    }
-  ]
+  "previews": []
 }
