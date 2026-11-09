@@ -29,6 +29,9 @@ from ...utils.cmk_diagnostic import make_diagnostic_payload
 from .cmk_image_load_resize import CROP_POSITIONS, calculate_crop_box
 
 
+_REFERENCE_ASSETS = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "..", "assets", "references"
+)
 _IMAGE_PAIR_DEFAULT = json.dumps(
     {"target": "", "source": ""},
     ensure_ascii=False,
@@ -63,11 +66,23 @@ def _parse_image_pair(value: Any) -> tuple[str, str]:
     return target, source
 
 
+def _packaged_reference_path(image_name: str) -> str | None:
+    """A reference image shipped with CMK Flow; shipped workflows name them plainly."""
+    name = str(image_name or "")
+    if not name or os.path.basename(name) != name:
+        return None
+    path = os.path.join(_REFERENCE_ASSETS, name)
+    return path if os.path.isfile(path) else None
+
+
 def _resolve_image_path(image_name: str) -> str:
     try:
-        return folder_paths.get_annotated_filepath(image_name)
+        path = folder_paths.get_annotated_filepath(image_name)
     except Exception:
-        return os.path.join(folder_paths.get_input_directory(), image_name)
+        path = os.path.join(folder_paths.get_input_directory(), image_name)
+    if os.path.isfile(path):
+        return path
+    return _packaged_reference_path(image_name) or path
 
 
 def _probe_image(image_path: str) -> tuple[int, int, str]:
@@ -434,6 +449,8 @@ class CMKSwapImageLoaderPipe:
             return str(exc)
 
         for label, image_name in (("TARGET IMAGE", target_name), ("SOURCE IMAGE", source_name)):
+            if _packaged_reference_path(image_name) is not None:
+                continue
             try:
                 if not folder_paths.exists_annotated_filepath(image_name):
                     return f"Invalid {label.lower()} file: {image_name}"

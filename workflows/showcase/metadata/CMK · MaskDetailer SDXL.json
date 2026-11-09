@@ -1,0 +1,19 @@
+{
+  "published": true,
+  "displayName": "CMK · MaskDetailer SDXL",
+  "kind": "module",
+  "order": 309,
+  "category": "MODULE WORKFLOWS",
+  "category_en": "MODULE WORKFLOWS",
+  "description": "Zeigt einen diskreten Stand-alone-Detailer, bei dem der zu bearbeitende Bildbereich manuell per Maske festgelegt wird.",
+  "description_en": "Shows a discrete standalone detailer in which the image area to be processed is defined manually with a mask.",
+  "cmkHighlight": "",
+  "cmkHighlight_en": "",
+  "previews": [
+    {
+      "src": "assets/showcase/MODULE WORKFLOWS/09 - CMK · MaskDetailer SDXL/CMK · MaskDetailer SDXL.webp",
+      "label": "Workflow",
+      "label_en": "Workflow"
+    }
+  ]
+}

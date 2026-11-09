@@ -1,5 +1,5 @@
 {
-  "published": true,
+  "published": false,
   "displayName": "CMK 2.6 · Flow · Text2Image ControlNet Z-Image Turbo",
   "kind": "task",
   "order": 206,
@@ -11,16 +11,5 @@
   "cmkHighlight_en": "",
   "info": "Die Dimension des ControlNet-Referenzbildes bestimmt die Ausgabeauflösung und kann damit die in `01 START HERE` gewählte Bildgröße überschreiben.",
   "info_en": "The dimensions of the ControlNet reference image determine the output resolution and can therefore override the image size selected in `01 START HERE`.",
-  "previews": [
-    {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image ControlNet Z-Image Turbo/CMK 2.6 · Flow · Text2Image ControlNet Z-Image Turbo - ControlNet.webp",
-      "label": "ControlNet",
-      "label_en": "ControlNet"
-    },
-    {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image ControlNet Z-Image Turbo/CMK 2.6 · Flow · Text2Image ControlNet Z-Image Turbo - ZIT.webp",
-      "label": "ZIT",
-      "label_en": "ZIT"
-    }
-  ]
+  "previews": []
 }

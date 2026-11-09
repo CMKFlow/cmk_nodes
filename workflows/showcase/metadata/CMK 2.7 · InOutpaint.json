@@ -1,0 +1,19 @@
+{
+  "published": true,
+  "displayName": "CMK 2.7 · InOutpaint",
+  "kind": "real-world",
+  "order": 102,
+  "category": "REAL-WORLD WORKFLOWS",
+  "category_en": "REAL-WORLD WORKFLOWS",
+  "description": "Vier unterschiedliche Bildbearbeitungsaufgaben, aber nur ein gemeinsamer Generierungsdurchlauf.\n\nIm Ergebnis lassen sich die einzelnen Eingriffe gut erkennen:\n\n• Replace: Die ursprüngliche Frau im roten Mantel wird durch eine andere Person ersetzt, einschließlich Kleidung und Erscheinungsbild.\n• Remove: Das schwarz umrandete Windrad rechts hinter der Frau verschwindet.\n• Expand: Die Landschaft wird seitlich erheblich erweitert und zu einer durchgehenden Szene ergänzt.\n• Regional Layout: Die Mälzerei rechts wird gezielt in der Komposition platziert, ohne dass der globale Prompt die Szene steuern muss.",
+  "description_en": "Four different image-editing tasks, but only one shared generation pass.\n\nThe individual edits are clearly visible in the result:\n\n• Replace: The original woman in the red coat is replaced by a different person, including clothing and appearance.\n• Remove: The black-outlined wind turbine to the right behind the woman disappears.\n• Expand: The landscape is extended considerably to the sides and completed into one continuous scene.\n• Regional Layout: The malt house on the right is placed deliberately in the composition without the global prompt having to steer the scene.",
+  "cmkHighlight": "Die Bearbeitung verändert nicht nur einzelne Objekte, sondern baut aus einem relativ engen Porträt eine wesentlich weitläufigere Landschaftskomposition auf. Trotzdem bleiben die Windmühle links und der grundsätzliche Landschaftscharakter erhalten.",
+  "cmkHighlight_en": "The edit does more than change individual objects: it turns a relatively tight portrait into a far more expansive landscape composition, while the windmill on the left and the basic character of the landscape remain intact.",
+  "previews": [
+    {
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/2 - CMK 2.7 · InOutpaint/CMK 2.7 · InOutpaint.webp",
+      "label": "Workflow",
+      "label_en": "Workflow"
+    }
+  ]
+}

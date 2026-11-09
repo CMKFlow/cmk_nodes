@@ -37,12 +37,12 @@ EXPECTED = {
             ("CMKLoadImage", (50, 1230)): ((240, 318), 1),
             ("CMKLoadImage", (50, 1630)): ((240, 318), 2),
             ("CMKInstantIDFaceRebuildAdvancedSDXL", (300, 830)): ((450, 1165), 3),
-            ("CMKFaceRebuildBoundaryCache", (1165, 2040)): ((230, 90), 4),
-            ("CMKResultProcessForwardPipe", (1395, 2040)): ((280, 30), 5),
+            ("CMKFaceRebuildBoundaryCache", (1090, 2055)): ((230, 130), 4),
+            ("CMKResultProcessForwardPipe", (1320, 2055)): ((280, 30), 5),
             ("CMKVisualCompare", (760, 830)): ((1105, 1165), 6),
-            ("CMKModuleBypassGate", (935, 2040)): ((230, 235), 7),
+            ("CMKModuleBypassGate", (860, 2055)): ((230, 235), 7),
             # OD-2: the public MODEL output is forwarded from SG_IN.MODEL.
-            ("CMKModelForwardPipe", (1395, 2090)): ((235, 30), 0),
+            ("CMKModelForwardPipe", (1560, 2055)): ((235, 30), 8),
         },
     },
     "CMK Flow · FaceSwap · Advanced.json": {

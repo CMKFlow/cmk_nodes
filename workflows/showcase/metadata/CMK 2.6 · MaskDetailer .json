@@ -1,5 +1,5 @@
 {
-  "published": true,
+  "published": false,
   "displayName": "CMK 2.6 · MaskDetailer ",
   "kind": "module",
   "order": 307,
@@ -9,11 +9,5 @@
   "description_en": "Shows a discrete standalone detailer in which the image area to be processed is defined manually with a mask.",
   "cmkHighlight": "",
   "cmkHighlight_en": "",
-  "previews": [
-    {
-      "src": "assets/showcase/REFERENCES/MODULE WORKFLOWS/CMK 2.5 · MaskDetailer /CMK 2.5 · MaskDetailer.webp",
-      "label": "Vorschau",
-      "label_en": "Vorschau"
-    }
-  ]
+  "previews": []
 }

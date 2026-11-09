@@ -416,7 +416,7 @@
         {
           "name": "CMK Flow · 05 ControlNet",
           "signature": "13e403fa0ece8a24e793e8c2f27b64745e62ea4df74e8e6cd637eb117676f793",
-          "canonical_at_export": true
+          "canonical_at_export": false
         },
         {
           "name": "CMK Flow · 15A InstantID Regional SDXL",

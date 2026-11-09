@@ -1,5 +1,5 @@
 {
-  "published": true,
+  "published": false,
   "displayName": "CMK 2.6 · Flow · Text2Image SDXL · HYBRID · ZIT",
   "kind": "task",
   "order": 204,
@@ -9,21 +9,5 @@
   "description_en": "Compares the same Text2Image workflow across SDXL, HYBRID, and Z-Image Turbo, making the differences between the three generation paths immediately visible.",
   "cmkHighlight": "",
   "cmkHighlight_en": "",
-  "previews": [
-    {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image SDXL · HYBRID · ZIT/CMK 2.6 · Flow · Text2Image SDXL · HYBRID · ZIT - SDXL.webp",
-      "label": "SDXL",
-      "label_en": "SDXL"
-    },
-    {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image SDXL · HYBRID · ZIT/CMK 2.6 · Flow · Text2Image SDXL · HYBRID · ZIT - HYBRID.webp",
-      "label": "HYBRID",
-      "label_en": "HYBRID"
-    },
-    {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image SDXL · HYBRID · ZIT/CMK 2.6 · Flow · Text2Image SDXL · HYBRID · ZIT - ZIT.webp",
-      "label": "ZIT",
-      "label_en": "ZIT"
-    }
-  ]
+  "previews": []
 }

@@ -92,7 +92,7 @@ assert.deepEqual(
     metadata.nodes.CMKPipeCreateImage.nodeProperties,
     { cmkStartUiVersion: 2 },
 );
-assert.equal(metadata.nodes.CMKPipeCreateImage.displayName, "01 START HERE v2 · Create Image");
+assert.equal(metadata.nodes.CMKPipeCreateImage.displayName, "01 START HERE · Create Image");
 assert.match(dimensions, /"CMKPipeCreateImage:v2": \[600, 1225\]/);
 assert.match(dimensions, /"CMKPipeCreateImage:v2": \[450, 700\]/);
 

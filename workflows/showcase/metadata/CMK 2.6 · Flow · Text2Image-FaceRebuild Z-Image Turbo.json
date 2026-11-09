@@ -1,5 +1,5 @@
 {
-  "published": true,
+  "published": false,
   "displayName": "CMK 2.6 · Flow · Text2Image-FaceRebuild Z-Image Turbo",
   "kind": "task",
   "order": 217,
@@ -9,21 +9,5 @@
   "description_en": "Generates a Text2Image result entirely with Z-Image Turbo and then reconstructs the face with FaceRebuild.",
   "cmkHighlight": "Nach der ZIT-Generierung wechselt der Workflow für FaceRebuild in einen separaten PostProcess-Kontext; die Gesichtsrekonstruktion ist damit unabhängig vom verwendeten Generationsmodell.",
   "cmkHighlight_en": "After ZIT generation, the workflow switches to a separate PostProcess context for FaceRebuild, making facial reconstruction independent of the generation model used.",
-  "previews": [
-    {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image-FaceRebuild Z-Image Turbo/CMK 2.6 · Flow · Text2Image-FaceRebuild Z-Image Turbo - Sampling.webp",
-      "label": "Sampling",
-      "label_en": "Sampling"
-    },
-    {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image-FaceRebuild Z-Image Turbo/CMK 2.6 · Flow · Text2Image-FaceRebuild Z-Image Turbo - FaceRebuild.webp",
-      "label": "FaceRebuild",
-      "label_en": "FaceRebuild"
-    },
-    {
-      "src": "assets/showcase/REFERENCES/TASK WORKFLOWS/CMK 2.6 · Flow · Text2Image-InstantID/portrait_reference_00003.png",
-      "label": "Source",
-      "label_en": "Source"
-    }
-  ]
+  "previews": []
 }
