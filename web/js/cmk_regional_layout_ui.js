@@ -7,7 +7,7 @@ import {
   packagedReferenceAssetPath, processDimensionsFromWidgets, redoHistory,
   regionalCanvasGeometry, resizeBox, serializeLayout, undoHistory,
   resolveAutomaticPreviewSource, upstreamStartNode,
-} from "./cmk_regional_layout_core.js?cmk-regional-layout-v5";
+} from "./cmk_regional_layout_core.js?cmk-regional-layout-v6";
 
 const NODE_CLASS = "CMKRegionalLayoutSDXL";
 const DISPLAY_NAME = "CMK Flow · 07 Regional Layout";
@@ -229,6 +229,8 @@ function editor(node) {
     save(); render();
   }
 
+  let drawingSize = null;
+
   function resizeCanvas() {
     const geometry = regionalCanvasGeometry(root.clientWidth, layout().width, layout().height);
     // ComfyUI unmounts DOM widgets while another graph/subgraph is active.
@@ -239,20 +241,22 @@ function editor(node) {
     stage.style.marginInline = "auto";
     const rect = stage.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return false;
+    // The bitmap follows the on-screen size (graph zoom × device pixels) for
+    // sharpness; drawing uses the node's own layout units, so labels, lines
+    // and regions keep their proportions at every zoom level.
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.max(1, Math.round(rect.width * dpr));
     canvas.height = Math.max(1, Math.round(rect.height * dpr));
+    drawingSize = { width: geometry.width, height: geometry.height };
     renderCanvas();
     return true;
   }
 
   function renderCanvas() {
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const dpr = window.devicePixelRatio || 1;
-    const width = canvas.width / dpr;
-    const height = canvas.height / dpr;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (!ctx || !drawingSize) return;
+    const { width, height } = drawingSize;
+    ctx.setTransform(canvas.width / width, 0, 0, canvas.height / height, 0, 0);
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = "#111416"; ctx.fillRect(0, 0, width, height);
     const sourceMode = normalizeBackgroundSource(node.properties.cmkRegionalBackgroundSource);

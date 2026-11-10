@@ -59,7 +59,16 @@ test("frontend registration uses 07 name and enforces the pure-ZIT edit lock", (
   assert.match(source, /if \(editingLocked\) return;/);
   assert.match(source, /new ResizeObserver\(resizeCanvas\)\.observe\(root\)/);
   assert.match(source, /_cmkRegionalLayoutSyncCanvas\?\.\(\)/);
-  assert.match(loader, /cmk-regional-layout-v5/);
+  assert.match(loader, /cmk-regional-layout-v6/);
+});
+
+test("region labels are drawn in layout units, not in zoomed screen pixels", () => {
+  const source = readFileSync(new URL("../web/js/cmk_regional_layout_ui.js", import.meta.url), "utf8");
+  // The bitmap may follow the zoomed on-screen size; the drawing transform maps
+  // layout units onto it, so fixed label sizes scale with the node.
+  assert.match(source, /drawingSize = \{ width: geometry\.width, height: geometry\.height \}/);
+  assert.match(source, /ctx\.setTransform\(canvas\.width \/ width, 0, 0, canvas\.height \/ height, 0, 0\)/);
+  assert.doesNotMatch(source, /const width = canvas\.width \/ dpr/);
 });
 
 test("canvas lifecycle ignores hidden graph width and restores without an editor action", () => {
