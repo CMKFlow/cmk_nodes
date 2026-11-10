@@ -252,7 +252,7 @@
         "Run experimental masked inpainting"
       ],
       "info": "Z-Image Turbo inpainting is still under development.",
-      "placementNote": "Place after 01 or the optional ZIT ControlNet. Continue through PostProcess Boundary ZIT or Combined before entering the common postprocess path.",
+      "placementNote": "Place after 01 or the optional ZIT ControlNet. Continue through 30 PostProcess Setup before entering the common postprocess path.",
       "recommendedAfter": [
         "PostProcess Boundary ZIT",
         "PostProcess Boundary Combined"
@@ -266,7 +266,7 @@
         "Inherit the prompt and sampling settings from the first pass",
         "Allow fine-tuning independently of LoRA inheritance"
       ],
-      "placementNote": "Place directly after 10 KSampler SDXL 1st Pass. Continue through PostProcess Boundary SDXL or Combined before entering the common postprocess path.",
+      "placementNote": "Place directly after 10 KSampler SDXL 1st Pass. Continue through 30 PostProcess Setup before entering the common postprocess path.",
       "recommendedBefore": [
         "10 KSampler SDXL 1st Pass"
       ],

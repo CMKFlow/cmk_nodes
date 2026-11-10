@@ -69,6 +69,28 @@ class FlowCatalog(unittest.TestCase):
             self.assertTrue((WEB / source).is_file(), source)
 
 
+class CatalogReferences(unittest.TestCase):
+    def test_every_recommendation_targets_a_published_entry(self):
+        nodes = metadata()
+        subgraphs = {}
+        for path in (PACKAGE / "subgraphs").glob("*.json"):
+            data = json.loads(path.read_text(encoding="utf-8"))
+            subgraphs[data["nodes"][0]["type"]] = data["extra"]["CMKFlow"]
+        targets = set(nodes) | set(subgraphs)
+        for entry in [*nodes.values(), *subgraphs.values()]:
+            for key in ("recommendedBefore", "recommendedAfter"):
+                for item in entry.get(key, []):
+                    self.assertIn(item["targetId"], targets, item["label"])
+
+    def test_retired_entry_names_are_gone_from_the_texts(self):
+        retired = re.compile(r"Active Family Result|PostProcess Boundary (ZIT|SDXL) or Combined")
+        english = json.loads((WEB / "browser_content_en.json").read_text(encoding="utf-8"))["flows"]
+        sources = [json.dumps(english, ensure_ascii=False), json.dumps(metadata(), ensure_ascii=False)]
+        sources += [path.read_text(encoding="utf-8") for path in (PACKAGE / "subgraphs").glob("*.json")]
+        for text in sources:
+            self.assertIsNone(retired.search(text))
+
+
 class ShowcaseRegistry(unittest.TestCase):
     def test_categories_and_counts_in_order(self):
         rows = published_showcase()

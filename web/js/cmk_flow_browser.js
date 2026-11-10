@@ -9,7 +9,7 @@ const EXTENSION_DIRECTORY = decodeURIComponent(
 );
 const NODE_PACK = `custom_nodes.${EXTENSION_DIRECTORY}`;
 const ALLOWED_STATUS = new Set(["STABLE", "BETA", "EXPERIMENTAL"]);
-const PREVIEW_CACHE_VERSION = "20261018-cmk270-previews-r1";
+const PREVIEW_CACHE_VERSION = "20261018-cmk270-previews-r2";
 const MEMORY_DISPLAY_KEY = "cmk-flow-memory-display";
 const MEMORY_POLL_MS = 2000;
 
