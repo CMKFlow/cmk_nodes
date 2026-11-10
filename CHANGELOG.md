@@ -1,3 +1,40 @@
+# CMK Flow 2.7.0 — 2026-11-10
+
+Paketversion: **CMK 2.7.0**.
+
+- Neuer Baustein `CMK Image Multi-File Loader`: verwaltet eine
+  ControlNet- und drei Identitätsreferenzen zentral und gibt sie als
+  Dateireferenzen an die angeschlossenen Module weiter.
+- Inaktive Modulzweige (deaktivierte Module, InstantID aus, STOP AFTER
+  HANDOFF) invalidieren nachgelagerte Cache-Schlüssel nicht mehr durch
+  ungenutzte Eingänge; aktive Zweige werden unverändert neu berechnet.
+- START HERE: konfigurierbarer InstantID-Handoff bei 20–80 % des
+  Sampling-Verlaufs, STOP AFTER HANDOFF auch für SDXL → InstantID Inpaint;
+  gespeicherte Widgetwerte werden in BASELINE und RELEASE korrekt zugeordnet.
+- SDXL → ZIT übernimmt die aktiven regionalen Prompttexte; die Regionstitel
+  im 07 Regional Layout skalieren beim Zoomen mit dem Node.
+- Stabilisierte Boundary-, Lazy-Loading- und Passthrough-Verträge für
+  Detailer, FaceProcess, FaceRebuild, FaceSwap und Upscale & Save;
+  ContentGuard-Schalter erreicht den ausführenden Node.
+- Flow Browser mit abgeschlossenem Katalog (17 Einträge), neuen Previews und
+  Showcase 2.7 (REAL-WORLD, TASK, MODULE, SYSTEM, COMPARISONS, LEGACY);
+  zusätzliche Referenzbilder werden aus dem Paket aufgelöst.
+
+# CMK Flow 2.6.2 — 2026-10-28
+
+Paketversion: **CMK 2.6.2**.
+
+- Korrigiert ausschließlich den ContentGuard-UI-Vertrag auf Basis von 2.6.1.
+- Entfernt nicht autorisierte ContentGuard-Eingänge aus InstantID Sampler,
+  InstantID Regional Advanced, FaceRebuild Standard/Advanced und FaceSwap Image.
+- Entfernt die Frontend-Router, die diese funktionalen Eingänge zur Laufzeit
+  injiziert haben.
+- Blendet auch die drei autorisierten Baseline-Schalter im RELEASE-Schema
+  vollständig aus und erzwingt ContentGuard weiterhin serverseitig.
+- Bereinigt gespeicherte Guard-Widgetwerte aus den mitgelieferten Workflows und
+  erhält die Ladeverträglichkeit älterer 2.6.1-Workflows.
+- Härtet den Release-Artefakt-Validator gegen RELEASE-Modus- und Markerfehler.
+
 # CMK Flow 2.6.1 — 2026-10-23
 
 Paketversion: **CMK 2.6.1**.

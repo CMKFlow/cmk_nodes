@@ -6,9 +6,9 @@
 
 Modulares Custom-Node-Paket für ComfyUI.
 
-**Entwicklungsstand: CMK 2.6.1 · CMK Flow Baseline**
+**Entwicklungsstand: CMK 2.7.0 · CMK Flow Baseline**
 
-**Aktueller öffentlicher Release: CMK 2.6.1**
+**Aktueller öffentlicher Release: CMK 2.7.0**
 
 **Deutsch** · [English](README.en.md)
 
@@ -255,6 +255,23 @@ python3 custom_nodes/cmk_nodes/scripts/install_cmk_requirements.py
 
 Ein manueller Git-Clone führt niemals automatisch `pip` aus. Deshalb gehört der
 zweite Befehl verbindlich zur Installation und zu jedem Update.
+
+### Kompatibilität und validierte Umgebung
+
+<!-- cmk-reference-environment:start -->
+| Komponente | Referenzwert |
+| --- | --- |
+| CMK Flow | `2.7.0` |
+| ComfyUI | `0.42.5` |
+| Python | `3.13.12` |
+| PyTorch | `2.12.1` |
+| Compute-Backend | `Apple MPS` |
+
+Diese Werte beschreiben die aktuelle validierte Referenzumgebung. Sie sind weder
+pauschale Mindestanforderungen noch eine vollständige Kompatibilitätsgarantie
+und implizieren keine vollständige Prüfung sämtlicher Workflows, Erweiterungen
+oder Hardwareplattformen.
+<!-- cmk-reference-environment:end -->
 
 ### Erforderliche ComfyUI-Oberfläche
 

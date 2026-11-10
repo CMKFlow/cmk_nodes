@@ -6,9 +6,9 @@
 
 Modular custom-node package for ComfyUI.
 
-**Development baseline: CMK 2.6.1 · CMK Flow Baseline**
+**Development baseline: CMK 2.7.0 · CMK Flow Baseline**
 
-**Current public release: CMK 2.6.1**
+**Current public release: CMK 2.7.0**
 
 [Deutsch](README.md) · **English**
 
@@ -236,6 +236,23 @@ a required part of every installation and update.
 Do not leave historical individual files beside the current package. The JSON
 files in `subgraphs/` remain part of the node pack; additional copies under
 `user/default/subgraphs/` create duplicate blueprint entries.
+
+## Compatibility and Validated Environment
+
+<!-- cmk-reference-environment:start -->
+| Component | Reference value |
+| --- | --- |
+| CMK Flow | `2.7.0` |
+| ComfyUI | `0.42.5` |
+| Python | `3.13.12` |
+| PyTorch | `2.12.1` |
+| Compute backend | `Apple MPS` |
+
+These values describe the current validated reference environment. They are
+neither general minimum requirements nor a complete compatibility guarantee,
+and they do not imply complete testing of every workflow, extension, or
+hardware platform.
+<!-- cmk-reference-environment:end -->
 
 ## Required ComfyUI frontend
 
