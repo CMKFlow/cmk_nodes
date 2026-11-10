@@ -8,9 +8,9 @@ Paketversion: **CMK 2.7.0**. Release-Kandidat, noch nicht veröffentlicht.
 - Inaktive Modulzweige (deaktivierte Module, InstantID aus, STOP AFTER
   HANDOFF) invalidieren nachgelagerte Cache-Schlüssel nicht mehr durch
   ungenutzte Eingänge; aktive Zweige werden unverändert neu berechnet.
-- START HERE: InstantID-Handoff als IDENTITY-Anteil (20–80 %), STOP AFTER
-  HANDOFF auch für SDXL → InstantID Inpaint; gespeicherte Widgetwerte werden
-  in BASELINE und RELEASE gleich zugeordnet.
+- START HERE: konfigurierbarer InstantID-Handoff bei 20–80 % des
+  Sampling-Verlaufs, STOP AFTER HANDOFF auch für SDXL → InstantID Inpaint;
+  gespeicherte Widgetwerte werden in BASELINE und RELEASE korrekt zugeordnet.
 - SDXL → ZIT übernimmt die aktiven regionalen Prompttexte; die Regionstitel
   im 07 Regional Layout skalieren beim Zoomen mit dem Node.
 - Stabilisierte Boundary-, Lazy-Loading- und Passthrough-Verträge für
