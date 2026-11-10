@@ -1,3 +1,25 @@
+# CMK Flow 2.7.0 — Release-Kandidat — 2026-11-10
+
+Paketversion: **CMK 2.7.0**. Release-Kandidat, noch nicht veröffentlicht.
+
+- Neuer Baustein `CMK Image Multi-File Loader`: verwaltet eine
+  ControlNet- und drei Identitätsreferenzen zentral und gibt sie als
+  Dateireferenzen an die angeschlossenen Module weiter.
+- Inaktive Modulzweige (deaktivierte Module, InstantID aus, STOP AFTER
+  HANDOFF) invalidieren nachgelagerte Cache-Schlüssel nicht mehr durch
+  ungenutzte Eingänge; aktive Zweige werden unverändert neu berechnet.
+- START HERE: InstantID-Handoff als IDENTITY-Anteil (20–80 %), STOP AFTER
+  HANDOFF auch für SDXL → InstantID Inpaint; gespeicherte Widgetwerte werden
+  in BASELINE und RELEASE gleich zugeordnet.
+- SDXL → ZIT übernimmt die aktiven regionalen Prompttexte; die Regionstitel
+  im 07 Regional Layout skalieren beim Zoomen mit dem Node.
+- Stabilisierte Boundary-, Lazy-Loading- und Passthrough-Verträge für
+  Detailer, FaceProcess, FaceRebuild, FaceSwap und Upscale & Save;
+  ContentGuard-Schalter erreicht den ausführenden Node.
+- Flow Browser mit abgeschlossenem Katalog (17 Einträge), neuen Previews und
+  Showcase 2.7 (REAL-WORLD, TASK, MODULE, SYSTEM, COMPARISONS, LEGACY);
+  zusätzliche Referenzbilder werden aus dem Paket aufgelöst.
+
 # CMK Flow 2.6.1 — 2026-10-23
 
 Paketversion: **CMK 2.6.1**.
