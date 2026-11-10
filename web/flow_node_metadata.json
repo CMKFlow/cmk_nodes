@@ -105,8 +105,8 @@
       "placementNote": "Vor einem Baustein platzieren, der ein vorhandenes Bild verarbeiten soll.",
       "recommendedAfter": [
         {
-          "label": "Save Project Image",
-          "targetId": "CMK_SaveProjectImage"
+          "label": "Upscale & Save",
+          "targetId": "6f8d63a4-7ea5-4c18-9900-2ec3ed33c9b6"
         }
       ],
       "previews": [

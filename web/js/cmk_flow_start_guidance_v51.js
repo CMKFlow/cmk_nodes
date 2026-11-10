@@ -1,4 +1,5 @@
 import { app } from "../../../scripts/app.js";
+import { GUARD_WIDGET, alignGuardValues } from "./cmk_start_guard_values.js";
 import { ensureSourceTargetSliderStyle, installSourceTargetSlider } from "./cmk_source_target_slider.js";
 
 const NODE_CLASS = "CMKPipeCreateImage";
@@ -1060,38 +1061,29 @@ function schedule(node) {
     }
 }
 
-function withoutLegacyReleaseGuardValue(node, info) {
-    if (!info || node.widgets?.some((widget) => widget?.name === "content_guard_enabled")) {
-        return info;
-    }
-    if (!Array.isArray(info.inputs) || !Array.isArray(info.widgets_values)) return info;
-    let widgetIndex = 0;
-    let guardInputIndex = -1;
-    let guardWidgetIndex = -1;
-    for (let index = 0; index < info.inputs.length; index += 1) {
-        const input = info.inputs[index];
-        const hasWidget = Boolean(input?.widget);
-        if (input?.name === "content_guard_enabled") {
-            guardInputIndex = index;
-            guardWidgetIndex = hasWidget ? widgetIndex : -1;
-            break;
-        }
-        if (hasWidget) widgetIndex += 1;
-    }
-    if (guardInputIndex < 0) return info;
-    const inputs = info.inputs.slice();
-    inputs.splice(guardInputIndex, 1);
-    const widgetsValues = info.widgets_values.slice();
-    if (guardWidgetIndex >= 0 && guardWidgetIndex < widgetsValues.length) {
-        widgetsValues.splice(guardWidgetIndex, 1);
+// Runs before ComfyUI's own configure: with one value too many the frontend
+// mistakes the array for a legacy save and drops a value in front of the guard.
+function withAlignedGuardValue(node, info) {
+    if (!info) return info;
+    const state = node._cmkStartUi;
+    const ordered = state
+        ? state.canonicalOrder.map((name) => state.widgetsByName.get(name)).filter(Boolean)
+        : (node.widgets ?? []);
+    const widgets = ordered
+        .filter((widget) => widget?.serialize !== false)
+        .map((widget) => ({ name: widget.name, kind: typeof widget.value }));
+    if (widgets.some((widget) => widget.name === GUARD_WIDGET)) {
+        return { ...info, widgets_values: alignGuardValues(widgets, info.widgets_values) };
     }
     const named = { ...(info.widgets_values_named ?? {}) };
-    delete named.content_guard_enabled;
+    delete named[GUARD_WIDGET];
     return {
         ...info,
-        inputs,
-        widgets_values: widgetsValues,
-        widgets_values_named: named,
+        inputs: Array.isArray(info.inputs)
+            ? info.inputs.filter((input) => input?.name !== GUARD_WIDGET)
+            : info.inputs,
+        widgets_values: alignGuardValues(widgets, info.widgets_values),
+        ...(info.widgets_values_named ? { widgets_values_named: named } : {}),
     };
 }
 
@@ -1107,15 +1099,23 @@ app.registerExtension({
 
         for (const hook of ["onNodeCreated", "onConfigure", "onAdded"]) {
             const original = nodeType.prototype[hook];
-            nodeType.prototype[hook] = function (info) {
-                const args = hook === "onConfigure"
-                    ? [withoutLegacyReleaseGuardValue(this, info)]
-                    : arguments;
-                const result = original?.apply(this, args);
+            nodeType.prototype[hook] = function () {
+                const result = original?.apply(this, arguments);
                 schedule(this);
                 return result;
             };
         }
+
+        const originalConfigure = nodeType.prototype.configure;
+        nodeType.prototype.configure = function (info) {
+            const result = originalConfigure.call(this, withAlignedGuardValue(this, info));
+            const stop = this.widgets?.find((widget) => widget?.name === "stop_after_handoff");
+            if (stop && typeof stop.value !== "boolean") {
+                console.warn("[CMK Flow] STOP AFTER HANDOFF had no boolean saved value; using OFF.");
+                stop.value = false;
+            }
+            return result;
+        };
 
     },
 
