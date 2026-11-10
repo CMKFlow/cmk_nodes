@@ -9,7 +9,7 @@ RELEASE = "RELEASE"
 
 # This is the single source-controlled distribution switch.  A public release
 # must set it to RELEASE before the release commit is built and validated.
-DISTRIBUTION_MODE = BASELINE
+DISTRIBUTION_MODE = RELEASE
 
 CONTENT_GUARD_PROCESS_KEY = "content_guard_enabled"
 CONTENT_GUARD_WIDGET = "content_guard_enabled"

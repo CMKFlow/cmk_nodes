@@ -6,7 +6,7 @@
 
 Modular custom-node package for ComfyUI.
 
-**Development baseline: CMK 2.6.1 · CMK Flow Baseline**
+**Release candidate: CMK 2.7.0 · CMK Flow Release**
 
 **Current public release: CMK 2.6.1**
 
