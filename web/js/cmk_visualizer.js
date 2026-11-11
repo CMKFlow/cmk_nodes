@@ -193,6 +193,7 @@ export function remappedDeclaredProvider(outerNode, item) {
     || "",
   );
   const liveTypeAliases = {
+    CMK_SmartDetailerPipe: new Set(["CMK_SmartDetailerPipe", "CMK_SmartDetailerMultiModelPipe"]),
     CMKControlNetPreparePipe: new Set([
       "CMKControlNetPreparePipe",
       "CMKZITControlNetPreparePipe",
@@ -328,7 +329,8 @@ function graphProviders(displayNode) {
             .filter((item) => nodeKind(item) === "CMKPipeCreateImage")
             .flatMap((item) => item.widgets || [])
             .find((item) => item.name === enableWidget);
-        return !widget || Boolean(widget.value);
+        // A model-family combo ("None" / SDXL / ...) is off at "None".
+        return !widget || (Boolean(widget.value) && widget.value !== "None");
       })
       .map((declaredItem) => {
       const item = remappedDeclaredProvider(node, declaredItem);

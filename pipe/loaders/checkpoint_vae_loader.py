@@ -107,6 +107,7 @@ def is_postprocess_model_spec(value):
     return (
         isinstance(value, dict)
         and value.get("model_role") == "postprocess"
+        and value.get("model_family", "sdxl") == "sdxl"
         and not all(value.get(name) is not None for name in ("model", "clip", "vae"))
     )
 
@@ -233,6 +234,15 @@ def resolve_postprocess_model(value):
             "PostProcess Boundary or in CMK PostProcess Model before enabling a "
             "model-dependent PostProcess module."
         )
+    if (
+        value.get("model_role") == "postprocess"
+        and value.get("model_family", "sdxl") != "sdxl"
+        and value.get("model") is None
+    ):
+        raise ValueError(
+            "CMK PostProcess Model: this module needs MODEL SDXL, but received "
+            f"a {value.get('model_family')} model specification."
+        )
     if not is_postprocess_model_spec(value):
         return value
     resources, status = _load_cached_resources(
@@ -266,7 +276,8 @@ def unload_model_pipe(value):
     model = value.get("model_patched")
     if model is None:
         model = value.get("model")
-    if model is None and value.get("model_role") == "postprocess":
+    # A ZIT spec never indexes the SDXL resource cache.
+    if model is None and value.get("model_role") == "postprocess" and value.get("model_family", "sdxl") == "sdxl":
         resources = _SDXL_RESOURCE_CACHE.get(_resource_key(
             value.get("ckpt_name", DEFAULT_CHECKPOINT),
             value.get("vae_name", ""),

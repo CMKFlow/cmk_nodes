@@ -51,6 +51,7 @@ from .pipe.cmk_module_boundary_cache import (
     CMKZImageBoundaryCache,
 )
 from .pipe.cmk_detailer_prepare import CMKDetailerPreparePipe
+from .pipe.cmk_detailer_prepare_multimodel import CMKDetailerFamilyEnable, CMKDetailerPrepareMultiModelPipe
 from .pipe.cmk_faceprocess_prepare import CMKFaceProcessPreparePipe
 from .pipe.cmk_faceprocess import CMKFaceProcessPipe
 from .pipe.cmk_detailer_finalize import CMKDetailerFinalizePipe
@@ -75,7 +76,7 @@ from .pipe.cmk_pipe_refiner import (
 from .nodes.image.empty_image_mask import CMK_EmptyImageMask
 from .nodes.image.image_mask_switch import CMK_ImageMaskSwitch
 from .nodes.image.image_metrics import CMK_ImageMetrics, CMK_ImageQuickMetrics
-from .nodes.image.smart_detailer import CMK_SmartDetailer, CMK_SmartDetailerPipe
+from .nodes.image.smart_detailer import CMK_SmartDetailer, CMK_SmartDetailerPipe, CMK_SmartDetailerMultiModelPipe
 from .nodes.image.mask_detailer import (
     CMKMaskDetailerFlowGate,
     CMKMaskDetailerIntake,
@@ -135,7 +136,7 @@ from .nodes.instantid_face_rebuild_advanced import (
 )
 from .loader.checkpoint_vae_loader import CMKCheckpointVAELoader
 from .pipe.loaders.checkpoint_vae_loader import CMKCheckpointVAELoaderPipe, CMKPostProcessModelPipe
-from .pipe.loaders.z_image_turbo_loader import CMKZImageTurboLoaderPipe
+from .pipe.loaders.z_image_turbo_loader import CMKZImageTurboLoaderPipe, CMKZImageTurboPostProcessModelPipe
 from .pipe.cmk_z_image_turbo import (
     CMKSamplerPrepareZImageTurboPipe,
     CMKZImageTurboFinalizePipe,
@@ -192,6 +193,7 @@ NODE_CLASS_MAPPINGS = {
     "CMKCheckpointVAELoaderPipe": CMKCheckpointVAELoaderPipe,
     "CMKPostProcessModelPipe": CMKPostProcessModelPipe,
     "CMKZImageTurboLoaderPipe": CMKZImageTurboLoaderPipe,
+    "CMKZImageTurboPostProcessModelPipe": CMKZImageTurboPostProcessModelPipe,
     "CMKImageFileLoader": CMKImageFileLoader,
     "CMKLoadImage": CMKLoadImage,
     "CMKImageLoadAndResizePipe": CMKImageLoadAndResizePipe,
@@ -234,6 +236,8 @@ NODE_CLASS_MAPPINGS = {
     # Pipe / Process
     "CMKPipeCreateDetailer": CMKPipeCreateDetailer,
     "CMKDetailerPreparePipe": CMKDetailerPreparePipe,
+    "CMKDetailerPrepareMultiModelPipe": CMKDetailerPrepareMultiModelPipe,
+    "CMKDetailerFamilyEnable": CMKDetailerFamilyEnable,
     "CMKFaceProcessPreparePipe": CMKFaceProcessPreparePipe,
     "CMKFaceProcessPipe": CMKFaceProcessPipe,
     "CMKDetailerFinalizePipe": CMKDetailerFinalizePipe,
@@ -270,6 +274,7 @@ NODE_CLASS_MAPPINGS = {
     "CMK_ImageQuickMetrics": CMK_ImageQuickMetrics,
     "CMK_SmartDetailer": CMK_SmartDetailer,
     "CMK_SmartDetailerPipe": CMK_SmartDetailerPipe,
+    "CMK_SmartDetailerMultiModelPipe": CMK_SmartDetailerMultiModelPipe,
     "CMK_SEGSConcate": CMK_SEGSConcate,
     "CMK_SmartOutpaintPad": CMK_SmartOutpaintPad,
     "CMK_SmartUpscaler": CMK_SmartUpscaler,
@@ -350,6 +355,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CMKCheckpointVAELoaderPipe": "CMK Flow · Checkpoint & VAE",
     "CMKPostProcessModelPipe": "CMK PostProcess Model",
     "CMKZImageTurboLoaderPipe": "CMK Z-Image Turbo Loader -Pipe-",
+    "CMKZImageTurboPostProcessModelPipe": "CMK Z-Image Turbo PostProcess Model",
     "CMKImageFileLoader": "CMK Image File Loader",
     "CMKLoadImage": "CMK Flow · Load Image",
     "CMKImageLoadAndResizePipe": "CMK Load Image",
@@ -403,6 +409,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 
     "CMKPipeCreateDetailer": "CMK Pipe Create Detailer",
     "CMKDetailerPreparePipe": "CMK Detailer Prepare -Pipe-",
+    "CMKDetailerPrepareMultiModelPipe": "CMK Detailer Prepare Multi-Model -Pipe-",
+    "CMKDetailerFamilyEnable": "CMK Detailer Family Enable",
     "CMKFaceProcessPreparePipe": "CMK FaceProcess Prepare -Pipe-",
     "CMKFaceProcessPipe": "CMK FaceProcess -Pipe-",
     "CMKDetailerFinalizePipe": "CMK Detailer Finalize -Pipe-",
@@ -437,6 +445,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CMK_ImageQuickMetrics": "CMK Image QuickMetrics",
     "CMK_SmartDetailer": "CMK Smart Detailer",
     "CMK_SmartDetailerPipe": "CMK Smart Detailer -Pipe-",
+    "CMK_SmartDetailerMultiModelPipe": "CMK Smart Detailer Multi-Model -Pipe-",
     "CMK_SEGSConcate": "CMK SEGS CONCAT",
     "CMK_SmartOutpaintPad": "CMK Smart Outpaint Pad",
     "CMK_SmartUpscaler": "CMK Smart Upscaler",

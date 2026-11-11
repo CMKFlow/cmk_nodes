@@ -58,13 +58,22 @@ def _detailer_branch():
     return CMK_SmartDetailerPipe
 
 
+def _detailer_multimodel_branch():
+    from ..nodes.image.smart_detailer import CMK_SmartDetailerMultiModelPipe
+
+    return CMK_SmartDetailerMultiModelPipe
+
+
 def _faceprocess_branch():
     from .cmk_faceprocess import CMKFaceProcessPipe
 
     return CMKFaceProcessPipe
 
 
-_DETAILER_BRANCH_SPECS = {"CMK_SmartDetailerPipe": _detailer_branch}
+_DETAILER_BRANCH_SPECS = {
+    "CMK_SmartDetailerPipe": _detailer_branch,
+    "CMK_SmartDetailerMultiModelPipe": _detailer_multimodel_branch,
+}
 _FACEPROCESS_BRANCH_SPECS = {"CMKFaceProcessPipe": _faceprocess_branch}
 
 
@@ -245,7 +254,10 @@ def _detailer_disabled_state(prompt, unique_id):
 
     found = []
     visited = set()
-    wanted = {"CMKDetailerPreparePipe", "CMK_SmartDetailerPipe"}
+    wanted = {
+        "CMKDetailerPreparePipe", "CMK_SmartDetailerPipe",
+        "CMKDetailerPrepareMultiModelPipe", "CMK_SmartDetailerMultiModelPipe",
+    }
     for input_name in ("IMAGE", "LOG"):
         value = (boundary.get("inputs", {}) or {}).get(input_name)
         if _prompt_link(prompt, value):
@@ -253,14 +265,17 @@ def _detailer_disabled_state(prompt, unique_id):
 
     prepares = [
         node for _node_id, node in found
-        if str(node.get("class_type", "")) == "CMKDetailerPreparePipe"
+        if str(node.get("class_type", "")) in {"CMKDetailerPreparePipe", "CMKDetailerPrepareMultiModelPipe"}
     ]
     branches = [
         node for _node_id, node in found
-        if str(node.get("class_type", "")) == "CMK_SmartDetailerPipe"
+        if str(node.get("class_type", "")) in {"CMK_SmartDetailerPipe", "CMK_SmartDetailerMultiModelPipe"}
     ]
+    # Multi-Model Prepare has no enable switch: MODEL FAMILY = None is off.
     global_values = [
-        bool((node.get("inputs", {}) or {}).get("detailer_global_enable", True))
+        (node.get("inputs", {}) or {}).get("model_family", "None") != "None"
+        if str(node.get("class_type", "")) == "CMKDetailerPrepareMultiModelPipe"
+        else bool((node.get("inputs", {}) or {}).get("detailer_global_enable", True))
         for node in prepares
     ]
     local_values = [
@@ -275,6 +290,41 @@ def _detailer_disabled_state(prompt, unique_id):
         f"boundary={resolved_id}; global={global_values or ['unknown']}; "
         f"local={local_values or ['unknown']}"
     )
+
+
+def _detailer_retention_family(prompt, unique_id):
+    """Model family of a Multi-Model Detailer boundary for cache retention.
+
+    Read from the ``model_family`` input of the upstream Multi-Model Prepare,
+    the same control that drives Prepare, the gates and
+    ``_detailer_disabled_state``.  Returns ``None`` (plain node slot) for the
+    SDXL-only Detailer, mixed or unresolvable graphs.
+    """
+    _resolved_id, boundary = _resolve_boundary_node(
+        prompt, unique_id, "CMKDetailerBoundaryCache",
+    )
+    if not isinstance(boundary, dict):
+        return None
+    found = []
+    visited = set()
+    wanted = {"CMKDetailerPreparePipe", "CMKDetailerPrepareMultiModelPipe"}
+    for input_name in ("IMAGE", "LOG"):
+        value = (boundary.get("inputs", {}) or {}).get(input_name)
+        if _prompt_link(prompt, value):
+            _collect_upstream_nodes(prompt, value[0], wanted, found, visited)
+    if not found or any(
+        str(node.get("class_type", "")) != "CMKDetailerPrepareMultiModelPipe"
+        for _node_id, node in found
+    ):
+        return None
+    families = set()
+    for _node_id, node in found:
+        value = (node.get("inputs", {}) or {}).get("model_family")
+        if not isinstance(value, str):
+            return None
+        families.add(value.strip().lower())
+    family = families.pop() if len(families) == 1 else None
+    return {"sdxl": "sdxl", "z-image turbo": "z_image_turbo"}.get(family)
 
 
 def _face_rebuild_disabled_state(prompt, unique_id):
@@ -376,12 +426,18 @@ def _retain_latest_boundary_entry(
     cache_key: str,
     unique_id,
     session: dict | None = None,
+    slot_family: str | None = None,
 ) -> None:
-    """Keep only the latest cache revision for one concrete boundary node."""
+    """Keep only the latest cache revision for one concrete boundary node.
+
+    ``slot_family`` (Multi-Model Detailer only) keeps one latest revision per
+    node and model family instead; without it the rule is unchanged.
+    """
     directory = cache_directory(scope)
     index_path = directory / "latest_by_node.json"
     index_tmp = directory / "latest_by_node.json.tmp"
-    slot = str(unique_id)
+    plain_slot = str(unique_id)
+    slot = plain_slot if slot_family is None else f"{plain_slot}#{slot_family}"
 
     try:
         with index_path.open("r", encoding="utf-8") as handle:
@@ -393,6 +449,10 @@ def _retain_latest_boundary_entry(
 
     previous_key = index.get(slot)
     index[slot] = cache_key
+    if slot_family is not None and index.get(plain_slot) == cache_key:
+        # An entry stored under the plain node slot before family slots
+        # existed is adopted by the family that reuses it.
+        index.pop(plain_slot)
     try:
         with index_tmp.open("w", encoding="utf-8") as handle:
             json.dump(index, handle, ensure_ascii=False, sort_keys=True)
@@ -404,6 +464,9 @@ def _retain_latest_boundary_entry(
             pass
 
     if isinstance(previous_key, str) and previous_key != cache_key:
+        if slot_family is not None and previous_key in index.values():
+            # Family slots never delete an entry another slot still owns.
+            return
         _remove_entry(scope, previous_key)
         if session is not None:
             session.pop(previous_key, None)
@@ -1125,7 +1188,10 @@ class _DetailerBoundaryCore:
                     self._SCOPE,
                     cache_key,
                 )
-                _retain_latest_boundary_entry(self._SCOPE, cache_key, unique_id)
+                _retain_latest_boundary_entry(
+                    self._SCOPE, cache_key, unique_id,
+                    slot_family=_detailer_retention_family(prompt, unique_id),
+                )
 
                 write_status(
                     self._SCOPE,
@@ -1188,7 +1254,10 @@ class _DetailerBoundaryCore:
                     LOG,
                     dependencies,
                 )
-                _retain_latest_boundary_entry(self._SCOPE, cache_key, unique_id)
+                _retain_latest_boundary_entry(
+                    self._SCOPE, cache_key, unique_id,
+                    slot_family=_detailer_retention_family(prompt, unique_id),
+                )
                 write_status(
                     self._SCOPE,
                     "MISS_STORED",

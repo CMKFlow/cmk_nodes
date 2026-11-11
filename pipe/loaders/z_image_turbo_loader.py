@@ -12,6 +12,7 @@ from ..cmk_sampler_prepare import _call_node_kwargs, _unwrap_node_output
 DEFAULT_UNET = "z_image_turbo_bf16.safetensors"
 DEFAULT_TEXT_ENCODER = "qwen_3_4b.safetensors"
 DEFAULT_VAE = "ae.safetensors"
+_PROCESS_NOT_CONNECTED = object()
 
 
 # The wrapper must not reconstruct ~20 GB of ZIT resources merely because its
@@ -165,6 +166,90 @@ def evict_zit_text_encoder(model_pipe):
     return "EVICTED AFTER ENCODE"
 
 
+def _load_zit_resources(resource_key, text_encoder=True):
+    """Return (model, clip, vae, status) from the shared ZIT resource cache.
+
+    The ZIT loader loads the text encoder with the model. A PostProcess spec
+    passes text_encoder=False: its consumer loads the encoder on demand
+    (ensure_zit_text_encoder) and evicts it after encoding.
+    """
+    diffusion_model, text_encoder_name, vae, weight_dtype, clip_device = resource_key
+    resources = _ZIT_RESOURCE_CACHE.get(resource_key)
+    if resources is None:
+        model = _unwrap_node_output(
+            _call_node_kwargs(
+                ("UNETLoader",),
+                unet_name=diffusion_model,
+                weight_dtype=weight_dtype,
+            )
+        )
+        clip = _load_text_encoder(text_encoder_name, clip_device) if text_encoder else None
+        loaded_vae = _unwrap_node_output(
+            _call_node_kwargs(("VAELoader",), vae_name=vae)
+        )
+        _ZIT_RESOURCE_CACHE.clear()
+        _ZIT_RESOURCE_CACHE[resource_key] = (model, clip, loaded_vae)
+        return model, clip, loaded_vae, "MISS · LOADED"
+    model, clip, loaded_vae = resources
+    if clip is None and text_encoder:
+        clip = _load_text_encoder(text_encoder_name, clip_device)
+        _ZIT_RESOURCE_CACHE[resource_key] = (model, clip, loaded_vae)
+        return model, clip, loaded_vae, "HIT · TEXT ENCODER REMATERIALIZED"
+    return model, clip, loaded_vae, "HIT · REUSED"
+
+
+def make_zit_postprocess_model_spec(diffusion_model, text_encoder, vae, weight_dtype="default", clip_device="default"):
+    """Return a ZIT MODEL contract without loading UNet, text encoder or VAE.
+
+    Same field names as the MODEL pipe of CMK Z-Image Turbo Loader -Pipe-, so
+    a spec and an equivalent loader pipe share their model identity.
+    """
+    return {
+        "model_role": "postprocess",
+        "model_family": "z_image_turbo",
+        "model_architecture": "z_image_turbo",
+        "diffusion_model_name": str(diffusion_model),
+        "text_encoder_name": str(text_encoder),
+        "vae_name": str(vae),
+        "weight_dtype": str(weight_dtype),
+        "clip_device": str(clip_device),
+        "model_pipe_source": "CMK Z-Image Turbo PostProcess Model",
+        "materialized": False,
+    }
+
+
+def is_zit_postprocess_model_spec(value):
+    return (
+        isinstance(value, dict)
+        and value.get("model_role") == "postprocess"
+        and value.get("model_family") == "z_image_turbo"
+        and value.get("model") is None
+    )
+
+
+def resolve_zit_postprocess_model(value):
+    """Materialise a ZIT PostProcess spec at its first real consumer.
+
+    Returns a new pipe; the spec itself stays unchanged for every other
+    consumer. Loader pipes pass through. The text encoder is left to
+    ensure_zit_text_encoder, so it is only loaded when a prompt is encoded.
+    """
+    if not is_zit_postprocess_model_spec(value):
+        return value
+    resource_key = _resource_key_from_pipe(value)
+    model, clip, loaded_vae, status = _load_zit_resources(resource_key, text_encoder=False)
+    result = dict(value)
+    result.update({
+        "model": model,
+        "clip": clip,
+        "vae": loaded_vae,
+        "materialized": True,
+        "resource_cache_status": status,
+    })
+    print(f"[CMK ZIT PostProcess Model] {status} | {resource_key[0]}", flush=True)
+    return result
+
+
 def _choices(folder_name: str, preferred: str) -> list[str]:
     values = list(folder_paths.get_filename_list(folder_name))
     if preferred in values:
@@ -180,7 +265,6 @@ class CMKZImageTurboLoaderPipe:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "PROCESS": ("CMK_PROCESS_Z_IMAGE",),
                 "diffusion_model": (
                     _choices("diffusion_models", DEFAULT_UNET),
                     {"default": DEFAULT_UNET, "label": "DIFFUSION MODEL"},
@@ -203,6 +287,10 @@ class CMKZImageTurboLoaderPipe:
                 ),
             },
             "optional": {
+                # Family-bound sampler subgraphs connect this directly. The
+                # standalone Detailer requests the loader through a lazy input
+                # instead and has no ZIT PROCESS.
+                "PROCESS": ("CMK_PROCESS_Z_IMAGE",),
                 "LOG": ("CMK_LOG_PIPE",),
             },
         }
@@ -214,12 +302,12 @@ class CMKZImageTurboLoaderPipe:
 
     def load(
         self,
-        PROCESS,
         diffusion_model,
         text_encoder,
         vae,
         weight_dtype="default",
         clip_device="default",
+        PROCESS=_PROCESS_NOT_CONNECTED,
         LOG=None,
     ):
         if PROCESS is None or (
@@ -227,15 +315,17 @@ class CMKZImageTurboLoaderPipe:
         ):
             blocked = ExecutionBlocker(None)
             return (blocked, blocked)
-        if not isinstance(PROCESS, dict):
-            raise TypeError(
-                "CMK Z-Image Turbo Loader: PROCESS must be a CMK process pipe"
-            )
-        family = str(PROCESS.get("model_family", "z_image_turbo")).strip().lower()
-        if family != "z_image_turbo":
-            raise ValueError(
-                "CMK Z-Image Turbo Loader requires PROCESS ZIT"
-            )
+        process_connected = PROCESS is not _PROCESS_NOT_CONNECTED
+        if process_connected:
+            if not isinstance(PROCESS, dict):
+                raise TypeError(
+                    "CMK Z-Image Turbo Loader: PROCESS must be a CMK process pipe"
+                )
+            family = str(PROCESS.get("model_family", "z_image_turbo")).strip().lower()
+            if family != "z_image_turbo":
+                raise ValueError(
+                    "CMK Z-Image Turbo Loader requires PROCESS ZIT"
+                )
         resource_key = (
             str(diffusion_model),
             str(text_encoder),
@@ -243,34 +333,9 @@ class CMKZImageTurboLoaderPipe:
             str(weight_dtype),
             str(clip_device),
         )
-        if PROCESS.get("unload_models_after_use") is True:
+        if process_connected and PROCESS.get("unload_models_after_use") is True:
             _release_stale_resource_cache(resource_key)
-        resources = _ZIT_RESOURCE_CACHE.get(resource_key)
-        if resources is None:
-            model = _unwrap_node_output(
-                _call_node_kwargs(
-                    ("UNETLoader",),
-                    unet_name=diffusion_model,
-                    weight_dtype=weight_dtype,
-                )
-            )
-            clip = _load_text_encoder(text_encoder, clip_device)
-            loaded_vae = _unwrap_node_output(
-                _call_node_kwargs(("VAELoader",), vae_name=vae)
-            )
-            resources = (model, clip, loaded_vae)
-            _ZIT_RESOURCE_CACHE.clear()
-            _ZIT_RESOURCE_CACHE[resource_key] = resources
-            resource_cache_status = "MISS · LOADED"
-        else:
-            model, clip, loaded_vae = resources
-            if clip is None:
-                clip = _load_text_encoder(text_encoder, clip_device)
-                resources = (model, clip, loaded_vae)
-                _ZIT_RESOURCE_CACHE[resource_key] = resources
-                resource_cache_status = "HIT · TEXT ENCODER REMATERIALIZED"
-            else:
-                resource_cache_status = "HIT · REUSED"
+        model, clip, loaded_vae, resource_cache_status = _load_zit_resources(resource_key)
         if model is None or clip is None or loaded_vae is None:
             raise RuntimeError(
                 "CMK Z-Image Turbo Loader: ComfyUI Core did not return model, "
@@ -306,3 +371,26 @@ class CMKZImageTurboLoaderPipe:
             True,
         )
         return (model_pipe, log)
+
+
+class CMKZImageTurboPostProcessModelPipe:
+    """Z-Image Turbo model source for PostProcess modules.
+
+    Returns the cheap spec of make_zit_postprocess_model_spec; nothing is
+    loaded here. MODEL forwards pass it on unchanged and only an active ZIT
+    consumer materialises it (resolve_zit_postprocess_model), sharing the
+    resource cache of CMK Z-Image Turbo Loader -Pipe-.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        loader = CMKZImageTurboLoaderPipe.INPUT_TYPES()["required"]
+        return {"required": dict(loader)}
+
+    RETURN_TYPES = ("CMK_MODEL_PIPE",)
+    RETURN_NAMES = ("MODEL ZIT",)
+    FUNCTION = "load"
+    CATEGORY = "CMK/Flow/Input"
+
+    def load(self, diffusion_model, text_encoder, vae, weight_dtype="default", clip_device="default"):
+        return (make_zit_postprocess_model_spec(diffusion_model, text_encoder, vae, weight_dtype, clip_device),)

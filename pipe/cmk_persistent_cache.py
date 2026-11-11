@@ -115,6 +115,11 @@ _IMAGE_FILE_LOADERS = frozenset({
     "CMKImageLoadAndResizePipe",
 })
 _INPUT_CONTENT_MEMO_KEY = "\0input_content"
+# Multi-Model Detailer Prepare inputs read only by MODEL FAMILY = Z-Image Turbo.
+DETAILER_MULTIMODEL_ZIT_INPUTS = frozenset({
+    "MODEL ZIT", "LoRA ZIT", "zit_steps", "zit_cfg", "zit_sampling_entry",
+    "zit_sampler", "zit_scheduler", "zit_model_shift",
+})
 _INPUT_CONTENT_FIELD = "\0input_content"
 
 
@@ -206,6 +211,14 @@ def _canonical_node(
             CONTENT_GUARD_WIDGET,
             STOP_AFTER_HANDOFF_WIDGET,
         }:
+            continue
+        # SDXL and None never read the Z-Image Turbo inputs of the Multi-Model
+        # Prepare, so changing them must not invalidate those results.
+        if (
+            class_type == "CMKDetailerPrepareMultiModelPipe"
+            and str(input_name) in DETAILER_MULTIMODEL_ZIT_INPUTS
+            and (node.get("inputs", {}) or {}).get("model_family", "None") != "Z-Image Turbo"
+        ):
             continue
         if _is_link(prompt, value):
             inputs[str(input_name)] = {

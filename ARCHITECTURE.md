@@ -551,6 +551,61 @@ CHECKPOINT + VAE-Auswahl → MODEL
 
 Lokale LoRAs, PAG, Sampling-Patches, FreeU und modulbezogener Zustand werden niemals in `MODEL` zurückgeschrieben.
 
+#### ZIT-Modellquelle für PostProcess
+
+`CMK Z-Image Turbo PostProcess Model` liefert eine nicht materialisierte
+Z-Image-Turbo-Spezifikation. Vorbild ist die SDXL-Spezifikation von
+`CMK PostProcess Model`.
+
+```text
+DIFFUSION MODEL + TEXT ENCODER + VAE + weight_dtype + clip_device → MODEL ZIT
+```
+
+```python
+{
+    "model_role": "postprocess",
+    "model_family": "z_image_turbo",
+    "model_architecture": "z_image_turbo",
+    "diffusion_model_name": str,
+    "text_encoder_name": str,
+    "vae_name": str,
+    "weight_dtype": str,
+    "clip_device": str,
+    "model_pipe_source": "CMK Z-Image Turbo PostProcess Model",
+    "materialized": False,
+}
+```
+
+- Die Spezifikation enthält ausschließlich primitive Werte und dieselben
+  Identitätsfelder wie das MODEL von `CMK Z-Image Turbo Loader -Pipe-`.
+  Gleiche Dateien ergeben dieselbe Modellidentität.
+- MODEL-Forward, Gate und Boundary reichen sie unverändert weiter. Das
+  Weiterreichen lädt weder UNet noch Textencoder noch VAE.
+- Erst ein aktiver ZIT-Verbraucher materialisiert sie über
+  `resolve_zit_postprocess_model`. Das Ergebnis ist eine Kopie; die
+  Spezifikation selbst bleibt unverändert.
+- SDXL- und ZIT-Spezifikation sind getrennt: SDXL-Helfer erkennen eine
+  ZIT-Spezifikation nicht als SDXL, `resolve_postprocess_model` weist sie mit
+  einer klaren Meldung zurück und `unload_model_pipe` greift für sie nicht auf
+  den SDXL-Ressourcencache zu.
+
+#### ZIT-Ressourcenlebenszyklus
+
+Verbindlich gilt der bestehende ZIT-Lebenszyklus, gemeinsam für den ZIT-Loader
+und die PostProcess-Spezifikation:
+
+- Ein gemeinsamer Ressourcencache (`_ZIT_RESOURCE_CACHE`) für Loader und
+  Spezifikation; gleiche Dateien werden nicht doppelt geladen.
+- UNet und VAE bleiben gemäß der bestehenden Cache-Politik verfügbar. Ein
+  Wechsel der Dateien ersetzt den Cache-Eintrag.
+- Der Textencoder (Qwen) wird nach dem Encoding freigegeben und bei Bedarf
+  neu materialisiert (`ensure_zit_text_encoder` / `evict_zit_text_encoder`).
+- Es gibt keine globale Freigabe durch den Visualizer, keine Referenzzählung
+  und keine zusätzliche Ressourcenverwaltung.
+
+Die mögliche Speicherbelastung beim Wechsel ZIT → SDXL wird anhand realer
+Modellläufe bewertet.
+
 ### 5.3 ControlNet
 
 `CMK ControlNet Prepare -Pipe-`:
@@ -845,6 +900,67 @@ Der Boundary stempelt das tatsächlich ausgegebene Bild als aktuelles öffentlic
 Cache-Artefakt in einer kopierten `PROCESS`-Pipe. Ein nachfolgendes weiteres
 Detailer-Modul verwendet damit das unmittelbare Detailer-Ergebnis und nicht
 fälschlich weiterhin das ältere Refiner-Artefakt.
+
+### 5.6a Multi-Model-Detailer
+
+Neben den SDXL-Detailer-Nodes bestehen eigenständig registrierte
+Multi-Model-Nodes. Die SDXL-Nodes bleiben in Verhalten, Schnittstellen,
+gespeicherten Widgetwerten und Cache-Schlüsseln unverändert.
+
+| Generation | Prepare | Execute | DETAILER-Typ |
+|---|---|---|---|
+| SDXL | `CMKDetailerPreparePipe` | `CMK_SmartDetailerPipe` | `CMK_DETAILER_PIPE` |
+| Multi-Model | `CMKDetailerPrepareMultiModelPipe` | `CMK_SmartDetailerMultiModelPipe` | `CMK_DETAILER_MULTIMODEL_PIPE` |
+
+Die getrennten DETAILER-Typen verhindern eine Querverdrahtung der
+Generationen.
+
+Prepare Multi-Model:
+
+```text
+MODEL ZIT (optional) + MODEL SDXL + PROCESS + IMAGE + optional LOG
+    + optional LoRA ZIT + MODEL FAMILY (None / SDXL / Z-Image Turbo)
+    ↓
+CMK Detailer Prepare Multi-Model -Pipe-
+    ↓
+DETAILER (Multi-Model) + LOG + diagnostic
+```
+
+- `None` ist der vollständige Bypass ohne Modell-, SAM- oder LoRA-Anforderung.
+- Nur die Modellquelle der gewählten Familie wird lazy angefordert.
+- Jede Familie besitzt eigene Steps, CFG, Sampler, Scheduler und einen eigenen
+  Sampling Entry (SDXL 95 %, ZIT 85 % als Ausgangswerte). Der gewählte
+  Sampling Entry liegt im DETAILER-Pipe; der Multi-Model Smart Detailer hat
+  keinen eigenen Regler.
+- Die Cache-Identität des Multi-Model Smart Detailers verwendet ein eigenes
+  Schema und berücksichtigt Familie, Sampling Entry, Sampler/Scheduler,
+  ZIT-Modellidentität, geladene LoRAs und Model Shift.
+
+Subgraph `CMK Flow · Detailer`:
+
+```text
+MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG + VISUAL + MODEL FAMILY
+    ↓
+MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG + VISUAL + diagnostic
+```
+
+- `CMK Detailer Family Enable` übersetzt MODEL FAMILY in das boolesche
+  ENABLE von Module Bypass Gate und Preview & Compare.
+- `MODEL SDXL` ist die SDXL-PostProcess-Spezifikation; die Detailer-Boundary
+  fordert sie als öffentlichen MODEL-Eingang an.
+- `MODEL ZIT` ist die ZIT-PostProcess-Spezifikation. Der Ausgang `MODEL ZIT`
+  ist ein Forward für nachgelagerte Multi-Model-Module.
+- Aufbewahrung der Detailer-Boundary: Jede Boundary behält pro Node nur den
+  zuletzt gespeicherten Eintrag (`latest_by_node.json`). Für den
+  Multi-Model-Detailer gilt diese Regel pro Node **und Modellfamilie**
+  (Slot `<unique_id>#sdxl` bzw. `<unique_id>#z_image_turbo`). Die Familie
+  stammt aus dem `model_family`-Eingang des vorgeschalteten Multi-Model
+  Prepare (`_detailer_retention_family`). Ein Wechsel SDXL ↔ ZIT trifft
+  daher beide Male; geänderte Parameter ersetzen nur den Eintrag ihrer
+  Familie. Cache-Schlüssel, Manifeste und Artefaktformat sind unverändert.
+  Der SDXL-Detailer und alle anderen Boundaries behalten den einfachen Slot
+  `<unique_id>`. Ein vor 2.7.1 unter dem einfachen Slot gespeicherter Eintrag
+  bleibt lesbar und wird bei Wiederverwendung von der Familie übernommen.
 
 ### 5.7 FaceProcess-Modul
 

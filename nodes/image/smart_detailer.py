@@ -1174,12 +1174,149 @@ class CMK_SmartDetailerPipe(CMK_SmartDetailer):
         return result
 
 
+class CMK_SmartDetailerMultiModelPipe(CMK_SmartDetailerPipe):
+    """Execute Smart Detailer from CMK Detailer Prepare Multi-Model -Pipe-.
+
+    The sampling entry is no widget here: the DETAILER pipe carries the value
+    of the selected model family. Cache entries use their own schema and stage
+    key, so they never meet the SDXL CMK Smart Detailer -Pipe- entries.
+    """
+
+    _CACHE_SCHEMA = "cmk_detailer_multimodel_branch_v1"
+    _RESULT_STAGE_KEY = "multimodel.detailer"
+    _NODE_CLASS = "CMK_SmartDetailerMultiModelPipe"
+    _FAMILY_LABELS = {"sdxl": "SDXL", "z_image_turbo": "Z-IMAGE TURBO", "none": "NONE"}
+    # The sampling engine never reads CLIP; Z-Image Turbo releases its text
+    # encoder in Prepare, the inherited BASIC_PIPE check only needs a value.
+    _RELEASED_TEXT_ENCODER = "released after Detailer Prepare"
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        spec = super().INPUT_TYPES()
+        required = {name: value for name, value in spec["required"].items() if name != "denoise"}
+        required["DETAILER"] = ("CMK_DETAILER_MULTIMODEL_PIPE",)
+        return {**spec, "required": required}
+
+    @staticmethod
+    def _sampling_entry(detailer_pipe):
+        if not isinstance(detailer_pipe, dict):
+            return None
+        return detailer_pipe.get("detailer_sampling_entry")
+
+    @staticmethod
+    def _effective_settings(detailer_pipe, run_settings):
+        settings = CMK_SmartDetailerPipe._effective_settings(detailer_pipe, run_settings)
+        settings["prepared"].update({
+            name: detailer_pipe.get(name)
+            for name in (
+                "detailer_model_family",
+                "detailer_model_identity",
+                "detailer_loaded_loras",
+                "detailer_zit_trigger_words",
+                "detailer_zit_model_shift",
+                "detailer_sampling_entry",
+            )
+        })
+        return settings
+
+    @classmethod
+    def dependency_cache_key(cls, prompt, unique_id):
+        return build_node_fingerprint(
+            prompt,
+            unique_id,
+            (cls._NODE_CLASS,),
+            cls._CACHE_SCHEMA,
+            exclude_inputs=("output_image_proceed", "opt_log", "VISUAL", "opt_diagnostic"),
+            include_node_identity=True,
+        )
+
+    def check_lazy_status(self, DETAILER=None, opt_log=None, opt_diagnostic=None, prompt=None, unique_id=None, **kwargs):
+        entry = self._sampling_entry(DETAILER)
+        if entry is not None:
+            kwargs = {**kwargs, "denoise": entry}
+        return super().check_lazy_status(
+            DETAILER=DETAILER,
+            opt_log=opt_log,
+            opt_diagnostic=opt_diagnostic,
+            prompt=prompt,
+            unique_id=unique_id,
+            **kwargs,
+        )
+
+    def run_pipe(
+        self,
+        DETAILER,
+        enable,
+        output_image_proceed,
+        model_name,
+        bbox_threshold,
+        bbox_dilation,
+        crop_factor,
+        drop_size,
+        guide_size,
+        guide_size_for,
+        max_size,
+        noise_mask,
+        force_inpaint,
+        opt_log=None,
+        VISUAL=None,
+        opt_diagnostic=None,
+        prompt=None,
+        unique_id=None,
+    ):
+        if not isinstance(DETAILER, dict):
+            raise ValueError("CMK Smart Detailer Multi-Model -Pipe-: DETAILER is missing")
+        family = str(DETAILER.get("detailer_model_family", "none"))
+        entry = self._sampling_entry(DETAILER)
+        if family == "z_image_turbo" and DETAILER.get("detailer_clip") is None:
+            DETAILER = {**DETAILER, "detailer_clip": self._RELEASED_TEXT_ENCODER}
+        result = super().run_pipe(
+            DETAILER,
+            enable,
+            output_image_proceed,
+            model_name,
+            bbox_threshold,
+            bbox_dilation,
+            crop_factor,
+            drop_size,
+            guide_size,
+            guide_size_for,
+            max_size,
+            80.0 if entry is None else entry,
+            noise_mask,
+            force_inpaint,
+            opt_log=opt_log,
+            VISUAL=VISUAL,
+            opt_diagnostic=opt_diagnostic,
+            prompt=prompt,
+            unique_id=unique_id,
+        )
+        active = bool(DETAILER.get("detailer_global_enable")) and bool(enable) and entry is not None
+        lines = [f"MODEL FAMILY    : {self._FAMILY_LABELS.get(family, family.upper())}"]
+        if active:
+            lines += [
+                f"SAMPLING ENTRY  : {float(entry):g} %",
+                f"DENOISE         : {_sampling_entry_to_denoise(entry):g}",
+                f"STEPS           : {DETAILER.get('detailer_steps')}",
+                f"CFG             : {DETAILER.get('detailer_cfg')}",
+                f"SAMPLER         : {DETAILER.get('detailer_sampler')}",
+                f"SCHEDULER       : {DETAILER.get('detailer_scheduler')}",
+            ]
+        else:
+            lines.append("SAMPLING        : SKIPPED")
+        block = cmk_block_to_string("Smart Detailer Multi-Model", 71, lines, True)
+        log = CMKLogConcat().concat(result[3], block)[0]
+        return result[:3] + (log,) + result[4:]
+
+
 NODE_CLASS_MAPPINGS = {
     "CMK_SmartDetailer": CMK_SmartDetailer,
     "CMK_SmartDetailerPipe": CMK_SmartDetailerPipe,
+    "CMK_SmartDetailerMultiModelPipe": CMK_SmartDetailerMultiModelPipe,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "CMK_SmartDetailer": "CMK Smart Detailer",
     "CMK_SmartDetailerPipe": "CMK Smart Detailer -Pipe-",
+    "CMK_SmartDetailerMultiModelPipe": "CMK Smart Detailer Multi-Model -Pipe-",
 }
