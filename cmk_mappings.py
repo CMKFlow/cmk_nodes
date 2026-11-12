@@ -137,6 +137,7 @@ from .nodes.instantid_face_rebuild_advanced import (
 from .loader.checkpoint_vae_loader import CMKCheckpointVAELoader
 from .pipe.loaders.checkpoint_vae_loader import CMKCheckpointVAELoaderPipe, CMKPostProcessModelPipe
 from .pipe.loaders.z_image_turbo_loader import CMKZImageTurboLoaderPipe, CMKZImageTurboPostProcessModelPipe
+from .pipe.loaders.postprocess_model_source import CMKPostProcessModelSourcePipe
 from .pipe.cmk_z_image_turbo import (
     CMKSamplerPrepareZImageTurboPipe,
     CMKZImageTurboFinalizePipe,
@@ -194,6 +195,7 @@ NODE_CLASS_MAPPINGS = {
     "CMKPostProcessModelPipe": CMKPostProcessModelPipe,
     "CMKZImageTurboLoaderPipe": CMKZImageTurboLoaderPipe,
     "CMKZImageTurboPostProcessModelPipe": CMKZImageTurboPostProcessModelPipe,
+    "CMKPostProcessModelSourcePipe": CMKPostProcessModelSourcePipe,
     "CMKImageFileLoader": CMKImageFileLoader,
     "CMKLoadImage": CMKLoadImage,
     "CMKImageLoadAndResizePipe": CMKImageLoadAndResizePipe,
@@ -353,9 +355,10 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CMKMaskDetailerProcess": "CMK Mask Detailer · Process",
     "CMKCheckpointVAELoader": "CMK Checkpoint VAE Loader",
     "CMKCheckpointVAELoaderPipe": "CMK Flow · Checkpoint & VAE",
-    "CMKPostProcessModelPipe": "CMK PostProcess Model",
+    "CMKPostProcessModelPipe": "CMK PostProcess Model SDXL",
     "CMKZImageTurboLoaderPipe": "CMK Z-Image Turbo Loader -Pipe-",
     "CMKZImageTurboPostProcessModelPipe": "CMK Z-Image Turbo PostProcess Model",
+    "CMKPostProcessModelSourcePipe": "CMK PostProcess Model",
     "CMKImageFileLoader": "CMK Image File Loader",
     "CMKLoadImage": "CMK Flow · Load Image",
     "CMKImageLoadAndResizePipe": "CMK Load Image",

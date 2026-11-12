@@ -33,6 +33,7 @@ const BUILTIN_DEFAULTS = {
     CMKZITControlNetPreparePipe: [600, 1225],
     CMKCheckpointVAELoaderPipe: [600, 165],
     CMKPostProcessModelPipe: [600, 165],
+    CMKPostProcessModelSourcePipe: [600, 330],
     CMKImageLoadAndResizePipe: [600, 860],
     CMKLoadImage: [600, 1225],
     CMKSwapImageLoaderPipe: [1200, 800],

@@ -54,10 +54,12 @@ MODEL-Verträge und Cache-Verhalten unverändert.
 
 - **`MODEL SDXL` ist Pflicht**, auch bei reiner ZIT-Nutzung: Prepare und
   Detailer-Boundary benötigen ihn. Erwartet wird die SDXL-PostProcess-
-  Spezifikation (PostProcess Boundary oder `CMK PostProcess Model`, auch mit
+  Spezifikation (PostProcess Boundary, `CMK PostProcess Model` oder `CMK PostProcess Model SDXL`, auch mit
   Checkpoint `None`). Ein sofort ladender SDXL-Loader an dieser Stelle würde
   über Boundary und Forward ausgeführt.
-- **`MODEL ZIT` kommt verbindlich von `CMK Z-Image Turbo PostProcess Model`.**
+- **`MODEL ZIT` kommt verbindlich von einer ZIT-PostProcess-Spec:**
+  `CMK PostProcess Model` (gemeinsame Quelle, Ausgang `MODEL ZIT`) oder
+  `CMK Z-Image Turbo PostProcess Model`.
   Ein direkt angeschlossener `CMK Z-Image Turbo Loader -Pipe-` lädt sofort, und
   ComfyUI hält seine Ausgabe im Ausgabecache; die ZIT-Freigabe vor SDXL bleibt
   dann wirkungslos (`KEPT · IN USE`). Realvalidierung siehe `ARCHITECTURE.md` 5.2.

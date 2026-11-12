@@ -572,11 +572,34 @@ CHECKPOINT + VAE-Auswahl → MODEL
 
 Lokale LoRAs, PAG, Sampling-Patches, FreeU und modulbezogener Zustand werden niemals in `MODEL` zurückgeschrieben.
 
+#### Gemeinsame PostProcess-Modellquelle (2.7.1)
+
+`CMK PostProcess Model` (`CMKPostProcessModelSourcePipe`) vereint beide
+Modellquellen in einem Node mit zwei unabhängigen Ausgängen:
+
+```text
+SDXL:          ckpt_name (inkl. None) + vae_name + checkpoint_vae        → MODEL SDXL
+Z-IMAGE TURBO: diffusion_model + text_encoder + vae + weight_dtype
+               + clip_device                                              → MODEL ZIT
+```
+
+- Beide Ausgänge sind die unveränderten Spezifikationen der Einzelquellen
+  (`make_postprocess_model_spec`, `make_zit_postprocess_model_spec`); der Node
+  lädt nichts. Jede Familie wird nur von ihrem eigenen Verbraucher
+  materialisiert, Lifecycle und ZIT-Freigabe bleiben unverändert.
+- Beide Familien sind gleichzeitig konfigurierbar; es gibt keinen
+  Familienumschalter. Die Oberfläche zeigt die Bereiche `SDXL` und
+  `Z-IMAGE TURBO` (`cmk_postprocess_model_source_ui.js`).
+- Die Einzelquellen bleiben registriert und unverändert; die SDXL-Einzelquelle
+  heißt in der Oberfläche jetzt `CMK PostProcess Model SDXL`.
+- Wird in einem Workflow die Quelle gewechselt, ändern sich die
+  graphbasierten Cache-Schlüssel nachgelagerter Boundaries einmalig.
+
 #### ZIT-Modellquelle für PostProcess
 
 `CMK Z-Image Turbo PostProcess Model` liefert eine nicht materialisierte
 Z-Image-Turbo-Spezifikation. Vorbild ist die SDXL-Spezifikation von
-`CMK PostProcess Model`.
+`CMK PostProcess Model SDXL`.
 
 ```text
 DIFFUSION MODEL + TEXT ENCODER + VAE + weight_dtype + clip_device → MODEL ZIT
