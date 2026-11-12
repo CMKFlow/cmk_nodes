@@ -18,6 +18,7 @@ from .cmk_detailer_prepare import CMKDetailerPreparePipe
 from .loaders.z_image_turbo_loader import (
     ensure_zit_text_encoder,
     evict_zit_text_encoder,
+    release_zit_resources,
     resolve_zit_postprocess_model,
 )
 
@@ -235,6 +236,18 @@ class CMKDetailerPrepareMultiModelPipe(CMKDetailerPreparePipe):
                 scheduler=zit_scheduler,
                 LOG=LOG,
             )
+
+        model_sdxl = zit_inputs.get("MODEL SDXL")
+        if (
+            family == "sdxl"
+            and IMAGE is not None
+            and isinstance(model_sdxl, dict)
+            and isinstance(PROCESS, dict)
+            and PROCESS.get("result_contract") == "family_neutral"
+        ):
+            # SDXL is about to be materialised: drop CMK's own ZIT references
+            # unless another consumer still uses them (no-op when empty).
+            release_zit_resources("ZIT -> SDXL Detailer")
 
         # None is the SDXL Detailer Prepare with detailer_global_enable = False:
         # the identical lightweight bypass without MODEL, PROCESS, SAM or LoRA.

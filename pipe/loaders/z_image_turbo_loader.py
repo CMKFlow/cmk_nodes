@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import gc
+import weakref
 
 import folder_paths
 from comfy_execution.graph_utils import ExecutionBlocker
@@ -191,11 +192,121 @@ def _load_zit_resources(resource_key, text_encoder=True):
         _ZIT_RESOURCE_CACHE[resource_key] = (model, clip, loaded_vae)
         return model, clip, loaded_vae, "MISS · LOADED"
     model, clip, loaded_vae = resources
+    status = "HIT · REUSED"
+    if model is None or loaded_vae is None:
+        # Left by a partial release_zit_resources(): the surviving part is
+        # still referenced elsewhere and is reused; only the freed part loads.
+        if model is None:
+            model = _unwrap_node_output(
+                _call_node_kwargs(
+                    ("UNETLoader",),
+                    unet_name=diffusion_model,
+                    weight_dtype=weight_dtype,
+                )
+            )
+        if loaded_vae is None:
+            loaded_vae = _unwrap_node_output(
+                _call_node_kwargs(("VAELoader",), vae_name=vae)
+            )
+        _ZIT_RESOURCE_CACHE[resource_key] = (model, clip, loaded_vae)
+        status = "HIT · PARTIAL RELOAD"
     if clip is None and text_encoder:
         clip = _load_text_encoder(text_encoder_name, clip_device)
         _ZIT_RESOURCE_CACHE[resource_key] = (model, clip, loaded_vae)
-        return model, clip, loaded_vae, "HIT · TEXT ENCODER REMATERIALIZED"
-    return model, clip, loaded_vae, "HIT · REUSED"
+        if status == "HIT · REUSED":
+            status = "HIT · TEXT ENCODER REMATERIALIZED"
+    return model, clip, loaded_vae, status
+
+
+def _weak_parts(component, weights_attr):
+    """Weak references to a resource wrapper and the module holding its weights."""
+    if component is None:
+        return None
+    try:
+        return weakref.ref(component), weakref.ref(getattr(component, weights_attr))
+    except (AttributeError, TypeError):
+        return False
+
+
+def _detach_resource_entry(resource_key):
+    """Remove one cache entry and return only weak references to its parts.
+
+    Runs in its own frame so no strong local reference survives the return.
+    Returns None when the entry may not be released (text encoder still
+    present, or a part cannot be tracked by weak reference).
+    """
+    model, clip, loaded_vae = _ZIT_RESOURCE_CACHE[resource_key]
+    if clip is not None:
+        return None
+    unet_refs = _weak_parts(model, "model")
+    vae_refs = _weak_parts(loaded_vae, "first_stage_model")
+    if unet_refs is False or vae_refs is False:
+        return None
+    del _ZIT_RESOURCE_CACHE[resource_key]
+    return unet_refs, vae_refs
+
+
+def _settle(refs):
+    """("kept", wrapper) | ("released", None) | ("retained", None) | ("absent", None)."""
+    if refs is None:
+        return "absent", None
+    wrapper_ref, weights_ref = refs
+    wrapper = wrapper_ref()
+    if wrapper is not None:
+        return "kept", wrapper
+    return ("retained" if weights_ref() is not None else "released"), None
+
+
+def release_zit_resources(reason="ZIT -> SDXL"):
+    """Release CMK's own ZIT UNet/VAE references if nothing else uses them.
+
+    Only CMK's strong references are dropped; a part another consumer still
+    references survives that drop and is put back unchanged, so it stays
+    reusable and is never loaded a second time. A part that was actually
+    freed is never put back. No model is unloaded while in use and no other
+    ComfyUI model is touched.
+    """
+    if not _ZIT_RESOURCE_CACHE:
+        return "EMPTY"
+    results = []
+    for resource_key in list(_ZIT_RESOURCE_CACHE):
+        detached = _detach_resource_entry(resource_key)
+        if detached is None:
+            results.append((resource_key, "kept", "kept", "text encoder active or untrackable"))
+            continue
+        gc.collect()
+        unet_state, model = _settle(detached[0])
+        vae_state, loaded_vae = _settle(detached[1])
+        detached = None
+        if model is not None or loaded_vae is not None:
+            _ZIT_RESOURCE_CACHE[resource_key] = (model, None, loaded_vae)
+        model = loaded_vae = None
+        results.append((resource_key, unet_state, vae_state, ""))
+
+    freed = any(state in ("released", "retained") for _key, *states, _note in results for state in states)
+    if freed:
+        try:
+            import comfy.model_management
+
+            comfy.model_management.cleanup_models_gc()
+            comfy.model_management.soft_empty_cache(force=True)
+        except Exception:
+            pass
+    states = {state for _key, *pair, _note in results for state in pair} - {"absent"}
+    if states <= {"kept"}:
+        status = "KEPT · IN USE"
+    elif states <= {"released"}:
+        status = "RELEASED"
+    else:
+        status = "PARTIALLY RELEASED"
+    for resource_key, unet_state, vae_state, note in results:
+        detail = f"UNET {unet_state.upper()} · VAE {vae_state.upper()}"
+        if note:
+            detail += f" ({note})"
+        if "retained" in (unet_state, vae_state):
+            detail += " · WARNING: weights still referenced outside CMK"
+        print(f"[CMK Model Lifecycle] {reason}: ZIT RESOURCES {status} | {resource_key[0]} | {detail}", flush=True)
+    return status
 
 
 def make_zit_postprocess_model_spec(diffusion_model, text_encoder, vae, weight_dtype="default", clip_device="default"):

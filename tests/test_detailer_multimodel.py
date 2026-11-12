@@ -873,5 +873,138 @@ class FamilyRetentionSlot(unittest.TestCase):
         for core in ("_FaceRebuildBoundaryCore", "_ZImageBoundaryCore", "_FaceBoundaryCore", "_FaceSwapBoundaryCore"):
             self.assertNotIn("slot_family", inspect.getsource(getattr(boundary, core)))
 
+class _Weights:
+    pass
+
+
+class _Patcher:
+    def __init__(self, parent=None):
+        self.parent = parent
+        self.model = parent.model if parent is not None else _Weights()
+
+    def clone(self):
+        return _Patcher(parent=self)
+
+
+class _Vae:
+    def __init__(self):
+        self.first_stage_model = _Weights()
+
+
+class ZitResourceRelease(unittest.TestCase):
+    """2.7.1: guarded release of CMK's own ZIT UNet/VAE references."""
+
+    KEY = ("z_image_turbo_bf16.safetensors", "qwen_3_4b.safetensors", "ae.safetensors", "default", "default")
+
+    def setUp(self):
+        import weakref
+        self.weakref = weakref
+        self.loads = []
+        self.cleanups = []
+        original = zit_loader._call_node_kwargs
+        self.addCleanup(setattr, zit_loader, "_call_node_kwargs", original)
+
+        def call(names, **kwargs):
+            self.loads.append(names[0])
+            return (_Vae() if names[0] == "VAELoader" else _Patcher(),)
+
+        zit_loader._call_node_kwargs = call
+        import comfy.model_management as cmm
+        for name in ("cleanup_models_gc", "soft_empty_cache"):
+            self.addCleanup(setattr, cmm, name, getattr(cmm, name))
+            setattr(cmm, name, lambda *a, _n=name, **k: self.cleanups.append(_n))
+        self.addCleanup(zit_loader._ZIT_RESOURCE_CACHE.clear)
+        zit_loader._ZIT_RESOURCE_CACHE.clear()
+
+    def fill(self, clip=None):
+        unet, vae = _Patcher(), _Vae()
+        zit_loader._ZIT_RESOURCE_CACHE[self.KEY] = (unet, clip, vae)
+        refs = [self.weakref.ref(x) for x in (unet, unet.model, vae, vae.first_stage_model)]
+        return refs
+
+    def alive(self, refs):
+        import gc
+        gc.collect()
+        return [r() is not None for r in refs]
+
+    def test_empty_cache_is_a_noop(self):
+        self.assertEqual(zit_loader.release_zit_resources(), "EMPTY")
+        self.assertEqual(self.cleanups, [])
+
+    def test_sole_cmk_references_are_released(self):
+        refs = self.fill()
+        self.assertEqual(zit_loader.release_zit_resources(), "RELEASED")
+        self.assertEqual(self.alive(refs), [False, False, False, False])
+        self.assertEqual(zit_loader._ZIT_RESOURCE_CACHE, {})
+        self.assertEqual(self.cleanups, ["cleanup_models_gc", "soft_empty_cache"])
+
+    def test_resources_in_use_are_kept_unchanged(self):
+        self.fill()
+        entry = zit_loader._ZIT_RESOURCE_CACHE[self.KEY]
+        consumer = {"detailer_model": entry[0].clone(), "detailer_vae": entry[2]}
+        entry = None
+        self.assertEqual(zit_loader.release_zit_resources(), "KEPT · IN USE")
+        cached = zit_loader._ZIT_RESOURCE_CACHE[self.KEY]
+        self.assertIs(cached[0], consumer["detailer_model"].parent)
+        self.assertIs(cached[2], consumer["detailer_vae"])
+        self.assertEqual(self.cleanups, [])
+        model, _clip, loaded_vae, status = zit_loader._load_zit_resources(self.KEY, text_encoder=False)
+        self.assertEqual((status, self.loads), ("HIT · REUSED", []))
+        self.assertIs(model, cached[0])
+
+    def test_unet_in_use_vae_free_is_a_partial_release(self):
+        refs = self.fill()
+        consumer = zit_loader._ZIT_RESOURCE_CACHE[self.KEY][0].clone()
+        self.assertEqual(zit_loader.release_zit_resources(), "PARTIALLY RELEASED")
+        self.assertEqual(self.alive(refs), [True, True, False, False])
+        cached = zit_loader._ZIT_RESOURCE_CACHE[self.KEY]
+        self.assertIs(cached[0], consumer.parent)
+        self.assertIsNone(cached[2])
+        model, _clip, loaded_vae, status = zit_loader._load_zit_resources(self.KEY, text_encoder=False)
+        self.assertEqual((status, self.loads), ("HIT · PARTIAL RELOAD", ["VAELoader"]))
+        self.assertIs(model, consumer.parent)
+        self.assertIsInstance(loaded_vae, _Vae)
+
+    def test_vae_in_use_unet_free_is_a_partial_release(self):
+        refs = self.fill()
+        consumer = zit_loader._ZIT_RESOURCE_CACHE[self.KEY][2]
+        self.assertEqual(zit_loader.release_zit_resources(), "PARTIALLY RELEASED")
+        self.assertEqual(self.alive(refs), [False, False, True, True])
+        self.assertEqual(zit_loader._ZIT_RESOURCE_CACHE[self.KEY][0], None)
+        model, _clip, loaded_vae, status = zit_loader._load_zit_resources(self.KEY, text_encoder=False)
+        self.assertEqual((status, self.loads), ("HIT · PARTIAL RELOAD", ["UNETLoader"]))
+        self.assertIs(loaded_vae, consumer)
+
+    def test_active_text_encoder_keeps_the_entry(self):
+        clip = object()
+        refs = self.fill(clip=clip)
+        entry = zit_loader._ZIT_RESOURCE_CACHE[self.KEY]
+        self.assertEqual(zit_loader.release_zit_resources(), "KEPT · IN USE")
+        self.assertIs(zit_loader._ZIT_RESOURCE_CACHE[self.KEY], entry)
+        self.assertEqual(self.cleanups, [])
+
+    def test_untrackable_parts_are_kept(self):
+        zit_loader._ZIT_RESOURCE_CACHE[self.KEY] = ("model-without-weights", None, _Vae())
+        entry = zit_loader._ZIT_RESOURCE_CACHE[self.KEY]
+        self.assertEqual(zit_loader.release_zit_resources(), "KEPT · IN USE")
+        self.assertIs(zit_loader._ZIT_RESOURCE_CACHE[self.KEY], entry)
+
+    def test_prepare_releases_only_in_the_sdxl_branch(self):
+        rec = _Recorder(self)
+        original = mm_mod.release_zit_resources
+        self.addCleanup(setattr, mm_mod, "release_zit_resources", original)
+        mm_mod.release_zit_resources = lambda reason: rec.calls.append(("release", reason)) or "EMPTY"
+        node = mm_mod.CMKDetailerPrepareMultiModelPipe()
+        node.prepare(**_mm_args(model_family="None"))
+        node.prepare(**_mm_args(model_family="Z-Image Turbo"))
+        self.assertNotIn("release", rec.kinds())
+        with self.assertRaises(ValueError):
+            node.prepare(**_mm_args(model_family="SDXL", PROCESS={"result_contract": "other"}))
+        self.assertNotIn("release", rec.kinds())
+        node.prepare(**_mm_args(model_family="SDXL"))
+        kinds = rec.kinds()
+        self.assertEqual(kinds.count("release"), 1)
+        self.assertLess(kinds.index("release"), kinds.index("resolve_sdxl"))
+
 if __name__ == "__main__":
     unittest.main()

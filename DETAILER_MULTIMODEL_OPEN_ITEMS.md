@@ -55,9 +55,10 @@ MODEL-Verträge und Cache-Verhalten unverändert.
   Spezifikation (PostProcess Boundary oder `CMK PostProcess Model`, auch mit
   Checkpoint `None`). Ein sofort ladender SDXL-Loader an dieser Stelle würde
   über Boundary und Forward ausgeführt.
-- **`MODEL ZIT`** sollte von `CMK Z-Image Turbo PostProcess Model` kommen. Ein
-  direkt angeschlossener `CMK Z-Image Turbo Loader -Pipe-` lädt sofort, sobald
-  der Ausgang `MODEL ZIT` nachgelagert angefordert wird.
+- **`MODEL ZIT` kommt verbindlich von `CMK Z-Image Turbo PostProcess Model`.**
+  Ein direkt angeschlossener `CMK Z-Image Turbo Loader -Pipe-` lädt sofort, und
+  ComfyUI hält seine Ausgabe im Ausgabecache; die ZIT-Freigabe vor SDXL bleibt
+  dann wirkungslos (`KEPT · IN USE`). Realvalidierung siehe `ARCHITECTURE.md` 5.2.
 
 ## 5. Mehrere Instanzen
 
@@ -92,9 +93,20 @@ MODEL-Verträge und Cache-Verhalten unverändert.
   Eintrag der jeweils anderen Familie bleibt bis zu seiner Wiederverwendung
   liegen (höchstens ein Eintrag pro Node); es gibt keine Bereinigung.
 
-## 7. Weitere Beobachtungen
+## 7. Untersuchungshinweis
+
+Weichen Harness und Realbetrieb ab, zuerst die tatsächliche Workflow-Verdrahtung
+einschließlich der Modellquellen mit der Referenzarchitektur vergleichen. Der
+fehlgeschlagene Realtest vom 2026-11-12 ging auf einen ZIT-Loader statt der
+ZIT-PostProcess-Spec zurück.
+
+## 8. Weitere Beobachtungen
 
 - **Advanced-Variante:** `CMK SEGS CONCAT` kennt den Multi-Model Smart Detailer
   noch nicht (`nodes/image/segs_concate.py`).
-- **Speicher:** Die Auswirkung des ZIT-Lebenszyklus beim Wechsel ZIT → SDXL wird
-  in realen Modellläufen bewertet (siehe `ARCHITECTURE.md` 5.2).
+- **Speicher ZIT → SDXL:** abgesicherte ZIT-Freigabe im SDXL-Zweig des
+  Multi-Model Prepare, real validiert am 2026-11-12 (`ARCHITECTURE.md` 5.2).
+  Offen: ZIT ist auf 16 GB auch
+  allein langsam (etwa 90 s/Step, bf16 11,7 GB); bei ZIT → SDXL → ZIT in einem
+  Prompt bleibt ZIT geladen (Familien im Advanced-Subgraphen gruppieren); der
+  SDXL-Detailer-Prepare gibt seinen CLIP nicht frei (Legacy, unverändert).

@@ -603,8 +603,55 @@ und die PostProcess-Spezifikation:
 - Es gibt keine globale Freigabe durch den Visualizer, keine Referenzzählung
   und keine zusätzliche Ressourcenverwaltung.
 
-Die mögliche Speicherbelastung beim Wechsel ZIT → SDXL wird anhand realer
-Modellläufe bewertet.
+Wechsel ZIT → SDXL im Multi-Model-Detailer (2.7.1): Auf Unified Memory gibt
+ComfyUI ein Modell erst frei, wenn keine Python-Referenz mehr besteht; ein
+Entladen verschiebt die Gewichte nur von MPS in den Arbeitsspeicher. Bevor der
+ausgeführte SDXL-Zweig des Multi-Model Prepare SDXL materialisiert, ruft er
+deshalb `release_zit_resources` auf:
+
+- Leerer ZIT-Ressourcencache: keine Aktion.
+- Ist ein Textencoder im Eintrag aktiv oder ein Teil nicht per Weakref
+  verfolgbar: `KEPT · IN USE`, Eintrag unverändert.
+- Sonst werden die CMK-Referenzen entfernt und per Weakref geprüft, ob UNet
+  (ModelPatcher und Gewichte) und VAE (Objekt und `first_stage_model`)
+  tatsächlich frei wurden. Ein noch verwendeter Teil wird unverändert
+  zurückgelegt und wiederverwendet; ein freigegebener Teil wird nie
+  zurückgelegt. Teilweise Freigabe: Der Eintrag enthält nur den verbliebenen
+  Teil, `_load_zit_resources` lädt beim nächsten ZIT-Bedarf nur den fehlenden
+  Teil (`HIT · PARTIAL RELOAD`).
+- Kein Entladen eines noch verwendeten Modells, kein globales Unload; nach
+  einer echten Freigabe nur `cleanup_models_gc` und `soft_empty_cache`.
+- Konsolenlog: `[CMK Model Lifecycle] ZIT -> SDXL Detailer: ZIT RESOURCES
+  RELEASED | PARTIALLY RELEASED | KEPT · IN USE`.
+
+Wirkung: Zwischen getrennten Prompts (ZIT-Lauf, danach SDXL-Lauf) wird ZIT
+freigegeben. Innerhalb eines Prompts (ZIT → SDXL → ZIT) hält ComfyUI die
+Ausgabe des ersten ZIT-Prepare; dann bleibt ZIT erhalten und wird ohne zweite
+Kopie wiederverwendet. Ein Boundary-HIT führt Prepare nicht aus und gibt nichts
+frei.
+
+Verbindliche Modellquelle: In eigenständigen PostProcess-Workflows kommt
+`MODEL ZIT` ausschließlich aus `CMK Z-Image Turbo PostProcess Model`. Der
+`CMK Z-Image Turbo Loader -Pipe-` lädt sofort und gibt UNet und VAE als
+Objekte aus; ComfyUI hält diese Ausgabe im Ausgabecache, solange die Node im
+Prompt steht. Die Freigabe meldet dann korrekt `KEPT · IN USE`, und SDXL läuft
+neben dem weiterhin referenzierten ZIT-Modell.
+
+Realvalidierung (2026-11-12, M1 Pro, 16 GB Unified Memory, ComfyUI 0.45.2,
+Standard-Cache `RAM_PRESSURE`, ZIT-Lauf und anschließender SDXL-Lauf ohne
+Neustart):
+
+| | ZIT Loader -Pipe- als Quelle | ZIT PostProcess Model als Quelle |
+|---|---|---|
+| ZIT-Lauf | 8 Steps, 86,35 s/Step, 14:55 min | 8 Steps, 88,03 s/Step, 14:36 min |
+| Freigabe vor SDXL | `KEPT · IN USE` | `RELEASED · UNET RELEASED · VAE RELEASED` |
+| SDXL-Checkpoint | 90,38 s, Lumina2 7.443,77 MB weiter geladen | 11,39 s |
+| SDXL-Sampling | erster Step 123,83 s, abgebrochen | 30 Steps, 3,64 s/Step |
+| SDXL gesamt | abgebrochen | 143,59 s |
+
+Der SDXL-Lauf nach ZIT entspricht damit einem regulären SDXL-Lauf
+(Referenz ohne vorherigen ZIT-Lauf: 10,78 s Checkpoint, 3,73 s/Step,
+143,68 s).
 
 ### 5.3 ControlNet
 
