@@ -54,6 +54,13 @@ const FAMILY_WIDGETS = {
 };
 const FAMILY_SPECIFIC = new Set([...FAMILY_WIDGETS.SDXL, ...FAMILY_WIDGETS["Z-Image Turbo"]]);
 
+// CMK Detailer Family Enable: one control per Detailer. Three choice fields
+// replace the dropdown; the stored value stays the model family name.
+const FAMILY_CONTROL_CLASS = "CMKDetailerFamilyEnable";
+const FAMILY_CHOICES = [["None", "NONE"], ["SDXL", "SDXL"], ["Z-Image Turbo", "ZIT"]];
+const FAMILY_TABS_NAME = "cmk_family_choice";
+const FAMILY_ACCENT = "rgb(88, 190, 230)";
+
 const previewNodes = new Set();
 
 function nodeClass(node) {
@@ -161,6 +168,96 @@ function syncHostFamily(host) {
     }
 }
 
+function familyInputLinked(node) {
+    return Boolean(node.inputs?.some((input) => input?.widget?.name === FAMILY_WIDGET && input.link != null));
+}
+
+// A Prepare whose MODEL FAMILY is linked to the control shows the control's
+// family (its own dropdown is hidden by ComfyUI and would be stale).
+function mirrorToPrepares(node) {
+    const value = node.widgets?.find((target) => target?.name === FAMILY_WIDGET)?.value;
+    const graph = node.graph ?? app.graph;
+    for (const linkId of node.outputs?.[1]?.links ?? []) {
+        const link = graph?.links?.get?.(linkId) ?? graph?.links?.[linkId];
+        const target = link ? graph.getNodeById?.(link.target_id) : null;
+        if (nodeClass(target) !== PREPARE_CLASS) continue;
+        const widget = target.widgets?.find((item) => item?.name === FAMILY_WIDGET);
+        if (widget && value != null && widget.value !== value) widget.value = value;
+        refreshPrepare(target);
+    }
+}
+
+function renderFamilyChoice(root) {
+    for (const button of root.querySelectorAll("button")) {
+        const active = button.dataset.value === root._cmkValue;
+        button.setAttribute("aria-pressed", active ? "true" : "false");
+        button.style.color = active ? FAMILY_ACCENT : "rgba(214, 219, 226, 0.5)";
+        button.style.border = active ? "1px solid rgba(88, 190, 230, 0.6)" : "1px solid rgba(255, 255, 255, 0.09)";
+        button.style.fontWeight = active ? "700" : "500";
+    }
+}
+
+function installFamilyChoice(node) {
+    const original = node.widgets?.find((target) => target?.name === FAMILY_WIDGET);
+    if (!original || typeof node.addDOMWidget !== "function") return;
+    let panel = node.widgets.find((target) => target?.name === FAMILY_TABS_NAME);
+    if (!panel) {
+        const root = document.createElement("div");
+        root.className = "cmk-family-choice";
+        Object.assign(root.style, {
+            display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px",
+            width: "100%", boxSizing: "border-box", padding: "2px 0",
+        });
+        for (const [value, label] of FAMILY_CHOICES) {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.dataset.value = value;
+            button.textContent = label;
+            button.title = value;
+            Object.assign(button.style, {
+                height: "40px", borderRadius: "6px", cursor: "pointer", appearance: "none",
+                background: "rgba(255, 255, 255, 0.025)", boxShadow: "none", outline: "none",
+                fontFamily: "inherit", fontSize: "13px", letterSpacing: "0.08em",
+                transition: "color 120ms ease, border-color 120ms ease",
+            });
+            button.addEventListener("pointerdown", (event) => event.stopPropagation());
+            button.addEventListener("click", (event) => {
+                event.stopPropagation();
+                if (root._cmkValue === value) return;
+                root._cmkValue = value;
+                original.value = value;
+                renderFamilyChoice(root);
+                try { original.callback?.(value, app.canvas, node); } catch (_) {}
+                mirrorToPrepares(node);
+                node.setDirtyCanvas?.(true, true);
+                app.graph?.setDirtyCanvas?.(true, true);
+            });
+            root.append(button);
+        }
+        root._cmkValue = String(original.value ?? "None");
+        panel = node.addDOMWidget(FAMILY_TABS_NAME, "cmk_family_choice", root, {
+            serialize: false,
+            hideOnZoom: false,
+            getMinHeight: () => 46,
+            getHeight: () => 46,
+            getValue: () => root._cmkValue,
+            setValue: (value) => { root._cmkValue = String(value ?? "None"); renderFamilyChoice(root); },
+        });
+        panel.serialize = false;
+        panel.computeLayoutSize = undefined;
+        panel._cmkRoot = root;
+    }
+    const root = panel._cmkRoot;
+    root._cmkValue = String(original.value ?? "None");
+    renderFamilyChoice(root);
+    // A linked selection (Standard subgraph: MODEL FAMILY from the outer
+    // widget) is decided elsewhere; ComfyUI hides the dropdown, so do the same.
+    setWidgetVisible(original, false);
+    setWidgetVisible(panel, !familyInputLinked(node));
+    mirrorToPrepares(node);
+    node.setDirtyCanvas?.(true, true);
+}
+
 function refresh(node) {
     if (node?.subgraph) {
         syncHostFamily(node);
@@ -170,6 +267,8 @@ function refresh(node) {
     if (type === PREPARE_CLASS) {
         installFamilyCallback(node);
         refreshPrepare(node);
+    } else if (type === FAMILY_CONTROL_CLASS) {
+        installFamilyChoice(node);
     } else if (type === DETAILER_CLASS && Array.isArray(node.widgets)) {
         applyLabels(node, DETAILER_LABELS);
         node.setDirtyCanvas?.(true, true);
@@ -247,9 +346,9 @@ app.registerExtension({
     name: "cmk.detailer.multimodel.ui.v1",
 
     beforeRegisterNodeDef(nodeType, nodeData) {
-        if (nodeData.name !== PREPARE_CLASS && nodeData.name !== DETAILER_CLASS) return;
+        if (![PREPARE_CLASS, DETAILER_CLASS, FAMILY_CONTROL_CLASS].includes(nodeData.name)) return;
         if (nodeData.name === PREPARE_CLASS) registerModelZitFirst(nodeData);
-        for (const hook of ["onNodeCreated", "onConfigure", "onAdded"]) {
+        for (const hook of ["onNodeCreated", "onConfigure", "onAdded", "onConnectionsChange"]) {
             const original = nodeType.prototype[hook];
             nodeType.prototype[hook] = function () {
                 const result = original?.apply(this, arguments);
@@ -266,12 +365,14 @@ app.registerExtension({
 
     nodeCreated(node) {
         const type = nodeClass(node);
-        if (type === PREPARE_CLASS || type === DETAILER_CLASS || innerPrepares(node).length) track(node);
+        if (type === PREPARE_CLASS || type === DETAILER_CLASS || type === FAMILY_CONTROL_CLASS
+            || innerPrepares(node).length) track(node);
     },
 
     loadedGraphNode(node) {
         const type = nodeClass(node);
-        if (type === PREPARE_CLASS || type === DETAILER_CLASS || innerPrepares(node).length) track(node);
+        if (type === PREPARE_CLASS || type === DETAILER_CLASS || type === FAMILY_CONTROL_CLASS
+            || innerPrepares(node).length) track(node);
     },
 
     beforeConfigureGraph(graphData) {

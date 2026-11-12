@@ -54,26 +54,28 @@ def _sampling_entry_spec(default):
 
 
 class CMKDetailerFamilyEnable:
-    """MODEL FAMILY of the Detailer subgraph as the Boolean module switch.
+    """Model family control of one Detailer.
 
-    CMK Module Bypass Gate and CMK Preview & Compare take a Boolean ENABLE;
-    None is off, SDXL and Z-Image Turbo are on. The node reads nothing else,
-    so the gate decides before any Detailer work or model is requested.
+    ENABLE: the Boolean module switch for CMK Module Bypass Gate and CMK
+    Preview & Compare (None is off, SDXL and Z-Image Turbo are on).
+    MODEL FAMILY: the unchanged selection for the model_family input of the
+    Multi-Model Prepare. The prompt handler cmk_prompt_family_inline puts the
+    literal selection in place of that link, so gates and boundaries see the
+    same prompt as with the Prepare dropdown. The node reads nothing else.
     """
 
     @classmethod
     def INPUT_TYPES(cls):
         return {"required": {"model_family": (DETAILER_MODEL_FAMILIES, {"default": "None"})}}
 
-    RETURN_TYPES = ("BOOLEAN",)
-    RETURN_NAMES = ("ENABLE",)
+    RETURN_TYPES = ("BOOLEAN", DETAILER_MODEL_FAMILIES)
+    RETURN_NAMES = ("ENABLE", "MODEL FAMILY")
     FUNCTION = "read"
-    CATEGORY = "CMK/Internal/Gates"
-    DEV_ONLY = True
+    CATEGORY = "CMK/Flow/PostProcess"
 
     @staticmethod
     def read(model_family="None"):
-        return (detailer_model_family(model_family) != "none",)
+        return (detailer_model_family(model_family) != "none", model_family)
 
 
 class CMKDetailerPrepareMultiModelPipe(CMKDetailerPreparePipe):

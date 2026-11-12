@@ -1037,6 +1037,24 @@ MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG + VISUAL + diagnostic
 
 - `CMK Detailer Family Enable` übersetzt MODEL FAMILY in das boolesche
   ENABLE von Module Bypass Gate und Preview & Compare.
+
+`CMK Detailer Family Enable` als Steuer-Node (2.8.0), ein Node je Detailer:
+
+- Oberfläche: drei Auswahlflächen `NONE | SDXL | ZIT` statt Dropdown;
+  Standardbreite 450 px (`cmk_node_dimensions.js`). Gespeichert und
+  übergeben werden die unveränderten Werte `None`, `SDXL`, `Z-Image Turbo`.
+- Ausgänge: `ENABLE` (unverändert, Slot 0) und `MODEL FAMILY` (Slot 1) für
+  den Eingang `model_family` des Multi-Model Prepare. Ohne Steuer-Node bleibt
+  das Dropdown im Prepare maßgeblich; mit Steuer-Node blendet ComfyUI es aus,
+  und der Prepare zeigt die Einstellungen der gewählten Familie.
+- `cmk_prompt_family_inline` ersetzt vor der Ausführung jeden Link vom
+  Ausgang `MODEL FAMILY` durch die wörtliche Auswahl des Steuer-Nodes. Gate,
+  Boundary (Bypass-Zustand, Aufbewahrungsslot) und Cache-Schlüssel sehen
+  damit denselben Prompt wie mit dem Dropdown. Eine selbst verlinkte Auswahl
+  bleibt unverändert.
+- Im Standard-Subgraphen ist die Auswahl mit der äußeren MODEL FAMILY
+  verbunden; die Auswahlflächen sind dort ausgeblendet, das äußere Layout ist
+  unverändert.
 - `MODEL SDXL` ist die SDXL-PostProcess-Spezifikation; die Detailer-Boundary
   fordert sie als öffentlichen MODEL-Eingang an.
 - `MODEL ZIT` ist die ZIT-PostProcess-Spezifikation. Der Ausgang `MODEL ZIT`

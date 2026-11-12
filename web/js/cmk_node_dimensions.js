@@ -34,6 +34,7 @@ const BUILTIN_DEFAULTS = {
     CMKCheckpointVAELoaderPipe: [600, 165],
     CMKPostProcessModelPipe: [600, 165],
     CMKPostProcessModelSourcePipe: [600, 330],
+    CMKDetailerFamilyEnable: [450, 130],
     CMKImageLoadAndResizePipe: [600, 860],
     CMKLoadImage: [600, 1225],
     CMKSwapImageLoaderPipe: [1200, 800],

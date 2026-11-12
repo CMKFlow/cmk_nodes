@@ -14,7 +14,21 @@ const app = {
   registerExtension(value) { extension = value; },
 };
 const api = { addEventListener(name, callback) { listeners[name] = callback; } };
-vm.runInNewContext(source, { app, api, setTimeout(callback) { callback(); } });
+// Minimal DOM for the Family Enable choice fields.
+class FakeElement {
+  constructor(tag) {
+    this.tagName = tag.toUpperCase(); this.style = {}; this.dataset = {}; this.children = [];
+    this.attributes = {}; this.listeners = {}; this.textContent = ""; this.className = "";
+  }
+  append(...items) { this.children.push(...items); }
+  setAttribute(name, value) { this.attributes[name] = String(value); }
+  getAttribute(name) { return this.attributes[name] ?? null; }
+  addEventListener(name, callback) { (this.listeners[name] ??= []).push(callback); }
+  querySelectorAll(selector) { return selector === "button" ? this.children.filter((c) => c.tagName === "BUTTON") : []; }
+  click() { for (const callback of this.listeners.click ?? []) callback({ stopPropagation() {} }); }
+}
+const document = { createElement: (tag) => new FakeElement(tag) };
+vm.runInNewContext(source, { app, api, document, setTimeout(callback) { callback(); } });
 assert.ok(extension, "Multi-Model Detailer UI extension was not registered");
 extension.setup();
 
@@ -200,6 +214,81 @@ function assertState(node, family) {
   node.imgs = ["old"];
   listeners.execution_start();
   assert.equal(node.imgs.length, 0);
+}
+
+// CMK Detailer Family Enable: NONE | SDXL | ZIT replace the dropdown; the
+// stored value stays the model family name.
+const FAMILIES = ["None", "SDXL", "Z-Image Turbo"];
+class ControlNode {
+  constructor() {
+    this.comfyClass = "CMKDetailerFamilyEnable";
+    this.size = [450, 130];
+    this.widgets = [{ name: "model_family", value: "None", options: { values: FAMILIES }, computeSize: () => [200, 24], draw() {}, callback() {} }];
+    this.inputs = [{ name: "model_family", widget: { name: "model_family" }, link: null }];
+    this.outputs = [{ name: "ENABLE", links: [] }, { name: "MODEL FAMILY", links: [] }];
+  }
+  addDOMWidget(name, type, element, options) {
+    const widget = { name, type, element, options: { ...options }, computeSize: () => [200, 46], draw() {} };
+    this.widgets.push(widget);
+    return widget;
+  }
+  configure(data) {
+    data.widgets_values.forEach((value, index) => { this.widgets[index].value = value; });
+    this.onConfigure?.(data);
+  }
+  serialize() {
+    return { widgets_values: this.widgets.filter((w) => w.options?.serialize !== false).map((w) => w.value) };
+  }
+}
+extension.beforeRegisterNodeDef(ControlNode, { name: "CMKDetailerFamilyEnable" });
+const buttons = (node) => byName(node, "cmk_family_choice").element.querySelectorAll("button");
+const pressed = (node) => buttons(node).filter((b) => b.getAttribute("aria-pressed") === "true").map((b) => b.textContent);
+const press = (node, label) => buttons(node).find((b) => b.textContent === label).click();
+{
+  const first = create(ControlNode);
+  const second = create(ControlNode);
+  assert.deepEqual(buttons(first).map((b) => [b.textContent, b.dataset.value]),
+    [["NONE", "None"], ["SDXL", "SDXL"], ["ZIT", "Z-Image Turbo"]]);
+  assert.ok(byName(first, "model_family").hidden, "the dropdown is replaced, not duplicated");
+  assert.equal(byName(first, "cmk_family_choice").options.serialize, false, "the choice fields are not a prompt input");
+  assert.deepEqual(pressed(first), ["NONE"]);
+  press(first, "SDXL");
+  assert.equal(byName(first, "model_family").value, "SDXL");
+  assert.deepEqual(pressed(first), ["SDXL"]);
+  const active = buttons(first).find((b) => b.textContent === "SDXL");
+  assert.equal(active.style.color, "rgb(88, 190, 230)", "active text in the CMK accent");
+  assert.match(active.style.border, /rgba\(88, 190, 230/, "active outline");
+  assert.equal(active.style.background, "rgba(255, 255, 255, 0.025)", "no accent fill");
+  press(first, "ZIT");
+  assert.equal(byName(first, "model_family").value, "Z-Image Turbo", "ZIT is only the caption");
+  // Instances are independent.
+  assert.equal(byName(second, "model_family").value, "None");
+  assert.deepEqual(pressed(second), ["NONE"]);
+  // Save and load keep the selection; only model_family is stored.
+  const saved = first.serialize().widgets_values;
+  assert.deepEqual(saved, ["Z-Image Turbo"]);
+  const reloaded = new ControlNode();
+  reloaded.onNodeCreated?.(); extension.nodeCreated(reloaded);
+  reloaded.configure({ widgets_values: saved });
+  extension.loadedGraphNode(reloaded);
+  assert.deepEqual(pressed(reloaded), ["ZIT"]);
+  // A linked selection (Standard subgraph) hides the choice fields.
+  const linked = new ControlNode();
+  linked.inputs[0].link = 7;
+  linked.onNodeCreated?.(); extension.nodeCreated(linked);
+  assert.ok(byName(linked, "cmk_family_choice").hidden);
+}
+// A Prepare linked to MODEL FAMILY follows the control.
+{
+  const control = create(ControlNode);
+  const prepare = create(PrepareNode);
+  const graph = { links: { 9: { target_id: 42 } }, getNodeById: (id) => (id === 42 ? prepare : null) };
+  control.graph = graph;
+  control.outputs[1].links = [9];
+  press(control, "SDXL");
+  assertState(prepare, "SDXL");
+  press(control, "ZIT");
+  assertState(prepare, "Z-Image Turbo");
 }
 
 console.log("detailer multi-model UI contract: OK");

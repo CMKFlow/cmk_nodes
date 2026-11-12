@@ -463,8 +463,11 @@ class MultiModelWidgets(unittest.TestCase):
     def test_family_enable(self):
         node = mm_mod.CMKDetailerFamilyEnable
         self.assertEqual(node.INPUT_TYPES()["required"]["model_family"][0], ["None", "SDXL", "Z-Image Turbo"])
-        self.assertEqual((node.RETURN_TYPES, node.CATEGORY), (("BOOLEAN",), "CMK/Internal/Gates"))
-        self.assertEqual([node.read(value)[0] for value in ("None", "SDXL", "Z-Image Turbo")], [False, True, True])
+        self.assertEqual(node.RETURN_TYPES, ("BOOLEAN", ["None", "SDXL", "Z-Image Turbo"]))
+        self.assertEqual(node.RETURN_NAMES, ("ENABLE", "MODEL FAMILY"))
+        self.assertEqual(node.CATEGORY, "CMK/Flow/PostProcess")
+        self.assertEqual([node.read(value) for value in ("None", "SDXL", "Z-Image Turbo")],
+                         [(False, "None"), (True, "SDXL"), (True, "Z-Image Turbo")])
         self.assertEqual(mappings.NODE_CLASS_MAPPINGS["CMKDetailerFamilyEnable"], node)
 
     def test_smart_detailer_has_no_sampling_entry_widget(self):
@@ -1005,6 +1008,74 @@ class ZitResourceRelease(unittest.TestCase):
         kinds = rec.kinds()
         self.assertEqual(kinds.count("release"), 1)
         self.assertLess(kinds.index("release"), kinds.index("resolve_sdxl"))
+
+family_inline = importlib.import_module(f"{TEST_PACKAGE}.cmk_prompt_family_inline")
+gate_pruning = importlib.import_module(f"{TEST_PACKAGE}.cmk_prompt_gate_pruning")
+
+
+class FamilyControlInline(unittest.TestCase):
+    """2.8.0: CMK Detailer Family Enable linked to the Prepare's MODEL FAMILY."""
+
+    CONTROL = "9900"
+
+    def prompts(self, family):
+        dropdown = _multimodel_prompt(model_family=family)
+        linked = json.loads(json.dumps(dropdown))
+        linked[self.CONTROL] = {"class_type": "CMKDetailerFamilyEnable", "inputs": {"model_family": family}}
+        prepare = next(k for k, v in linked.items() if v.get("class_type") == "CMKDetailerPrepareMultiModelPipe")
+        linked[prepare]["inputs"]["model_family"] = [self.CONTROL, 1]
+        return dropdown, linked, prepare
+
+    def boundary_id(self, prompt):
+        return next(k for k, v in prompt.items() if isinstance(v, dict) and v.get("class_type") == "CMKDetailerBoundaryCache")
+
+    def test_linked_control_gives_the_dropdown_prompt(self):
+        for family in ("None", "SDXL", "Z-Image Turbo"):
+            with self.subTest(family=family):
+                dropdown, linked, prepare = self.prompts(family)
+                inlined, count = family_inline.inline_family_links(linked)
+                self.assertEqual(count, 1)
+                self.assertEqual(inlined[prepare]["inputs"]["model_family"], family)
+                without_control = {k: v for k, v in inlined.items() if k != self.CONTROL}
+                self.assertEqual(without_control, dropdown)
+                self.assertEqual(linked[prepare]["inputs"]["model_family"], [self.CONTROL, 1], "input prompt unchanged")
+
+    def test_gate_boundary_and_cache_identity_unchanged(self):
+        for family in ("None", "SDXL", "Z-Image Turbo"):
+            with self.subTest(family=family):
+                dropdown, linked, _prepare = self.prompts(family)
+                inlined, _count = family_inline.inline_family_links(linked)
+                node = self.boundary_id(dropdown)
+                self.assertEqual(boundary._detailer_disabled_state(inlined, node)[0],
+                                 boundary._detailer_disabled_state(dropdown, node)[0])
+                self.assertEqual(boundary._detailer_disabled_state(inlined, node)[0], family == "None")
+                self.assertEqual(boundary._detailer_retention_family(inlined, node),
+                                 boundary._detailer_retention_family(dropdown, node))
+                self.assertEqual(_fingerprints(inlined), _fingerprints(dropdown))
+                pruned_inlined, removed_inlined = gate_pruning.prune_inactive_gate_links(inlined)
+                pruned_dropdown, removed_dropdown = gate_pruning.prune_inactive_gate_links(dropdown)
+                self.assertEqual(removed_inlined, removed_dropdown)
+                self.assertEqual({k: v for k, v in pruned_inlined.items() if k != self.CONTROL}, pruned_dropdown)
+
+    def test_enable_links_and_linked_selections_stay(self):
+        prompt = {
+            "1": {"class_type": "CMKDetailerFamilyEnable", "inputs": {"model_family": "SDXL"}},
+            "2": {"class_type": "CMKModuleBypassGate", "inputs": {"ENABLE": ["1", 0]}},
+            "3": {"class_type": "CMKDetailerFamilyEnable", "inputs": {"model_family": ["99", 0]}},
+            "4": {"class_type": "CMKDetailerPrepareMultiModelPipe", "inputs": {"model_family": ["3", 1]}},
+        }
+        inlined, count = family_inline.inline_family_links(prompt)
+        self.assertEqual(count, 0)
+        self.assertIs(inlined, prompt)
+        self.assertEqual(family_inline.on_prompt({"prompt": prompt}), {"prompt": prompt})
+
+    def test_on_prompt_returns_inlined_request(self):
+        _dropdown, linked, prepare = self.prompts("SDXL")
+        request = {"prompt": linked, "client_id": "x"}
+        result = family_inline.on_prompt(request)
+        self.assertEqual(result["prompt"][prepare]["inputs"]["model_family"], "SDXL")
+        self.assertEqual(result["client_id"], "x")
+        self.assertEqual(family_inline.on_prompt("not a request"), "not a request")
 
 if __name__ == "__main__":
     unittest.main()
