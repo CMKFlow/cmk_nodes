@@ -4,7 +4,14 @@ import { api } from "/scripts/api.js";
 const VISUALIZER = "CMKVisualizer";
 const VISUAL_COMPARE = "CMKVisualCompare";
 const LEGACY_VISUALIZER_INPUTS = ["MODEL (opt)", "PROCESS", "IMAGE", "LOG", "VISUAL"];
-const VISUALIZER_COMMON_OFFSET = 10;
+// 2.7.1: "POSTPROCESS MODEL ZIT" precedes "MODEL (opt)", so the PostProcess
+// group starts at slot 11 (ZIT 0-4, SDXL 5-9, POSTPROCESS 10-15).
+const VISUALIZER_COMMON_OFFSET = 11;
+const POSTPROCESS_MODEL_ZIT = "POSTPROCESS MODEL ZIT";
+const VISUALIZER_INPUT_LABELS = {
+  [POSTPROCESS_MODEL_ZIT]: "MODEL ZIT",
+  "MODEL (opt)": "MODEL SDXL",
+};
 const stateByNode = new WeakMap();
 const graphHookInstalled = Symbol("cmkVisualGraphHookInstalled");
 const providerWidgetHookInstalled = Symbol("cmkVisualProviderWidgetHookInstalled");
@@ -46,8 +53,10 @@ function nodeKind(node) {
 
 function applyVisualizerInputLabels(node) {
   if (nodeKind(node) !== VISUALIZER || !Array.isArray(node.inputs)) return;
-  const model = node.inputs.find((input) => input?.name === "MODEL (opt)");
-  if (model) model.localized_name = "MODEL";
+  for (const input of node.inputs) {
+    const label = VISUALIZER_INPUT_LABELS[input?.name];
+    if (label) input.localized_name = label;
+  }
   node.setDirtyCanvas?.(true, true);
 }
 

@@ -149,6 +149,27 @@ Er verwendet dafür die bestehenden Result-Unpack-, Smart-Upscale- und Save-
 Verträge und implementiert weder einen zweiten Cache noch eine abweichende
 Speicher- oder Upscale-Logik.
 
+Anschlussgruppen (2.7.1): `Z-IMAGE TURBO` und `SDXL` sind die
+Generierungsanschlüsse, `POSTPROCESS` die Anschlüsse der PostProcess-Kette:
+
+| Anzeige | Interner Name | Verwendung |
+|---|---|---|
+| MODEL ZIT | `POSTPROCESS MODEL ZIT` | Weitergabe des ZIT-Modells (z. B. Multi-Model-Detailer); wird nie angefordert |
+| MODEL SDXL | `MODEL (opt)` | unverändert: Result Unpack, Save, Freigabe der SDXL-PostProcess-Spec |
+| PROCESS, IMAGE, LOG, VISUAL | unverändert | unverändert |
+
+- `POSTPROCESS MODEL ZIT` ist ein lazy Eingang ohne Anforderung: Der Visualizer
+  materialisiert und referenziert dort kein Modell; die ZIT-Freigabe vor SDXL
+  bleibt wirksam. Die internen Namen der übrigen Eingänge sind unverändert,
+  deshalb bleiben API-Prompts und gespeicherte Workflows gültig. Das Frontend
+  ordnet gespeicherte Eingänge nach Namen zu; die Migration alter
+  5-Eingang-Visualizer setzt die Gruppe auf Slot 11.
+- Normalansicht: Überschrift `POSTPROCESS`, Abstand zur SDXL-Gruppe und eine
+  dezente Fläche (`cmk_family_merge_layout.js`, Zuordnung über Eingangsnamen).
+- Clean View: Überschrift, Fläche und Abstände entfallen vollständig; die
+  kompakte Größe berücksichtigt den neuen Eingang nicht, Clean View bleibt
+  damit unverändert.
+
 `enable upscale = false` ist echter Bypass: kein Modell wird geladen, das Bild
 bleibt unverändert und es entsteht kein Register. Bei `true` wird das
 hochskalierte Ergebnis als reguläres Bildsignal im zusätzlichen Register

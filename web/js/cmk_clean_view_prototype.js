@@ -463,8 +463,13 @@ function scheduleScan() {
     requestAnimationFrame(scan);
 }
 
+// Inputs added after a node's Clean View size formula was established. They
+// are hidden like every other port but must not shrink the first compact size
+// (2.7.1: the Visualizer's POSTPROCESS MODEL ZIT).
+const COMPACT_HEIGHT_EXEMPT_INPUTS = new Set(["POSTPROCESS MODEL ZIT"]);
+
 function compactHeight(node) {
-    const inputs = visibleInputSlots(node);
+    const inputs = visibleInputSlots(node).filter((slot) => !COMPACT_HEIGHT_EXEMPT_INPUTS.has(slot?.name));
     const outputs = node?.outputs || [];
     const normalRows = Math.max(inputs.length, outputs.length);
     const specialRows = Math.max(

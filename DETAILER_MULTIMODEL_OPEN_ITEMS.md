@@ -30,10 +30,12 @@ MODEL-Verträge und Cache-Verhalten unverändert.
   SDXL und ZIT mit `MODEL ZIT` am Visualizer gibt es den Fehler; bei `None`
   läuft derselbe Graph durch, weil der Pfad die Prüfung nicht erreicht. In
   keinem Fall wurde ZIT materialisiert.
-- **Anschluss bis zur Klärung:** `MODEL SDXL` an Visualizer bzw. Upscale & Save,
-  `MODEL ZIT` nur an Multi-Model-Module.
-- **Zu entscheiden:** ob der Visualizer-Vertrag ZIT-PostProcess-Modelle
-  aufnehmen soll. Das wäre eine Änderung am Visualizer- und Result-Unpack-Vertrag.
+- **Gelöst (2.7.1):** Der Visualizer hat in der Gruppe `POSTPROCESS` eigene
+  Eingänge `MODEL ZIT` und `MODEL SDXL`. `MODEL ZIT` (intern
+  `POSTPROCESS MODEL ZIT`) nimmt das ZIT-Modell auf, ohne es anzufordern;
+  `MODEL SDXL` ist der bisherige `MODEL (opt)`. Der Result-Unpack-Vertrag ist
+  unverändert (`ARCHITECTURE.md` 3, Visualizer).
+- **Upscale & Save:** hat weiterhin nur einen MODEL-Eingang (SDXL).
 
 ## 3. Visualizer-Provider des Multi-Model Smart Detailers
 
