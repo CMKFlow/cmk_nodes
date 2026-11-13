@@ -11,9 +11,11 @@ requests a model source only for the mode that needs it:
     ZIT      IMAGE + LOG + PROCESS + MODEL ZIT
 
 CMK FaceProcess Multi-Model -Pipe- materialises on a branch-cache MISS only:
-SDXL runs the unchanged legacy FaceProcess preparation (after the guarded ZIT
-release); ZIT runs the Z-Image Turbo preparation of CMK Detailer Prepare
-Multi-Model; both then use the unchanged legacy detailer path.  RESTORE (F3)
+SDXL and ZIT run the unchanged CMK Detailer Prepare Multi-Model with the
+Prepare's settings (same parameters and semantics as the Multi-Model
+Detailer: sampling entry per family, prompt/seed/LoRA resolution, LoRA ZIT,
+guarded ZIT release before SDXL); the 2.7 detailer step then samples with the
+family's sampling entry.  RESTORE (F3)
 needs no diffusion model or SAM: YOLO selects the faces, InsightFace assigns
 its complete face objects (``utils.face_matching``) and the resolved restore
 backend restores exactly those (``cmk_faceprocess_restore``).  Models exist
@@ -33,11 +35,11 @@ import torch
 from ..engine.detector_engine import get_face_analyser
 from ..engine.native_detailer import SEGSDetailer, SEGSPaste
 from ..engine.native_face_restore import RestoreFaceAdvanced
+from ..nodes.image.smart_detailer import _sampling_entry_to_denoise as detailer_entry_to_denoise
 from ..nodes.swap.face_process import (
     _is_likely_non_face_detector,
     _normalize_refine_mode,
     _preferred_face_detector,
-    _sampling_entry_to_denoise,
     _sort_face_detectors,
 )
 from ..utils.cmk_diagnostic import make_diagnostic_payload
@@ -45,10 +47,9 @@ from ..utils.face_layers import LAYER_SCHEMA, layers_roi, paste_layers, quantize
 from ..utils.face_matching import MATCH_RULE, OK, assign_faces
 from ..utils.stable_segs import make_stable_segs, segs_with_image_crops
 from ..utils.tensor_utils import tensor_to_uint8_rgb
-from .cmk_detailer_prepare_multimodel import CMKDetailerPrepareMultiModelPipe, ZIT_SAMPLING_ENTRY
+from .cmk_detailer_prepare_multimodel import CMKDetailerPrepareMultiModelPipe
 from .cmk_faceprocess import CMKFaceProcessPipe
 from .cmk_faceprocess_mode import FACEPROCESS_MODES, faceprocess_mode
-from .cmk_faceprocess_prepare import CMKFaceProcessPreparePipe
 from .cmk_faceprocess_restore import RestoreConfigurationError, backend_identity, resolve_restore_backend
 from .cmk_log_pipe import cmk_add_block, cmk_block_to_string
 from .cmk_persistent_cache import DISABLED_REVISION, build_node_fingerprint, save_pickle, write_status
@@ -64,10 +65,10 @@ MODE_LABELS = {"none": "NONE", "restore": "RESTORE", "sdxl": "SDXL", "z_image_tu
 # Prepare inputs by the mode that reads them.
 SDXL_SETTINGS = (
     "use_1st_pass_sampling", "lora_name", "strength_model", "strength_clip", "prompt_neg",
-    "steps", "cfg", "sampler", "scheduler", "stop_at_clip_layer", "pag_scale", "sampling",
+    "steps", "cfg", "sampling_entry", "sampler", "scheduler", "stop_at_clip_layer", "pag_scale", "sampling",
     "zsnr", "freeu_enabled", "freeu_b1", "freeu_b2", "freeu_s1", "freeu_s2",
 )
-ZIT_SETTINGS = ("zit_steps", "zit_cfg", "zit_sampler", "zit_scheduler", "zit_model_shift")
+ZIT_SETTINGS = ("zit_steps", "zit_cfg", "zit_sampling_entry", "zit_sampler", "zit_scheduler", "zit_model_shift")
 DIFFUSION_SHARED = ("sam_model_name", "sam_device_mode", "use_prompt_lora_from_sampler",
                     "use_lora_from_1st_pass", "prompt_pos")
 TRANSPORT = ("LOG",)
@@ -75,19 +76,20 @@ TRANSPORT = ("LOG",)
 # Execute inputs by the path that reads them.
 RESTORE_INPUTS = ("restore_model", "restore_visibility")
 # Restore controls without effect (E5): not offered by the 2.8 node.
-DROPPED_RESTORE_INPUTS = ("restore_facedetection", "restore_codeformer_weight")
+# detail_denoise: replaced by the sampling entry per family of the Prepare.
+DROPPED_RESTORE_INPUTS = ("restore_facedetection", "restore_codeformer_weight", "detail_denoise")
 STATUS_TEXT = {"OK": "RESTORED", "UNMATCHED": "SKIPPED · NO INSIGHTFACE ASSIGNMENT",
                "AMBIGUOUS": "SKIPPED · AMBIGUOUS ASSIGNMENT", "CONFLICT": "SKIPPED · AMBIGUOUS ASSIGNMENT (CONFLICT)"}
-DETAIL_INPUTS = ("detail_guide_size", "detail_guide_size_for", "detail_max_size", "detail_denoise",
+DETAIL_INPUTS = ("detail_guide_size", "detail_guide_size_for", "detail_max_size",
                  "detail_noise_mask", "detail_force_inpaint", "detail_paste_feather")
 
 
 def prepare_excluded_inputs(mode):
     """Prepare inputs outside a mode's identity (never part of its branch key)."""
     if mode == "restore":
-        return (*TRANSPORT, "MODEL ZIT", "MODEL SDXL", "PROCESS", *DIFFUSION_SHARED, *SDXL_SETTINGS, *ZIT_SETTINGS)
+        return (*TRANSPORT, "MODEL ZIT", "MODEL SDXL", "LoRA ZIT", "PROCESS", *DIFFUSION_SHARED, *SDXL_SETTINGS, *ZIT_SETTINGS)
     if mode == "sdxl":
-        return (*TRANSPORT, "MODEL ZIT", *ZIT_SETTINGS)
+        return (*TRANSPORT, "MODEL ZIT", "LoRA ZIT", *ZIT_SETTINGS)
     if mode == "z_image_turbo":
         return (*TRANSPORT, "MODEL SDXL", *SDXL_SETTINGS)
     return (*TRANSPORT,)
@@ -130,36 +132,18 @@ class CMKFaceProcessPrepareMultiModelPipe:
     """Deferred FACE preparation for RESTORE, SDXL or Z-Image Turbo (2.8.0).
 
     Public contract:
-        MODEL ZIT (opt) + MODEL SDXL + PROCESS + IMAGE + LOG -> FACE + LOG + diagnostic
+        MODEL ZIT (opt) + MODEL SDXL + PROCESS + IMAGE + LOG (+ LoRA ZIT) -> FACE + LOG + diagnostic
     """
 
     @classmethod
     def INPUT_TYPES(cls):
-        legacy = CMKFaceProcessPreparePipe.INPUT_TYPES()["required"]
-        detailer = CMKDetailerPrepareMultiModelPipe.INPUT_TYPES()["required"]
-        required = {
-            "MODEL SDXL": legacy["MODEL"],
-            "PROCESS": legacy["PROCESS"],
-            "IMAGE": legacy["IMAGE"],
-            "process_mode": (FACEPROCESS_MODES, {"default": "None"}),
-        }
-        required.update({name: legacy[name] for name in (
-            "sam_model_name", "sam_device_mode", "use_prompt_lora_from_sampler", "use_lora_from_1st_pass",
-            "use_1st_pass_sampling", "lora_name", "strength_model", "strength_clip", "prompt_pos", "prompt_neg",
-            "steps", "cfg", "sampler", "scheduler",
-        )})
-        required.update({name: detailer[name] for name in ZIT_SETTINGS})
-        required.update({name: legacy[name] for name in (
-            "stop_at_clip_layer", "pag_scale", "sampling", "zsnr",
-            "freeu_enabled", "freeu_b1", "freeu_b2", "freeu_s1", "freeu_s2",
-        )})
-        return {
-            "required": required,
-            "optional": {
-                "LOG": ("CMK_LOG_PIPE", {"lazy": True}),
-                "MODEL ZIT": ("CMK_MODEL_PIPE", {"lazy": True}),
-            },
-        }
+        # The parameters of CMK Detailer Prepare Multi-Model, unchanged; the
+        # operating mode replaces its model family.
+        detailer = CMKDetailerPrepareMultiModelPipe.INPUT_TYPES()
+        required = {name: detailer["required"][name] for name in ("MODEL SDXL", "PROCESS", "IMAGE")}
+        required["process_mode"] = (FACEPROCESS_MODES, {"default": "None"})
+        required.update({name: spec for name, spec in detailer["required"].items() if name not in required and name != "model_family"})
+        return {"required": required, "optional": dict(detailer["optional"])}
 
     RETURN_TYPES = (FACE_MULTIMODEL_PIPE, "CMK_LOG_PIPE", "CMK_DIAGNOSTIC")
     RETURN_NAMES = ("FACE", "LOG", "diagnostic")
@@ -177,9 +161,8 @@ class CMKFaceProcessPrepareMultiModelPipe:
         if mode in ("sdxl", "z_image_turbo"):
             if PROCESS is None:
                 needed.append("PROCESS")
-            name = "MODEL SDXL" if mode == "sdxl" else "MODEL ZIT"
-            if name in kwargs and kwargs[name] is None:
-                needed.append(name)
+            names = ("MODEL SDXL",) if mode == "sdxl" else ("MODEL ZIT", "LoRA ZIT")
+            needed += [name for name in names if name in kwargs and kwargs[name] is None]
         return needed
 
     def prepare(self, IMAGE, process_mode, PROCESS=None, LOG=None, **settings):
@@ -207,6 +190,8 @@ class CMKFaceProcessPrepareMultiModelPipe:
                 raise ValueError(f"{PREPARE_LABEL}: MODE {MODE_LABELS[mode]} requires {name} from CMK PostProcess Model.")
             settings.pop("MODEL SDXL", None)
             settings.pop("MODEL ZIT", None)
+            if mode == "sdxl":
+                settings.pop("LoRA ZIT", None)
             face.update({
                 "source_pipe": dict(PROCESS),
                 "_source_pipe": dict(PROCESS),
@@ -246,7 +231,8 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
 
     # v2 (F3): YOLO-led RESTORE with assigned InsightFace faces, resolved backends.
     # v3 (F4): processing layers in SEGS PROCESSED; Refine only on the branch's faces.
-    _CACHE_SCHEMA = "cmk_faceprocess_multimodel_branch_v3"
+    # v4: Multi-Model Detailer parameters (sampling entry per family, LoRA ZIT).
+    _CACHE_SCHEMA = "cmk_faceprocess_multimodel_branch_v4"
     _ZIT_TEXT_ENCODER = "released after FaceProcess Prepare"
 
     @classmethod
@@ -504,7 +490,10 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
         selected = self._select_output_segs(detected, image, select_face) if self._seg_count(detected) else detected
 
         guide_size, max_size = params.get("detail_guide_size", 512), params.get("detail_max_size", 768)
-        denoise = _sampling_entry_to_denoise(params.get("detail_denoise", 80.0))
+        # Sampling entry of the family, converted exactly like CMK Smart Detailer Multi-Model.
+        entry = face_pipe.get("face_sampling_entry")
+        entry = 80.0 if entry is None else float(entry)
+        denoise = detailer_entry_to_denoise(entry)
         feather = min(200, max(0, int(params.get("detail_paste_feather", 20))))
         primary, primary_layers = image, []
         steps, cfg = face_pipe.get("face_steps", 20), face_pipe.get("face_cfg", 8.0)
@@ -530,12 +519,16 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
             log_lines=["STATUS          : EXECUTED", f"PROCESS MODE    : {family} DETAILER",
                        f"SELECTION       : {select_face} (YOLO)", f"DETECTOR        : {used_detector}",
                        f"FACES DETECTED  : {self._seg_count(detected)}", f"FACES SELECTED  : {self._seg_count(selected)}",
-                       f"STEPS / CFG     : {steps} / {cfg}", f"DENOISE         : {denoise:g}", f"PASTE FEATHER   : {feather}"],
+                       f"SAMPLING ENTRY  : {entry:g} %", f"DENOISE         : {denoise:g}",
+                       f"STEPS / CFG     : {steps} / {cfg}", f"PASTE FEATHER   : {feather}",
+                       f"PROMPT SOURCE   : {'1ST PASS' if face_pipe.get('face_use_prompt_from_1st_pass') else 'LOCAL'}",
+                       f"LORAS           : {face_pipe.get('face_active_loras') or 'none'}"],
             diagnostic_args={"status": "Processed" if self._seg_count(selected) else "No face detected",
                              "segs_detected": detected, "steps": steps, "cfg": cfg, "denoise": denoise,
                              "force_inpaint": params.get("detail_force_inpaint", True), "guide_size": guide_size,
                              "max_size": max_size, "paste_feather": feather,
-                             "metadata": {"selection": select_face, "detector": used_detector, "family": family},
+                             "metadata": {"selection": select_face, "detector": used_detector, "family": family,
+                                          "sampling_entry": entry},
                              "warnings": [] if self._seg_count(detected) else ["no face detected by YOLO"]},
             **transport)
 
@@ -565,80 +558,42 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
             # Restore needs no diffusion model, conditioning or SAM.
             return {"face_mode": "restore", "face_image": image, "face_global_enable": True,
                     "boolean_face_enable": True, "face_sam_model": None, "face_seed": 0}
-        settings = dict(face.get("face_prepare_settings") or {})
-        process = face.get("source_pipe")
-        if mode == "sdxl":
-            from .loaders.z_image_turbo_loader import release_zit_resources
+        if mode not in ("sdxl", "z_image_turbo"):
+            raise ValueError(f"{EXECUTE_LABEL}: unsupported FACE mode {mode!r}")
+        # The Multi-Model Detailer preparation, exactly as its Prepare runs it
+        # (SDXL: guarded ZIT release first; ZIT: LoRA ZIT / ZIT first pass).
+        arguments = dict(face.get("face_prepare_settings") or {})
+        arguments["MODEL SDXL" if mode == "sdxl" else "MODEL ZIT"] = face.get("face_model_spec")
+        detailer = CMKDetailerPrepareMultiModelPipe().prepare(
+            PROCESS=face.get("source_pipe"), IMAGE=image,
+            model_family="SDXL" if mode == "sdxl" else "Z-Image Turbo", **arguments,
+        )[0]
+        return {
+            "face_mode": mode,
+            "source_pipe": detailer.get("source_pipe"),
+            "_source_pipe": detailer.get("source_pipe"),
+            "face_model": detailer.get("detailer_model"),
+            # The sampling engine never reads CLIP; ZIT releases its text
+            # encoder after encoding, the BASIC_PIPE check needs a value.
+            "face_clip": detailer.get("detailer_clip") or self._ZIT_TEXT_ENCODER,
+            "face_vae": detailer.get("detailer_vae"),
+            "face_conditioning_pos": detailer.get("detailer_conditioning_pos"),
+            "face_conditioning_neg": detailer.get("detailer_conditioning_neg"),
+            "face_image": image,
+            "face_seed": detailer.get("detailer_seed", 0),
+            "face_global_enable": True,
+            "boolean_face_enable": True,
+            "face_steps": detailer.get("detailer_steps"),
+            "face_cfg": detailer.get("detailer_cfg"),
+            "face_sampler": detailer.get("detailer_sampler"),
+            "face_scheduler": detailer.get("detailer_scheduler"),
+            "face_sampling_entry": detailer.get("detailer_sampling_entry"),
+            "face_sam_model": detailer.get("detailer_sam_model"),
+            "face_prompt_pos": detailer.get("detailer_prompt_pos"),
+            "face_active_loras": detailer.get("detailer_active_loras"),
+            "face_use_prompt_from_1st_pass": detailer.get("detailer_use_prompt_from_1st_pass"),
+            "face_use_lora_from_1st_pass": detailer.get("detailer_use_lora_from_1st_pass"),
+            "face_model_identity": detailer.get("detailer_model_identity"),
+            "face_zit_model_shift": detailer.get("detailer_zit_model_shift"),
+        }
 
-            # SDXL is about to be materialised: drop CMK's own ZIT references
-            # unless another consumer still uses them (no-op when empty).
-            release_zit_resources("ZIT -> SDXL FaceProcess")
-            arguments = {name: settings[name] for name in (
-                "sam_model_name", "sam_device_mode", "use_prompt_lora_from_sampler", "use_lora_from_1st_pass",
-                *SDXL_SETTINGS, "prompt_pos",
-            )}
-            pipe = CMKFaceProcessPreparePipe().prepare(
-                MODEL=face.get("face_model_spec"), PROCESS=process, IMAGE=image, face_global_enable=True, **arguments,
-            )[0]
-            return {**pipe, "face_mode": "sdxl"}
-        if mode == "z_image_turbo":
-            detailer = CMKDetailerPrepareMultiModelPipe().prepare(
-                PROCESS=process,
-                IMAGE=image,
-                model_family="Z-Image Turbo",
-                sam_model_name=settings["sam_model_name"],
-                sam_device_mode=settings["sam_device_mode"],
-                use_prompt_lora_from_sampler=settings["use_prompt_lora_from_sampler"],
-                use_lora_from_1st_pass=settings["use_lora_from_1st_pass"],
-                use_1st_pass_sampling=False,
-                lora_name="None",
-                strength_model=1.0,
-                strength_clip=1.0,
-                prompt_pos=settings["prompt_pos"],
-                prompt_neg="",
-                steps=settings["steps"],
-                cfg=settings["cfg"],
-                sampling_entry=95.0,
-                zit_steps=settings["zit_steps"],
-                zit_cfg=settings["zit_cfg"],
-                zit_sampling_entry=ZIT_SAMPLING_ENTRY,
-                sampler=settings["sampler"],
-                scheduler=settings["scheduler"],
-                zit_sampler=settings["zit_sampler"],
-                zit_scheduler=settings["zit_scheduler"],
-                stop_at_clip_layer=settings["stop_at_clip_layer"],
-                pag_scale=settings["pag_scale"],
-                sampling=settings["sampling"],
-                zsnr=settings["zsnr"],
-                zit_model_shift=settings["zit_model_shift"],
-                freeu_enabled=settings["freeu_enabled"],
-                freeu_b1=settings["freeu_b1"],
-                freeu_b2=settings["freeu_b2"],
-                freeu_s1=settings["freeu_s1"],
-                freeu_s2=settings["freeu_s2"],
-                **{"MODEL ZIT": face.get("face_model_spec")},
-            )[0]
-            return {
-                "face_mode": "z_image_turbo",
-                "source_pipe": detailer.get("source_pipe"),
-                "_source_pipe": detailer.get("source_pipe"),
-                "face_model": detailer.get("detailer_model"),
-                # The sampling engine never reads CLIP; the text encoder is
-                # released after encoding, the BASIC_PIPE check needs a value.
-                "face_clip": self._ZIT_TEXT_ENCODER,
-                "face_vae": detailer.get("detailer_vae"),
-                "face_conditioning_pos": detailer.get("detailer_conditioning_pos"),
-                "face_conditioning_neg": detailer.get("detailer_conditioning_neg"),
-                "face_image": image,
-                "face_seed": detailer.get("detailer_seed", 0),
-                "face_global_enable": True,
-                "boolean_face_enable": True,
-                "face_steps": detailer.get("detailer_steps"),
-                "face_cfg": detailer.get("detailer_cfg"),
-                "face_sampler": detailer.get("detailer_sampler"),
-                "face_scheduler": detailer.get("detailer_scheduler"),
-                "face_sam_model": detailer.get("detailer_sam_model"),
-                "face_model_identity": detailer.get("detailer_model_identity"),
-                "face_zit_model_shift": detailer.get("detailer_zit_model_shift"),
-            }
-        raise ValueError(f"{EXECUTE_LABEL}: unsupported FACE mode {mode!r}")

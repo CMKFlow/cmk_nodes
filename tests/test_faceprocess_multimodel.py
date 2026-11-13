@@ -46,8 +46,9 @@ def settings(**overrides):
     values = {
         "sam_model_name": "sam.pth", "sam_device_mode": "CPU", "use_prompt_lora_from_sampler": True,
         "use_lora_from_1st_pass": False, "use_1st_pass_sampling": True, "lora_name": "None", "strength_model": 1.0,
-        "strength_clip": 1.0, "prompt_pos": "", "prompt_neg": "", "steps": 30, "cfg": 3.0, "sampler": "euler",
-        "scheduler": "simple", "zit_steps": 8, "zit_cfg": 1.0, "zit_sampler": "res_multistep",
+        "strength_clip": 1.0, "prompt_pos": "", "prompt_neg": "", "steps": 30, "cfg": 3.0, "sampling_entry": 95.0,
+        "sampler": "euler", "scheduler": "simple", "zit_steps": 8, "zit_cfg": 1.0, "zit_sampling_entry": 85.0,
+        "zit_sampler": "res_multistep",
         "zit_scheduler": "simple", "zit_model_shift": 3.0, "stop_at_clip_layer": -2, "pag_scale": 2.5,
         "sampling": "v_prediction", "zsnr": True, "freeu_enabled": True, "freeu_b1": 1.3, "freeu_b2": 1.4,
         "freeu_s1": 0.9, "freeu_s2": 0.2,
@@ -67,7 +68,7 @@ def prompt(mode="Restore", prepare=None, execute=None):
         "e": {"class_type": "CMKFaceProcessMultiModelPipe", "inputs": {
             "FACE": ["p", 0], "opt_log": ["p", 1], "opt_diagnostic": ["p", 2], "select_face": "Largest",
             "refine_mode": "Off", "detect_model": "bbox/face/face_yolov8m.pt", "restore_model": "GFPGANv1.4.pth",
-            "restore_visibility": 1.0, "detail_denoise": 80.0, "detail_paste_feather": 20, **(execute or {})}},
+            "restore_visibility": 1.0, "detail_paste_feather": 20, **(execute or {})}},
         "b": {"class_type": "CMKFaceBoundaryCache", "inputs": {"MODEL": ["models", 0], "IMAGE": ["e", 0], "LOG": ["e", 4]}},
     }
     return p
@@ -91,8 +92,18 @@ class Registration(unittest.TestCase):
         self.assertNotIn("face_global_enable", spec["required"], "the mode replaces the global switch")
         for name in ("MODEL SDXL", "PROCESS", "IMAGE"):
             self.assertTrue(spec["required"][name][1].get("lazy"), name)
-        self.assertEqual(set(spec["optional"]), {"LOG", "MODEL ZIT"})
+        self.assertEqual(set(spec["optional"]), {"LOG", "MODEL ZIT", "LoRA ZIT"})
         self.assertTrue(all(value[1].get("lazy") for value in spec["optional"].values()))
+
+    def test_parameters_are_the_multimodel_detailer_parameters(self):
+        ours, detailer = PREPARE.INPUT_TYPES(), detailer_mm.CMKDetailerPrepareMultiModelPipe.INPUT_TYPES()
+        mine = {**ours["required"], **ours["optional"]}
+        theirs = {**detailer["required"], **detailer["optional"]}
+        mine.pop("process_mode"); theirs.pop("model_family")
+        self.assertEqual(mine, theirs, "same names, types, defaults and ranges")
+        self.assertEqual(ours["required"]["sampling_entry"][1]["default"], 95.0)
+        self.assertEqual(ours["required"]["zit_sampling_entry"][1]["default"], 85.0)
+        self.assertNotIn("detail_denoise", EXECUTE.INPUT_TYPES()["optional"], "replaced by the sampling entries")
 
     def test_execute_has_no_own_switch(self):
         spec = EXECUTE.INPUT_TYPES()
@@ -118,6 +129,9 @@ class PrepareLazy(unittest.TestCase):
         self.assertEqual(self.requests("Restore"), ["IMAGE", "LOG"])
         self.assertEqual(self.requests("SDXL"), ["IMAGE", "LOG", "PROCESS", "MODEL SDXL"])
         self.assertEqual(self.requests("Z-Image Turbo"), ["IMAGE", "LOG", "PROCESS", "MODEL ZIT"])
+        self.assertEqual(self.requests("Z-Image Turbo", **{"LoRA ZIT": None}), ["IMAGE", "LOG", "PROCESS", "MODEL ZIT", "LoRA ZIT"])
+        for mode in ("None", "Restore", "SDXL"):
+            self.assertNotIn("LoRA ZIT", self.requests(mode, **{"LoRA ZIT": None}), mode)
 
     def test_unconnected_optional_inputs_are_never_requested(self):
         self.assertEqual(PREPARE().check_lazy_status(process_mode="Z-Image Turbo", IMAGE=IMAGE, PROCESS=PROCESS), [])
@@ -181,7 +195,8 @@ class BranchIdentity(unittest.TestCase):
     def test_restore_ignores_diffusion_and_detail_settings(self):
         base = key(prompt("Restore"))
         for variant in (prompt("Restore", prepare={"steps": 40, "zit_steps": 12, "prompt_pos": "x", "sam_model_name": "o"}),
-                        prompt("Restore", execute={"detail_denoise": 60.0, "detail_paste_feather": 5})):
+                        prompt("Restore", prepare={"sampling_entry": 70.0, "zit_sampling_entry": 60.0}),
+                        prompt("Restore", execute={"detail_paste_feather": 5})):
             self.assertEqual(key(variant), base)
         changed = prompt("Restore")
         changed["models"]["inputs"]["ckpt_name"] = "other"
@@ -194,6 +209,17 @@ class BranchIdentity(unittest.TestCase):
 
     def test_family_settings_belong_to_their_family(self):
         sdxl = key(prompt("SDXL"))
+        self.assertNotEqual(key(prompt("SDXL", prepare={"sampling_entry": 90.0})), sdxl)
+        self.assertEqual(key(prompt("SDXL", prepare={"zit_sampling_entry": 70.0})), sdxl)
+        self.assertNotEqual(key(prompt("Z-Image Turbo", prepare={"zit_sampling_entry": 70.0})), key(prompt("Z-Image Turbo")))
+        self.assertEqual(key(prompt("Z-Image Turbo", prepare={"sampling_entry": 90.0})), key(prompt("Z-Image Turbo")))
+        lora = prompt("Z-Image Turbo")
+        lora["lz"] = {"class_type": "CMKZImageTurboLoRALoaderPipe", "inputs": {"lora_1": "a.safetensors"}}
+        lora["p"]["inputs"]["LoRA ZIT"] = ["lz", 0]
+        self.assertNotEqual(key(lora), key(prompt("Z-Image Turbo")), "LoRA ZIT is ZIT identity")
+        lora_sdxl = prompt("SDXL")
+        lora_sdxl["lz"] = lora["lz"]; lora_sdxl["p"]["inputs"]["LoRA ZIT"] = ["lz", 0]
+        self.assertEqual(key(lora_sdxl), sdxl, "LoRA ZIT is no SDXL identity")
         self.assertEqual(key(prompt("SDXL", prepare={"zit_steps": 12})), sdxl)
         self.assertEqual(key(prompt("SDXL", execute={"restore_visibility": 0.5})), sdxl)
         self.assertNotEqual(key(prompt("SDXL", prepare={"steps": 40})), sdxl)
@@ -221,51 +247,47 @@ class Materialisation(unittest.TestCase):
         self.assertIsNone(pipe["face_sam_model"])
         self.assertFalse({"face_model", "face_clip", "face_vae", "face_conditioning_pos"} & set(pipe))
 
-    def test_sdxl_releases_zit_then_runs_the_legacy_preparation(self):
-        events = []
-        original_release = zit_loader.release_zit_resources
-        original_prepare = legacy_prepare.CMKFaceProcessPreparePipe.prepare
-        self.addCleanup(setattr, zit_loader, "release_zit_resources", original_release)
-        self.addCleanup(setattr, legacy_prepare.CMKFaceProcessPreparePipe, "prepare", original_prepare)
-        zit_loader.release_zit_resources = lambda reason: events.append(("release", reason))
-
-        def fake_prepare(self, **kwargs):
-            events.append(("prepare", kwargs))
-            return ({"face_model": "M", "face_global_enable": True}, None, None)
-
-        legacy_prepare.CMKFaceProcessPreparePipe.prepare = fake_prepare
-        face = PREPARE().prepare(IMAGE=IMAGE, process_mode="SDXL", PROCESS=PROCESS, **settings(steps=33),
-                                 **{"MODEL SDXL": SDXL_SPEC})[0]
-        pipe = EXECUTE()._materialize_face(face)
-        self.assertEqual([event[0] for event in events], ["release", "prepare"], "ZIT is released before SDXL")
-        arguments = events[1][1]
-        self.assertIs(arguments["MODEL"], SDXL_SPEC)
-        self.assertTrue(arguments["face_global_enable"])
-        self.assertEqual(arguments["steps"], 33)
-        self.assertNotIn("zit_steps", arguments)
-        self.assertEqual((pipe["face_model"], pipe["face_mode"]), ("M", "sdxl"))
-
-    def test_zit_runs_the_multimodel_zit_preparation(self):
+    def materialise(self, mode, **extra):
         calls = []
         original = detailer_mm.CMKDetailerPrepareMultiModelPipe.prepare
         self.addCleanup(setattr, detailer_mm.CMKDetailerPrepareMultiModelPipe, "prepare", original)
 
         def fake_prepare(self, **kwargs):
             calls.append(kwargs)
-            return ({"detailer_model": "Z", "detailer_vae": "V", "detailer_conditioning_pos": "P",
-                     "detailer_conditioning_neg": "N", "detailer_seed": 7, "detailer_steps": 9, "detailer_cfg": 1.0,
-                     "detailer_sampler": "res_multistep", "detailer_scheduler": "simple", "detailer_sam_model": "S",
+            return ({"detailer_model": "M", "detailer_clip": "C" if kwargs["model_family"] == "SDXL" else None,
+                     "detailer_vae": "V", "detailer_conditioning_pos": "P", "detailer_conditioning_neg": "N",
+                     "detailer_seed": 7, "detailer_steps": 9, "detailer_cfg": 1.0, "detailer_sampler": "s",
+                     "detailer_scheduler": "k", "detailer_sam_model": "S",
+                     "detailer_sampling_entry": kwargs["sampling_entry" if kwargs["model_family"] == "SDXL" else "zit_sampling_entry"],
                      "source_pipe": PROCESS}, None, None)
 
         detailer_mm.CMKDetailerPrepareMultiModelPipe.prepare = fake_prepare
-        face = PREPARE().prepare(IMAGE=IMAGE, process_mode="Z-Image Turbo", PROCESS=PROCESS, **settings(zit_steps=9),
-                                 **{"MODEL ZIT": ZIT_SPEC})[0]
-        pipe = EXECUTE()._materialize_face(face)
+        face = PREPARE().prepare(IMAGE=IMAGE, process_mode=mode, PROCESS=PROCESS, **settings(**extra))[0]
+        return calls, EXECUTE()._materialize_face(face)
+
+    def test_sdxl_runs_the_multimodel_detailer_preparation(self):
+        calls, pipe = self.materialise("SDXL", steps=33, sampling_entry=92.0, **{"MODEL SDXL": SDXL_SPEC, "MODEL ZIT": ZIT_SPEC,
+                                                                                 "LoRA ZIT": {"family": "z_image_turbo"}})
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["model_family"], "SDXL")
+        self.assertIs(calls[0]["MODEL SDXL"], SDXL_SPEC)
+        self.assertEqual(calls[0]["PROCESS"], PROCESS)
+        self.assertEqual((calls[0]["steps"], calls[0]["sampling_entry"]), (33, 92.0))
+        self.assertNotIn("MODEL ZIT", calls[0])
+        self.assertNotIn("LoRA ZIT", calls[0], "no ZIT LoRA on the SDXL path")
+        self.assertEqual((pipe["face_model"], pipe["face_clip"], pipe["face_sampling_entry"], pipe["face_mode"]),
+                         ("M", "C", 92.0, "sdxl"))
+
+    def test_zit_runs_the_multimodel_detailer_preparation(self):
+        bundle = {"family": "z_image_turbo", "active_loras": "<lora:z.safetensors:1>"}
+        calls, pipe = self.materialise("Z-Image Turbo", zit_steps=9, zit_sampling_entry=87.0,
+                                       **{"MODEL ZIT": ZIT_SPEC, "MODEL SDXL": None, "LoRA ZIT": bundle})
         self.assertEqual(calls[0]["model_family"], "Z-Image Turbo")
         self.assertIs(calls[0]["MODEL ZIT"], ZIT_SPEC)
-        self.assertEqual(calls[0]["zit_steps"], 9)
-        self.assertEqual((pipe["face_model"], pipe["face_vae"], pipe["face_steps"], pipe["face_sam_model"]), ("Z", "V", 9, "S"))
-        self.assertEqual((pipe["face_conditioning_pos"], pipe["face_conditioning_neg"]), ("P", "N"))
+        self.assertIs(calls[0]["LoRA ZIT"], bundle)
+        self.assertEqual((calls[0]["zit_steps"], calls[0]["zit_sampling_entry"]), (9, 87.0))
+        self.assertEqual((pipe["face_model"], pipe["face_vae"], pipe["face_steps"], pipe["face_sam_model"]), ("M", "V", 9, "S"))
+        self.assertEqual((pipe["face_conditioning_pos"], pipe["face_conditioning_neg"], pipe["face_sampling_entry"]), ("P", "N", 87.0))
         self.assertTrue(pipe["face_global_enable"])
         self.assertIsInstance(pipe["face_clip"], str, "the text encoder is released; the pipe check needs a value")
 

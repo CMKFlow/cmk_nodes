@@ -1325,12 +1325,17 @@ MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG ┴→ CMK FaceProcess Prepare Mu
 - **GFPGAN ist nicht deterministisch:** Der Decoder speist Zufallsrauschen ein;
   dieselbe Eingabe ergibt ohne festen Torch-Seed unterschiedliche Pixel (auch
   in 2.7). Der Branch-Cache hält einen Lauf fest.
-- **Offene Validierungspunkte:** ZIT nutzt für den Einstiegspunkt
-  `detail_denoise` des FaceProcess-Nodes (Standard 80 %), der Multi-Model
-  Detailer seinen eigenen `zit_sampling_entry` (Standard 85 %), vor Abschluss
-  der Sampling-Integration zu klären. ZIT-LoRA: nur aus einem ZIT-1st-Pass bei
-  `use_lora_from_1st_pass`; die lokale SDXL-LoRA gilt nicht für ZIT, einen
-  Eingang `LoRA ZIT` gibt es nicht.
+- **Bedienung wie der Multi-Model Detailer:** Der Prepare hat exakt dessen
+  Parametersatz (nur `process_mode` statt `model_family`), einschließlich
+  `SAMPLING ENTRY` (SDXL, 95 %), `ZIT SAMPLING ENTRY` (85 %) und des
+  optionalen Eingangs `LoRA ZIT` (nur im ZIT-Modus angefordert). SDXL und ZIT
+  materialisieren über den unveränderten `CMKDetailerPrepareMultiModelPipe`:
+  dieselbe Prompt- und Seed-Auflösung (1st Pass, sonst lokal; Seed aus PROCESS,
+  sonst 0), dieselben LoRA-Regeln (SDXL: 1st Pass gleicher Familie oder lokale
+  LoRA; ZIT: ZIT-1st-Pass vor `LoRA ZIT`, nie die SDXL-LoRA) und die
+  ZIT-Freigabe vor SDXL. Der Einstieg wird mit der Detailer-Funktion
+  `_sampling_entry_to_denoise` in Denoise umgerechnet; `detail_denoise` gibt es
+  im 2.8-Node nicht mehr. Branch-Schema `…_v4`.
 
 ### 5.8 Image Resize
 

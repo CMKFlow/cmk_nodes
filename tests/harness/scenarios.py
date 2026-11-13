@@ -1399,12 +1399,12 @@ def faceprocess28_prompt(mode: str, overrides: dict | None = None) -> dict:
     for name in ("face_global_enable", "MODEL"):
         legacy.pop(name)
     legacy.update({"MODEL SDXL": ["8419", 0], "MODEL ZIT": ["8419", 1], "process_mode": [FP28_MODE, 1],
-                   "zit_steps": 8, "zit_cfg": 1.0, "zit_sampler": "res_multistep", "zit_scheduler": "simple",
-                   "zit_model_shift": 3.0})
+                   "sampling_entry": 95.0, "zit_steps": 8, "zit_cfg": 1.0, "zit_sampling_entry": 85.0,
+                   "zit_sampler": "res_multistep", "zit_scheduler": "simple", "zit_model_shift": 3.0})
     prompt[FP28_PREPARE] = {"class_type": "CMKFaceProcessPrepareMultiModelPipe", "inputs": legacy}
     prompt[FP28_MODE] = {"class_type": "CMKFaceProcessModeEnable", "inputs": {"process_mode": mode}}
     execute = dict(prompt[FP28_EXECUTE]["inputs"])
-    for name in ("enable", "process_mode"):
+    for name in ("enable", "process_mode", "detail_denoise"):
         execute.pop(name)
     prompt[FP28_EXECUTE] = {"class_type": "CMKFaceProcessMultiModelPipe", "inputs": execute}
     prompt["8417:7847"]["inputs"]["ENABLE"] = [FP28_MODE, 0]

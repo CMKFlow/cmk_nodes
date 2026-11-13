@@ -94,7 +94,8 @@ class Modes(ScenarioCase):
         cold = self.runs["SDXL"][0]
         self.assertEqual(prepare_requests(cold), ["IMAGE", "LOG", "MODEL SDXL", "PROCESS"])
         self.assertEqual(loads(cold), {"sdxl_resolve": 1, "checkpoint": 1, "sam": 1, "encode": 2, "zit": 0})
-        self.assertEqual(calls(cold, "CMKFaceProcessPreparePipe"), 1, "the legacy SDXL preparation runs in the branch")
+        self.assertEqual(calls(cold, "CMKDetailerPrepareMultiModelPipe"), 1, "the Multi-Model Detailer preparation runs in the branch")
+        self.assertEqual(calls(cold, "CMKFaceProcessPreparePipe"), 0)
         self.assertEqual((seam(cold, "faceprocess.run"), seam(cold, "branch.yolo"), seam(cold, "detailer.segs")), (0, 1, 1),
                          "SDXL runs the 2.8 detailer step (F4 layers), not the legacy compute")
         self.assertEqual(seam(cold, "restore.insightface"), 0, "no InsightFace in the detailer path")
@@ -103,6 +104,7 @@ class Modes(ScenarioCase):
         cold = self.runs["Z-Image Turbo"][0]
         self.assertEqual(prepare_requests(cold), ["IMAGE", "LOG", "MODEL ZIT", "PROCESS"])
         self.assertEqual(loads(cold), {"sdxl_resolve": 0, "checkpoint": 0, "sam": 1, "encode": 1, "zit": 3})
+        self.assertEqual(calls(cold, "CMKDetailerPrepareMultiModelPipe"), 1)
 
     def test_prepare_itself_loads_nothing(self):
         # Every load happens inside the branch run: with the branch skipped
@@ -128,7 +130,8 @@ class RestoreCaches(ScenarioCase):
             {"mode": "Restore"},
             {"mode": "Restore", "restart": True, "drop_scopes": ["faceprocess_boundary"]},
             {"mode": "Restore", "overrides": {f"{PREPARE}.zit_steps": 12, f"{PREPARE}.steps": 40,
-                                               f"{PREPARE}.prompt_pos": "other", f"{EXECUTE}.detail_denoise": 60}},
+                                               f"{PREPARE}.prompt_pos": "other", f"{PREPARE}.sampling_entry": 70.0,
+                                               f"{PREPARE}.zit_sampling_entry": 60.0, f"{EXECUTE}.detail_paste_feather": 5}},
             {"mode": "Restore", "overrides": {f"{EXECUTE}.refine_mode": "Smooth"}},
             {"mode": "None", "overrides": {f"{EXECUTE}.refine_mode": "Smooth"}},
         ]
