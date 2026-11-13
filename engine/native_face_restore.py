@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 from .detector_engine import get_face_analyser
 from .enhance_backends import GFPGANEnhancerBackend, get_enhancer_backend
-from .pasteback import pasteback_native
+from .pasteback import pasteback_native, warp_aligned
 from ..utils.tensor_utils import tensor_to_uint8_rgb, uint8_rgb_to_tensor
 
 
@@ -81,12 +81,14 @@ class RestoreFaceAdvanced:
         selected_face=None,
         assigned_faces=None,
         enhancer=None,
+        layers=None,
     ):
         """``assigned_faces`` (FaceProcess 2.8): per batch item the complete InsightFace
         face objects to restore, already selected and assigned by the caller;
         no own detection or selection then.  ``enhancer``: an already resolved
-        backend instead of the name routing.  Both default to the previous
-        behaviour."""
+        backend instead of the name routing.  ``layers``: a list that receives
+        per restored face its warped result, pasteback alpha and visibility
+        (FaceProcess 2.8 layers).  All default to the previous behaviour."""
         del codeformer_weight, facedetection
         if not isinstance(image, torch.Tensor) or image.ndim != 4:
             raise ValueError("CMK native face restore requires a ComfyUI IMAGE tensor")
@@ -137,9 +139,12 @@ class RestoreFaceAdvanced:
                     affine_matrix=matrix,
                     crop_factor=1.0,
                     feather=8,
+                    return_mask=layers is not None,
                 )
                 if isinstance(restored, tuple):
-                    restored = restored[0]
+                    restored, alpha = restored
+                    layers.append({"batch_index": batch_index, "alpha": alpha, "visibility": visibility,
+                                   "warped": warp_aligned(enhanced, matrix, result.shape[0], result.shape[1])})
                 result = np.clip(
                     result.astype(np.float32) * (1.0 - visibility)
                     + np.asarray(restored, dtype=np.float32) * visibility,

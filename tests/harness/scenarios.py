@@ -1439,9 +1439,10 @@ def _install_zit_fakes(runtime, counters):
 
 
 def _install_restore_fakes(runtime, seams):
-    """Model-free RESTORE (F3): one YOLO face in the image centre, the matching
-    InsightFace face object (bbox, kps, 106 landmarks) and an inverting
-    enhancer; detection, assignment and backend resolution are counted."""
+    """Model-free 2.8 branches: one YOLO face in the image centre, the matching
+    InsightFace face object (bbox, kps, 106 landmarks), an inverting enhancer
+    and an inverting SEGSDetailer (F4); detection, assignment, backend
+    resolution and detailer runs are counted."""
     import numpy as np
     import torch
     from types import SimpleNamespace
@@ -1478,7 +1479,11 @@ def _install_restore_fakes(runtime, seams):
         def enhance_aligned(self, aligned):
             return 255 - aligned
 
-    seams.substitute(core, "_detect_segs", "restore.yolo", fake_detect)
+    def fake_segs_detailer(self, image, segs, **_kwargs):
+        return ((segs[0], [seg._replace(cropped_image=(1.0 - seg.cropped_image).clamp(0, 1)) for seg in segs[1]]),)
+
+    seams.substitute(core, "_detect_segs", "branch.yolo", fake_detect)
+    seams.substitute(native.SEGSDetailer, "doit", "detailer.segs", fake_segs_detailer)
     seams.substitute(module.CMKFaceProcessMultiModelPipe, "_insightface_faces", "restore.insightface", fake_faces)
     seams.substitute(module, "resolve_restore_backend", "restore.backend",
                      lambda name: (Inverting(), {"backend": "FAKE", "file": f"/fake/{name}"}))

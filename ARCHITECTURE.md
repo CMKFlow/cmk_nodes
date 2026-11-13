@@ -1253,7 +1253,7 @@ ebenfalls `FaceProcess` und wird unabhängig vom gewählten `process mode` auf d
 unterstützten konkreten FaceProcess-Node-Typen aufgelöst. Restore und Detailer
 erzeugen daher niemals unterschiedliche Registeridentitäten.
 
-### 5.7a FaceProcess 2.8 (in Arbeit: F1–F3)
+### 5.7a FaceProcess 2.8 (in Arbeit: F1–F4)
 
 Neue Nodes neben den unveränderten Legacy-Nodes; die Subgraphen
 `CMK Flow · FaceProcess` / `· Advanced` folgen in F5.
@@ -1303,7 +1303,25 @@ MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG ┴→ CMK FaceProcess Prepare Mu
   wird abgelehnt, kein stiller Rückfall. Backend und Datei stehen in LOG und
   Diagnose und im Branch-Schlüssel. `restore_facedetection` und
   `restore_codeformer_weight` bietet der 2.8-Node nicht an.
-- **Refine** behält bis F4 seine 2.7-Ziele (alle YOLO-Gesichter).
+- **SDXL/ZIT-Detailer (F4):** der 2.7-Detailer-Schritt (Detektion mit SAM,
+  Detektor-Ersatz bei nicht gesichtsbezogenem Standard-Detektor,
+  `SEGSDetailer`, `SEGSPaste` mit `detail_paste_feather`) im 2.8-Node, mit
+  derselben YOLO-Auswahlfunktion wie RESTORE.
+- **Refine (F4, E9):** feste Werte unverändert, wirkt nur auf die Gesichter des
+  Zweigs: RESTORE nur auf zugeordnete und restaurierte, SDXL/ZIT auf die
+  ausgewählten. Keine Auswahl heißt kein Refine; die ungefilterte
+  Neuerkennung entfällt.
+- **Verarbeitungsebenen (F4, `utils/face_layers.py`):** `SEGS PROCESSED` ist
+  `CMKFaceLayerSEGS` (Unterklasse der stabilen SEGS) mit `cmk_layers` in
+  Verarbeitungsreihenfolge: `quantize` (`round` vor Restore, `trunc` vor Refine
+  nach einem Detailer; über die Vereinigung der Zweig-Regionen), `restore` je
+  Gesicht (zurückgewarptes Ergebnis, Float32-Pasteback-Alpha, Visibility),
+  `detailer` je SEG (Crop wie eingefügt, Feather eingerechnet), `refine`
+  (gefiltertes Bild, Alpha 0,75 · Ellipse, vollständiger Wirkbereich).
+  `compose_layers` wiederholt die Mischoperationen der 2.7-Pfade und
+  reproduziert das Zweigergebnis innerhalb der Regionen exakt; außerhalb liegt
+  nur die 2.7-Ganzbild-Quantisierung (0 auf dem 8-Bit-Raster, sonst ≤ 1/255).
+  Branch-Schema `…_v3`.
 - **GFPGAN ist nicht deterministisch:** Der Decoder speist Zufallsrauschen ein;
   dieselbe Eingabe ergibt ohne festen Torch-Seed unterschiedliche Pixel (auch
   in 2.7). Der Branch-Cache hält einen Lauf fest.

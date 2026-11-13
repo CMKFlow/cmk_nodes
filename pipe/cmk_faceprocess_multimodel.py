@@ -26,19 +26,32 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import folder_paths
+import numpy as np
+import torch
+
+from ..engine.detector_engine import get_face_analyser
+from ..engine.native_detailer import SEGSDetailer, SEGSPaste
+from ..engine.native_face_restore import RestoreFaceAdvanced
+from ..nodes.swap.face_process import (
+    _is_likely_non_face_detector,
+    _normalize_refine_mode,
+    _preferred_face_detector,
+    _sampling_entry_to_denoise,
+    _sort_face_detectors,
+)
+from ..utils.cmk_diagnostic import make_diagnostic_payload
+from ..utils.face_layers import LAYER_SCHEMA, layers_roi, paste_layers, quantize_layer, refine_layer, restore_layer, with_layers
+from ..utils.face_matching import MATCH_RULE, OK, assign_faces
+from ..utils.stable_segs import make_stable_segs, segs_with_image_crops
+from ..utils.tensor_utils import tensor_to_uint8_rgb
 from .cmk_detailer_prepare_multimodel import CMKDetailerPrepareMultiModelPipe, ZIT_SAMPLING_ENTRY
 from .cmk_faceprocess import CMKFaceProcessPipe
 from .cmk_faceprocess_mode import FACEPROCESS_MODES, faceprocess_mode
 from .cmk_faceprocess_prepare import CMKFaceProcessPreparePipe
-from .cmk_log_pipe import cmk_add_block, cmk_block_to_string
 from .cmk_faceprocess_restore import RestoreConfigurationError, backend_identity, resolve_restore_backend
+from .cmk_log_pipe import cmk_add_block, cmk_block_to_string
 from .cmk_persistent_cache import DISABLED_REVISION, build_node_fingerprint, save_pickle, write_status
-from ..engine.detector_engine import get_face_analyser
-from ..engine.native_face_restore import RestoreFaceAdvanced
-from ..utils.cmk_diagnostic import make_diagnostic_payload
-from ..utils.face_matching import MATCH_RULE, OK, assign_faces
-from ..utils.stable_segs import make_stable_segs, segs_with_image_crops
-from ..utils.tensor_utils import tensor_to_uint8_rgb
 
 PREPARE_CLASS = "CMKFaceProcessPrepareMultiModelPipe"
 EXECUTE_CLASS = "CMKFaceProcessMultiModelPipe"
@@ -232,7 +245,8 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
     """
 
     # v2 (F3): YOLO-led RESTORE with assigned InsightFace faces, resolved backends.
-    _CACHE_SCHEMA = "cmk_faceprocess_multimodel_branch_v2"
+    # v3 (F4): processing layers in SEGS PROCESSED; Refine only on the branch's faces.
+    _CACHE_SCHEMA = "cmk_faceprocess_multimodel_branch_v3"
     _ZIT_TEXT_ENCODER = "released after FaceProcess Prepare"
 
     @classmethod
@@ -301,13 +315,94 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
             # Branch HIT: the legacy path loads the payload; FACE is not read.
             return super().run_pipe(FACE=None, enable=True, process_mode="restore", **transport)
         face_pipe = self._materialize_face(FACE, prompt=prompt)
-        if face_pipe.get("face_mode") == "restore":
-            return self._run_restore(face_pipe, select_face, kwargs, opt_log=opt_log, VISUAL=VISUAL,
-                                     opt_diagnostic=opt_diagnostic, unique_id=unique_id, cache_key=cache_key,
-                                     cache_detail=_detail)
-        return super().run_pipe(FACE=face_pipe, enable=True, process_mode="detailer", **transport)
+        run = self._run_restore if face_pipe.get("face_mode") == "restore" else self._run_detailer
+        return run(face_pipe, select_face, kwargs, opt_log=opt_log, VISUAL=VISUAL, opt_diagnostic=opt_diagnostic,
+                   unique_id=unique_id, cache_key=cache_key, cache_detail=_detail)
 
-    # ---- RESTORE (F3) ---------------------------------------------------
+    # ---- shared ---------------------------------------------------------
+    def _detection(self, params):
+        detect_model = params.get("detect_model")
+        values = {name: params.get(f"detect_{name}") for name in ("bbox_threshold", "bbox_dilation", "crop_factor", "drop_size")}
+        defaults = {"bbox_threshold": 0.5, "bbox_dilation": 0, "crop_factor": 3.0, "drop_size": 10}
+        values = {name: defaults[name] if value is None else value for name, value in values.items()}
+        return detect_model, values
+
+    def _yolo(self, image, detect_model, detect, sam_model=None):
+        return self._detect_segs(image=image, detect_model=detect_model, detect_bbox_threshold=detect["bbox_threshold"],
+                                 detect_bbox_dilation=detect["bbox_dilation"], detect_crop_factor=detect["crop_factor"],
+                                 detect_drop_size=detect["drop_size"], opt_sam_model=sam_model)
+
+    def _refine(self, image, segs, refine_mode):
+        """Refine of the 2.7 path (fixed strength, alpha and padding) on ``segs``
+        only, as image and layer.  No targets: no refine and no quantisation."""
+        refine_mode = _normalize_refine_mode(refine_mode)
+        if refine_mode == "Off":
+            return image, [], "refine off"
+        if not self._seg_count(segs):
+            return image, [], f"refine skipped | no selected face | mode: {refine_mode}"
+        arr = image.detach().cpu().numpy()
+        out, layers, changes = [], [], []
+        for batch_index in range(arr.shape[0]):
+            rgb = np.clip(arr[batch_index].astype(np.float32) * 255.0, 0, 255).astype(np.uint8)
+            height, width = rgb.shape[:2]
+            mask = np.zeros((height, width), dtype=np.float32)
+            for seg in segs[1]:
+                seg_mask = self._mask_from_seg(height, width, seg, padding=0.25)
+                if seg_mask is not None:
+                    mask = np.maximum(mask, seg_mask)
+            refined = self._refine_rgb(rgb, refine_mode, strength=0.65)
+            alpha = np.clip(mask, 0.0, 1.0) * 0.75
+            result = np.clip(rgb.astype(np.float32) * (1.0 - alpha[..., None]) + refined.astype(np.float32) * alpha[..., None],
+                             0, 255).astype(np.uint8)
+            changes.append(float(np.mean(np.abs(result.astype(np.float32) - rgb.astype(np.float32))) / 255.0))
+            out.append(torch.from_numpy(result.astype(np.float32) / 255.0))
+            layer = refine_layer(batch_index, refined, alpha)
+            if layer is not None:
+                layers.append(layer)
+        change = float(np.mean(changes)) if changes else 0.0
+        return torch.stack(out, dim=0), layers, f"refine applied | mode: {refine_mode} | changed: {change:.4f}"
+
+    def _finish(self, *, mode_label, image, primary, primary_layers, quantize, refine_targets, coverage, full_crop_mask,
+                select_face, params, log_lines, diagnostic_args, opt_log, VISUAL, opt_diagnostic, unique_id, cache_key,
+                cache_detail):
+        refine_mode = params.get("refine_mode", "Off")
+        processed, refine_layers, refine_info = self._refine(primary, refine_targets, refine_mode)
+        layers = list(primary_layers)
+        if refine_layers and quantize == "trunc":
+            # The refine input conversion of 2.7 (truncating) over the branch region.
+            layers.append(quantize_layer("trunc", layers + refine_layers))
+        layers += refine_layers
+        if quantize == "round" and layers:
+            layers.insert(0, quantize_layer("round", layers))
+
+        segs_processed = (segs_with_image_crops(coverage, processed, full_crop_mask=full_crop_mask)
+                          if coverage[1] else self._empty_segs(processed))
+        segs_processed = with_layers(make_stable_segs(segs_processed, image, processed, coverage_segs=coverage), layers)
+        log_lines = [*log_lines, f"REFINE          : {refine_info}",
+                     f"LAYERS          : {', '.join(layer['kind'] for layer in layers) or 'none'}"]
+        log_block = cmk_block_to_string("FaceProcess", 90, log_lines, True)
+        roi = layers_roi(layers)
+        diagnostic = self._make_diagnostic(
+            mode=mode_label, refine_mode=refine_mode, enabled=True, image=image, primary_image=primary,
+            processed_image=processed, segs_processed=segs_processed, detect_model=params.get("detect_model"),
+            **diagnostic_args,
+        )
+        diagnostic["metadata"]["layers"] = {"schema": LAYER_SCHEMA, "kinds": [layer["kind"] for layer in layers],
+                                            "roi": list(roi) if roi else None}
+        payload = {"before_image": image, "image_proceed": processed, "selected_face": coverage,
+                   "segs_processed": segs_processed, "enabled": True, "diagnostic": diagnostic, "log_block": log_block}
+        if cache_key:
+            try:
+                save_pickle(self._CACHE_SCOPE, cache_key, payload, max_entries=32)
+                write_status(self._CACHE_SCOPE, "MISS_STORED", cache_key=cache_key, detail=cache_detail, unique_id=unique_id)
+                print(f"[CMK FaceProcess -Pipe-] CACHE MISS {cache_key[:12]} -> STORED")
+            except Exception as exc:
+                write_status(self._CACHE_SCOPE, "STORE_FAILED", cache_key=cache_key, detail=str(exc), unique_id=unique_id)
+                print(f"[CMK FaceProcess -Pipe-] CACHE STORE FAILED: {exc}")
+        return self._merge_transport(processed, coverage, segs_processed, True, log_block, diagnostic, before=image,
+                                     visual=VISUAL, unique_id=unique_id, opt_log=opt_log, opt_diagnostic=opt_diagnostic)
+
+    # ---- RESTORE (F3, layers F4) -----------------------------------------
     @staticmethod
     def _insightface_faces(rgb):
         """Complete InsightFace face objects (bbox, kps, 106 landmarks) of one image."""
@@ -334,98 +429,115 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
             assigned.append(kept)
         return records, assigned
 
-    def _run_restore(self, face_pipe, select_face, params, *, opt_log, VISUAL, opt_diagnostic, unique_id,
-                     cache_key, cache_detail):
+    def _run_restore(self, face_pipe, select_face, params, **transport):
         image = face_pipe["face_image"]
-        refine_mode = params.get("refine_mode", "Off")
-        detect_model = params.get("detect_model")
+        detect_model, detect = self._detection(params)
         if detect_model in (None, "", "none"):
             raise RestoreConfigurationError(f"{EXECUTE_LABEL}: RESTORE requires a YOLO face detector (detect_model)")
         backend, backend_info = resolve_restore_backend(params.get("restore_model"))
         visibility = params.get("restore_visibility", 1.0)
-        detect = {name: params.get(f"detect_{name}") for name in ("bbox_threshold", "bbox_dilation", "crop_factor", "drop_size")}
-        defaults = {"bbox_threshold": 0.5, "bbox_dilation": 0, "crop_factor": 3.0, "drop_size": 10}
-        detect = {name: defaults[name] if value is None else value for name, value in detect.items()}
 
-        def yolo(target):
-            # RESTORE uses the YOLO boxes only; a SAM mask would be replaced by
-            # the full crop mask of the coverage, so SAM is not loaded.
-            return self._detect_segs(image=target, detect_model=detect_model, detect_bbox_threshold=detect["bbox_threshold"],
-                                     detect_bbox_dilation=detect["bbox_dilation"], detect_crop_factor=detect["crop_factor"],
-                                     detect_drop_size=detect["drop_size"], opt_sam_model=None)
-
-        detected = yolo(image)
+        # RESTORE uses the YOLO boxes only; a SAM mask would be replaced by the
+        # full crop mask of the coverage, so SAM is not loaded.
+        detected = self._yolo(image, detect_model, detect)
         selected = self._select_output_segs(detected, image, select_face) if self._seg_count(detected) else detected
         records, assigned = self._assign(image, selected)
-        primary = image
+        primary, captured = image, []
         if any(assigned):
             # Restore order of 2.7 (ascending face area): faces are pasted one
             # after another and GFPGAN draws noise per face.
             order = [sorted((face for _seg, face in kept), key=self._face_area) for kept in assigned]
             primary = RestoreFaceAdvanced().execute(
                 image=image, model=backend_info["file"], visibility=visibility, assigned_faces=order, enhancer=backend,
+                layers=captured,
             )[0]
-
-        # Refine keeps its 2.7 targets until F4 (all YOLO faces; a new
-        # detection on the restored image when YOLO found none).
-        refine_segs = detected
-        if refine_mode != "Off" and self._seg_count(refine_segs) == 0:
-            refine_segs = yolo(primary)
-        processed, refine_changed, refine_info = self._apply_refine_stage(primary, refine_segs, refine_mode)
-        processed = self._find_image_tensor(processed)
-        processed = image if processed is None else processed
-
-        coverage = (detected[0], [seg for kept in assigned for seg, _face in kept])
-        segs_processed = (segs_with_image_crops(coverage, processed, full_crop_mask=True)
-                          if coverage[1] else self._empty_segs(processed))
-        segs_processed = make_stable_segs(segs_processed, image, processed, coverage_segs=coverage)
+        primary_layers = [layer for layer in (restore_layer(item["batch_index"], item["warped"], item["alpha"], item["visibility"])
+                                              for item in captured) if layer is not None]
+        restored_segs = (detected[0], [seg for kept in assigned for seg, _face in kept])
 
         restored = sum(1 for row in records if row["status"] == OK)
-        skipped = [row for row in records if row["status"] != OK]
         face_lines = [f"FACE {index:<11}: {STATUS_TEXT[row['status']]} · IoU {row['iou']:.2f} · kps {row['keypoints']}/5"
                       for index, row in enumerate(records, 1)]
         if not self._seg_count(detected):
             face_lines = ["FACES           : NOT DETECTED BY YOLO"]
-        log_lines = [
-            "STATUS          : EXECUTED",
-            "PROCESS MODE    : RESTORE",
-            f"SELECTION       : {select_face} (YOLO)",
-            f"RESTORE BACKEND : {backend_info['backend']} · {Path(backend_info['file']).name}",
-            f"FACES DETECTED  : {self._seg_count(detected)}",
-            f"FACES SELECTED  : {self._seg_count(selected)}",
-            *face_lines,
-            f"FACES RESTORED  : {restored}",
-            f"REFINE          : {refine_info}",
-            f"RESULT          : {'IMAGE PROCESSED' if restored or refine_changed else 'UNCHANGED'}",
-        ]
-        log_block = cmk_block_to_string("FaceProcess", 90, log_lines, True)
         warnings = [f"face {index}: {STATUS_TEXT[row['status']].lower()}" for index, row in enumerate(records, 1)
                     if row["status"] != OK]
         if not self._seg_count(detected):
             warnings.append("no face detected by YOLO")
-        diagnostic = self._make_diagnostic(
-            mode="Restore", refine_mode=refine_mode, enabled=True,
-            status="Processed" if restored else ("No face detected" if not self._seg_count(detected) else "No face assigned"),
-            image=image, primary_image=primary, processed_image=processed, segs_detected=detected,
-            segs_processed=segs_processed, detect_model=detect_model, restore_model=Path(backend_info["file"]).name,
-            restore_visibility=visibility,
-            metadata={"selection": select_face, "match_rule": MATCH_RULE, "faces": records,
-                      "restore_backend": {**backend_info, "file": Path(backend_info["file"]).name},
-                      "faces_restored": restored, "faces_skipped": len(skipped)},
-            warnings=warnings,
-        )
-        payload = {"before_image": image, "image_proceed": processed, "selected_face": coverage,
-                   "segs_processed": segs_processed, "enabled": True, "diagnostic": diagnostic, "log_block": log_block}
-        if cache_key:
-            try:
-                save_pickle(self._CACHE_SCOPE, cache_key, payload, max_entries=32)
-                write_status(self._CACHE_SCOPE, "MISS_STORED", cache_key=cache_key, detail=cache_detail, unique_id=unique_id)
-                print(f"[CMK FaceProcess -Pipe-] CACHE MISS {cache_key[:12]} -> STORED")
-            except Exception as exc:
-                write_status(self._CACHE_SCOPE, "STORE_FAILED", cache_key=cache_key, detail=str(exc), unique_id=unique_id)
-                print(f"[CMK FaceProcess -Pipe-] CACHE STORE FAILED: {exc}")
-        return self._merge_transport(processed, coverage, segs_processed, True, log_block, diagnostic, before=image,
-                                     visual=VISUAL, unique_id=unique_id, opt_log=opt_log, opt_diagnostic=opt_diagnostic)
+        return self._finish(
+            mode_label="Restore", image=image, primary=primary, primary_layers=primary_layers, quantize="round",
+            # Refine only on assigned and restored faces (E9).
+            refine_targets=restored_segs, coverage=restored_segs, full_crop_mask=True, select_face=select_face,
+            params=params,
+            log_lines=["STATUS          : EXECUTED", "PROCESS MODE    : RESTORE", f"SELECTION       : {select_face} (YOLO)",
+                       f"RESTORE BACKEND : {backend_info['backend']} · {Path(backend_info['file']).name}",
+                       f"FACES DETECTED  : {self._seg_count(detected)}", f"FACES SELECTED  : {self._seg_count(selected)}",
+                       *face_lines, f"FACES RESTORED  : {restored}"],
+            diagnostic_args={
+                "status": "Processed" if restored else ("No face detected" if not self._seg_count(detected) else "No face assigned"),
+                "segs_detected": detected, "restore_model": Path(backend_info["file"]).name, "restore_visibility": visibility,
+                "metadata": {"selection": select_face, "match_rule": MATCH_RULE, "faces": records,
+                             "restore_backend": {**backend_info, "file": Path(backend_info["file"]).name},
+                             "faces_restored": restored, "faces_skipped": len(records) - restored},
+                "warnings": warnings},
+            **transport)
+
+    # ---- SDXL / ZIT detailer (F4: the 2.7 detailer step with layers) -------
+    def _run_detailer(self, face_pipe, select_face, params, **transport):
+        image = face_pipe["face_image"]
+        detect_model, detect = self._detection(params)
+        if detect_model in (None, "", "none"):
+            raise ValueError(f"{EXECUTE_LABEL}: the detailer requires a YOLO face detector (detect_model)")
+        sam_model = face_pipe.get("face_sam_model")
+        used_detector = detect_model
+        detected = self._yolo(image, detect_model, detect, sam_model)
+        # 2.7: a non-face default detector that finds nothing is retried once
+        # with the most face-like detector installed.
+        fallback = _preferred_face_detector(_sort_face_detectors(
+            ["bbox/" + x for x in folder_paths.get_filename_list("ultralytics_bbox")]
+            + ["segm/" + x for x in folder_paths.get_filename_list("ultralytics_segm")]))
+        if (not self._seg_count(detected) and fallback and fallback != detect_model
+                and _is_likely_non_face_detector(detect_model)):
+            retry = self._yolo(image, fallback, detect, sam_model)
+            if self._seg_count(retry):
+                detected, used_detector = retry, fallback
+        selected = self._select_output_segs(detected, image, select_face) if self._seg_count(detected) else detected
+
+        guide_size, max_size = params.get("detail_guide_size", 512), params.get("detail_max_size", 768)
+        denoise = _sampling_entry_to_denoise(params.get("detail_denoise", 80.0))
+        feather = min(200, max(0, int(params.get("detail_paste_feather", 20))))
+        primary, primary_layers = image, []
+        steps, cfg = face_pipe.get("face_steps", 20), face_pipe.get("face_cfg", 8.0)
+        if self._seg_count(selected):
+            basic_pipe = (face_pipe.get("face_model"), face_pipe.get("face_clip"), face_pipe.get("face_vae"),
+                          face_pipe.get("face_conditioning_pos"), face_pipe.get("face_conditioning_neg"))
+            detailed = self._find_valid_segs(SEGSDetailer().doit(
+                image=image, segs=selected, guide_size=guide_size, guide_size_for=params.get("detail_guide_size_for", True),
+                max_size=max_size, seed=int(face_pipe.get("face_seed", 0) or 0), steps=steps, cfg=cfg,
+                sampler_name=face_pipe.get("face_sampler"), scheduler=face_pipe.get("face_scheduler"), denoise=denoise,
+                noise_mask=params.get("detail_noise_mask", True), force_inpaint=params.get("detail_force_inpaint", True),
+                basic_pipe=basic_pipe, refiner_ratio=0.2, batch_size=1, cycle=1, refiner_basic_pipe_opt=None,
+                inpaint_model=False, noise_mask_feather=20, scheduler_func_opt=None,
+            ))
+            if detailed is not None:
+                primary = self._find_image_tensor(SEGSPaste.doit(image, detailed, feather, alpha=255))
+                primary_layers = paste_layers(image, detailed, feather)
+        mode_label = "Detailer"
+        family = MODE_LABELS.get(face_pipe.get("face_mode"), "SDXL")
+        return self._finish(
+            mode_label=mode_label, image=image, primary=primary, primary_layers=primary_layers, quantize="trunc",
+            refine_targets=selected, coverage=selected, full_crop_mask=False, select_face=select_face, params=params,
+            log_lines=["STATUS          : EXECUTED", f"PROCESS MODE    : {family} DETAILER",
+                       f"SELECTION       : {select_face} (YOLO)", f"DETECTOR        : {used_detector}",
+                       f"FACES DETECTED  : {self._seg_count(detected)}", f"FACES SELECTED  : {self._seg_count(selected)}",
+                       f"STEPS / CFG     : {steps} / {cfg}", f"DENOISE         : {denoise:g}", f"PASTE FEATHER   : {feather}"],
+            diagnostic_args={"status": "Processed" if self._seg_count(selected) else "No face detected",
+                             "segs_detected": detected, "steps": steps, "cfg": cfg, "denoise": denoise,
+                             "force_inpaint": params.get("detail_force_inpaint", True), "guide_size": guide_size,
+                             "max_size": max_size, "paste_feather": feather,
+                             "metadata": {"selection": select_face, "detector": used_detector, "family": family},
+                             "warnings": [] if self._seg_count(detected) else ["no face detected by YOLO"]},
+            **transport)
 
     def _bypass(self, FACE, VISUAL, unique_id, opt_log, opt_diagnostic):
         image = FACE.get("face_image") if isinstance(FACE, dict) else None
