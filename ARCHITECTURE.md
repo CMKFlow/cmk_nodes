@@ -1253,7 +1253,7 @@ ebenfalls `FaceProcess` und wird unabhängig vom gewählten `process mode` auf d
 unterstützten konkreten FaceProcess-Node-Typen aufgelöst. Restore und Detailer
 erzeugen daher niemals unterschiedliche Registeridentitäten.
 
-### 5.7a FaceProcess 2.8 (in Arbeit: F1–F2)
+### 5.7a FaceProcess 2.8 (in Arbeit: F1–F3)
 
 Neue Nodes neben den unveränderten Legacy-Nodes; die Subgraphen
 `CMK Flow · FaceProcess` / `· Advanced` folgen in F5.
@@ -1284,6 +1284,35 @@ MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG ┴→ CMK FaceProcess Prepare Mu
 - **Boundary:** `CMKFaceBoundaryCache` unverändert im Schema; die neue
   Ausführung ist zusätzliche Branch-Klasse des Manifests, `process_mode = None`
   des Prepare gilt als Modul aus. Legacy-Schlüssel bleiben gleich.
+- **RESTORE (F3):** YOLO erkennt und wählt aus (dieselbe Auswahl wie
+  Coverage und Detailer). InsightFace ordnet jedem ausgewählten YOLO-Gesicht
+  nur sein vollständiges Face-Objekt zu (`utils/face_matching.py`, Regel
+  `iou_kps_margin_v1`: bester Kandidat IoU ≥ 0,30, mindestens 4 von 5
+  Keypoints in der YOLO-Box, Abstand zum zweiten Kandidaten ≥ 0,20; ein
+  InsightFace-Gesicht für zwei YOLO-Gesichter ist ein Konflikt). Nicht
+  zugeordnete oder mehrdeutige Gesichter werden übersprungen, nicht ersetzt,
+  und weder restauriert noch beansprucht; LOG und Diagnose unterscheiden „nicht
+  erkannt“, „keine Zuordnung“ und „mehrdeutig“. Restauriert wird in der
+  2.7-Reihenfolge (aufsteigende Fläche) über `RestoreFaceAdvanced` mit
+  `assigned_faces` (106 Landmarken erhalten). Ohne YOLO-Detektor oder mit
+  `restore_model = none` ist RESTORE ein Konfigurationsfehler.
+- **Restore-Modelle (E5, `pipe/cmk_faceprocess_restore.py`):** GFPGAN mit
+  genau der gewählten Datei; CodeFormer mit dem festen CMK-Referenzverhalten
+  (Fidelity 0,72, danach 72 % Ergebnis / 28 % Eingang) und nur für die Datei,
+  die das Backend tatsächlich lädt; GPEN nur `GPEN-BFR-512.onnx`. Alles andere
+  wird abgelehnt, kein stiller Rückfall. Backend und Datei stehen in LOG und
+  Diagnose und im Branch-Schlüssel. `restore_facedetection` und
+  `restore_codeformer_weight` bietet der 2.8-Node nicht an.
+- **Refine** behält bis F4 seine 2.7-Ziele (alle YOLO-Gesichter).
+- **GFPGAN ist nicht deterministisch:** Der Decoder speist Zufallsrauschen ein;
+  dieselbe Eingabe ergibt ohne festen Torch-Seed unterschiedliche Pixel (auch
+  in 2.7). Der Branch-Cache hält einen Lauf fest.
+- **Offene Validierungspunkte:** ZIT nutzt für den Einstiegspunkt
+  `detail_denoise` des FaceProcess-Nodes (Standard 80 %), der Multi-Model
+  Detailer seinen eigenen `zit_sampling_entry` (Standard 85 %), vor Abschluss
+  der Sampling-Integration zu klären. ZIT-LoRA: nur aus einem ZIT-1st-Pass bei
+  `use_lora_from_1st_pass`; die lokale SDXL-LoRA gilt nicht für ZIT, einen
+  Eingang `LoRA ZIT` gibt es nicht.
 
 ### 5.8 Image Resize
 

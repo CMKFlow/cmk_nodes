@@ -1438,6 +1438,52 @@ def _install_zit_fakes(runtime, counters):
     mm.CMKLoRATextLoader = PassLoRA
 
 
+def _install_restore_fakes(runtime, seams):
+    """Model-free RESTORE (F3): one YOLO face in the image centre, the matching
+    InsightFace face object (bbox, kps, 106 landmarks) and an inverting
+    enhancer; detection, assignment and backend resolution are counted."""
+    import numpy as np
+    import torch
+    from types import SimpleNamespace
+
+    native = runtime.cmk_module("engine.native_detailer")
+    core = runtime.cmk_module("nodes.swap.face_process").CMK_FaceProcess
+    module = runtime.cmk_module("pipe.cmk_faceprocess_multimodel")
+
+    def centre(width, height):
+        return (width // 3, height // 4, 2 * width // 3, 3 * height // 4)
+
+    def fake_detect(self, image, detect_model, opt_sam_model=None, **_kwargs):
+        _batch, height, width, _ = image.shape
+        x1, y1, x2, y2 = centre(width, height)
+        seg = native.CMKSEG(image[:, y1:y2, x1:x2, :].clone(), torch.ones(1, y2 - y1, x2 - x1), 0.9,
+                            (x1, y1, x2, y2), (x1, y1, x2, y2), "face", None, 0)
+        return ((width, height), [seg])
+
+    def fake_faces(rgb):
+        height, width = rgb.shape[:2]
+        x1, y1, x2, y2 = centre(width, height)
+        w, h = x2 - x1, y2 - y1
+        angles = np.linspace(0, 2 * np.pi, 106, endpoint=False)
+        return [SimpleNamespace(
+            bbox=np.asarray([x1 + 2, y1 + 2, x2 - 2, y2 - 2], np.float32),
+            kps=np.asarray([(x1 + .3 * w, y1 + .4 * h), (x1 + .7 * w, y1 + .4 * h), (x1 + .5 * w, y1 + .55 * h),
+                            (x1 + .35 * w, y1 + .75 * h), (x1 + .65 * w, y1 + .75 * h)], np.float32),
+            landmark_2d_106=np.stack([x1 + w / 2 + .45 * w * np.cos(angles), y1 + h / 2 + .5 * h * np.sin(angles)], 1).astype(np.float32),
+            det_score=0.9)]
+
+    class Inverting:
+        model_size = 512
+
+        def enhance_aligned(self, aligned):
+            return 255 - aligned
+
+    seams.substitute(core, "_detect_segs", "restore.yolo", fake_detect)
+    seams.substitute(module.CMKFaceProcessMultiModelPipe, "_insightface_faces", "restore.insightface", fake_faces)
+    seams.substitute(module, "resolve_restore_backend", "restore.backend",
+                     lambda name: (Inverting(), {"backend": "FAKE", "file": f"/fake/{name}"}))
+
+
 def faceprocess28_sequence(workdir: str, steps: list, extra_model_paths: str | None = None) -> dict:
     """Run FaceProcess 2.8 Standard prompts in one session with the real
     PromptExecutor.  Each step: {"mode", "overrides", "drop_scopes", "restart"}.
@@ -1449,6 +1495,7 @@ def faceprocess28_sequence(workdir: str, steps: list, extra_model_paths: str | N
                                       fake_postprocess=True)
     counters = {"zit_load": []}
     _install_zit_fakes(runtime, counters)
+    _install_restore_fakes(runtime, seams)
     inline = runtime.cmk_module("cmk_prompt_family_inline")
     pc = runtime.cmk_module("pipe.cmk_persistent_cache")
     zit = runtime.cmk_module("pipe.loaders.z_image_turbo_loader")

@@ -79,19 +79,30 @@ class RestoreFaceAdvanced:
         take_start=0,
         take_count=1,
         selected_face=None,
+        assigned_faces=None,
+        enhancer=None,
     ):
+        """``assigned_faces`` (FaceProcess 2.8): per batch item the complete InsightFace
+        face objects to restore, already selected and assigned by the caller;
+        no own detection or selection then.  ``enhancer``: an already resolved
+        backend instead of the name routing.  Both default to the previous
+        behaviour."""
         del codeformer_weight, facedetection
         if not isinstance(image, torch.Tensor) or image.ndim != 4:
             raise ValueError("CMK native face restore requires a ComfyUI IMAGE tensor")
-        analyser = get_face_analyser("buffalo_l", 640)
-        enhancer = _enhancer(str(model))
+        if assigned_faces is not None and len(assigned_faces) != image.shape[0]:
+            raise ValueError("CMK native face restore: one face list per batch item is required")
+        analyser = get_face_analyser("buffalo_l", 640) if assigned_faces is None else None
+        enhancer = enhancer if enhancer is not None else _enhancer(str(model))
         visibility = max(0.0, min(1.0, float(visibility)))
         outputs = []
 
-        for item in image:
+        for batch_index, item in enumerate(image):
             original = tensor_to_uint8_rgb(item)
             result = original.copy()
-            if isinstance(selected_face, dict):
+            if assigned_faces is not None:
+                selected = list(assigned_faces[batch_index])
+            elif isinstance(selected_face, dict):
                 payload = selected_face.get("face", selected_face)
                 selected = [SimpleNamespace(
                     bbox=np.asarray(payload.get("bbox", [0, 0, 0, 0]), dtype=np.float32),

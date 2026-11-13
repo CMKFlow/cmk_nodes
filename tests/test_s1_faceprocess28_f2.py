@@ -33,6 +33,12 @@ def prepare_requests(run):
     return sorted({name for _uid, names in requested for name in names})
 
 
+def compute(run):
+    """FaceProcess compute runs: the legacy path (SDXL/ZIT detailer) or the
+    YOLO-led RESTORE (F3: YOLO detection seam)."""
+    return seam(run, "faceprocess.run") + seam(run, "restore.yolo")
+
+
 def statuses(run, scope):
     return [status for s, status, _key in run["statuses"] if s == scope]
 
@@ -70,7 +76,7 @@ class Modes(ScenarioCase):
         for run in self.runs["None"]:
             self.assertEqual({name for name in run["function_calls"] if name in WORK}, set(), "no module node runs")
             self.assertEqual(loads(run), NO_LOADS)
-            self.assertEqual(seam(run, "faceprocess.run"), 0, "no detection, restore, detailer or refine")
+            self.assertEqual(compute(run), 0, "no detection, restore, detailer or refine")
             self.assertEqual(run["branch_revision"], "disabled")
             self.assertIsNotNone(run["outputs"]["image"], "the gate passes the module input on")
 
@@ -78,14 +84,17 @@ class Modes(ScenarioCase):
         cold = self.runs["Restore"][0]
         self.assertEqual(prepare_requests(cold), ["IMAGE", "LOG"], "no MODEL ZIT, MODEL SDXL or PROCESS")
         self.assertEqual(loads(cold), NO_LOADS, "no SDXL, ZIT, SAM or conditioning")
-        self.assertEqual(seam(cold, "faceprocess.run"), 1)
+        self.assertEqual(seam(cold, "faceprocess.run"), 0, "RESTORE no longer runs the legacy path")
+        self.assertEqual((seam(cold, "restore.yolo"), seam(cold, "restore.insightface"), seam(cold, "restore.backend")), (1, 1, 1))
         self.assertEqual(statuses(cold, "faceprocess_branch")[-1], "MISS_STORED")
+        self.assertNotEqual(cold["outputs"]["image"], self.runs["None"][0]["outputs"]["image"], "the assigned face is restored")
 
     def test_sdxl_requests_and_materialises_only_sdxl(self):
         cold = self.runs["SDXL"][0]
         self.assertEqual(prepare_requests(cold), ["IMAGE", "LOG", "MODEL SDXL", "PROCESS"])
         self.assertEqual(loads(cold), {"sdxl_resolve": 1, "checkpoint": 1, "sam": 1, "encode": 2, "zit": 0})
         self.assertEqual(calls(cold, "CMKFaceProcessPreparePipe"), 1, "the legacy SDXL preparation runs in the branch")
+        self.assertEqual((seam(cold, "faceprocess.run"), seam(cold, "restore.yolo")), (1, 0), "SDXL keeps the legacy detailer path")
 
     def test_zit_requests_and_materialises_only_zit(self):
         cold = self.runs["Z-Image Turbo"][0]
@@ -130,7 +139,7 @@ class RestoreCaches(ScenarioCase):
     def test_branch_hit_without_boundary_materialises_nothing(self):
         run = self.runs[1]
         self.assertEqual(statuses(run, "faceprocess_branch")[-1], "HIT")
-        self.assertEqual(seam(run, "faceprocess.run"), 0)
+        self.assertEqual(compute(run), 0)
         self.assertEqual(loads(run), NO_LOADS)
         self.assertEqual(statuses(run, "faceprocess_boundary")[-1], "MISS_STORED")
         self.assertEqual(run["branch_key"], self.runs[0]["branch_key"])
@@ -139,18 +148,18 @@ class RestoreCaches(ScenarioCase):
     def test_settings_of_other_modes_do_not_invalidate(self):
         run = self.runs[2]
         self.assertEqual(statuses(run, "faceprocess_boundary")[-1], "HIT", "SDXL/ZIT/detail settings are not RESTORE identity")
-        self.assertEqual(seam(run, "faceprocess.run"), 0)
+        self.assertEqual(compute(run), 0)
 
     def test_refine_change_recomputes_the_branch(self):
         run = self.runs[3]
         self.assertEqual(statuses(run, "faceprocess_branch")[-1], "MISS_STORED")
         self.assertNotEqual(run["branch_key"], self.runs[0]["branch_key"])
-        self.assertEqual(seam(run, "faceprocess.run"), 1)
+        self.assertEqual(compute(run), 1)
         self.assertEqual(loads(run), NO_LOADS)
 
     def test_none_bypasses_refine_too(self):
         run = self.runs[4]
-        self.assertEqual(seam(run, "faceprocess.run"), 0)
+        self.assertEqual(compute(run), 0)
         self.assertEqual({name for name in run["function_calls"] if name in WORK}, set())
         self.assertEqual(run["branch_revision"], "disabled")
 
