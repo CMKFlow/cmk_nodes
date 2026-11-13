@@ -187,7 +187,7 @@ class CurrentPackageContractTests(unittest.TestCase):
             "LEGACY": 1,
         })
         self.assertEqual(showcase, {
-            "galleries": 33, "screenshots": 52, "bytes": 27_207_742,
+            "galleries": 33, "screenshots": 52, "bytes": 27_207_360,
         })
         self.assertFalse((
             PACKAGE_ROOT / "workflows" / "showcase" /

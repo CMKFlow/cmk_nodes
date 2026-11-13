@@ -161,7 +161,7 @@ class DetailerPackage(unittest.TestCase):
 
     def test_module_workflows_301_and_302_are_the_new_detailers(self):
         rows = {data["order"]: (name, data) for name, data in published_showcase()}
-        self.assertEqual(rows[301][0], "CMK 2.8 · Detailer SDXL · Modul.json")
+        self.assertEqual(rows[301][0], "CMK 2.8 · Detailer · Modul.json")
         self.assertEqual(rows[302][0], "CMK 2.8 · Detailer Advanced · Modul.json")
         published = {name for name, _ in published_showcase()}
         for legacy in ("CMK · Detailer SDXL.json", "CMK 2.7 · Detailer SDXL · Modul.json"):
@@ -169,7 +169,7 @@ class DetailerPackage(unittest.TestCase):
             self.assertTrue((SHOWCASE / legacy).is_file(), legacy)
 
     def test_module_workflows_use_the_new_subgraphs(self):
-        for name, subgraph in (("CMK 2.8 · Detailer SDXL · Modul.json", "CMK Flow · Detailer"),
+        for name, subgraph in (("CMK 2.8 · Detailer · Modul.json", "CMK Flow · Detailer"),
                                ("CMK 2.8 · Detailer Advanced · Modul.json", "CMK Flow · Detailer · Advanced")):
             workflow = json.loads((SHOWCASE / name).read_text(encoding="utf-8"))
             definitions = {item["id"]: item["name"] for item in workflow["definitions"]["subgraphs"]}

@@ -179,8 +179,8 @@
         "version": 1,
         "state": {
           "lastGroupId": 256,
-          "lastNodeId": 8585,
-          "lastLinkId": 22943,
+          "lastNodeId": 8590,
+          "lastLinkId": 22950,
           "lastRerouteId": 1
         },
         "revision": 0,
@@ -198,8 +198,8 @@
         "outputNode": {
           "id": -20,
           "bounding": [
-            10505,
-            2510,
+            10475,
+            3105,
             128,
             188
           ]
@@ -311,8 +311,8 @@
               51
             ],
             "pos": [
-              10529,
-              2534
+              10499,
+              3129
             ]
           },
           {
@@ -323,8 +323,8 @@
               52
             ],
             "pos": [
-              10529,
-              2554
+              10499,
+              3149
             ]
           },
           {
@@ -335,8 +335,8 @@
               53
             ],
             "pos": [
-              10529,
-              2574
+              10499,
+              3169
             ]
           },
           {
@@ -347,8 +347,8 @@
               54
             ],
             "pos": [
-              10529,
-              2594
+              10499,
+              3189
             ]
           },
           {
@@ -359,8 +359,8 @@
               55
             ],
             "pos": [
-              10529,
-              2614
+              10499,
+              3209
             ]
           },
           {
@@ -371,8 +371,8 @@
               56
             ],
             "pos": [
-              10529,
-              2634
+              10499,
+              3229
             ]
           },
           {
@@ -383,8 +383,8 @@
               57
             ],
             "pos": [
-              10529,
-              2654
+              10499,
+              3249
             ]
           }
         ],
@@ -948,11 +948,16 @@
               ],
               "cmkCleanViewExpandedSize": [
                 450,
-                790
+                760
               ],
-              "cmkCleanViewExpandedHeight": 790,
+              "cmkCleanViewExpandedHeight": 760,
               "comparer_mode": "Click",
-              "default_output": "b"
+              "default_output": "b",
+              "cmkCleanViewSize": [
+                450,
+                644
+              ],
+              "cmkCleanView": true
             },
             "widgets_values": [
               "sam_vit_b_01ec64.pth",
@@ -967,7 +972,7 @@
               1.4,
               0.9,
               0.2,
-              "None",
+              "SDXL",
               30,
               7,
               95,
@@ -991,7 +996,7 @@
               "res_multistep",
               "simple",
               3,
-              "None",
+              "SDXL",
               30,
               7,
               95,
@@ -1018,7 +1023,7 @@
               "freeu_b2": 1.4,
               "freeu_s1": 0.9,
               "freeu_s2": 0.2,
-              "model_family_1": "None",
+              "model_family_1": "SDXL",
               "steps_1": 30,
               "cfg_1": 7,
               "sampling_entry_1": 95,
@@ -1042,7 +1047,7 @@
               "zit_sampler_2": "res_multistep",
               "zit_scheduler_2": "simple",
               "zit_model_shift_2": 3,
-              "model_family_3": "None",
+              "model_family_3": "SDXL",
               "steps_3": 30,
               "cfg_3": 7,
               "sampling_entry_3": 95,
@@ -1067,7 +1072,7 @@
             ],
             "size": [
               450,
-              130
+              110
             ],
             "flags": {},
             "order": 0,
@@ -1115,13 +1120,18 @@
               ],
               "cmkCleanViewExpandedHeight": 130,
               "comparer_mode": "Click",
-              "default_output": "b"
+              "default_output": "b",
+              "cmkCleanViewSize": [
+                450,
+                110
+              ],
+              "cmkCleanView": true
             },
             "widgets_values": [
-              "None"
+              "SDXL"
             ],
             "widgets_values_named": {
-              "model_family": "None"
+              "model_family": "SDXL"
             },
             "shape": 1
           },
@@ -1130,11 +1140,11 @@
             "type": "CMK_SmartDetailerMultiModelPipe",
             "pos": [
               8465,
-              2080
+              2065
             ],
             "size": [
               450,
-              600
+              525
             ],
             "flags": {},
             "order": 3,
@@ -1316,7 +1326,8 @@
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  9
+                  9,
+                  22948
                 ]
               },
               {
@@ -1327,7 +1338,27 @@
               }
             ],
             "properties": {
-              "Node name for S&R": "CMK_SmartDetailerMultiModelPipe"
+              "Node name for S&R": "CMK_SmartDetailerMultiModelPipe",
+              "cmkCleanViewExpandedSize": [
+                450,
+                600
+              ],
+              "cmkCleanViewExpandedHeight": 600,
+              "cmkCleanViewSize": [
+                450,
+                525
+              ],
+              "cmkCleanView": true,
+              "cmkOuterSize": [
+                450,
+                525
+              ],
+              "cmkManualSize": [
+                450,
+                525
+              ],
+              "comparer_mode": "Click",
+              "default_output": "b"
             },
             "widgets_values": [
               true,
@@ -1368,7 +1399,7 @@
             ],
             "size": [
               450,
-              130
+              110
             ],
             "flags": {},
             "order": 1,
@@ -1416,7 +1447,12 @@
               ],
               "cmkCleanViewExpandedHeight": 130,
               "comparer_mode": "Click",
-              "default_output": "b"
+              "default_output": "b",
+              "cmkCleanViewSize": [
+                450,
+                110
+              ],
+              "cmkCleanView": true
             },
             "widgets_values": [
               "SDXL"
@@ -1431,11 +1467,11 @@
             "type": "CMK_SmartDetailerMultiModelPipe",
             "pos": [
               8925,
-              2080
+              2065
             ],
             "size": [
               450,
-              600
+              525
             ],
             "flags": {},
             "order": 4,
@@ -1618,7 +1654,8 @@
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  15
+                  15,
+                  22949
                 ]
               },
               {
@@ -1629,7 +1666,27 @@
               }
             ],
             "properties": {
-              "Node name for S&R": "CMK_SmartDetailerMultiModelPipe"
+              "Node name for S&R": "CMK_SmartDetailerMultiModelPipe",
+              "cmkCleanViewExpandedSize": [
+                450,
+                600
+              ],
+              "cmkCleanViewExpandedHeight": 600,
+              "cmkCleanViewSize": [
+                450,
+                525
+              ],
+              "cmkCleanView": true,
+              "cmkOuterSize": [
+                450,
+                525
+              ],
+              "cmkManualSize": [
+                450,
+                525
+              ],
+              "comparer_mode": "Click",
+              "default_output": "b"
             },
             "widgets_values": [
               true,
@@ -1670,7 +1727,7 @@
             ],
             "size": [
               450,
-              130
+              110
             ],
             "flags": {},
             "order": 2,
@@ -1718,13 +1775,18 @@
               ],
               "cmkCleanViewExpandedHeight": 130,
               "comparer_mode": "Click",
-              "default_output": "b"
+              "default_output": "b",
+              "cmkCleanViewSize": [
+                450,
+                110
+              ],
+              "cmkCleanView": true
             },
             "widgets_values": [
-              "None"
+              "SDXL"
             ],
             "widgets_values_named": {
-              "model_family": "None"
+              "model_family": "SDXL"
             },
             "shape": 1
           },
@@ -1733,11 +1795,11 @@
             "type": "CMK_SmartDetailerMultiModelPipe",
             "pos": [
               9385,
-              2080
+              2065
             ],
             "size": [
               450,
-              600
+              525
             ],
             "flags": {},
             "order": 5,
@@ -1919,7 +1981,8 @@
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  21
+                  21,
+                  22950
                 ]
               },
               {
@@ -1930,7 +1993,27 @@
               }
             ],
             "properties": {
-              "Node name for S&R": "CMK_SmartDetailerMultiModelPipe"
+              "Node name for S&R": "CMK_SmartDetailerMultiModelPipe",
+              "cmkCleanViewExpandedSize": [
+                450,
+                600
+              ],
+              "cmkCleanViewExpandedHeight": 600,
+              "cmkCleanViewSize": [
+                450,
+                525
+              ],
+              "cmkCleanView": true,
+              "cmkOuterSize": [
+                450,
+                525
+              ],
+              "cmkManualSize": [
+                450,
+                525
+              ],
+              "comparer_mode": "Click",
+              "default_output": "b"
             },
             "widgets_values": [
               true,
@@ -1966,8 +2049,8 @@
             "id": 8,
             "type": "CMKDetailerMergeMultiModel",
             "pos": [
-              8690,
-              2730
+              8765,
+              3370
             ],
             "size": [
               320,
@@ -2111,7 +2194,8 @@
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  26
+                  26,
+                  22947
                 ]
               }
             ],
@@ -2132,8 +2216,8 @@
             "id": 9,
             "type": "CMKDetailerBoundaryCache",
             "pos": [
-              8925,
-              2730
+              9000,
+              3370
             ],
             "size": [
               190,
@@ -2248,8 +2332,8 @@
             "id": 10,
             "type": "CMKModuleBypassGate",
             "pos": [
-              8455,
-              2730
+              8530,
+              3370
             ],
             "size": [
               285,
@@ -2414,8 +2498,8 @@
               1915
             ],
             "size": [
-              625,
-              765
+              605,
+              675
             ],
             "flags": {},
             "order": 9,
@@ -2439,18 +2523,18 @@
             "properties": {
               "Node name for S&R": "CMKVisualCompare",
               "cmkOuterSize": [
-                625,
-                765
+                605,
+                675
               ],
               "cmkManualSize": [
-                625,
-                765
+                605,
+                675
               ],
               "cmkCleanViewExpandedSize": [
-                625,
-                765
+                605,
+                675
               ],
-              "cmkCleanViewExpandedHeight": 765,
+              "cmkCleanViewExpandedHeight": 675,
               "comparer_mode": "Click",
               "default_output": "b"
             },
@@ -2466,8 +2550,8 @@
             "id": 12,
             "type": "CMKResultProcessForwardPipe",
             "pos": [
-              9160,
-              2730
+              9235,
+              3370
             ],
             "size": [
               280,
@@ -2505,8 +2589,8 @@
             "id": 13,
             "type": "CMKModelForwardPipe",
             "pos": [
-              9410,
-              2730
+              9485,
+              3370
             ],
             "size": [
               225,
@@ -2545,8 +2629,8 @@
             "id": 14,
             "type": "CMKModelForwardPipe",
             "pos": [
-              9645,
-              2730
+              9720,
+              3370
             ],
             "size": [
               225,
@@ -2580,6 +2664,276 @@
               "Node name for S&R": "CMKModelForwardPipe"
             },
             "shape": 1
+          },
+          {
+            "id": 8587,
+            "type": "CMKPreviewRender",
+            "pos": [
+              9230,
+              2985
+            ],
+            "size": [
+              1220,
+              320
+            ],
+            "flags": {},
+            "order": 14,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "link": 22947
+              },
+              {
+                "localized_name": "caption",
+                "name": "caption",
+                "type": "COMBO",
+                "widget": {
+                  "name": "caption"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "image",
+                "name": "image",
+                "type": "IMAGE",
+                "links": null
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKPreviewRender",
+              "cmkOuterSize": [
+                1220,
+                320
+              ],
+              "cmkManualSize": [
+                1220,
+                320
+              ],
+              "cmkCleanViewExpandedSize": [
+                1220,
+                320
+              ],
+              "cmkCleanViewExpandedHeight": 320,
+              "comparer_mode": "Click",
+              "default_output": "b"
+            },
+            "widgets_values": [
+              "Details"
+            ],
+            "widgets_values_named": {
+              "caption": "Details"
+            },
+            "shape": 1
+          },
+          {
+            "id": 8588,
+            "type": "CMKPreviewRender",
+            "pos": [
+              8005,
+              2985
+            ],
+            "size": [
+              1220,
+              320
+            ],
+            "flags": {},
+            "order": 15,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "link": 22950
+              },
+              {
+                "localized_name": "caption",
+                "name": "caption",
+                "type": "COMBO",
+                "widget": {
+                  "name": "caption"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "image",
+                "name": "image",
+                "type": "IMAGE",
+                "links": []
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKPreviewRender",
+              "cmkOuterSize": [
+                1220,
+                320
+              ],
+              "cmkManualSize": [
+                1220,
+                320
+              ],
+              "cmkCleanViewExpandedSize": [
+                1220,
+                320
+              ],
+              "cmkCleanViewExpandedHeight": 320,
+              "comparer_mode": "Click",
+              "default_output": "b"
+            },
+            "widgets_values": [
+              "Details"
+            ],
+            "widgets_values_named": {
+              "caption": "Details"
+            },
+            "shape": 1
+          },
+          {
+            "id": 8589,
+            "type": "CMKPreviewRender",
+            "pos": [
+              8005,
+              2630
+            ],
+            "size": [
+              1220,
+              320
+            ],
+            "flags": {},
+            "order": 16,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "link": 22948
+              },
+              {
+                "localized_name": "caption",
+                "name": "caption",
+                "type": "COMBO",
+                "widget": {
+                  "name": "caption"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "image",
+                "name": "image",
+                "type": "IMAGE",
+                "links": []
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKPreviewRender",
+              "cmkOuterSize": [
+                1220,
+                320
+              ],
+              "cmkManualSize": [
+                1220,
+                320
+              ],
+              "cmkCleanViewExpandedSize": [
+                1220,
+                320
+              ],
+              "cmkCleanViewExpandedHeight": 320,
+              "comparer_mode": "Click",
+              "default_output": "b",
+              "cmkCleanViewSize": [
+                1220,
+                320
+              ],
+              "cmkCleanView": false
+            },
+            "widgets_values": [
+              "Details"
+            ],
+            "widgets_values_named": {
+              "caption": "Details"
+            },
+            "shape": 1
+          },
+          {
+            "id": 8590,
+            "type": "CMKPreviewRender",
+            "pos": [
+              9230,
+              2630
+            ],
+            "size": [
+              1220,
+              320
+            ],
+            "flags": {},
+            "order": 17,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "link": 22949
+              },
+              {
+                "localized_name": "caption",
+                "name": "caption",
+                "type": "COMBO",
+                "widget": {
+                  "name": "caption"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "image",
+                "name": "image",
+                "type": "IMAGE",
+                "links": []
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKPreviewRender",
+              "cmkOuterSize": [
+                1220,
+                326
+              ],
+              "cmkManualSize": [
+                1220,
+                326
+              ],
+              "cmkCleanViewExpandedSize": [
+                1220,
+                320
+              ],
+              "cmkCleanViewExpandedHeight": 320,
+              "comparer_mode": "Click",
+              "default_output": "b",
+              "cmkCleanViewSize": [
+                1220,
+                326
+              ],
+              "cmkCleanView": false
+            },
+            "widgets_values": [
+              "Details"
+            ],
+            "widgets_values_named": {
+              "caption": "Details"
+            },
+            "shape": 1
           }
         ],
         "groups": [
@@ -2589,8 +2943,8 @@
             "bounding": [
               8000,
               1850,
-              2475,
-              835
+              2455,
+              1465
             ],
             "color": "#332D26",
             "flags": {}
@@ -3060,6 +3414,38 @@
             "target_id": 8570,
             "target_slot": 53,
             "type": "COMBO"
+          },
+          {
+            "id": 22947,
+            "origin_id": 8,
+            "origin_slot": 3,
+            "target_id": 8587,
+            "target_slot": 0,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 22948,
+            "origin_id": 3,
+            "origin_slot": 5,
+            "target_id": 8589,
+            "target_slot": 0,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 22949,
+            "origin_id": 5,
+            "origin_slot": 5,
+            "target_id": 8590,
+            "target_slot": 0,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 22950,
+            "origin_id": 7,
+            "origin_slot": 5,
+            "target_id": 8588,
+            "target_slot": 0,
+            "type": "CMK_DIAGNOSTIC"
           }
         ],
         "extra": {}

@@ -13,6 +13,8 @@ Noch kein Release; die Paketversion bleibt bis zur Veröffentlichung 2.7.0.
   Sampling-ROIs überschreiben keine bearbeiteten Bereiche mehr.
 - Räumliche Diagnose: Smart Detailer mit Sampling ROI, Mask und Pasteback;
   Merge mit INPUT SEGS, OVERLAP, COMPOSITE (Alpha-Anteile) und FINAL.
+- Beide Detailer-Subgraphen enthalten fest integrierte `CMK Preview Render`
+  (Standard: ein Render, Advanced: vier) für die Diagnose im Subgraphen.
 - Persistente Branch- und Boundary-Caches liegen unter
   `ComfyUI/user/cmk_cache/` und überstehen ComfyUI-Neustarts.
 - Außenansicht beider Detailer mit Dropdown `MODE` (Standard: DISABLE · SDXL ·
