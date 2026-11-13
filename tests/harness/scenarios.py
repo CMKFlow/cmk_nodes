@@ -1380,3 +1380,104 @@ def swap_loader_packaged_references(workdir: str, extra_model_paths: str | None 
     own = _Path(module._resolve_image_path("portrait_reference_00001.png")).resolve()
     fresh["user_file_wins"] = own == (input_dir / "portrait_reference_00001.png").resolve()
     return fresh
+
+
+# -- FaceProcess 2.8 F2: deferred Prepare, Multi-Model execution ---------------
+FP28_PREPARE, FP28_EXECUTE, FP28_MODE, FP28_BOUNDARY = "8417:7845", "8417:7842", "8417:9000", "8417:7844"
+
+
+def faceprocess28_prompt(mode: str, overrides: dict | None = None) -> dict:
+    """The FaceProcess Standard fixture rebuilt on the 2.8 nodes: Mode Enable ->
+    deferred Prepare -> Multi-Model execution -> the unchanged FaceProcess
+    boundary and gate; the model source delivers MODEL SDXL and MODEL ZIT specs."""
+    prompt = load_api_prompt("faceprocess_std")
+    prompt["8419"] = {"class_type": "CMKPostProcessModelSourcePipe", "inputs": {
+        "ckpt_name": "juggernautXL_ragnarok.safetensors", "vae_name": "ClearVAE_V2.2.safetensors", "checkpoint_vae": True,
+        "diffusion_model": "z_image_turbo_bf16.safetensors", "text_encoder": "qwen_3_4b.safetensors", "vae": "ae.safetensors",
+        "weight_dtype": "default", "clip_device": "default"}}
+    legacy = dict(prompt[FP28_PREPARE]["inputs"])
+    for name in ("face_global_enable", "MODEL"):
+        legacy.pop(name)
+    legacy.update({"MODEL SDXL": ["8419", 0], "MODEL ZIT": ["8419", 1], "process_mode": [FP28_MODE, 1],
+                   "zit_steps": 8, "zit_cfg": 1.0, "zit_sampler": "res_multistep", "zit_scheduler": "simple",
+                   "zit_model_shift": 3.0})
+    prompt[FP28_PREPARE] = {"class_type": "CMKFaceProcessPrepareMultiModelPipe", "inputs": legacy}
+    prompt[FP28_MODE] = {"class_type": "CMKFaceProcessModeEnable", "inputs": {"process_mode": mode}}
+    execute = dict(prompt[FP28_EXECUTE]["inputs"])
+    for name in ("enable", "process_mode"):
+        execute.pop(name)
+    prompt[FP28_EXECUTE] = {"class_type": "CMKFaceProcessMultiModelPipe", "inputs": execute}
+    prompt["8417:7847"]["inputs"]["ENABLE"] = [FP28_MODE, 0]
+    prompt["8417:7846"]["inputs"]["enable"] = [FP28_MODE, 0]
+    for key, value in (overrides or {}).items():
+        node_id, name = key.rsplit(".", 1)
+        prompt[node_id]["inputs"][name] = value
+    return prompt
+
+
+def _install_zit_fakes(runtime, counters):
+    """Model-free Z-Image Turbo materialisation (UNet/VAE/text encoder loads counted)."""
+    class FakeZit:
+        def __init__(self, name):
+            self.name, self.model = name, object()
+
+    zit = runtime.cmk_module("pipe.loaders.z_image_turbo_loader")
+    mm = runtime.cmk_module("pipe.cmk_detailer_prepare_multimodel")
+
+    def zit_node(names, **kwargs):
+        counters["zit_load"].append(names[0])
+        return (FakeZit(f"ZIT {names[0]}"),)
+
+    class PassLoRA:
+        def load_loras(self, model, clip, opt_lora_syntax="", opt_lora_stack=None):
+            return (model, clip, "", "")
+
+    zit._call_node_kwargs = zit_node
+    mm._call_node = lambda names, *args: ((args[0],) if names[0] == "ModelSamplingAuraFlow" else ([["cond", {}]],))
+    mm._validate_conditioning = lambda value, name: value
+    mm.CMKLoRATextLoader = PassLoRA
+
+
+def faceprocess28_sequence(workdir: str, steps: list, extra_model_paths: str | None = None) -> dict:
+    """Run FaceProcess 2.8 Standard prompts in one session with the real
+    PromptExecutor.  Each step: {"mode", "overrides", "drop_scopes", "restart"}.
+    ``restart`` clears CMK's in-process model caches and starts a new executor
+    (the persistent caches below the user directory stay)."""
+    import shutil
+
+    runtime, probes, seams = _session(workdir, extra_model_paths, "classic", True, False, SELFCHECK_INPUT,
+                                      fake_postprocess=True)
+    counters = {"zit_load": []}
+    _install_zit_fakes(runtime, counters)
+    inline = runtime.cmk_module("cmk_prompt_family_inline")
+    pc = runtime.cmk_module("pipe.cmk_persistent_cache")
+    zit = runtime.cmk_module("pipe.loaders.z_image_turbo_loader")
+    ckpt = runtime.cmk_module("pipe.loaders.checkpoint_vae_loader")
+    branch = runtime.cmk_module("pipe.cmk_faceprocess_multimodel").CMKFaceProcessMultiModelPipe
+    records = []
+    try:
+        for step in steps:
+            if step.get("restart"):
+                zit._ZIT_RESOURCE_CACHE.clear()
+                ckpt._SDXL_RESOURCE_CACHE.clear()
+                runtime.new_executor("classic")
+            for scope in step.get("drop_scopes", []):
+                shutil.rmtree(pc.cache_directory(scope), ignore_errors=True)
+            prompt = faceprocess28_prompt(step["mode"], step.get("overrides"))
+            prompt, inlined = inline.inline_family_links(prompt)
+            counters["zit_load"].clear()
+            record = _run_once(runtime, probes, seams, Path(workdir), prompt,
+                               {"image": "8417:7847:1", "log": "8417:7847:2"})
+            record["inlined"] = inlined
+            record["zit_load"] = list(counters["zit_load"])
+            # Keys come from the validated prompt the executor runs; read the one
+            # the branch published in this run (statuses), not a recomputation.
+            keys = [key for scope, _status, key in record["statuses"] if scope == "faceprocess_branch" and key]
+            record["branch_key"] = keys[-1] if keys else None
+            record["branch_revision"] = branch.dependency_revision(prompt, FP28_EXECUTE, record["branch_key"])
+            records.append(record)
+            runtime.new_executor("classic")  # the next step starts like a new queue, not from the output cache
+    finally:
+        seams.uninstall()
+        probes.uninstall()
+    return {"runs": records}

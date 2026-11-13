@@ -1253,6 +1253,38 @@ ebenfalls `FaceProcess` und wird unabhängig vom gewählten `process mode` auf d
 unterstützten konkreten FaceProcess-Node-Typen aufgelöst. Restore und Detailer
 erzeugen daher niemals unterschiedliche Registeridentitäten.
 
+### 5.7a FaceProcess 2.8 (in Arbeit: F1–F2)
+
+Neue Nodes neben den unveränderten Legacy-Nodes; die Subgraphen
+`CMK Flow · FaceProcess` / `· Advanced` folgen in F5.
+
+```text
+CMK FaceProcess Mode Enable ──PROCESS MODE──┐ (None / Restore / SDXL / Z-Image Turbo)
+MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG ┴→ CMK FaceProcess Prepare Multi-Model -Pipe-
+    → FACE (Spezifikation, keine Modelle) → CMK FaceProcess Multi-Model -Pipe- → CMK Face Boundary Cache
+```
+
+- **Mode Enable (F1):** eigene Steuerklasse; `ENABLE` ist aus bei `None`. Der
+  Prompt-Handler `cmk_prompt_family_inline` setzt `PROCESS MODE` wie die
+  Detailer-Familie als Literal ein; Detailer-Werte und -Prompts unverändert.
+- **Prepare (F2):** lädt nichts (kein Modell, SAM, LoRA, Conditioning) und
+  fordert je Modus nur an, was der Modus braucht: NONE und RESTORE nur IMAGE
+  und LOG; SDXL zusätzlich PROCESS und MODEL SDXL; ZIT PROCESS und MODEL ZIT.
+- **Ausführung (F2):** kein eigener Enable- oder Modus-Schalter. NONE ist der
+  vollständige Bypass (keine Detektion, kein Restore/Detailer, kein Refine,
+  `DISABLED_REVISION`). Nur beim Branch-MISS wird materialisiert: RESTORE ohne
+  Diffusionsmodell und ohne SAM; SDXL über die unveränderte Legacy-Vorbereitung
+  nach `release_zit_resources`; ZIT über die ZIT-Vorbereitung des Multi-Model
+  Detailer Prepare. Die Verarbeitung selbst ist der unveränderte Legacy-Pfad.
+- **Branch-Schlüssel** (`cmk_faceprocess_multimodel_branch_v1`): Modus, eigene
+  Einstellungen und der Prepare-Anteil des aktiven Modus. RESTORE ignoriert
+  Modellquellen, PROCESS, SDXL-/ZIT- und Detail-Einstellungen; SDXL ignoriert
+  ZIT- und Restore-Einstellungen, ZIT entsprechend SDXL. LOG und Diagnose sind
+  Transport.
+- **Boundary:** `CMKFaceBoundaryCache` unverändert im Schema; die neue
+  Ausführung ist zusätzliche Branch-Klasse des Manifests, `process_mode = None`
+  des Prepare gilt als Modul aus. Legacy-Schlüssel bleiben gleich.
+
 ### 5.8 Image Resize
 
 `CMK Flow · Image Resize` ist ein modellfreies, familienunabhängiges

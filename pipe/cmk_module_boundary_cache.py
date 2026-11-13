@@ -75,7 +75,16 @@ _DETAILER_BRANCH_SPECS = {
     "CMK_SmartDetailerPipe": _detailer_branch,
     "CMK_SmartDetailerMultiModelPipe": _detailer_multimodel_branch,
 }
-_FACEPROCESS_BRANCH_SPECS = {"CMKFaceProcessPipe": _faceprocess_branch}
+def _faceprocess_multimodel_branch():
+    from .cmk_faceprocess_multimodel import CMKFaceProcessMultiModelPipe
+
+    return CMKFaceProcessMultiModelPipe
+
+
+_FACEPROCESS_BRANCH_SPECS = {
+    "CMKFaceProcessPipe": _faceprocess_branch,
+    "CMKFaceProcessMultiModelPipe": _faceprocess_multimodel_branch,
+}
 
 
 def reset_module_boundary_cache_state() -> dict[str, int]:
@@ -193,7 +202,9 @@ def _faceprocess_disabled_state(prompt, unique_id):
 
     found = []
     visited = set()
-    wanted = {"CMKFaceProcessPreparePipe", "CMKFaceProcessPipe"}
+    # 2.8.0: the Multi-Model Prepare holds the operating mode (None = off);
+    # its execution node has no own enable switch.
+    wanted = {"CMKFaceProcessPreparePipe", "CMKFaceProcessPipe", "CMKFaceProcessPrepareMultiModelPipe"}
 
     for input_name in ("IMAGE", "LOG"):
         value = (boundary.get("inputs", {}) or {}).get(input_name)
@@ -219,6 +230,14 @@ def _faceprocess_disabled_state(prompt, unique_id):
         bool((node.get("inputs", {}) or {}).get("face_global_enable", True))
         for node in prepares
     ]
+    from .cmk_faceprocess_mode import faceprocess_mode
+
+    for _node_id, node in found:
+        if str(node.get("class_type", "")) != "CMKFaceProcessPrepareMultiModelPipe":
+            continue
+        value = (node.get("inputs", {}) or {}).get("process_mode")
+        # A selection that is still a link is undetermined and counts as active.
+        global_values.append(not isinstance(value, str) or faceprocess_mode(value) != "none")
     local_values = [
         bool((node.get("inputs", {}) or {}).get("enable", True))
         for node in branches
