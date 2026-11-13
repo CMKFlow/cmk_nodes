@@ -1071,6 +1071,75 @@ MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG + VISUAL + diagnostic
   `<unique_id>`. Ein vor 2.7.1 unter dem einfachen Slot gespeicherter Eintrag
   bleibt lesbar und wird bei Wiederverwendung von der Familie übernommen.
 
+### 5.6b Advanced Multi-Model Detailer (2.8.0)
+
+Drei unabhängig konfigurierte Detailer aus einer Vorbereitung; jede
+Modellfamilie wird höchstens einmal materialisiert, ZIT vor SDXL.
+
+```text
+CMK Detailer Family Enable ×3 ──MODEL FAMILY──┐
+MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG ┴→ CMK Detailer Prepare Advanced Multi-Model -Pipe-
+    → DETAILER 1/2/3 (Specs, keine Modelle) → CMK Smart Detailer Multi-Model -Pipe- ×3
+    → CMK Detailer Merge Multi-Model (lazy, ZIT → SDXL, None nie) → Detailer-Boundary → Gate
+```
+
+- **Advanced Prepare:** gemeinsame Einstellungen (SAM, Prompt aus 1st Pass,
+  SDXL-Extras) und je Detailer MODEL FAMILY, Steps, CFG, Sampler, Scheduler,
+  Sampling Entry, bei ZIT Model Shift. Promptless, keine LoRA je Detailer.
+  Die Pipes enthalten Specs, Einstellungen und die Argumente des
+  Multi-Model Prepare, aber weder Modell, VAE, SAM noch Conditioning.
+  `ENABLE` ist wahr, solange mindestens eine Familie gewählt ist.
+- **Smart Detailer Multi-Model:** Bei einem Branch-Cache-MISS ruft der Hook
+  `_materialize_detailer` den unveränderten Multi-Model Prepare für diese
+  Konfiguration auf (ZIT: Qwen laden, encodieren, freigeben, dann UNet; SDXL:
+  zuvor `release_zit_resources`). Ein Memo je Prompt verwendet ZIT-Conditioning
+  nur bei identischer Konfiguration (Encoder, Gerät, Text, keine LoRA) wieder.
+  Der SDXL-only Smart Detailer und der Standard-Detailer sind unverändert.
+- **Branch-Cache je Slot:** Der Schlüssel eines Advanced-Detailers enthält nur
+  die gemeinsamen Einstellungen und seinen eigenen Slot; ein `None`-Slot meldet
+  `DISABLED_REVISION`.
+- **Merge:** fordert die Zweige lazy an, zuerst ZIT, dann SDXL; `None` nie.
+  Ergebnisse, LOG und Diagnose werden nach Slot zugeordnet, unabhängig von der
+  Ausführungsreihenfolge und vom Cache-Zustand.
+- **Boundary:** Alle drei `None` gelten als Bypass; die Aufbewahrung folgt der
+  einfachen Regel (ein Eintrag je Boundary).
+- **Subgraph** `CMK Flow · Detailer · Advanced`: drei Family Enable über ihren
+  Smart Detailern, Prepare links, Merge, Boundary, Gate und Forwards unten.
+- **Paket und Flow Browser:** `subgraphs/CMK Flow · Detailer.json` und
+  `subgraphs/CMK Flow · Detailer · Advanced.json` sind die abgenommenen
+  Vorlagen, unverändert bis auf `extra.CMKFlow`. Im Flows-Katalog ist
+  `Detailer` der Primäreintrag, `Detailer · Advanced` seine Variante; die
+  SDXL-Detailer bleiben ladbar, sind aber mit `published: false` ausgeblendet.
+  MODULE WORKFLOWS 301/302 sind die beiden 2.8-Modul-Workflows. Außen trägt das
+  Dropdown die Beschriftung `MODE`; die Anzeige `DISABLE`/`ZIT` des Standard-
+  Detailers ist reine Frontend-Darstellung (`web/js/cmk_detailer_mode_ui.js`),
+  die gespeicherten Werte bleiben `None`/`Z-Image Turbo`.
+- **Globaler Schalter** `detailer_global_enable` (Dropdown `ENABLE`/`DISABLE`,
+  Standard `ENABLE`, letzter Prepare-Eingang, am Außenknoten als `ENABLE`):
+  Bei `DISABLE` gelten alle drei Detailer als None. Prepare fordert keine
+  Modellquelle an, ihr `ENABLE`-Ausgang schaltet Gate und Preview ab, die
+  Boundary-Prüfung sieht das Modul als aus. Die Detailer-Einstellungen bleiben
+  erhalten; die Branch-Keys enthalten den Schalter nicht.
+- **Räumliche Diagnose** (`utils/segs_diagnostic.py`, nur Bilddaten aus
+  vorhandenen SEGS, keine Detektion, kein Sampling, keine Modelle): Der Smart
+  Detailer ergänzt `Sampling ROI` (`crop_region` neben der Detektionsbox),
+  `Mask` (`cropped_mask` projiziert) und `Pasteback` (Gewicht aus `SEGSPaste`,
+  feather 5). Ältere Branch-Cache-Einträge erhalten diese Stufen beim HIT aus
+  den gecachten SEGS. Der Merge liefert eine eigene Diagnose `01 · INPUT SEGS`,
+  `02 · OVERLAP` (Maskenüberschneidung; ROI-Überschneidung nur als Referenz),
+  `03 · COMPOSITE` (exakte Alpha-Anteile je Slot) und `04 · FINAL`; die
+  Eingänge `diagnostic i` bleiben optional, werden aber nicht mehr angefordert.
+- **Maskenbasierter Merge** (`merge_segs_collections_masked`, nur
+  `CMK Detailer Merge Multi-Model`): jeder Zweig wird in Slot-Reihenfolge mit
+  `SEGSPaste.doit` und den Pasteback-Werten des Smart Detailers
+  (`BRANCH_PASTE_FEATHER`/`ALPHA`) auf das bisherige Composite gelegt:
+  `previous * (1 - alpha) + processed * alpha`. Die Sampling-ROI bestimmt nicht
+  mehr den Übernahmebereich. Vorher muss das Einfügen auf das Ausgangsbild das
+  gespeicherte `branch_image` reproduzieren, sonst bricht der Merge ab. Der
+  Detailer-Boundary-Key enthält `MERGE_SEMANTICS`, damit kein Ergebnis der
+  früheren Rechteck-Regel wiederverwendet wird; andere Detailer-Keys bleiben
+  unverändert. `CMK_SEGSConcate` behält `merge_segs_collections`.
+
 ### 5.7 FaceProcess-Modul
 
 Öffentliche Moduloberfläche:
@@ -1430,14 +1499,18 @@ Die persistenten Generation-Completion-Ergebnisse liegen paketlokal unter
 ComfyUI-Neustart erhalten, bis sie durch die Begrenzung des Caches, eine gezielte
 Invalidierung oder die manuelle Bereinigung im Flow Browser entfernt werden.
 
-Branch- und Boundary-Caches liegen dagegen unter `ComfyUI/temp/cmk/`. Sie werden
-promptübergreifend innerhalb der laufenden Instanz wiederverwendet, gehören aber
-zum temporären ComfyUI-Dateisystem und sind daher nicht verlässlich
-neustartpersistent.
+Branch- und Boundary-Caches liegen seit 2.8.0 unter
+`<ComfyUI-User-Verzeichnis>/cmk_cache/<scope>/` (standardmäßig
+`ComfyUI/user/cmk_cache/`). Alle Scopes lösen diesen Ort über
+`cmk_persistent_cache.cache_directory` auf, das ihn aus
+`folder_paths.get_user_directory()` ableitet. Bis 2.7 lagen sie unter
+`ComfyUI/temp/cmk/`; ComfyUI löscht sein Temp-Verzeichnis jedoch bei jedem Start
+und Beenden (`app/assets/lifecycle.cleanup_temp_filesystem`), sodass sie keinen
+Neustart überlebten. Alte Temp-Einträge werden nicht übernommen.
 
 Die manuelle Aktion `Clear Persistent Cache` erfasst ausschließlich diese
 paketlokalen Generation-Completion-Dateien und die ausdrücklich registrierten
-CMK-Scopes unter `ComfyUI/temp/cmk/`. In-Memory-Ergebnisse, ComfyUIs normaler
+CMK-Scopes unter `cmk_cache/`. In-Memory-Ergebnisse, ComfyUIs normaler
 Execution Cache einschließlich RAM-Pressure-Modus sowie allgemeine Modell- und
 Ressourcencaches sind nicht Bestandteil dieser Bereinigung.
 
@@ -2291,7 +2364,7 @@ Ein Detailer-HIT übernimmt MODEL aus dem aktuellen Eingang und stellt IMAGE,
 LOG, Diagnose und VISUAL aus dem gespeicherten Eintrag wieder her; es gibt
 keine Session-Kopie von MODEL mehr. Ein gültiger Eintrag ist damit nach
 Eviction und nach einem Neustart nutzbar, solange die Dateien unter
-`ComfyUI/temp/cmk/` erhalten sind.
+`cmk_cache/` erhalten sind.
 
 Ein lokal deaktivierter Zweig speichert keinen Pickle und veröffentlicht keine
 Revision. Seinen Manifest-Zustand liefert deshalb ebenfalls die Zweig-Klasse

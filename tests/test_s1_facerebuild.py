@@ -245,7 +245,7 @@ class EntryWithoutDiagnostic(ScenarioCase):
         common = dict(fixture="facerebuild_std", fake_postprocess=True, inspect=_inspect("facerebuild_std"))
         cold = cls.run_case("run_fixture", workdir=workdir, **common)["runs"][0]
         removed = []
-        for path in (Path(workdir) / "temp" / "cmk" / SCOPE).glob("*.diagnostic.*"):
+        for path in (Path(workdir) / "user" / "cmk_cache" / SCOPE).glob("*.diagnostic.*"):
             path.unlink()
             removed.append(path.name)
         again = cls.run_case("run_fixture", workdir=workdir, **common)["runs"][0]

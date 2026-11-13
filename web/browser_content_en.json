@@ -315,6 +315,31 @@
       "info_en": "Spatially limited conditioning takes effect during SDXL generation. In a subsequent ZIT finish, the active regional prompt texts are applied as global conditioning, but the individual region boundaries are not.",
       "placementNote": "Place directly after 01 START HERE and before optional ControlNet or 10 KSampler SDXL.",
       "previewAlt": "CMK Flow 07 Regional Layout"
+    },
+    "5ac186bf-4185-4957-bdee-859164e567fc": {
+      "previewAlt": "CMK Flow Detailer with one Detailer branch (SDXL or ZIT)",
+      "description": "Automatically detects and segments a relevant image area and refines it selectively with either SDXL or Z-Image Turbo.",
+      "features": [
+        "Automatically detect and segment a relevant image area",
+        "Refine the detected area with either SDXL or Z-Image Turbo",
+        "MODE: DISABLE · SDXL · ZIT – DISABLE bypasses the module completely",
+        "Models load only when needed; results stay in the CMK cache across ComfyUI restarts"
+      ],
+      "placementNote": "Place on the family-neutral postprocess path after 30 PostProcess Setup and before further image editing or the Visualizer. MODEL SDXL and MODEL ZIT come from the CMK PostProcess Model.",
+      "dependencyNote": "Needs a suitable detector model and the models of the selected family (SDXL checkpoint or Z-Image Turbo models)."
+    },
+    "c65f6b01-4f30-4937-8ea6-2b229ef2e076": {
+      "previewAlt": "Detailer · Advanced preview",
+      "description": "Independently detects and refines up to three image areas, each with either SDXL or Z-Image Turbo, and merges the results by their actual pasteback masks.",
+      "features": [
+        "Three Detailers with their own model family (NONE · SDXL · ZIT) and settings",
+        "ZIT branches run before SDXL branches in the merge; each family is loaded only once",
+        "Merge by the actual pasteback masks in the order D1 → D2 → D3",
+        "Diagnostic with sampling ROI, mask, pasteback, overlap and composite",
+        "MODE: ENABLE · DISABLE – DISABLE bypasses the module completely"
+      ],
+      "placementNote": "Place on the family-neutral postprocess path after 30 PostProcess Setup and before further image editing or the Visualizer. MODEL SDXL and MODEL ZIT come from the CMK PostProcess Model.",
+      "dependencyNote": "Each Detailer needs a suitable detector model for its image area and the models of its selected family."
     }
   }
 }

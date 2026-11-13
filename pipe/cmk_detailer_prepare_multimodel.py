@@ -27,7 +27,32 @@ NODE_LABEL = "CMK Detailer Prepare Multi-Model -Pipe-"
 DETAILER_MULTIMODEL_PIPE = "CMK_DETAILER_MULTIMODEL_PIPE"
 DETAILER_MODEL_FAMILIES = ["None", "SDXL", "Z-Image Turbo"]
 SDXL_SAMPLING_ENTRY = 95.0
+# Programmatic keyword (never a ComfyUI input): the Advanced Detailer passes a
+# per-prompt conditioning memo to the unchanged ZIT preparation.
+CONDITIONING_MEMO_ARGUMENT = "_conditioning_memo"
 ZIT_SAMPLING_ENTRY = 85.0
+
+
+_CONDITIONING_MEMO = {"prompt": None, "entries": {}}
+
+
+def prompt_conditioning_memo(prompt=None):
+    """Conditioning memo of the running prompt (Advanced Detailer only).
+
+    Holds conditioning tensors, never models; replaced when the prompt changes.
+    """
+    try:
+        from .cmk_prompt_result_state import active_prompt_id
+
+        identity = active_prompt_id()
+    except Exception:
+        identity = None
+    if identity is None:
+        identity = ("prompt-object", id(prompt))
+    if _CONDITIONING_MEMO["prompt"] != identity:
+        _CONDITIONING_MEMO["prompt"] = identity
+        _CONDITIONING_MEMO["entries"] = {}
+    return _CONDITIONING_MEMO["entries"]
 
 
 def detailer_model_family(value):
@@ -237,6 +262,7 @@ class CMKDetailerPrepareMultiModelPipe(CMKDetailerPreparePipe):
                 sampler=zit_sampler,
                 scheduler=zit_scheduler,
                 LOG=LOG,
+                conditioning_memo=zit_inputs.get(CONDITIONING_MEMO_ARGUMENT),
             )
 
         model_sdxl = zit_inputs.get("MODEL SDXL")
@@ -307,6 +333,7 @@ class CMKDetailerPrepareMultiModelPipe(CMKDetailerPreparePipe):
         sampler,
         scheduler,
         LOG,
+        conditioning_memo=None,
     ):
         """Z-Image Turbo preparation on the CMK Sampler Prepare Z-Image Turbo contract.
 
@@ -329,27 +356,8 @@ class CMKDetailerPrepareMultiModelPipe(CMKDetailerPreparePipe):
         model = MODEL.get("model")
         vae = MODEL.get("vae")
         clip = MODEL.get("clip")
-        if clip is None:
-            clip, _ = ensure_zit_text_encoder(MODEL)
-        missing = [
-            name
-            for name, value in (("model", model), ("text encoder", clip), ("vae", vae))
-            if value is None
-        ]
-        if missing:
-            raise ValueError(
-                f"{NODE_LABEL}: required data missing in MODEL ZIT: " + ", ".join(missing)
-            )
 
-        try:
-            sam_model = _unwrap_node_output(CMKSAMLoader().load(sam_model_name, sam_device_mode))
-        except Exception as exc:
-            raise RuntimeError(
-                f"{NODE_LABEL}: native CMK SAM loader failed. "
-                "Check the selected SAM model and device mode. "
-                f"Original error: {exc}"
-            ) from exc
-
+        # Prompt and LoRA selection (no side effects).
         source_pipe = dict(PROCESS)
         source_family = str(source_pipe.get("source_model_family", "sdxl")).strip().lower()
         inherit_prompt = bool(use_prompt_lora_from_sampler) and any(
@@ -373,24 +381,71 @@ class CMKDetailerPrepareMultiModelPipe(CMKDetailerPreparePipe):
             trigger_words = str(bundle.get("trigger_words", "") or "").strip()
             if trigger_words and trigger_words in selected_prompt_pos:
                 trigger_words = ""
-        model, clip, _, loaded_loras = CMKLoRATextLoader().load_loras(
-            model,
-            clip,
-            opt_lora_syntax=lora_syntax,
-            opt_lora_stack=lora_stack,
-        )
-
         positive_text = "\n".join(part for part in (selected_prompt_pos, trigger_words) if part)
-        translation_pos = translate_prompt(positive_text)
-        conditioning_pos = self._encode(clip, translation_pos.text)
-        conditioning_neg = _validate_conditioning(
-            _unwrap_node_output(_call_node(("ConditioningZeroOut",), conditioning_pos)),
-            "detailer_conditioning_neg",
-        )
-        # Same lifecycle as the ZIT sampler: the LoRA path returns a CLIP clone,
-        # so drop it together with the loader's text encoder after encoding.
-        clip = None
-        text_encoder_status = evict_zit_text_encoder(MODEL)
+
+        # Advanced Detailer only: reuse conditioning produced in this prompt by
+        # an identical configuration (same encoder, device and text, no LoRA).
+        # The Standard Prepare passes no memo and always encodes.
+        memo_key = None
+        reused = None
+        if conditioning_memo is not None and not lora_syntax and not lora_stack:
+            memo_key = (
+                "z_image_turbo",
+                str(MODEL.get("text_encoder_name", "")),
+                str(MODEL.get("clip_device", "")),
+                positive_text,
+            )
+            reused = conditioning_memo.get(memo_key)
+
+        if clip is None and reused is None:
+            clip, _ = ensure_zit_text_encoder(MODEL)
+        missing = [
+            name
+            for name, value in (
+                ("model", model),
+                ("text encoder", clip if reused is None else True),
+                ("vae", vae),
+            )
+            if value is None
+        ]
+        if missing:
+            raise ValueError(
+                f"{NODE_LABEL}: required data missing in MODEL ZIT: " + ", ".join(missing)
+            )
+
+        try:
+            sam_model = _unwrap_node_output(CMKSAMLoader().load(sam_model_name, sam_device_mode))
+        except Exception as exc:
+            raise RuntimeError(
+                f"{NODE_LABEL}: native CMK SAM loader failed. "
+                "Check the selected SAM model and device mode. "
+                f"Original error: {exc}"
+            ) from exc
+
+        if reused is None:
+            model, clip, _, loaded_loras = CMKLoRATextLoader().load_loras(
+                model,
+                clip,
+                opt_lora_syntax=lora_syntax,
+                opt_lora_stack=lora_stack,
+            )
+
+            translation_pos = translate_prompt(positive_text)
+            conditioning_pos = self._encode(clip, translation_pos.text)
+            conditioning_neg = _validate_conditioning(
+                _unwrap_node_output(_call_node(("ConditioningZeroOut",), conditioning_pos)),
+                "detailer_conditioning_neg",
+            )
+            # Same lifecycle as the ZIT sampler: the LoRA path returns a CLIP clone,
+            # so drop it together with the loader's text encoder after encoding.
+            clip = None
+            text_encoder_status = evict_zit_text_encoder(MODEL)
+            if memo_key is not None:
+                conditioning_memo[memo_key] = (conditioning_pos, conditioning_neg, translation_pos)
+        else:
+            conditioning_pos, conditioning_neg, translation_pos = reused
+            loaded_loras = ""
+            text_encoder_status = "CONDITIONING REUSED"
         model = _unwrap_node_output(
             _call_node(("ModelSamplingAuraFlow",), _unwrap_node_output(model), float(model_shift))
         )

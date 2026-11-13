@@ -109,8 +109,8 @@ class StatisticsTests(unittest.TestCase):
         manifest.write_bytes(b"{}")
         orphan = completion / ("b" * 64 + ".json")
         orphan.write_bytes(b"orphan")
-        branch = self.temp_root / "cmk" / "detailer_branch" / "entry.pkl"
-        boundary = self.temp_root / "cmk" / "refiner_boundary" / "entry.json"
+        branch = self.temp_root / "cmk_cache" / "detailer_branch" / "entry.pkl"
+        boundary = self.temp_root / "cmk_cache" / "refiner_boundary" / "entry.json"
         branch.parent.mkdir(parents=True)
         boundary.parent.mkdir(parents=True)
         branch.write_bytes(b"branch")
@@ -153,7 +153,7 @@ class StatisticsTests(unittest.TestCase):
             {"galleries": 0, "screenshots": 0, "bytes": 0},
         )
 
-        cmk_root = self.temp_root / "cmk"
+        cmk_root = self.temp_root / "cmk_cache"
         cmk_root.mkdir(parents=True, exist_ok=True)
         target = Path(self.temporary.name) / "outside-cache"
         target.mkdir()
@@ -177,17 +177,17 @@ class CurrentPackageContractTests(unittest.TestCase):
     def test_current_showcase_reference_counts(self):
         browser = statistics.flow_browser_statistics(PACKAGE_ROOT)
         showcase = statistics.showcase_statistics(PACKAGE_ROOT)
-        self.assertEqual((browser["total"], browser["visible"], browser["hidden"]), (65, 31, 34))
+        self.assertEqual((browser["total"], browser["visible"], browser["hidden"]), (67, 31, 36))
         self.assertEqual(browser["categories"], {
             "REAL-WORLD WORKFLOWS": 8,
             "TASK WORKFLOWS": 32,
-            "MODULE WORKFLOWS": 20,
+            "MODULE WORKFLOWS": 22,
             "SYSTEM WORKFLOW": 2,
             "COMPARISONS": 2,
             "LEGACY": 1,
         })
         self.assertEqual(showcase, {
-            "galleries": 31, "screenshots": 50, "bytes": 27_086_638,
+            "galleries": 33, "screenshots": 52, "bytes": 27_207_742,
         })
         self.assertFalse((
             PACKAGE_ROOT / "workflows" / "showcase" /

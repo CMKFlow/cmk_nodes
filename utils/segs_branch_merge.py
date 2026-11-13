@@ -6,7 +6,7 @@ import torch
 
 from ..engine.native_detailer import SEGSPaste
 
-from .stable_segs import image_signature, stable_branch_components
+from .stable_segs import BRANCH_PASTE_ALPHA, BRANCH_PASTE_FEATHER, image_signature, stable_branch_components
 
 
 def extract_image(value):
@@ -151,5 +151,72 @@ def merge_segs_collections(
                 f"CMK SEGS CONCAT: SEGSPaste returned no image for SEGS {index}"
             )
         result_image = pasted_image
+
+    return result_image
+
+
+# Tolerance for re-composing a stable branch from its SEGS: the paste is
+# deterministic, so a cached branch reproduces bit for bit; this only absorbs
+# device rounding.
+_BRANCH_RECOMPOSE_TOLERANCE = 1e-5
+
+
+def merge_segs_collections_masked(
+    authoritative_image,
+    segs_collections: Sequence,
+    *,
+    feather: int = 5,
+    alpha: int = 255,
+):
+    """Compose independent Detailer branches by their effective pasteback masks.
+
+    Used by CMK Detailer Merge Multi-Model only; ``merge_segs_collections``
+    keeps the rectangular stable-branch semantics for CMK SEGS CONCAT.
+
+    Every branch is pasted onto the accumulated result in slot order with
+    ``SEGSPaste.doit``, the paste its Detailer used:
+    ``result = previous * (1 - alpha) + processed * alpha`` per SEG with the
+    feathered SEG mask, so a large sampling ROI no longer replaces pixels
+    outside the mask.  A stable branch is pasted with the Detailer's own
+    feather/alpha and must first reproduce its ``cmk_branch_image`` from the
+    authoritative image, which proves its SEGS carry the effective mask.
+    """
+    _validate_image("CMK DETAILER MERGE: image", authoritative_image)
+
+    result_image = authoritative_image
+    authoritative_signature = None
+
+    for index, current_segs in enumerate(segs_collections, start=1):
+        if current_segs is None or segment_count(current_segs) == 0:
+            continue
+        if not valid_segs(current_segs):
+            raise ValueError(f"CMK DETAILER MERGE: SEGS {index} is invalid")
+
+        paste_feather, paste_alpha = int(feather), int(alpha)
+        stable = stable_branch_components(current_segs)
+        if stable is not None:
+            branch_image, _branch_mask, source_signature = stable
+            if source_signature:
+                if authoritative_signature is None:
+                    authoritative_signature = image_signature(authoritative_image)
+                if authoritative_signature != source_signature:
+                    raise RuntimeError(
+                        "CMK DETAILER MERGE: cached branch was created from a different authoritative image; "
+                        "the branch cache must be recomputed"
+                    )
+            paste_feather, paste_alpha = BRANCH_PASTE_FEATHER, BRANCH_PASTE_ALPHA
+            recomposed = extract_image(SEGSPaste.doit(
+                image=authoritative_image, segs=current_segs, feather=paste_feather, alpha=paste_alpha,
+            ))
+            deviation = float((recomposed - branch_image.to(device=recomposed.device, dtype=recomposed.dtype)).abs().max())
+            if deviation > _BRANCH_RECOMPOSE_TOLERANCE:
+                raise RuntimeError(
+                    f"CMK DETAILER MERGE: SEGS {index} do not reproduce their Detailer image "
+                    f"(max deviation {deviation:.6f}); the effective pasteback mask is unknown"
+                )
+
+        result_image = extract_image(SEGSPaste.doit(
+            image=result_image, segs=current_segs, feather=paste_feather, alpha=paste_alpha,
+        ))
 
     return result_image

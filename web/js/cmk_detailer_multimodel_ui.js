@@ -57,6 +57,7 @@ const FAMILY_SPECIFIC = new Set([...FAMILY_WIDGETS.SDXL, ...FAMILY_WIDGETS["Z-Im
 // CMK Detailer Family Enable: one control per Detailer. Three choice fields
 // replace the dropdown; the stored value stays the model family name.
 const FAMILY_CONTROL_CLASS = "CMKDetailerFamilyEnable";
+const ADVANCED_PREPARE_CLASS = "CMKDetailerPrepareAdvancedMultiModelPipe";
 const FAMILY_CHOICES = [["None", "NONE"], ["SDXL", "SDXL"], ["Z-Image Turbo", "ZIT"]];
 const FAMILY_TABS_NAME = "cmk_family_choice";
 const FAMILY_ACCENT = "rgb(88, 190, 230)";
@@ -180,10 +181,14 @@ function mirrorToPrepares(node) {
     for (const linkId of node.outputs?.[1]?.links ?? []) {
         const link = graph?.links?.get?.(linkId) ?? graph?.links?.[linkId];
         const target = link ? graph.getNodeById?.(link.target_id) : null;
-        if (nodeClass(target) !== PREPARE_CLASS) continue;
-        const widget = target.widgets?.find((item) => item?.name === FAMILY_WIDGET);
+        const type = nodeClass(target);
+        if (type !== PREPARE_CLASS && type !== ADVANCED_PREPARE_CLASS) continue;
+        // Standard: model_family; Advanced: model_family_1/2/3 of the linked input.
+        const name = target.inputs?.[link.target_slot]?.widget?.name ?? FAMILY_WIDGET;
+        const widget = target.widgets?.find((item) => item?.name === name);
         if (widget && value != null && widget.value !== value) widget.value = value;
-        refreshPrepare(target);
+        if (type === PREPARE_CLASS) refreshPrepare(target);
+        else target._cmkRefreshAdvanced?.();
     }
 }
 

@@ -32,7 +32,7 @@ def _totals(areas: dict[str, dict[str, int]]) -> dict[str, int]:
     }
 
 
-def clear_persistent_cmk_cache(prompt_queue: Any, *, temp_root=None) -> dict[str, Any]:
+def clear_persistent_cmk_cache(prompt_queue: Any, *, base_directory=None) -> dict[str, Any]:
     """Clear fixed CMK disk caches atomically against PromptQueue execution."""
     phase = "queue_check"
     with prompt_queue.mutex:
@@ -43,7 +43,7 @@ def clear_persistent_cmk_cache(prompt_queue: Any, *, temp_root=None) -> dict[str
 
         try:
             phase = "path_validation"
-            validate_persistent_disk_scopes(temp_root)
+            validate_persistent_disk_scopes(base_directory)
 
             phase = "generation_completion"
             completion_before = completion_cache_inventory()
@@ -56,7 +56,7 @@ def clear_persistent_cmk_cache(prompt_queue: Any, *, temp_root=None) -> dict[str
             }
 
             phase = "temporary_disk_caches"
-            disk_scopes = clear_persistent_disk_scopes(temp_root)
+            disk_scopes = clear_persistent_disk_scopes(base_directory)
 
             phase = "runtime_state"
             runtime_state = {

@@ -1,0 +1,3142 @@
+{
+  "revision": 0,
+  "last_node_id": "8572",
+  "last_link_id": 0,
+  "nodes": [
+    {
+      "id": 8572,
+      "type": "c65f6b01-4f30-4937-8ea6-2b229ef2e076",
+      "pos": [
+        3145,
+        2135
+      ],
+      "size": [
+        300,
+        206
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "MODEL ZIT",
+          "shape": 7,
+          "type": "CMK_MODEL_PIPE",
+          "link": 22915
+        },
+        {
+          "name": "MODEL SDXL",
+          "type": "CMK_MODEL_PIPE",
+          "link": 22916
+        },
+        {
+          "name": "PROCESS",
+          "type": "CMK_RESULT_PROCESS",
+          "link": 22917
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "link": 22918
+        },
+        {
+          "name": "LOG",
+          "shape": 7,
+          "type": "*",
+          "link": 22919
+        },
+        {
+          "name": "VISUAL",
+          "shape": 7,
+          "type": "CMK_VISUAL_PIPE",
+          "link": null
+        },
+        {
+          "label": "MODE",
+          "name": "detailer_global_enable",
+          "type": "COMBO",
+          "widget": {
+            "name": "detailer_global_enable"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL ZIT",
+          "type": "CMK_MODEL_PIPE",
+          "links": [
+            22920
+          ]
+        },
+        {
+          "name": "MODEL SDXL",
+          "type": "CMK_MODEL_PIPE",
+          "links": [
+            22921
+          ]
+        },
+        {
+          "name": "PROCESS",
+          "type": "CMK_RESULT_PROCESS",
+          "links": [
+            22922
+          ]
+        },
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            22923
+          ]
+        },
+        {
+          "name": "LOG",
+          "type": "CMK_LOG_PIPE",
+          "links": [
+            22924
+          ]
+        },
+        {
+          "name": "VISUAL",
+          "type": "CMK_VISUAL_PIPE",
+          "links": [
+            22925
+          ]
+        },
+        {
+          "name": "diagnostic",
+          "type": "CMK_DIAGNOSTIC",
+          "links": []
+        }
+      ],
+      "properties": {
+        "comparer_mode": "Click",
+        "default_output": "b",
+        "previewExposures": [],
+        "cmkVisualProviders": [
+          {
+            "provider_id": "cmk-CMKDetailerMergeMultiModel-8",
+            "key": "detailer",
+            "branch": "sdxl",
+            "stage_key": "sdxl.detailer.advanced",
+            "label": "Detailer",
+            "sequence": 23,
+            "live_node_id": "3",
+            "live_node_ids": [
+              "3",
+              "5",
+              "7"
+            ],
+            "capabilities": {
+              "preview": true,
+              "multi_source": true,
+              "compare": true,
+              "live": true
+            }
+          }
+        ],
+        "cmkColorRole": "DETAILER",
+        "cmkOuterSize": [
+          300,
+          206
+        ],
+        "cmkManualSize": [
+          300,
+          206
+        ],
+        "cmkCleanViewExpandedSize": [
+          300,
+          206
+        ],
+        "cmkCleanViewExpandedHeight": 206,
+        "cmkCleanViewSize": [
+          300,
+          94
+        ],
+        "cmkCleanView": false
+      },
+      "widgets_values": [
+        "ENABLE"
+      ],
+      "widgets_values_named": {
+        "detailer_global_enable": "ENABLE"
+      },
+      "color": "#2C2822",
+      "bgcolor": "#373128",
+      "shape": 1,
+      "title": "CMK Flow · Detailer · Advanced"
+    }
+  ],
+  "links": [],
+  "version": 0.4,
+  "definitions": {
+    "subgraphs": [
+      {
+        "id": "c65f6b01-4f30-4937-8ea6-2b229ef2e076",
+        "version": 1,
+        "state": {
+          "lastGroupId": 256,
+          "lastNodeId": 8585,
+          "lastLinkId": 22943,
+          "lastRerouteId": 1
+        },
+        "revision": 0,
+        "config": {},
+        "name": "CMK Flow · Detailer · Advanced",
+        "inputNode": {
+          "id": -10,
+          "bounding": [
+            7855,
+            1910,
+            128,
+            188
+          ]
+        },
+        "outputNode": {
+          "id": -20,
+          "bounding": [
+            10505,
+            2510,
+            128,
+            188
+          ]
+        },
+        "inputs": [
+          {
+            "id": "4885c78d-1118-48d1-b3d4-48118121c2c1",
+            "name": "MODEL ZIT",
+            "type": "CMK_MODEL_PIPE",
+            "linkIds": [
+              34,
+              35
+            ],
+            "pos": [
+              7959,
+              1934
+            ]
+          },
+          {
+            "id": "87ac89d6-202c-411c-871a-7a6c6a0a184f",
+            "name": "MODEL SDXL",
+            "type": "CMK_MODEL_PIPE",
+            "linkIds": [
+              36,
+              37,
+              38
+            ],
+            "pos": [
+              7959,
+              1954
+            ]
+          },
+          {
+            "id": "a4207b3b-f4a4-4d70-9266-72659e0345c4",
+            "name": "PROCESS",
+            "type": "CMK_RESULT_PROCESS",
+            "linkIds": [
+              39,
+              40
+            ],
+            "pos": [
+              7959,
+              1974
+            ]
+          },
+          {
+            "id": "da2c3704-32a8-4702-a1ef-bcc15e299bc9",
+            "name": "IMAGE",
+            "type": "IMAGE",
+            "linkIds": [
+              41,
+              42,
+              43,
+              44
+            ],
+            "pos": [
+              7959,
+              1994
+            ]
+          },
+          {
+            "id": "d54e4d48-8b4f-40f1-a88f-951d21d779c1",
+            "name": "LOG",
+            "type": "*",
+            "linkIds": [
+              45,
+              46,
+              47
+            ],
+            "pos": [
+              7959,
+              2014
+            ]
+          },
+          {
+            "id": "ac3ebfe5-c12b-43a9-9f4a-20547fe296e6",
+            "name": "VISUAL",
+            "type": "CMK_VISUAL_PIPE",
+            "linkIds": [
+              48,
+              49,
+              50
+            ],
+            "pos": [
+              7959,
+              2034
+            ]
+          },
+          {
+            "id": "7f95212e-077e-4c4b-bce6-fb0e01b9aa08",
+            "name": "detailer_global_enable",
+            "type": "COMBO",
+            "linkIds": [
+              22943
+            ],
+            "label": "MODE",
+            "pos": [
+              7959,
+              2054
+            ]
+          }
+        ],
+        "outputs": [
+          {
+            "id": "3e5dfd21-1b6b-4779-9d93-4bade0192bcd",
+            "name": "MODEL ZIT",
+            "type": "CMK_MODEL_PIPE",
+            "linkIds": [
+              51
+            ],
+            "pos": [
+              10529,
+              2534
+            ]
+          },
+          {
+            "id": "3590d5c7-334f-414e-95d9-f2ca1048534f",
+            "name": "MODEL SDXL",
+            "type": "CMK_MODEL_PIPE",
+            "linkIds": [
+              52
+            ],
+            "pos": [
+              10529,
+              2554
+            ]
+          },
+          {
+            "id": "96eda652-3aaf-4374-b3f9-e32a987205c9",
+            "name": "PROCESS",
+            "type": "CMK_RESULT_PROCESS",
+            "linkIds": [
+              53
+            ],
+            "pos": [
+              10529,
+              2574
+            ]
+          },
+          {
+            "id": "ac96b306-c1b2-4316-a86c-882578effadb",
+            "name": "IMAGE",
+            "type": "IMAGE",
+            "linkIds": [
+              54
+            ],
+            "pos": [
+              10529,
+              2594
+            ]
+          },
+          {
+            "id": "1b5f4d69-f8a9-4fd2-93a2-e7a9f221d55e",
+            "name": "LOG",
+            "type": "CMK_LOG_PIPE",
+            "linkIds": [
+              55
+            ],
+            "pos": [
+              10529,
+              2614
+            ]
+          },
+          {
+            "id": "d3421cfb-ed71-4e5d-9df7-465eeeccee95",
+            "name": "VISUAL",
+            "type": "CMK_VISUAL_PIPE",
+            "linkIds": [
+              56
+            ],
+            "pos": [
+              10529,
+              2634
+            ]
+          },
+          {
+            "id": "605ff668-5114-4065-90c1-1ee5cdeac0ac",
+            "name": "diagnostic",
+            "type": "CMK_DIAGNOSTIC",
+            "linkIds": [
+              57
+            ],
+            "pos": [
+              10529,
+              2654
+            ]
+          }
+        ],
+        "widgets": [],
+        "nodes": [
+          {
+            "id": 8570,
+            "type": "CMKDetailerPrepareAdvancedMultiModelPipe",
+            "pos": [
+              8005,
+              1915
+            ],
+            "size": [
+              450,
+              760
+            ],
+            "flags": {},
+            "order": 13,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "MODEL SDXL",
+                "name": "MODEL SDXL",
+                "type": "CMK_MODEL_PIPE",
+                "link": 36
+              },
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "CMK_RESULT_PROCESS",
+                "link": 39
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "link": 41
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 45
+              },
+              {
+                "localized_name": "MODEL ZIT",
+                "name": "MODEL ZIT",
+                "shape": 7,
+                "type": "CMK_MODEL_PIPE",
+                "link": 34
+              },
+              {
+                "localized_name": "sam_model_name",
+                "name": "sam_model_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "sam_model_name"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "sam_device_mode",
+                "name": "sam_device_mode",
+                "type": "COMBO",
+                "widget": {
+                  "name": "sam_device_mode"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "use_prompt_lora_from_sampler",
+                "name": "use_prompt_lora_from_sampler",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "use_prompt_lora_from_sampler"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "stop_at_clip_layer",
+                "name": "stop_at_clip_layer",
+                "type": "INT",
+                "widget": {
+                  "name": "stop_at_clip_layer"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "pag_scale",
+                "name": "pag_scale",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "pag_scale"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "sampling",
+                "name": "sampling",
+                "type": "COMBO",
+                "widget": {
+                  "name": "sampling"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "zsnr",
+                "name": "zsnr",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "zsnr"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "freeu_enabled",
+                "name": "freeu_enabled",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "freeu_enabled"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "freeu_b1",
+                "name": "freeu_b1",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "freeu_b1"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "freeu_b2",
+                "name": "freeu_b2",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "freeu_b2"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "freeu_s1",
+                "name": "freeu_s1",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "freeu_s1"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "freeu_s2",
+                "name": "freeu_s2",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "freeu_s2"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "model_family_1",
+                "name": "model_family_1",
+                "type": "COMBO",
+                "widget": {
+                  "name": "model_family_1"
+                },
+                "link": 1
+              },
+              {
+                "localized_name": "steps_1",
+                "name": "steps_1",
+                "type": "INT",
+                "widget": {
+                  "name": "steps_1"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "cfg_1",
+                "name": "cfg_1",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "cfg_1"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "sampling_entry_1",
+                "name": "sampling_entry_1",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "sampling_entry_1"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "sampler_1",
+                "name": "sampler_1",
+                "type": "COMBO",
+                "widget": {
+                  "name": "sampler_1"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "scheduler_1",
+                "name": "scheduler_1",
+                "type": "COMBO",
+                "widget": {
+                  "name": "scheduler_1"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "zit_steps_1",
+                "name": "zit_steps_1",
+                "type": "INT",
+                "widget": {
+                  "name": "zit_steps_1"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "zit_cfg_1",
+                "name": "zit_cfg_1",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "zit_cfg_1"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "zit_sampling_entry_1",
+                "name": "zit_sampling_entry_1",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "zit_sampling_entry_1"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "zit_sampler_1",
+                "name": "zit_sampler_1",
+                "type": "COMBO",
+                "widget": {
+                  "name": "zit_sampler_1"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "zit_scheduler_1",
+                "name": "zit_scheduler_1",
+                "type": "COMBO",
+                "widget": {
+                  "name": "zit_scheduler_1"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "zit_model_shift_1",
+                "name": "zit_model_shift_1",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "zit_model_shift_1"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "model_family_2",
+                "name": "model_family_2",
+                "type": "COMBO",
+                "widget": {
+                  "name": "model_family_2"
+                },
+                "link": 2
+              },
+              {
+                "localized_name": "steps_2",
+                "name": "steps_2",
+                "type": "INT",
+                "widget": {
+                  "name": "steps_2"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "cfg_2",
+                "name": "cfg_2",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "cfg_2"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "sampling_entry_2",
+                "name": "sampling_entry_2",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "sampling_entry_2"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "sampler_2",
+                "name": "sampler_2",
+                "type": "COMBO",
+                "widget": {
+                  "name": "sampler_2"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "scheduler_2",
+                "name": "scheduler_2",
+                "type": "COMBO",
+                "widget": {
+                  "name": "scheduler_2"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "zit_steps_2",
+                "name": "zit_steps_2",
+                "type": "INT",
+                "widget": {
+                  "name": "zit_steps_2"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "zit_cfg_2",
+                "name": "zit_cfg_2",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "zit_cfg_2"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "zit_sampling_entry_2",
+                "name": "zit_sampling_entry_2",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "zit_sampling_entry_2"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "zit_sampler_2",
+                "name": "zit_sampler_2",
+                "type": "COMBO",
+                "widget": {
+                  "name": "zit_sampler_2"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "zit_scheduler_2",
+                "name": "zit_scheduler_2",
+                "type": "COMBO",
+                "widget": {
+                  "name": "zit_scheduler_2"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "zit_model_shift_2",
+                "name": "zit_model_shift_2",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "zit_model_shift_2"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "model_family_3",
+                "name": "model_family_3",
+                "type": "COMBO",
+                "widget": {
+                  "name": "model_family_3"
+                },
+                "link": 3
+              },
+              {
+                "localized_name": "steps_3",
+                "name": "steps_3",
+                "type": "INT",
+                "widget": {
+                  "name": "steps_3"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "cfg_3",
+                "name": "cfg_3",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "cfg_3"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "sampling_entry_3",
+                "name": "sampling_entry_3",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "sampling_entry_3"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "sampler_3",
+                "name": "sampler_3",
+                "type": "COMBO",
+                "widget": {
+                  "name": "sampler_3"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "scheduler_3",
+                "name": "scheduler_3",
+                "type": "COMBO",
+                "widget": {
+                  "name": "scheduler_3"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "zit_steps_3",
+                "name": "zit_steps_3",
+                "type": "INT",
+                "widget": {
+                  "name": "zit_steps_3"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "zit_cfg_3",
+                "name": "zit_cfg_3",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "zit_cfg_3"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "zit_sampling_entry_3",
+                "name": "zit_sampling_entry_3",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "zit_sampling_entry_3"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "zit_sampler_3",
+                "name": "zit_sampler_3",
+                "type": "COMBO",
+                "widget": {
+                  "name": "zit_sampler_3"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "zit_scheduler_3",
+                "name": "zit_scheduler_3",
+                "type": "COMBO",
+                "widget": {
+                  "name": "zit_scheduler_3"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "zit_model_shift_3",
+                "name": "zit_model_shift_3",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "zit_model_shift_3"
+                },
+                "link": null
+              },
+              {
+                "label": "ENABLE",
+                "localized_name": "detailer_global_enable",
+                "name": "detailer_global_enable",
+                "type": "COMBO",
+                "widget": {
+                  "name": "detailer_global_enable"
+                },
+                "link": 22943
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "DETAILER 1",
+                "name": "DETAILER 1",
+                "type": "CMK_DETAILER_MULTIMODEL_PIPE",
+                "links": [
+                  4
+                ]
+              },
+              {
+                "localized_name": "DETAILER 2",
+                "name": "DETAILER 2",
+                "type": "CMK_DETAILER_MULTIMODEL_PIPE",
+                "links": [
+                  10
+                ]
+              },
+              {
+                "localized_name": "DETAILER 3",
+                "name": "DETAILER 3",
+                "type": "CMK_DETAILER_MULTIMODEL_PIPE",
+                "links": [
+                  16
+                ]
+              },
+              {
+                "localized_name": "ENABLE",
+                "name": "ENABLE",
+                "type": "BOOLEAN",
+                "links": [
+                  27,
+                  28
+                ]
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "links": [
+                  5,
+                  11,
+                  17,
+                  22
+                ]
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  6,
+                  12,
+                  18
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKDetailerPrepareAdvancedMultiModelPipe",
+              "cmkOuterSize": [
+                450,
+                790
+              ],
+              "cmkManualSize": [
+                450,
+                790
+              ],
+              "cmkCleanViewExpandedSize": [
+                450,
+                790
+              ],
+              "cmkCleanViewExpandedHeight": 790,
+              "comparer_mode": "Click",
+              "default_output": "b"
+            },
+            "widgets_values": [
+              "sam_vit_b_01ec64.pth",
+              "CPU",
+              true,
+              -2,
+              2.5,
+              "v_prediction",
+              true,
+              true,
+              1.3,
+              1.4,
+              0.9,
+              0.2,
+              "None",
+              30,
+              7,
+              95,
+              "euler",
+              "simple",
+              8,
+              1,
+              85,
+              "res_multistep",
+              "simple",
+              3,
+              "SDXL",
+              30,
+              7,
+              95,
+              "euler",
+              "simple",
+              8,
+              1,
+              85,
+              "res_multistep",
+              "simple",
+              3,
+              "None",
+              30,
+              7,
+              95,
+              "euler",
+              "simple",
+              8,
+              1,
+              85,
+              "res_multistep",
+              "simple",
+              3,
+              "ENABLE"
+            ],
+            "widgets_values_named": {
+              "sam_model_name": "sam_vit_b_01ec64.pth",
+              "sam_device_mode": "CPU",
+              "use_prompt_lora_from_sampler": true,
+              "stop_at_clip_layer": -2,
+              "pag_scale": 2.5,
+              "sampling": "v_prediction",
+              "zsnr": true,
+              "freeu_enabled": true,
+              "freeu_b1": 1.3,
+              "freeu_b2": 1.4,
+              "freeu_s1": 0.9,
+              "freeu_s2": 0.2,
+              "model_family_1": "None",
+              "steps_1": 30,
+              "cfg_1": 7,
+              "sampling_entry_1": 95,
+              "sampler_1": "euler",
+              "scheduler_1": "simple",
+              "zit_steps_1": 8,
+              "zit_cfg_1": 1,
+              "zit_sampling_entry_1": 85,
+              "zit_sampler_1": "res_multistep",
+              "zit_scheduler_1": "simple",
+              "zit_model_shift_1": 3,
+              "model_family_2": "SDXL",
+              "steps_2": 30,
+              "cfg_2": 7,
+              "sampling_entry_2": 95,
+              "sampler_2": "euler",
+              "scheduler_2": "simple",
+              "zit_steps_2": 8,
+              "zit_cfg_2": 1,
+              "zit_sampling_entry_2": 85,
+              "zit_sampler_2": "res_multistep",
+              "zit_scheduler_2": "simple",
+              "zit_model_shift_2": 3,
+              "model_family_3": "None",
+              "steps_3": 30,
+              "cfg_3": 7,
+              "sampling_entry_3": 95,
+              "sampler_3": "euler",
+              "scheduler_3": "simple",
+              "zit_steps_3": 8,
+              "zit_cfg_3": 1,
+              "zit_sampling_entry_3": 85,
+              "zit_sampler_3": "res_multistep",
+              "zit_scheduler_3": "simple",
+              "zit_model_shift_3": 3,
+              "detailer_global_enable": "ENABLE"
+            },
+            "shape": 1
+          },
+          {
+            "id": 2,
+            "type": "CMKDetailerFamilyEnable",
+            "pos": [
+              8465,
+              1915
+            ],
+            "size": [
+              450,
+              130
+            ],
+            "flags": {},
+            "order": 0,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "model_family",
+                "name": "model_family",
+                "type": "COMBO",
+                "widget": {
+                  "name": "model_family"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "ENABLE",
+                "name": "ENABLE",
+                "type": "BOOLEAN",
+                "links": null
+              },
+              {
+                "localized_name": "MODEL FAMILY",
+                "name": "MODEL FAMILY",
+                "type": "COMBO",
+                "links": [
+                  1
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKDetailerFamilyEnable",
+              "cmkOuterSize": [
+                450,
+                130
+              ],
+              "cmkManualSize": [
+                450,
+                130
+              ],
+              "cmkCleanViewExpandedSize": [
+                450,
+                130
+              ],
+              "cmkCleanViewExpandedHeight": 130,
+              "comparer_mode": "Click",
+              "default_output": "b"
+            },
+            "widgets_values": [
+              "None"
+            ],
+            "widgets_values_named": {
+              "model_family": "None"
+            },
+            "shape": 1
+          },
+          {
+            "id": 3,
+            "type": "CMK_SmartDetailerMultiModelPipe",
+            "pos": [
+              8465,
+              2080
+            ],
+            "size": [
+              450,
+              600
+            ],
+            "flags": {},
+            "order": 3,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "DETAILER",
+                "name": "DETAILER",
+                "type": "CMK_DETAILER_MULTIMODEL_PIPE",
+                "link": 4
+              },
+              {
+                "localized_name": "opt_log",
+                "name": "opt_log",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 5
+              },
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "shape": 7,
+                "type": "CMK_VISUAL_PIPE",
+                "link": null
+              },
+              {
+                "localized_name": "opt_diagnostic",
+                "name": "opt_diagnostic",
+                "shape": 7,
+                "type": "CMK_DIAGNOSTIC",
+                "link": 6
+              },
+              {
+                "localized_name": "enable",
+                "name": "enable",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "enable"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "output_image_proceed",
+                "name": "output_image_proceed",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "output_image_proceed"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "model_name",
+                "name": "model_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "model_name"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "bbox_threshold",
+                "name": "bbox_threshold",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "bbox_threshold"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "bbox_dilation",
+                "name": "bbox_dilation",
+                "type": "INT",
+                "widget": {
+                  "name": "bbox_dilation"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "crop_factor",
+                "name": "crop_factor",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "crop_factor"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "drop_size",
+                "name": "drop_size",
+                "type": "INT",
+                "widget": {
+                  "name": "drop_size"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "guide_size",
+                "name": "guide_size",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "guide_size"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "guide_size_for",
+                "name": "guide_size_for",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "guide_size_for"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "max_size",
+                "name": "max_size",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "max_size"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "noise_mask",
+                "name": "noise_mask",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "noise_mask"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "force_inpaint",
+                "name": "force_inpaint",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "force_inpaint"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "SEGS DETECTED",
+                "name": "SEGS DETECTED",
+                "type": "SEGS",
+                "links": null
+              },
+              {
+                "localized_name": "SEGS PROCEED",
+                "name": "SEGS PROCEED",
+                "type": "SEGS",
+                "links": [
+                  7
+                ]
+              },
+              {
+                "localized_name": "IMAGE PROCEED",
+                "name": "IMAGE PROCEED",
+                "type": "IMAGE",
+                "links": null
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "links": [
+                  8
+                ]
+              },
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "type": "CMK_VISUAL_PIPE",
+                "links": null
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  9
+                ]
+              },
+              {
+                "localized_name": "DETAILER IMAGE",
+                "name": "DETAILER IMAGE",
+                "type": "IMAGE",
+                "links": null
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMK_SmartDetailerMultiModelPipe"
+            },
+            "widgets_values": [
+              true,
+              false,
+              "bbox/div/hand_yolov8s.pt",
+              0.5,
+              0,
+              3,
+              10,
+              512,
+              true,
+              768,
+              true,
+              true
+            ],
+            "widgets_values_named": {
+              "enable": true,
+              "output_image_proceed": false,
+              "model_name": "bbox/div/hand_yolov8s.pt",
+              "bbox_threshold": 0.5,
+              "bbox_dilation": 0,
+              "crop_factor": 3,
+              "drop_size": 10,
+              "guide_size": 512,
+              "guide_size_for": true,
+              "max_size": 768,
+              "noise_mask": true,
+              "force_inpaint": true
+            },
+            "shape": 1
+          },
+          {
+            "id": 4,
+            "type": "CMKDetailerFamilyEnable",
+            "pos": [
+              8925,
+              1915
+            ],
+            "size": [
+              450,
+              130
+            ],
+            "flags": {},
+            "order": 1,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "model_family",
+                "name": "model_family",
+                "type": "COMBO",
+                "widget": {
+                  "name": "model_family"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "ENABLE",
+                "name": "ENABLE",
+                "type": "BOOLEAN",
+                "links": null
+              },
+              {
+                "localized_name": "MODEL FAMILY",
+                "name": "MODEL FAMILY",
+                "type": "COMBO",
+                "links": [
+                  2
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKDetailerFamilyEnable",
+              "cmkOuterSize": [
+                450,
+                130
+              ],
+              "cmkManualSize": [
+                450,
+                130
+              ],
+              "cmkCleanViewExpandedSize": [
+                450,
+                130
+              ],
+              "cmkCleanViewExpandedHeight": 130,
+              "comparer_mode": "Click",
+              "default_output": "b"
+            },
+            "widgets_values": [
+              "SDXL"
+            ],
+            "widgets_values_named": {
+              "model_family": "SDXL"
+            },
+            "shape": 1
+          },
+          {
+            "id": 5,
+            "type": "CMK_SmartDetailerMultiModelPipe",
+            "pos": [
+              8925,
+              2080
+            ],
+            "size": [
+              450,
+              600
+            ],
+            "flags": {},
+            "order": 4,
+            "mode": 0,
+            "showAdvanced": false,
+            "inputs": [
+              {
+                "localized_name": "DETAILER",
+                "name": "DETAILER",
+                "type": "CMK_DETAILER_MULTIMODEL_PIPE",
+                "link": 10
+              },
+              {
+                "localized_name": "opt_log",
+                "name": "opt_log",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 11
+              },
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "shape": 7,
+                "type": "CMK_VISUAL_PIPE",
+                "link": null
+              },
+              {
+                "localized_name": "opt_diagnostic",
+                "name": "opt_diagnostic",
+                "shape": 7,
+                "type": "CMK_DIAGNOSTIC",
+                "link": 12
+              },
+              {
+                "localized_name": "enable",
+                "name": "enable",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "enable"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "output_image_proceed",
+                "name": "output_image_proceed",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "output_image_proceed"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "model_name",
+                "name": "model_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "model_name"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "bbox_threshold",
+                "name": "bbox_threshold",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "bbox_threshold"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "bbox_dilation",
+                "name": "bbox_dilation",
+                "type": "INT",
+                "widget": {
+                  "name": "bbox_dilation"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "crop_factor",
+                "name": "crop_factor",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "crop_factor"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "drop_size",
+                "name": "drop_size",
+                "type": "INT",
+                "widget": {
+                  "name": "drop_size"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "guide_size",
+                "name": "guide_size",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "guide_size"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "guide_size_for",
+                "name": "guide_size_for",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "guide_size_for"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "max_size",
+                "name": "max_size",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "max_size"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "noise_mask",
+                "name": "noise_mask",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "noise_mask"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "force_inpaint",
+                "name": "force_inpaint",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "force_inpaint"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "SEGS DETECTED",
+                "name": "SEGS DETECTED",
+                "type": "SEGS",
+                "links": null
+              },
+              {
+                "localized_name": "SEGS PROCEED",
+                "name": "SEGS PROCEED",
+                "type": "SEGS",
+                "links": [
+                  13
+                ]
+              },
+              {
+                "localized_name": "IMAGE PROCEED",
+                "name": "IMAGE PROCEED",
+                "type": "IMAGE",
+                "links": null
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "links": [
+                  14
+                ]
+              },
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "type": "CMK_VISUAL_PIPE",
+                "links": null
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  15
+                ]
+              },
+              {
+                "localized_name": "DETAILER IMAGE",
+                "name": "DETAILER IMAGE",
+                "type": "IMAGE",
+                "links": []
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMK_SmartDetailerMultiModelPipe"
+            },
+            "widgets_values": [
+              true,
+              false,
+              "segm/face/face_yolov8s.pt",
+              0.5,
+              0,
+              3,
+              10,
+              512,
+              true,
+              768,
+              true,
+              true
+            ],
+            "widgets_values_named": {
+              "enable": true,
+              "output_image_proceed": false,
+              "model_name": "segm/face/face_yolov8s.pt",
+              "bbox_threshold": 0.5,
+              "bbox_dilation": 0,
+              "crop_factor": 3,
+              "drop_size": 10,
+              "guide_size": 512,
+              "guide_size_for": true,
+              "max_size": 768,
+              "noise_mask": true,
+              "force_inpaint": true
+            },
+            "shape": 1
+          },
+          {
+            "id": 6,
+            "type": "CMKDetailerFamilyEnable",
+            "pos": [
+              9385,
+              1915
+            ],
+            "size": [
+              450,
+              130
+            ],
+            "flags": {},
+            "order": 2,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "model_family",
+                "name": "model_family",
+                "type": "COMBO",
+                "widget": {
+                  "name": "model_family"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "ENABLE",
+                "name": "ENABLE",
+                "type": "BOOLEAN",
+                "links": null
+              },
+              {
+                "localized_name": "MODEL FAMILY",
+                "name": "MODEL FAMILY",
+                "type": "COMBO",
+                "links": [
+                  3
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKDetailerFamilyEnable",
+              "cmkOuterSize": [
+                450,
+                130
+              ],
+              "cmkManualSize": [
+                450,
+                130
+              ],
+              "cmkCleanViewExpandedSize": [
+                450,
+                130
+              ],
+              "cmkCleanViewExpandedHeight": 130,
+              "comparer_mode": "Click",
+              "default_output": "b"
+            },
+            "widgets_values": [
+              "None"
+            ],
+            "widgets_values_named": {
+              "model_family": "None"
+            },
+            "shape": 1
+          },
+          {
+            "id": 7,
+            "type": "CMK_SmartDetailerMultiModelPipe",
+            "pos": [
+              9385,
+              2080
+            ],
+            "size": [
+              450,
+              600
+            ],
+            "flags": {},
+            "order": 5,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "DETAILER",
+                "name": "DETAILER",
+                "type": "CMK_DETAILER_MULTIMODEL_PIPE",
+                "link": 16
+              },
+              {
+                "localized_name": "opt_log",
+                "name": "opt_log",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 17
+              },
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "shape": 7,
+                "type": "CMK_VISUAL_PIPE",
+                "link": null
+              },
+              {
+                "localized_name": "opt_diagnostic",
+                "name": "opt_diagnostic",
+                "shape": 7,
+                "type": "CMK_DIAGNOSTIC",
+                "link": 18
+              },
+              {
+                "localized_name": "enable",
+                "name": "enable",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "enable"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "output_image_proceed",
+                "name": "output_image_proceed",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "output_image_proceed"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "model_name",
+                "name": "model_name",
+                "type": "COMBO",
+                "widget": {
+                  "name": "model_name"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "bbox_threshold",
+                "name": "bbox_threshold",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "bbox_threshold"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "bbox_dilation",
+                "name": "bbox_dilation",
+                "type": "INT",
+                "widget": {
+                  "name": "bbox_dilation"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "crop_factor",
+                "name": "crop_factor",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "crop_factor"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "drop_size",
+                "name": "drop_size",
+                "type": "INT",
+                "widget": {
+                  "name": "drop_size"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "guide_size",
+                "name": "guide_size",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "guide_size"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "guide_size_for",
+                "name": "guide_size_for",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "guide_size_for"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "max_size",
+                "name": "max_size",
+                "type": "FLOAT",
+                "widget": {
+                  "name": "max_size"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "noise_mask",
+                "name": "noise_mask",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "noise_mask"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "force_inpaint",
+                "name": "force_inpaint",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "force_inpaint"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "SEGS DETECTED",
+                "name": "SEGS DETECTED",
+                "type": "SEGS",
+                "links": null
+              },
+              {
+                "localized_name": "SEGS PROCEED",
+                "name": "SEGS PROCEED",
+                "type": "SEGS",
+                "links": [
+                  19
+                ]
+              },
+              {
+                "localized_name": "IMAGE PROCEED",
+                "name": "IMAGE PROCEED",
+                "type": "IMAGE",
+                "links": null
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "links": [
+                  20
+                ]
+              },
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "type": "CMK_VISUAL_PIPE",
+                "links": null
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  21
+                ]
+              },
+              {
+                "localized_name": "DETAILER IMAGE",
+                "name": "DETAILER IMAGE",
+                "type": "IMAGE",
+                "links": null
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMK_SmartDetailerMultiModelPipe"
+            },
+            "widgets_values": [
+              true,
+              false,
+              "bbox/div/hand_yolov8n.pt",
+              0.5,
+              0,
+              3,
+              10,
+              512,
+              true,
+              768,
+              true,
+              true
+            ],
+            "widgets_values_named": {
+              "enable": true,
+              "output_image_proceed": false,
+              "model_name": "bbox/div/hand_yolov8n.pt",
+              "bbox_threshold": 0.5,
+              "bbox_dilation": 0,
+              "crop_factor": 3,
+              "drop_size": 10,
+              "guide_size": 512,
+              "guide_size_for": true,
+              "max_size": 768,
+              "noise_mask": true,
+              "force_inpaint": true
+            },
+            "shape": 1
+          },
+          {
+            "id": 8,
+            "type": "CMKDetailerMergeMultiModel",
+            "pos": [
+              8690,
+              2730
+            ],
+            "size": [
+              320,
+              305
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 6,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "link": 42
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 22
+              },
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "shape": 7,
+                "type": "CMK_VISUAL_PIPE",
+                "link": 48
+              },
+              {
+                "localized_name": "SEGS 1",
+                "name": "SEGS 1",
+                "shape": 7,
+                "type": "SEGS",
+                "link": 7
+              },
+              {
+                "localized_name": "LOG 1",
+                "name": "LOG 1",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 8
+              },
+              {
+                "localized_name": "diagnostic 1",
+                "name": "diagnostic 1",
+                "shape": 7,
+                "type": "CMK_DIAGNOSTIC",
+                "link": 9
+              },
+              {
+                "localized_name": "SEGS 2",
+                "name": "SEGS 2",
+                "shape": 7,
+                "type": "SEGS",
+                "link": 13
+              },
+              {
+                "localized_name": "LOG 2",
+                "name": "LOG 2",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 14
+              },
+              {
+                "localized_name": "diagnostic 2",
+                "name": "diagnostic 2",
+                "shape": 7,
+                "type": "CMK_DIAGNOSTIC",
+                "link": 15
+              },
+              {
+                "localized_name": "SEGS 3",
+                "name": "SEGS 3",
+                "shape": 7,
+                "type": "SEGS",
+                "link": 19
+              },
+              {
+                "localized_name": "LOG 3",
+                "name": "LOG 3",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 20
+              },
+              {
+                "localized_name": "diagnostic 3",
+                "name": "diagnostic 3",
+                "shape": 7,
+                "type": "CMK_DIAGNOSTIC",
+                "link": 21
+              },
+              {
+                "localized_name": "feather",
+                "name": "feather",
+                "type": "INT",
+                "widget": {
+                  "name": "feather"
+                },
+                "link": null
+              },
+              {
+                "localized_name": "alpha",
+                "name": "alpha",
+                "type": "INT",
+                "widget": {
+                  "name": "alpha"
+                },
+                "link": null
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  23
+                ]
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "links": [
+                  24
+                ]
+              },
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "type": "CMK_VISUAL_PIPE",
+                "links": [
+                  25
+                ]
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  26
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKDetailerMergeMultiModel"
+            },
+            "widgets_values": [
+              5,
+              255
+            ],
+            "widgets_values_named": {
+              "feather": 5,
+              "alpha": 255
+            },
+            "shape": 1
+          },
+          {
+            "id": 9,
+            "type": "CMKDetailerBoundaryCache",
+            "pos": [
+              8925,
+              2730
+            ],
+            "size": [
+              190,
+              170
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 7,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "CMK_MODEL_PIPE",
+                "link": 37
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "link": 23
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "link": 24
+              },
+              {
+                "localized_name": "VISUAL IN",
+                "name": "VISUAL IN",
+                "shape": 7,
+                "type": "CMK_VISUAL_PIPE",
+                "link": 49
+              },
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "shape": 7,
+                "type": "CMK_VISUAL_PIPE",
+                "link": 25
+              },
+              {
+                "localized_name": "IMAGE IN",
+                "name": "IMAGE IN",
+                "shape": 7,
+                "type": "IMAGE",
+                "link": 43
+              },
+              {
+                "localized_name": "LOG IN",
+                "name": "LOG IN",
+                "shape": 7,
+                "type": "CMK_LOG_PIPE",
+                "link": 46
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "shape": 7,
+                "type": "CMK_DIAGNOSTIC",
+                "link": 26
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "CMK_MODEL_PIPE",
+                "links": null
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  29
+                ]
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "links": [
+                  30
+                ]
+              },
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "type": "CMK_VISUAL_PIPE",
+                "links": [
+                  32
+                ]
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  31
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKDetailerBoundaryCache"
+            },
+            "shape": 1
+          },
+          {
+            "id": 10,
+            "type": "CMKModuleBypassGate",
+            "pos": [
+              8455,
+              2730
+            ],
+            "size": [
+              285,
+              260
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 8,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "MODEL BYPASS",
+                "name": "MODEL BYPASS",
+                "shape": 7,
+                "type": "*",
+                "link": null
+              },
+              {
+                "localized_name": "IMAGE BYPASS",
+                "name": "IMAGE BYPASS",
+                "shape": 7,
+                "type": "*",
+                "link": 44
+              },
+              {
+                "localized_name": "LOG BYPASS",
+                "name": "LOG BYPASS",
+                "shape": 7,
+                "type": "*",
+                "link": 47
+              },
+              {
+                "localized_name": "MODEL ACTIVE",
+                "name": "MODEL ACTIVE",
+                "shape": 7,
+                "type": "*",
+                "link": null
+              },
+              {
+                "localized_name": "IMAGE ACTIVE",
+                "name": "IMAGE ACTIVE",
+                "shape": 7,
+                "type": "*",
+                "link": 29
+              },
+              {
+                "localized_name": "LOG ACTIVE",
+                "name": "LOG ACTIVE",
+                "shape": 7,
+                "type": "*",
+                "link": 30
+              },
+              {
+                "localized_name": "DIAGNOSTIC ACTIVE",
+                "name": "DIAGNOSTIC ACTIVE",
+                "shape": 7,
+                "type": "CMK_DIAGNOSTIC",
+                "link": 31
+              },
+              {
+                "localized_name": "VISUAL BYPASS",
+                "name": "VISUAL BYPASS",
+                "shape": 7,
+                "type": "CMK_VISUAL_PIPE",
+                "link": 50
+              },
+              {
+                "localized_name": "VISUAL ACTIVE",
+                "name": "VISUAL ACTIVE",
+                "shape": 7,
+                "type": "CMK_VISUAL_PIPE",
+                "link": 32
+              },
+              {
+                "localized_name": "PROCESS BYPASS",
+                "name": "PROCESS BYPASS",
+                "shape": 7,
+                "type": "*",
+                "link": null
+              },
+              {
+                "localized_name": "PROCESS ACTIVE",
+                "name": "PROCESS ACTIVE",
+                "shape": 7,
+                "type": "*",
+                "link": null
+              },
+              {
+                "localized_name": "ENABLE",
+                "name": "ENABLE",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "ENABLE"
+                },
+                "link": 27
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "CMK_MODEL_PIPE",
+                "links": null
+              },
+              {
+                "localized_name": "IMAGE",
+                "name": "IMAGE",
+                "type": "IMAGE",
+                "links": [
+                  54
+                ]
+              },
+              {
+                "localized_name": "LOG",
+                "name": "LOG",
+                "type": "CMK_LOG_PIPE",
+                "links": [
+                  55
+                ]
+              },
+              {
+                "localized_name": "diagnostic",
+                "name": "diagnostic",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  57
+                ]
+              },
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "type": "CMK_VISUAL_PIPE",
+                "links": [
+                  33,
+                  56
+                ]
+              },
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "*",
+                "links": null
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKModuleBypassGate"
+            },
+            "widgets_values": [
+              false
+            ],
+            "widgets_values_named": {
+              "ENABLE": false
+            },
+            "shape": 1
+          },
+          {
+            "id": 11,
+            "type": "CMKVisualCompare",
+            "pos": [
+              9845,
+              1915
+            ],
+            "size": [
+              625,
+              765
+            ],
+            "flags": {},
+            "order": 9,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "VISUAL",
+                "name": "VISUAL",
+                "type": "CMK_VISUAL_PIPE",
+                "link": 33
+              },
+              {
+                "localized_name": "enable",
+                "name": "enable",
+                "shape": 7,
+                "type": "BOOLEAN",
+                "link": 28
+              }
+            ],
+            "outputs": [],
+            "properties": {
+              "Node name for S&R": "CMKVisualCompare",
+              "cmkOuterSize": [
+                625,
+                765
+              ],
+              "cmkManualSize": [
+                625,
+                765
+              ],
+              "cmkCleanViewExpandedSize": [
+                625,
+                765
+              ],
+              "cmkCleanViewExpandedHeight": 765,
+              "comparer_mode": "Click",
+              "default_output": "b"
+            },
+            "widgets_values": [
+              ""
+            ],
+            "widgets_values_named": {
+              "cmk_visualizer": ""
+            },
+            "shape": 1
+          },
+          {
+            "id": 12,
+            "type": "CMKResultProcessForwardPipe",
+            "pos": [
+              9160,
+              2730
+            ],
+            "size": [
+              280,
+              30
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 10,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "*",
+                "link": 40
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "PROCESS",
+                "name": "PROCESS",
+                "type": "CMK_RESULT_PROCESS",
+                "links": [
+                  53
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKResultProcessForwardPipe"
+            },
+            "shape": 1
+          },
+          {
+            "id": 13,
+            "type": "CMKModelForwardPipe",
+            "pos": [
+              9410,
+              2730
+            ],
+            "size": [
+              225,
+              30
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 11,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "shape": 7,
+                "type": "CMK_MODEL_PIPE",
+                "link": 35
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "CMK_MODEL_PIPE",
+                "links": [
+                  51
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKModelForwardPipe"
+            },
+            "shape": 1
+          },
+          {
+            "id": 14,
+            "type": "CMKModelForwardPipe",
+            "pos": [
+              9645,
+              2730
+            ],
+            "size": [
+              225,
+              30
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 12,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "shape": 7,
+                "type": "CMK_MODEL_PIPE",
+                "link": 38
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "MODEL",
+                "name": "MODEL",
+                "type": "CMK_MODEL_PIPE",
+                "links": [
+                  52
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKModelForwardPipe"
+            },
+            "shape": 1
+          }
+        ],
+        "groups": [
+          {
+            "id": 256,
+            "title": "CMK Flow · Detailer · Advanced",
+            "bounding": [
+              8000,
+              1850,
+              2475,
+              835
+            ],
+            "color": "#332D26",
+            "flags": {}
+          }
+        ],
+        "links": [
+          {
+            "id": 1,
+            "origin_id": 2,
+            "origin_slot": 1,
+            "target_id": 8570,
+            "target_slot": 17,
+            "type": "COMBO"
+          },
+          {
+            "id": 2,
+            "origin_id": 4,
+            "origin_slot": 1,
+            "target_id": 8570,
+            "target_slot": 29,
+            "type": "COMBO"
+          },
+          {
+            "id": 3,
+            "origin_id": 6,
+            "origin_slot": 1,
+            "target_id": 8570,
+            "target_slot": 41,
+            "type": "COMBO"
+          },
+          {
+            "id": 4,
+            "origin_id": 8570,
+            "origin_slot": 0,
+            "target_id": 3,
+            "target_slot": 0,
+            "type": "CMK_DETAILER_MULTIMODEL_PIPE"
+          },
+          {
+            "id": 5,
+            "origin_id": 8570,
+            "origin_slot": 4,
+            "target_id": 3,
+            "target_slot": 1,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 6,
+            "origin_id": 8570,
+            "origin_slot": 5,
+            "target_id": 3,
+            "target_slot": 3,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 7,
+            "origin_id": 3,
+            "origin_slot": 1,
+            "target_id": 8,
+            "target_slot": 3,
+            "type": "SEGS"
+          },
+          {
+            "id": 8,
+            "origin_id": 3,
+            "origin_slot": 3,
+            "target_id": 8,
+            "target_slot": 4,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 9,
+            "origin_id": 3,
+            "origin_slot": 5,
+            "target_id": 8,
+            "target_slot": 5,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 10,
+            "origin_id": 8570,
+            "origin_slot": 1,
+            "target_id": 5,
+            "target_slot": 0,
+            "type": "CMK_DETAILER_MULTIMODEL_PIPE"
+          },
+          {
+            "id": 11,
+            "origin_id": 8570,
+            "origin_slot": 4,
+            "target_id": 5,
+            "target_slot": 1,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 12,
+            "origin_id": 8570,
+            "origin_slot": 5,
+            "target_id": 5,
+            "target_slot": 3,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 13,
+            "origin_id": 5,
+            "origin_slot": 1,
+            "target_id": 8,
+            "target_slot": 6,
+            "type": "SEGS"
+          },
+          {
+            "id": 14,
+            "origin_id": 5,
+            "origin_slot": 3,
+            "target_id": 8,
+            "target_slot": 7,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 15,
+            "origin_id": 5,
+            "origin_slot": 5,
+            "target_id": 8,
+            "target_slot": 8,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 16,
+            "origin_id": 8570,
+            "origin_slot": 2,
+            "target_id": 7,
+            "target_slot": 0,
+            "type": "CMK_DETAILER_MULTIMODEL_PIPE"
+          },
+          {
+            "id": 17,
+            "origin_id": 8570,
+            "origin_slot": 4,
+            "target_id": 7,
+            "target_slot": 1,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 18,
+            "origin_id": 8570,
+            "origin_slot": 5,
+            "target_id": 7,
+            "target_slot": 3,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 19,
+            "origin_id": 7,
+            "origin_slot": 1,
+            "target_id": 8,
+            "target_slot": 9,
+            "type": "SEGS"
+          },
+          {
+            "id": 20,
+            "origin_id": 7,
+            "origin_slot": 3,
+            "target_id": 8,
+            "target_slot": 10,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 21,
+            "origin_id": 7,
+            "origin_slot": 5,
+            "target_id": 8,
+            "target_slot": 11,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 22,
+            "origin_id": 8570,
+            "origin_slot": 4,
+            "target_id": 8,
+            "target_slot": 1,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 23,
+            "origin_id": 8,
+            "origin_slot": 0,
+            "target_id": 9,
+            "target_slot": 1,
+            "type": "IMAGE"
+          },
+          {
+            "id": 24,
+            "origin_id": 8,
+            "origin_slot": 1,
+            "target_id": 9,
+            "target_slot": 2,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 25,
+            "origin_id": 8,
+            "origin_slot": 2,
+            "target_id": 9,
+            "target_slot": 4,
+            "type": "CMK_VISUAL_PIPE"
+          },
+          {
+            "id": 26,
+            "origin_id": 8,
+            "origin_slot": 3,
+            "target_id": 9,
+            "target_slot": 7,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 27,
+            "origin_id": 8570,
+            "origin_slot": 3,
+            "target_id": 10,
+            "target_slot": 11,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 28,
+            "origin_id": 8570,
+            "origin_slot": 3,
+            "target_id": 11,
+            "target_slot": 1,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 29,
+            "origin_id": 9,
+            "origin_slot": 1,
+            "target_id": 10,
+            "target_slot": 4,
+            "type": "IMAGE"
+          },
+          {
+            "id": 30,
+            "origin_id": 9,
+            "origin_slot": 2,
+            "target_id": 10,
+            "target_slot": 5,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 31,
+            "origin_id": 9,
+            "origin_slot": 4,
+            "target_id": 10,
+            "target_slot": 6,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 32,
+            "origin_id": 9,
+            "origin_slot": 3,
+            "target_id": 10,
+            "target_slot": 8,
+            "type": "CMK_VISUAL_PIPE"
+          },
+          {
+            "id": 33,
+            "origin_id": 10,
+            "origin_slot": 4,
+            "target_id": 11,
+            "target_slot": 0,
+            "type": "CMK_VISUAL_PIPE"
+          },
+          {
+            "id": 34,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 8570,
+            "target_slot": 4,
+            "type": "CMK_MODEL_PIPE"
+          },
+          {
+            "id": 35,
+            "origin_id": -10,
+            "origin_slot": 0,
+            "target_id": 13,
+            "target_slot": 0,
+            "type": "CMK_MODEL_PIPE"
+          },
+          {
+            "id": 36,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 8570,
+            "target_slot": 0,
+            "type": "CMK_MODEL_PIPE"
+          },
+          {
+            "id": 37,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 9,
+            "target_slot": 0,
+            "type": "CMK_MODEL_PIPE"
+          },
+          {
+            "id": 38,
+            "origin_id": -10,
+            "origin_slot": 1,
+            "target_id": 14,
+            "target_slot": 0,
+            "type": "CMK_MODEL_PIPE"
+          },
+          {
+            "id": 39,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 8570,
+            "target_slot": 1,
+            "type": "CMK_RESULT_PROCESS"
+          },
+          {
+            "id": 40,
+            "origin_id": -10,
+            "origin_slot": 2,
+            "target_id": 12,
+            "target_slot": 0,
+            "type": "CMK_RESULT_PROCESS"
+          },
+          {
+            "id": 41,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 8570,
+            "target_slot": 2,
+            "type": "IMAGE"
+          },
+          {
+            "id": 42,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 8,
+            "target_slot": 0,
+            "type": "IMAGE"
+          },
+          {
+            "id": 43,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 9,
+            "target_slot": 5,
+            "type": "IMAGE"
+          },
+          {
+            "id": 44,
+            "origin_id": -10,
+            "origin_slot": 3,
+            "target_id": 10,
+            "target_slot": 1,
+            "type": "IMAGE"
+          },
+          {
+            "id": 45,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 8570,
+            "target_slot": 3,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 46,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 9,
+            "target_slot": 6,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 47,
+            "origin_id": -10,
+            "origin_slot": 4,
+            "target_id": 10,
+            "target_slot": 2,
+            "type": "*"
+          },
+          {
+            "id": 48,
+            "origin_id": -10,
+            "origin_slot": 5,
+            "target_id": 8,
+            "target_slot": 2,
+            "type": "CMK_VISUAL_PIPE"
+          },
+          {
+            "id": 49,
+            "origin_id": -10,
+            "origin_slot": 5,
+            "target_id": 9,
+            "target_slot": 3,
+            "type": "CMK_VISUAL_PIPE"
+          },
+          {
+            "id": 50,
+            "origin_id": -10,
+            "origin_slot": 5,
+            "target_id": 10,
+            "target_slot": 7,
+            "type": "CMK_VISUAL_PIPE"
+          },
+          {
+            "id": 51,
+            "origin_id": 13,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 0,
+            "type": "CMK_MODEL_PIPE"
+          },
+          {
+            "id": 52,
+            "origin_id": 14,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 1,
+            "type": "CMK_MODEL_PIPE"
+          },
+          {
+            "id": 53,
+            "origin_id": 12,
+            "origin_slot": 0,
+            "target_id": -20,
+            "target_slot": 2,
+            "type": "CMK_RESULT_PROCESS"
+          },
+          {
+            "id": 54,
+            "origin_id": 10,
+            "origin_slot": 1,
+            "target_id": -20,
+            "target_slot": 3,
+            "type": "IMAGE"
+          },
+          {
+            "id": 55,
+            "origin_id": 10,
+            "origin_slot": 2,
+            "target_id": -20,
+            "target_slot": 4,
+            "type": "CMK_LOG_PIPE"
+          },
+          {
+            "id": 56,
+            "origin_id": 10,
+            "origin_slot": 4,
+            "target_id": -20,
+            "target_slot": 5,
+            "type": "CMK_VISUAL_PIPE"
+          },
+          {
+            "id": 57,
+            "origin_id": 10,
+            "origin_slot": 3,
+            "target_id": -20,
+            "target_slot": 6,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 22943,
+            "origin_id": -10,
+            "origin_slot": 6,
+            "target_id": 8570,
+            "target_slot": 53,
+            "type": "COMBO"
+          }
+        ],
+        "extra": {}
+      }
+    ]
+  },
+  "extra": {
+    "CMKFlow": {
+      "schemaVersion": 2,
+      "published": true,
+      "variantOf": "5ac186bf-4185-4957-bdee-859164e567fc",
+      "variantLabel": "Advanced",
+      "category": "Process",
+      "description": "Erkennt und bearbeitet bis zu drei Bildbereiche unabhängig, jeden wahlweise mit SDXL oder Z-Image Turbo, und führt die Ergebnisse anhand ihrer tatsächlichen Pasteback-Masken zusammen.",
+      "status": "STABLE",
+      "searchAliases": [
+        "detailer advanced",
+        "detailer parallel",
+        "details parallel",
+        "multi-model detailer",
+        "zit sdxl detailer"
+      ],
+      "displayName": "Detailer · Advanced",
+      "domain": "Image Enhancement",
+      "compatibility": [
+        "SDXL",
+        "Z-Image Turbo"
+      ],
+      "version": "2.8.0",
+      "author": "CMK Nodes",
+      "features": [
+        "Drei Detailer mit eigener Modellfamilie (NONE · SDXL · ZIT) und eigenen Einstellungen",
+        "ZIT-Zweige werden im Merge vor SDXL-Zweigen ausgeführt; jede Familie wird nur einmal geladen",
+        "Zusammenführung über die tatsächlichen Pasteback-Masken in der Reihenfolge D1 → D2 → D3",
+        "Diagnose mit Sampling-ROI, Maske, Pasteback, Überschneidung und Composite",
+        "MODE: ENABLE · DISABLE – bei DISABLE wird das Modul vollständig umgangen"
+      ],
+      "placementNote": "Auf dem familienneutralen PostProcess-Pfad nach dem 30 PostProcess Setup und vor weiterer Bildbearbeitung oder dem Visualizer platzieren. MODEL SDXL und MODEL ZIT kommen aus dem CMK PostProcess Model.",
+      "recommendedBefore": [
+        {
+          "label": "30 PostProcess Setup",
+          "targetId": "CMKPostProcessSetupPipe"
+        }
+      ],
+      "recommendedAfter": [
+        {
+          "label": "FaceProcess SDXL",
+          "targetId": "0a3f7a10-a21c-49ed-9faa-7e55e7b7a4dd"
+        },
+        {
+          "label": "FaceSwap",
+          "targetId": "9993a5f9-7cd5-431c-8653-6e187ef9d214"
+        },
+        {
+          "label": "Visualizer",
+          "targetId": "CMKVisualizer"
+        },
+        {
+          "label": "Upscale & Save",
+          "targetId": "6f8d63a4-7ea5-4c18-9900-2ec3ed33c9b6"
+        }
+      ],
+      "dependencyNote": "Jeder Detailer benötigt ein passendes Detektormodell für seinen Bildbereich sowie die Modelle seiner gewählten Familie.",
+      "previews": [
+        {
+          "src": "assets/previews/CMK Flow · Detailer · Advanced - Modul.webp",
+          "label": "Modul"
+        },
+        {
+          "src": "assets/previews/CMK Flow · Detailer · Advanced - Aufbau.webp",
+          "label": "Aufbau"
+        }
+      ],
+      "previewAlt": "Detailer · Advanced Vorschau",
+      "catalogGroup": "postprocess",
+      "variantOrder": 20,
+      "browserOrder": 140
+    }
+  }
+}

@@ -79,7 +79,7 @@ CMK Flow · 10 KSampler SDXL 1st Pass
     ↓
 CMK Flow · 20 Refiner SDXL
     ↓
-CMK Flow · Detailer SDXL
+CMK Flow · Detailer (MODE SDXL/ZIT) oder CMK Flow · Detailer · Advanced
     ↓
 CMK Flow · FaceProcess SDXL
     ↓

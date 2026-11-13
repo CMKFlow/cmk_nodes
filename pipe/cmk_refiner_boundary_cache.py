@@ -14,6 +14,7 @@ from ..cmk_distribution import (
 )
 from ..utils.cmk_timing import cmk_timed_call
 from .cmk_persistent_cache import (
+    cache_directory,
     _INPUT_CONTENT_MEMO_KEY,
     apply_input_content,
     input_content_identities,
@@ -248,15 +249,7 @@ def build_refiner_fingerprint(prompt: Any, unique_id: Any) -> tuple[str | None, 
 
 
 def _cache_directory() -> Path:
-    import folder_paths  # type: ignore
-
-    directory = (
-        Path(folder_paths.get_temp_directory())
-        / "cmk"
-        / "refiner_boundary"
-    )
-    directory.mkdir(parents=True, exist_ok=True)
-    return directory
+    return cache_directory("refiner_boundary")
 
 
 def _entry_paths(cache_key: str) -> tuple[Path, Path]:

@@ -14,6 +14,7 @@ from .cmk_persistent_cache import (
 )
 from .cmk_prompt_result_state import active_prompt_id
 from . import cmk_visual
+from .cmk_detailer_advanced_multimodel import CMKDetailerMergeMultiModel, global_enabled as advanced_global_enabled
 from ..cmk_distribution import (
     content_guard_prompt_token,
     stop_after_handoff_prompt_state,
@@ -242,6 +243,23 @@ def _faceprocess_disabled_state(prompt, unique_id):
     )
 
 
+def _detailer_merge_identity(prompt, unique_id):
+    """Merge rule of an Advanced Detailer feeding this boundary, else None.
+
+    Keeps the keys of every other Detailer unchanged.
+    """
+    _resolved_id, boundary = _resolve_boundary_node(prompt, unique_id, "CMKDetailerBoundaryCache")
+    if not isinstance(boundary, dict):
+        return None
+    found = []
+    value = (boundary.get("inputs", {}) or {}).get("IMAGE")
+    if _prompt_link(prompt, value):
+        _collect_upstream_nodes(prompt, value[0], {"CMKDetailerMergeMultiModel"}, found, set())
+    if not found:
+        return None
+    return {"detailer_merge": CMKDetailerMergeMultiModel.MERGE_SEMANTICS}
+
+
 def _detailer_disabled_state(prompt, unique_id):
     """Return whether the complete Detailer module is statically disabled."""
     resolved_id, boundary = _resolve_boundary_node(
@@ -257,6 +275,7 @@ def _detailer_disabled_state(prompt, unique_id):
     wanted = {
         "CMKDetailerPreparePipe", "CMK_SmartDetailerPipe",
         "CMKDetailerPrepareMultiModelPipe", "CMK_SmartDetailerMultiModelPipe",
+        "CMKDetailerPrepareAdvancedMultiModelPipe",
     }
     for input_name in ("IMAGE", "LOG"):
         value = (boundary.get("inputs", {}) or {}).get(input_name)
@@ -265,19 +284,29 @@ def _detailer_disabled_state(prompt, unique_id):
 
     prepares = [
         node for _node_id, node in found
-        if str(node.get("class_type", "")) in {"CMKDetailerPreparePipe", "CMKDetailerPrepareMultiModelPipe"}
+        if str(node.get("class_type", "")) in {
+            "CMKDetailerPreparePipe", "CMKDetailerPrepareMultiModelPipe",
+            "CMKDetailerPrepareAdvancedMultiModelPipe",
+        }
     ]
     branches = [
         node for _node_id, node in found
         if str(node.get("class_type", "")) in {"CMK_SmartDetailerPipe", "CMK_SmartDetailerMultiModelPipe"}
     ]
     # Multi-Model Prepare has no enable switch: MODEL FAMILY = None is off.
-    global_values = [
-        (node.get("inputs", {}) or {}).get("model_family", "None") != "None"
-        if str(node.get("class_type", "")) == "CMKDetailerPrepareMultiModelPipe"
-        else bool((node.get("inputs", {}) or {}).get("detailer_global_enable", True))
-        for node in prepares
-    ]
+    def prepare_active(node):
+        inputs = node.get("inputs", {}) or {}
+        class_type = str(node.get("class_type", ""))
+        if class_type == "CMKDetailerPrepareMultiModelPipe":
+            return inputs.get("model_family", "None") != "None"
+        # Advanced: active while switched on and one Detailer has a model family.
+        if class_type == "CMKDetailerPrepareAdvancedMultiModelPipe":
+            return advanced_global_enabled(inputs) and any(
+                inputs.get(f"model_family_{slot}", "None") != "None" for slot in (1, 2, 3)
+            )
+        return bool(inputs.get("detailer_global_enable", True))
+
+    global_values = [prepare_active(node) for node in prepares]
     local_values = [
         bool((node.get("inputs", {}) or {}).get("enable", True))
         for node in branches
@@ -1039,6 +1068,7 @@ class _DetailerBoundaryCore:
             self._SCHEMA,
             exclude_inputs=VISUAL_INPUT_NAMES + PASSTHROUGH_INPUT_NAMES,
             include_node_identity=True,
+            extra_identity=_detailer_merge_identity(prompt, unique_id),
         )
 
     def _module_disabled(self, prompt, unique_id) -> bool:

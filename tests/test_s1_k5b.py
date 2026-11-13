@@ -97,7 +97,7 @@ class BranchRevisionInvalidates(ScenarioCase):
             workdir = cls.workdir(f"revision_{fixture}")
             cold = cls.run_case("run_fixture", workdir=workdir, **common)["runs"][0]
             key = next(k for sc, status, k in cold["statuses"] if sc == scope and status == "MISS_STORED")
-            branch_dir = Path(workdir) / "temp" / "cmk" / scope
+            branch_dir = Path(workdir) / "user" / "cmk_cache" / scope
             revision = branch_dir / f"{key}.rev"
             found = revision.is_file()
             if action == "recompute":

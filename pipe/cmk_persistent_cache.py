@@ -390,29 +390,29 @@ def build_node_fingerprint(
     return result
 
 
-def cache_directory(scope: str) -> Path:
-    import folder_paths  # type: ignore
+# Branch and boundary caches live in their own directory below the ComfyUI
+# user directory: ComfyUI removes its temp directory at every start and
+# shutdown, so caches there never survive a restart.
+PERSISTENT_CACHE_DIRNAME = "cmk_cache"
 
-    directory = (
-        Path(folder_paths.get_temp_directory())
-        / "cmk"
-        / str(scope)
-    )
+
+def _persistent_cache_root(base_directory: Path | str | None = None) -> Path:
+    if base_directory is None:
+        import folder_paths  # type: ignore
+
+        base_directory = folder_paths.get_user_directory()
+    return Path(base_directory) / PERSISTENT_CACHE_DIRNAME
+
+
+def cache_directory(scope: str) -> Path:
+    directory = _persistent_cache_root() / str(scope)
     directory.mkdir(parents=True, exist_ok=True)
     return directory
 
 
-def _persistent_cache_root(temp_root: Path | str | None = None) -> Path:
-    if temp_root is None:
-        import folder_paths  # type: ignore
-
-        temp_root = folder_paths.get_temp_directory()
-    return Path(temp_root) / "cmk"
-
-
-def validate_persistent_disk_scopes(temp_root: Path | str | None = None) -> Path:
+def validate_persistent_disk_scopes(base_directory: Path | str | None = None) -> Path:
     """Validate every fixed CMK disk-cache scope before any deletion starts."""
-    root = _persistent_cache_root(temp_root)
+    root = _persistent_cache_root(base_directory)
     if root.is_symlink():
         raise OSError(f"refusing symbolic-link CMK cache root: {root}")
     if root.exists() and not root.is_dir():
@@ -467,10 +467,10 @@ def _scope_inventory(path: Path) -> dict[str, int]:
 
 
 def persistent_disk_scope_inventory(
-    temp_root: Path | str | None = None,
+    base_directory: Path | str | None = None,
 ) -> dict[str, dict[str, int]]:
     """Inventory the clearable CMK disk scopes without creating or changing them."""
-    root = validate_persistent_disk_scopes(temp_root)
+    root = validate_persistent_disk_scopes(base_directory)
     return {
         scope: _scope_inventory(root / scope)
         for scope in PERSISTENT_DISK_SCOPES
@@ -490,9 +490,9 @@ def _remove_scope_contents(path: Path) -> None:
             candidate.rmdir()
 
 
-def clear_persistent_disk_scopes(temp_root: Path | str | None = None) -> dict[str, dict[str, int]]:
-    """Clear only the explicitly registered CMK temp-cache scopes."""
-    root = validate_persistent_disk_scopes(temp_root)
+def clear_persistent_disk_scopes(base_directory: Path | str | None = None) -> dict[str, dict[str, int]]:
+    """Clear only the explicitly registered CMK disk-cache scopes."""
+    root = validate_persistent_disk_scopes(base_directory)
     root.mkdir(parents=True, exist_ok=True)
     inventories = {
         scope: _scope_inventory(root / scope)

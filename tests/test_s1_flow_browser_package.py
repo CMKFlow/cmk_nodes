@@ -1,4 +1,4 @@
-"""Flow Browser catalog, Showcase registry and shipped image references (2.7)."""
+"""Flow Browser catalog, Showcase registry and shipped image references (2.7, Detailer 2.8)."""
 
 from __future__ import annotations
 
@@ -133,6 +133,48 @@ class ShowcaseRegistry(unittest.TestCase):
                     for slot in node["properties"]["cmkMultiImageLoader"]["slots"]:
                         if slot["file"]:
                             self.assertTrue(slot["file"].split(" · ", 1)[-1] in names, (name, slot["file"]))
+
+
+DETAILER_STANDARD = "5ac186bf-4185-4957-bdee-859164e567fc"
+DETAILER_ADVANCED = "c65f6b01-4f30-4937-8ea6-2b229ef2e076"
+
+
+def subgraph_flow(name):
+    return json.loads((PACKAGE / "subgraphs" / name).read_text(encoding="utf-8"))["extra"]["CMKFlow"]
+
+
+class DetailerPackage(unittest.TestCase):
+    """2.8.0: Multi-Model Detailers replace the SDXL Detailers in both catalogs."""
+
+    def test_flows_catalog_publishes_the_new_detailers_only(self):
+        standard = subgraph_flow("CMK Flow · Detailer.json")
+        advanced = subgraph_flow("CMK Flow · Detailer · Advanced.json")
+        self.assertTrue(standard["published"] and advanced["published"])
+        self.assertEqual(advanced["variantOf"], DETAILER_STANDARD)
+        self.assertEqual((standard["variantLabel"], advanced["variantLabel"]), ("Standard", "Advanced"))
+        self.assertEqual(standard["compatibility"], ["SDXL", "Z-Image Turbo"])
+        for legacy in ("CMK Flow · Detailer SDXL.json", "CMK Flow · Detailer SDXL · Advanced.json"):
+            self.assertIs(subgraph_flow(legacy)["published"], False, legacy)
+        english = json.loads((WEB / "browser_content_en.json").read_text(encoding="utf-8"))["flows"]
+        for flow_id in (DETAILER_STANDARD, DETAILER_ADVANCED):
+            self.assertTrue(english[flow_id]["description"], flow_id)
+
+    def test_module_workflows_301_and_302_are_the_new_detailers(self):
+        rows = {data["order"]: (name, data) for name, data in published_showcase()}
+        self.assertEqual(rows[301][0], "CMK 2.8 · Detailer SDXL · Modul.json")
+        self.assertEqual(rows[302][0], "CMK 2.8 · Detailer Advanced · Modul.json")
+        published = {name for name, _ in published_showcase()}
+        for legacy in ("CMK · Detailer SDXL.json", "CMK 2.7 · Detailer SDXL · Modul.json"):
+            self.assertNotIn(legacy, published)
+            self.assertTrue((SHOWCASE / legacy).is_file(), legacy)
+
+    def test_module_workflows_use_the_new_subgraphs(self):
+        for name, subgraph in (("CMK 2.8 · Detailer SDXL · Modul.json", "CMK Flow · Detailer"),
+                               ("CMK 2.8 · Detailer Advanced · Modul.json", "CMK Flow · Detailer · Advanced")):
+            workflow = json.loads((SHOWCASE / name).read_text(encoding="utf-8"))
+            definitions = {item["id"]: item["name"] for item in workflow["definitions"]["subgraphs"]}
+            used = [definitions[node["type"]] for node in workflow["nodes"] if node["type"] in definitions]
+            self.assertEqual(used, [subgraph], name)
 
 
 class SwapLoaderFallback(ScenarioCase):

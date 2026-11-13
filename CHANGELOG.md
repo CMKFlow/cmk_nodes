@@ -1,3 +1,27 @@
+# CMK Flow 2.8.0 — in Entwicklung (Detailer-Stand, 2026-11-13)
+
+Noch kein Release; die Paketversion bleibt bis zur Veröffentlichung 2.7.0.
+
+- Neuer Standard-Detailer `CMK Flow · Detailer` für SDXL oder Z-Image Turbo
+  und neuer `CMK Flow · Detailer · Advanced` mit drei unabhängigen Detailern,
+  jeder mit eigener Modellfamilie (NONE · SDXL · ZIT) und eigenen Einstellungen.
+- Lazy-Modellmaterialisierung: Prepare liefert Modell-Spezifikationen, Modelle
+  entstehen erst beim Branch-Cache-MISS; der Advanced-Merge fordert ZIT-Zweige
+  vor SDXL-Zweigen an, jede Familie wird einmal geladen und ZIT vor SDXL freigegeben.
+- Maskenbasierter Advanced-Merge: Zweige werden mit ihren tatsächlichen
+  Pasteback-Masken in der Reihenfolge D1 → D2 → D3 zusammengeführt; große
+  Sampling-ROIs überschreiben keine bearbeiteten Bereiche mehr.
+- Räumliche Diagnose: Smart Detailer mit Sampling ROI, Mask und Pasteback;
+  Merge mit INPUT SEGS, OVERLAP, COMPOSITE (Alpha-Anteile) und FINAL.
+- Persistente Branch- und Boundary-Caches liegen unter
+  `ComfyUI/user/cmk_cache/` und überstehen ComfyUI-Neustarts.
+- Außenansicht beider Detailer mit Dropdown `MODE` (Standard: DISABLE · SDXL ·
+  ZIT, Advanced: ENABLE · DISABLE) mit rechtsbündigen Werten.
+- Flow Browser: Flows-Katalog zeigt `Detailer` mit den Varianten Standard und
+  Advanced; MODULE WORKFLOWS 301/302 sind `CMK 2.8 · Detailer · Modul` und
+  `CMK 2.8 · Detailer Advanced · Modul`. Die SDXL-Detailer und ihre
+  Referenz-Workflows bleiben als Dateien erhalten, sind aber nicht mehr veröffentlicht.
+
 # CMK Flow 2.7.0 — 2026-11-10
 
 Paketversion: **CMK 2.7.0**.

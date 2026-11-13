@@ -199,7 +199,7 @@ class ZITStopAfterHandoffTests(unittest.TestCase):
         self.temporary.cleanup()
 
     def _cache_directory(self, scope):
-        path = self.temp_root / "cmk" / scope
+        path = self.temp_root / "cmk_cache" / scope
         path.mkdir(parents=True, exist_ok=True)
         return path
 

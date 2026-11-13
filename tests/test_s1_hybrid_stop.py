@@ -223,13 +223,13 @@ class HybridStopCacheIdentity(ScenarioCase):
         cls.v1_first = cls.run_case("hybrid_stop_sequence", workdir=cls.v1_workdir, stops=[False])
         if cls.v1_first is not None:
             entry = cls.v1_first["runs"][0]["scopes"][SCOPE][0]
-            path = cls.v1_workdir / "temp" / "cmk" / SCOPE / entry
+            path = cls.v1_workdir / "user" / "cmk_cache" / SCOPE / entry
             v1 = {"schema": "cmk_hybrid_sdxl_image_boundary_v1", "sha256": "", "payload": b""}
             payload = pickle.dumps({"image": None}, protocol=pickle.HIGHEST_PROTOCOL)
             import hashlib
             v1.update(payload=payload, sha256=hashlib.sha256(payload).hexdigest())
             path.write_bytes(pickle.dumps(v1, protocol=pickle.HIGHEST_PROTOCOL))
-            legacy = cls.v1_workdir / "temp" / "cmk" / INSTANTID_SCOPE / "legacy_v1_entry.pkl"
+            legacy = cls.v1_workdir / "user" / "cmk_cache" / INSTANTID_SCOPE / "legacy_v1_entry.pkl"
             legacy.parent.mkdir(parents=True, exist_ok=True)
             legacy.write_bytes(b"v1")
         cls.v1_second = cls.run_case("hybrid_stop_sequence", workdir=cls.v1_workdir, stops=[True])

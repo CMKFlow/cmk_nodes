@@ -45,7 +45,7 @@ def selfcheck_prompt() -> dict:
 
 
 def _scope_status(workdir: Path, scope: str):
-    path = Path(workdir) / "temp" / "cmk" / scope / "last_status.json"
+    path = Path(workdir) / "user" / "cmk_cache" / scope / "last_status.json"
     if not path.is_file():
         return None
     return json.loads(path.read_text(encoding="utf-8")).get("status")
@@ -110,12 +110,12 @@ def scope_inventory(workdir: str) -> dict:
     # Caches with their own directory helper instead of a SCOPE constant
     # (e.g. the Refiner boundary) are found by calling that helper inside the
     # isolated work directory.
-    temp_cmk = (Path(workdir) / "temp" / "cmk").resolve()
+    cache_root = (Path(workdir) / "user" / "cmk_cache").resolve()
     for module_name, module in runtime.cmk_modules.items():
         helper = vars(module).get("_cache_directory")
         if callable(helper) and not inspect.signature(helper).parameters:
             directory = Path(helper()).resolve()
-            if directory.parent == temp_cmk:
+            if directory.parent == cache_root:
                 declared.setdefault(directory.name, set()).add(f"{module_name.split('.')[-1]}._cache_directory")
     persistent = runtime.cmk_module("pipe.cmk_persistent_cache")
     completion = runtime.cmk_module("pipe.cmk_generation_completion_cache")
@@ -505,7 +505,7 @@ HYBRID_SCOPES = ("sdxl_hybrid_boundary", "sdxl_handoff_boundary")
 
 
 def _scope_listing(workdir: Path) -> dict:
-    root = Path(workdir) / "temp" / "cmk"
+    root = Path(workdir) / "user" / "cmk_cache"
     return {scope: sorted(p.name for p in (root / scope).glob("*.pkl")) if (root / scope).is_dir() else []
             for scope in HYBRID_SCOPES}
 
@@ -736,7 +736,7 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
                 raise content_guard.ContentGuardBlocked("CG_EXPLICIT_CONTENT", role)
         seams.substitute(content_guard.CMKContentGuard, "inspect_content", "guard.inspect_content", fake_inspect)
     for relative, data in (preseed or {}).items():
-        target = workdir / "temp" / "cmk" / relative
+        target = workdir / "user" / "cmk_cache" / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(bytes.fromhex(data))
     import comfy.utils

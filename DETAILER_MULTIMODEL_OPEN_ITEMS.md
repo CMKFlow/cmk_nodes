@@ -1,5 +1,9 @@
 # CMK Flow 2.7.1 – Detailer Multi-Model: offene Punkte vor der Modulabnahme
 
+> Stand 2026-11-13: Der Detailer-Stand ist für 2.8.0 abgenommen und paketiert
+> (siehe `CHANGELOG.md`, `ARCHITECTURE.md` 5.6a/5.6b). Dieses Dokument bleibt
+> als Entscheidungsverlauf erhalten.
+
 Stand: 2026-11-11. Dieses Dokument sammelt offene Layout- und Vertragsfragen
 des Subgraphen `CMK Flow · Detailer`. Der gültige Vertrag steht in
 `ARCHITECTURE.md` (5.2, 5.6a). Bis zur Klärung bleiben Legacy-Nodes,

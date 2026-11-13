@@ -301,17 +301,19 @@ See [`CONTENT_GUARD.md`](CONTENT_GUARD.md) for the authoritative policy.
 
 ## Cache behavior
 
-Internal CMK caches are stored under:
+Internal CMK branch and boundary caches are stored in the ComfyUI user
+directory (`--user-directory`), by default under:
 
 ```text
-ComfyUI/temp/cmk/
+ComfyUI/user/cmk_cache/
 ```
 
-The first execution after a restart, code change, or cache cleanup normally
-produces `MISS → STORED`. Unchanged branches and module boundaries may then
-resolve as `HIT` during the same ComfyUI session. Restarting ComfyUI clears
-these image-boundary caches; only the explicitly persistent video workflow has
-a cross-session continuation contract.
+ComfyUI empties its temp directory at every start and shutdown; this directory
+is kept. The first execution after a code change, configuration change, or
+cache cleanup normally produces `MISS → STORED`. Unchanged branches and module
+boundaries then resolve as `HIT`, also after a ComfyUI restart. `Clear
+Persistent Cache` in the Flow Browser removes only the registered CMK scopes in
+this directory.
 
 Cache entries carry revision and dependency markers. A branch is reused only
 when its manifest matches the currently materialized revisions. Caches are

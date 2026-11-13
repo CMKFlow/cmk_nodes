@@ -1,0 +1,19 @@
+{
+  "published": true,
+  "displayName": "CMK 2.8 · Detailer · Modul",
+  "kind": "module",
+  "order": 301,
+  "category": "MODULE WORKFLOWS",
+  "category_en": "MODULE WORKFLOWS",
+  "description": "Zeigt den CMK Flow Detailer als fertiges Modul in einem Stand-alone-Workflow. MODE wählt SDXL oder Z-Image Turbo für die Nachbearbeitung oder umgeht das Modul mit DISABLE.\n\nDer Preview Render zeigt Erkennung, Sampling-ROI, Maske, Pasteback und das Ergebnis.",
+  "description_en": "Shows the CMK Flow Detailer as a complete module in a standalone workflow. MODE selects SDXL or Z-Image Turbo for refinement or bypasses the module with DISABLE.\n\nThe preview render shows detection, sampling ROI, mask, pasteback and the result.",
+  "cmkHighlight": "Ein Detailer-Modul für SDXL und Z-Image Turbo: Modelle werden erst bei Bedarf geladen, Ergebnisse bleiben über Neustarts im CMK-Cache.",
+  "cmkHighlight_en": "One Detailer module for SDXL and Z-Image Turbo: models load only when needed, results stay in the CMK cache across restarts.",
+  "previews": [
+    {
+      "src": "assets/showcase/MODULE WORKFLOWS/01 - CMK 2.8 · Detailer · Modul/CMK 2.8 · Detailer · Modul.webp",
+      "label": "Workflow",
+      "label_en": "Workflow"
+    }
+  ]
+}

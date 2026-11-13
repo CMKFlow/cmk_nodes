@@ -338,19 +338,20 @@ Policy und zu den neutralen Diagnosecodes stehen in
 
 ## Cache-Verhalten
 
-Interne CMK-Caches liegen unter:
+Interne CMK-Branch- und Boundary-Caches liegen im ComfyUI-User-Verzeichnis
+(`--user-directory`), standardmäßig unter:
 
 ```text
-ComfyUI/temp/cmk/
+ComfyUI/user/cmk_cache/
 ```
 
-Ein erster Lauf nach Neustart, Codeänderung oder Cache-Bereinigung erzeugt
-erwartbar `MISS → STORED`. Unveränderte parallele Zweige und abgeschlossene
-Modulgrenzen sollen innerhalb derselben ComfyUI-Sitzung anschließend als `HIT`
-aufgelöst werden, ohne die teure Verarbeitung erneut auszuführen. Ein
-ComfyUI-Neustart leert diese Bild-Boundary-Caches; nur die ausdrücklich
-persistente Videoverarbeitung besitzt einen sitzungsübergreifenden
-Fortsetzungsvertrag.
+ComfyUI leert sein Temp-Verzeichnis bei jedem Start und Beenden; dieses
+Verzeichnis bleibt dagegen erhalten. Ein erster Lauf nach Codeänderung,
+Konfigurationsänderung oder Cache-Bereinigung erzeugt erwartbar
+`MISS → STORED`. Unveränderte Zweige und abgeschlossene Modulgrenzen werden
+anschließend als `HIT` aufgelöst, auch nach einem ComfyUI-Neustart, ohne die
+teure Verarbeitung erneut auszuführen. `Clear Persistent Cache` im Flow Browser
+entfernt ausschließlich die registrierten CMK-Scopes in diesem Verzeichnis.
 
 Branch-Caches besitzen Revisionsmarker. Detailer- und FaceProcess-Boundaries
 akzeptieren einen HIT nur dann, wenn ihr Dependency-Manifest exakt zu den

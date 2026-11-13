@@ -45,6 +45,48 @@ EXPECTED = {
             ("CMKModelForwardPipe", (1560, 2055)): ((235, 30), 8),
         },
     },
+    # 2.8.0 Multi-Model Detailer: approved layouts taken over unchanged.
+    "CMK Flow · Detailer.json": {
+        "id": "5ac186bf-4185-4957-bdee-859164e567fc",
+        "inputs": [
+            "MODEL ZIT", "MODEL_1", "PROCESS_1", "IMAGE_1", "LOG BYPASS",
+            "VISUAL IN", "model_family",
+        ],
+        "layout": {
+            ("CMKDetailerBoundaryCache", (8255, 2565)): ((230, 170), 0),
+            ("CMKResultProcessForwardPipe", (8725, 2565)): ((280, 30), 1),
+            ("CMKVisualCompare", (8930, 1920)): ((530, 590), 2),
+            ("CMKModuleBypassGate", (8490, 2565)): ((230, 285), 3),
+            ("CMKModelForwardPipe", (9210, 2565)): ((235, 60), 4),
+            ("CMKDetailerPrepareMultiModelPipe", (8010, 1920)): ((450, 590), 5),
+            ("CMK_SmartDetailerMultiModelPipe", (8470, 1925)): ((450, 585), 6),
+            ("CMKModelForwardPipe", (8975, 2565)): ((235, 30), 7),
+            ("CMKDetailerFamilyEnable", (8020, 2565)): ((230, 60), 8),
+        },
+    },
+    "CMK Flow · Detailer · Advanced.json": {
+        "id": "c65f6b01-4f30-4937-8ea6-2b229ef2e076",
+        "inputs": [
+            "MODEL ZIT", "MODEL SDXL", "PROCESS", "IMAGE", "LOG", "VISUAL",
+            "detailer_global_enable",
+        ],
+        "layout": {
+            ("CMKDetailerPrepareAdvancedMultiModelPipe", (8005, 1915)): ((450, 760), 13),
+            ("CMKDetailerFamilyEnable", (8465, 1915)): ((450, 130), 0),
+            ("CMK_SmartDetailerMultiModelPipe", (8465, 2080)): ((450, 600), 3),
+            ("CMKDetailerFamilyEnable", (8925, 1915)): ((450, 130), 1),
+            ("CMK_SmartDetailerMultiModelPipe", (8925, 2080)): ((450, 600), 4),
+            ("CMKDetailerFamilyEnable", (9385, 1915)): ((450, 130), 2),
+            ("CMK_SmartDetailerMultiModelPipe", (9385, 2080)): ((450, 600), 5),
+            ("CMKDetailerMergeMultiModel", (8690, 2730)): ((320, 305), 6),
+            ("CMKDetailerBoundaryCache", (8925, 2730)): ((190, 170), 7),
+            ("CMKModuleBypassGate", (8455, 2730)): ((285, 260), 8),
+            ("CMKVisualCompare", (9845, 1915)): ((625, 765), 9),
+            ("CMKResultProcessForwardPipe", (9160, 2730)): ((280, 30), 10),
+            ("CMKModelForwardPipe", (9410, 2730)): ((225, 30), 11),
+            ("CMKModelForwardPipe", (9645, 2730)): ((225, 30), 12),
+        },
+    },
     "CMK Flow · FaceSwap · Advanced.json": {
         "id": "062af015-5929-4d94-86bd-fd060f67ee53",
         "inputs": [

@@ -338,8 +338,9 @@ function graphProviders(displayNode) {
             .filter((item) => nodeKind(item) === "CMKPipeCreateImage")
             .flatMap((item) => item.widgets || [])
             .find((item) => item.name === enableWidget);
-        // A model-family combo ("None" / SDXL / ...) is off at "None".
-        return !widget || (Boolean(widget.value) && widget.value !== "None");
+        // A model-family combo ("None" / SDXL / ...) is off at "None", an
+        // ENABLE / DISABLE combo at "DISABLE".
+        return !widget || (Boolean(widget.value) && widget.value !== "None" && widget.value !== "DISABLE");
       })
       .map((declaredItem) => {
       const item = remappedDeclaredProvider(node, declaredItem);

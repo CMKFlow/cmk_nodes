@@ -68,7 +68,7 @@ class PersistentCacheClearTests(unittest.TestCase):
         return key
 
     def _scope_file(self, scope, name="b" * 64 + ".pkl", data=b"cache"):
-        path = self.temp_root / "cmk" / scope / name
+        path = self.temp_root / "cmk_cache" / scope / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
         return path
@@ -86,14 +86,14 @@ class PersistentCacheClearTests(unittest.TestCase):
         refiner._FINGERPRINT_MEMO["refiner"] = ("key", "detail")
 
         result = control.clear_persistent_cmk_cache(
-            FakePromptQueue(), temp_root=self.temp_root
+            FakePromptQueue(), base_directory=self.temp_root
         )
 
         self.assertTrue(result["ok"])
         self.assertEqual(result["areas"]["generation_completion"]["entries"], 1)
         self.assertIsNone(completion.lookup_completion(key))
         for scope in persistent.PERSISTENT_DISK_SCOPES:
-            path = self.temp_root / "cmk" / scope
+            path = self.temp_root / "cmk_cache" / scope
             self.assertTrue(path.is_dir())
             self.assertEqual(list(path.iterdir()), [])
         self.assertFalse(boundaries._DETAILER_SESSION)
@@ -104,7 +104,7 @@ class PersistentCacheClearTests(unittest.TestCase):
         self.assertFalse(refiner._FINGERPRINT_MEMO)
 
         again = control.clear_persistent_cmk_cache(
-            FakePromptQueue(), temp_root=self.temp_root
+            FakePromptQueue(), base_directory=self.temp_root
         )
         self.assertEqual(again["totals"], {"entries": 0, "files": 0, "bytes": 0})
 
@@ -116,16 +116,46 @@ class PersistentCacheClearTests(unittest.TestCase):
         outside.write_bytes(b"user data")
 
         control.clear_persistent_cmk_cache(
-            FakePromptQueue(), temp_root=self.temp_root
+            FakePromptQueue(), base_directory=self.temp_root
         )
 
         self.assertFalse(known.exists())
         self.assertEqual(unknown.read_bytes(), b"cache")
         self.assertEqual(outside.read_bytes(), b"user data")
 
+    def test_cache_root_is_below_the_user_directory_not_temp(self):
+        folder_paths = types.SimpleNamespace(
+            get_user_directory=lambda: str(self.root / "user_a"),
+            get_temp_directory=lambda: str(self.root / "temp"),
+        )
+        with patch.dict(sys.modules, {"folder_paths": folder_paths}):
+            branch = persistent.cache_directory("detailer_branch")
+            boundary = refiner._cache_directory()
+            self.assertEqual(branch, self.root / "user_a" / "cmk_cache" / "detailer_branch")
+            self.assertEqual(boundary, self.root / "user_a" / "cmk_cache" / "refiner_boundary")
+            self.assertFalse((self.root / "temp").exists(), "nothing is created in ComfyUI temp")
+            # Another --user-directory, another cache.
+            folder_paths.get_user_directory = lambda: str(self.root / "user_b")
+            self.assertEqual(persistent.cache_directory("detailer_branch"),
+                             self.root / "user_b" / "cmk_cache" / "detailer_branch")
+
+    def test_clear_keeps_user_data_next_to_the_cache_root(self):
+        known = self._scope_file("detailer_boundary")
+        workflow = self.temp_root / "default" / "workflows" / "keep.json"
+        workflow.parent.mkdir(parents=True)
+        workflow.write_text("{}", encoding="utf-8")
+        log = self.temp_root / "comfyui.log"
+        log.write_text("log", encoding="utf-8")
+
+        control.clear_persistent_cmk_cache(FakePromptQueue(), base_directory=self.temp_root)
+
+        self.assertFalse(known.exists())
+        self.assertEqual(workflow.read_text(encoding="utf-8"), "{}")
+        self.assertEqual(log.read_text(encoding="utf-8"), "log")
+
     def test_rejects_scope_symlink_before_any_deletion(self):
         self._completion_entry()
-        cmk_root = self.temp_root / "cmk"
+        cmk_root = self.temp_root / "cmk_cache"
         cmk_root.mkdir(parents=True)
         outside = self.root / "outside"
         outside.mkdir()
@@ -135,7 +165,7 @@ class PersistentCacheClearTests(unittest.TestCase):
 
         with self.assertRaises(control.PersistentCacheClearError) as raised:
             control.clear_persistent_cmk_cache(
-                FakePromptQueue(), temp_root=self.temp_root
+                FakePromptQueue(), base_directory=self.temp_root
             )
 
         self.assertEqual(raised.exception.phase, "path_validation")
@@ -143,14 +173,14 @@ class PersistentCacheClearTests(unittest.TestCase):
         self.assertEqual(sentinel.read_bytes(), b"keep")
 
     def test_unlinks_nested_symlink_without_following_target(self):
-        scope = self.temp_root / "cmk" / "faceprocess_branch"
+        scope = self.temp_root / "cmk_cache" / "faceprocess_branch"
         scope.mkdir(parents=True)
         outside = self.root / "outside.bin"
         outside.write_bytes(b"keep")
         (scope / "linked.bin").symlink_to(outside)
 
         control.clear_persistent_cmk_cache(
-            FakePromptQueue(), temp_root=self.temp_root
+            FakePromptQueue(), base_directory=self.temp_root
         )
 
         self.assertEqual(outside.read_bytes(), b"keep")
@@ -169,7 +199,7 @@ class PersistentCacheClearTests(unittest.TestCase):
 
         with self.assertRaises(control.PersistentCacheClearError) as raised:
             control.clear_persistent_cmk_cache(
-                FakePromptQueue(), temp_root=self.temp_root
+                FakePromptQueue(), base_directory=self.temp_root
             )
 
         self.assertEqual(raised.exception.phase, "generation_completion")
@@ -184,7 +214,7 @@ class PersistentCacheClearTests(unittest.TestCase):
         link.symlink_to(outside)
 
         result = control.clear_persistent_cmk_cache(
-            FakePromptQueue(), temp_root=self.temp_root
+            FakePromptQueue(), base_directory=self.temp_root
         )
 
         self.assertFalse(link.exists())
@@ -197,7 +227,7 @@ class PersistentCacheClearTests(unittest.TestCase):
 
         with self.assertRaises(control.PersistentCacheBusyError):
             control.clear_persistent_cmk_cache(
-                FakePromptQueue(running=True), temp_root=self.temp_root
+                FakePromptQueue(running=True), base_directory=self.temp_root
             )
 
         self.assertTrue(scope_file.exists())
@@ -206,7 +236,7 @@ class PersistentCacheClearTests(unittest.TestCase):
     def test_waiting_prompt_does_not_block_atomic_clear(self):
         self._completion_entry()
         result = control.clear_persistent_cmk_cache(
-            FakePromptQueue(queued=True), temp_root=self.temp_root
+            FakePromptQueue(queued=True), base_directory=self.temp_root
         )
         self.assertTrue(result["cleared"])
 
@@ -214,7 +244,7 @@ class PersistentCacheClearTests(unittest.TestCase):
         orphan = self._scope_file("faceprocess_branch", "orphan.rev", b"revision")
         corrupt = self._scope_file("refiner_boundary", "broken.json", b"{")
         control.clear_persistent_cmk_cache(
-            FakePromptQueue(), temp_root=self.temp_root
+            FakePromptQueue(), base_directory=self.temp_root
         )
         self.assertFalse(orphan.exists())
         self.assertFalse(corrupt.exists())
