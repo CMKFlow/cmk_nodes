@@ -1326,8 +1326,7 @@
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  9,
-                  22948
+                  9
                 ]
               },
               {
@@ -1654,8 +1653,7 @@
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  15,
-                  22949
+                  15
                 ]
               },
               {
@@ -1981,8 +1979,7 @@
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  21,
-                  22950
+                  21
                 ]
               },
               {
@@ -2196,6 +2193,30 @@
                 "links": [
                   26,
                   22947
+                ]
+              },
+              {
+                "localized_name": "diagnostic 1",
+                "name": "diagnostic 1",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  22948
+                ]
+              },
+              {
+                "localized_name": "diagnostic 2",
+                "name": "diagnostic 2",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  22949
+                ]
+              },
+              {
+                "localized_name": "diagnostic 3",
+                "name": "diagnostic 3",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  22950
                 ]
               }
             ],
@@ -3425,15 +3446,15 @@
           },
           {
             "id": 22948,
-            "origin_id": 3,
-            "origin_slot": 5,
+            "origin_id": 8,
+            "origin_slot": 4,
             "target_id": 8589,
             "target_slot": 0,
             "type": "CMK_DIAGNOSTIC"
           },
           {
             "id": 22949,
-            "origin_id": 5,
+            "origin_id": 8,
             "origin_slot": 5,
             "target_id": 8590,
             "target_slot": 0,
@@ -3441,8 +3462,8 @@
           },
           {
             "id": 22950,
-            "origin_id": 7,
-            "origin_slot": 5,
+            "origin_id": 8,
+            "origin_slot": 6,
             "target_id": 8588,
             "target_slot": 0,
             "type": "CMK_DIAGNOSTIC"

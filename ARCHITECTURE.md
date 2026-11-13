@@ -1080,7 +1080,8 @@ Modellfamilie wird höchstens einmal materialisiert, ZIT vor SDXL.
 CMK Detailer Family Enable ×3 ──MODEL FAMILY──┐
 MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG ┴→ CMK Detailer Prepare Advanced Multi-Model -Pipe-
     → DETAILER 1/2/3 (Specs, keine Modelle) → CMK Smart Detailer Multi-Model -Pipe- ×3
-    → CMK Detailer Merge Multi-Model (lazy, ZIT → SDXL, None nie) → Detailer-Boundary → Gate
+    → CMK Detailer Merge Multi-Model (lazy, ZIT → SDXL, von None nur die Diagnose) → Detailer-Boundary → Gate
+    Merge diagnostic 1/2/3 → CMK Preview Render ×3 · Merge diagnostic → CMK Preview Render
 ```
 
 - **Advanced Prepare:** gemeinsame Einstellungen (SAM, Prompt aus 1st Pass,
@@ -1098,9 +1099,19 @@ MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG ┴→ CMK Detailer Prepare Advan
 - **Branch-Cache je Slot:** Der Schlüssel eines Advanced-Detailers enthält nur
   die gemeinsamen Einstellungen und seinen eigenen Slot; ein `None`-Slot meldet
   `DISABLED_REVISION`.
-- **Merge:** fordert die Zweige lazy an, zuerst ZIT, dann SDXL; `None` nie.
-  Ergebnisse, LOG und Diagnose werden nach Slot zugeordnet, unabhängig von der
+- **Merge:** fordert die Zweige lazy an, zuerst ZIT, dann SDXL; von einem
+  `None`-Slot nur dessen Diagnose (Bypass), zuletzt. Ergebnisse, LOG und
+  Diagnose werden nach Slot zugeordnet, unabhängig von der
   Ausführungsreihenfolge und vom Cache-Zustand.
+- **Einzel-Diagnosen hinter dem Merge** (2.8.0 Plan B): Der Merge gibt die
+  Diagnosen der drei Detailer unverändert an den Ausgängen `diagnostic 1..3`
+  weiter (angehängt, die bisherigen Ausgangs-Slots bleiben). Die drei
+  Einzel-Previews hängen dort und nicht direkt an den Smart Detailern: Ein
+  Output-Node an einem Detailer ist ein eigener Output-Root, den ComfyUI in
+  der zufälligen Root-Reihenfolge ausführt, also außerhalb der Reihenfolge
+  ZIT → SDXL. Boundary, Cache-Schlüssel und `MERGE_SEMANTICS` sind
+  unverändert. `tests/test_detailer_advanced_output_roots.py` verhindert
+  Output-Pfade an einem Smart Detailer vorbei am Merge.
 - **Boundary:** Alle drei `None` gelten als Bypass; die Aufbewahrung folgt der
   einfachen Regel (ein Eintrag je Boundary).
 - **Subgraph** `CMK Flow · Detailer · Advanced`: drei Family Enable über ihren
@@ -1128,7 +1139,8 @@ MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG ┴→ CMK Detailer Prepare Advan
   den gecachten SEGS. Der Merge liefert eine eigene Diagnose `01 · INPUT SEGS`,
   `02 · OVERLAP` (Maskenüberschneidung; ROI-Überschneidung nur als Referenz),
   `03 · COMPOSITE` (exakte Alpha-Anteile je Slot) und `04 · FINAL`; die
-  Eingänge `diagnostic i` bleiben optional, werden aber nicht mehr angefordert.
+  Eingänge `diagnostic i` werden mit ihrem Zweig angefordert und nur
+  weitergereicht.
 - **Maskenbasierter Merge** (`merge_segs_collections_masked`, nur
   `CMK Detailer Merge Multi-Model`): jeder Zweig wird in Slot-Reihenfolge mit
   `SEGSPaste.doit` und den Pasteback-Werten des Smart Detailers

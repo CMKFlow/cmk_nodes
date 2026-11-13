@@ -8,12 +8,26 @@ on a branch-cache MISS (``_materialize_detailer``), so models exist only while
 a Detailer samples and no node output holds them.
 
 CMK Detailer Merge Multi-Model requests the Detailer branches lazily, the
-Z-Image Turbo branches first and SDXL after them, never a None branch, and
-merges their SEGS in slot order.  The guarded ZIT release in the SDXL path of
-the Multi-Model Prepare can therefore free ZIT before SDXL loads.
+Z-Image Turbo branches first and SDXL after them, and merges their SEGS in
+slot order.  Of a None branch it requests only the diagnostic, last.  The
+guarded ZIT release in the SDXL path of the Multi-Model Prepare can therefore
+free ZIT before SDXL loads.
+
+The merge also passes each Detailer diagnostic on unchanged (outputs
+``diagnostic 1..3``, 2.8.0 Plan B).  The single Detailer previews hang behind
+the merge instead of directly on the Detailers: an output node on a Detailer
+would be an independent output root and run that Detailer outside the
+family-ordered requests.
 """
 
 from __future__ import annotations
+
+try:
+    from comfy_execution.graph_utils import ExecutionBlocker
+except ImportError:  # Unit tests outside a running ComfyUI installation.
+    class ExecutionBlocker:
+        def __init__(self, message):
+            self.message = message
 
 from ..utils.cmk_diagnostic import make_diagnostic_payload
 from ..utils.segs_branch_merge import merge_segs_collections_masked, valid_segs
@@ -307,8 +321,13 @@ class CMKDetailerMergeMultiModel:
             "hidden": {"prompt": "PROMPT", "unique_id": "UNIQUE_ID"},
         }
 
-    RETURN_TYPES = ("IMAGE", "CMK_LOG_PIPE", "CMK_VISUAL_PIPE", "CMK_DIAGNOSTIC")
-    RETURN_NAMES = ("IMAGE", "LOG", "VISUAL", "diagnostic")
+    # The slot diagnostics are appended, so the slots of the existing outputs
+    # and every saved link to them stay unchanged.
+    RETURN_TYPES = (
+        "IMAGE", "CMK_LOG_PIPE", "CMK_VISUAL_PIPE", "CMK_DIAGNOSTIC",
+        "CMK_DIAGNOSTIC", "CMK_DIAGNOSTIC", "CMK_DIAGNOSTIC",
+    )
+    RETURN_NAMES = ("IMAGE", "LOG", "VISUAL", "diagnostic", "diagnostic 1", "diagnostic 2", "diagnostic 3")
     FUNCTION = "merge"
     CATEGORY = "CMK/Flow/PostProcess"
 
@@ -341,12 +360,15 @@ class CMKDetailerMergeMultiModel:
 
     def check_lazy_status(self, prompt=None, unique_id=None, **kwargs):
         families = self.slot_families(prompt, unique_id)
-        for wanted in ("z_image_turbo", "sdxl", "unknown"):
+        branch = ("SEGS", "LOG", "diagnostic")
+        # A slot's diagnostic joins the request of its own family group; of a
+        # None slot only the diagnostic (its bypass) is requested, last.
+        for wanted, names in (("z_image_turbo", branch), ("sdxl", branch), ("unknown", branch), ("none", ("diagnostic",))):
             missing = [
-                name
+                f"{name} {slot}"
                 for slot, family in sorted(families.items()) if family == wanted
-                for name in (f"SEGS {slot}", f"LOG {slot}")
-                if name in kwargs and kwargs[name] is None
+                for name in names
+                if f"{name} {slot}" in kwargs and kwargs[f"{name} {slot}"] is None
             ]
             if missing:
                 return missing
@@ -412,14 +434,19 @@ class CMKDetailerMergeMultiModel:
                 stage_key="sdxl.detailer.advanced",
             )
         diagnostic = self._merge_diagnostic(IMAGE, result_image, segs_collections, families, feather, alpha)
-        return result_image, log_pipe, result_visual, diagnostic
+        # Passed on as received; an unconnected slot blocks its preview.
+        slot_diagnostics = tuple(
+            kwargs.get(f"diagnostic {slot}") if kwargs.get(f"diagnostic {slot}") is not None else ExecutionBlocker(None)
+            for slot in SLOTS
+        )
+        return (result_image, log_pipe, result_visual, diagnostic, *slot_diagnostics)
 
     @staticmethod
     def _merge_diagnostic(image, result_image, segs_collections, families, feather, alpha):
         """The merge's own spatial diagnostic (2.8.0), image data only.
 
-        The single Detailer diagnostics stay on the Detailers; the inputs
-        ``diagnostic i`` remain for saved workflows but are not requested.
+        The single Detailer diagnostics are not part of it; they leave the
+        merge unchanged on the outputs ``diagnostic 1..3``.
         """
         stages, metrics = merge_diagnostic_stages(
             image, result_image, segs_collections, families,

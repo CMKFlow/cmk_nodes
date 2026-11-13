@@ -180,24 +180,46 @@ class Merge(unittest.TestCase):
         prompt = merge_prompt(("Z-Image Turbo", "SDXL", "Z-Image Turbo"))
         self.assertEqual(MERGE.slot_families(prompt, "m"), {1: "z_image_turbo", 2: "sdxl", 3: "z_image_turbo"})
         node = MERGE()
-        # The single Detailer diagnostics are no longer requested (2.8.0: the
-        # merge builds its own spatial diagnostic); the inputs stay optional.
+        # Plan B: a slot diagnostic joins the request of its own family group,
+        # so the single Detailer previews behind the merge keep ZIT before SDXL.
         kwargs = missing_kwargs()
         self.assertEqual(node.check_lazy_status(prompt=prompt, unique_id="m", **kwargs),
-                         ["SEGS 1", "LOG 1", "SEGS 3", "LOG 3"])
+                         ["SEGS 1", "LOG 1", "diagnostic 1", "SEGS 3", "LOG 3", "diagnostic 3"])
         for slot in (1, 3):
             for name in ("SEGS", "LOG", "diagnostic"):
                 kwargs[f"{name} {slot}"] = object()
-        self.assertEqual(node.check_lazy_status(prompt=prompt, unique_id="m", **kwargs), ["SEGS 2", "LOG 2"])
+        self.assertEqual(node.check_lazy_status(prompt=prompt, unique_id="m", **kwargs),
+                         ["SEGS 2", "LOG 2", "diagnostic 2"])
         kwargs.update({"SEGS 2": object(), "LOG 2": object(), "diagnostic 2": object()})
         self.assertEqual(node.check_lazy_status(prompt=prompt, unique_id="m", **kwargs), [])
 
-    def test_none_slots_are_never_requested(self):
+    def test_none_slots_request_only_their_diagnostic_last(self):
         prompt = merge_prompt(("SDXL", "None", "None"))
-        self.assertEqual(MERGE().check_lazy_status(prompt=prompt, unique_id="m", **missing_kwargs()),
-                         ["SEGS 1", "LOG 1"])
+        kwargs = missing_kwargs()
+        self.assertEqual(MERGE().check_lazy_status(prompt=prompt, unique_id="m", **kwargs),
+                         ["SEGS 1", "LOG 1", "diagnostic 1"])
+        kwargs.update({"SEGS 1": object(), "LOG 1": object(), "diagnostic 1": object()})
+        self.assertEqual(MERGE().check_lazy_status(prompt=prompt, unique_id="m", **kwargs),
+                         ["diagnostic 2", "diagnostic 3"], "never SEGS or LOG of a None slot")
         prompt = merge_prompt(("None", "None", "None"))
-        self.assertEqual(MERGE().check_lazy_status(prompt=prompt, unique_id="m", **missing_kwargs()), [])
+        self.assertEqual(MERGE().check_lazy_status(prompt=prompt, unique_id="m", **missing_kwargs()),
+                         ["diagnostic 1", "diagnostic 2", "diagnostic 3"])
+
+    def test_slot_diagnostics_are_passed_on_unchanged(self):
+        self.assertEqual(MERGE.RETURN_NAMES,
+                         ("IMAGE", "LOG", "VISUAL", "diagnostic", "diagnostic 1", "diagnostic 2", "diagnostic 3"))
+        self.assertEqual(MERGE.RETURN_TYPES[4:], ("CMK_DIAGNOSTIC",) * 3)
+        prompt = merge_prompt(("Z-Image Turbo", "None", "SDXL"))
+        image = torch.zeros(1, 16, 16, 3)
+        empty = ((16, 16), [])
+        d1, d2 = {"title": "D1"}, {"title": "D2 bypass"}
+        result = MERGE().merge(IMAGE=image, prompt=prompt, unique_id="m",
+                               **{"SEGS 1": empty, "diagnostic 1": d1, "diagnostic 2": d2, "SEGS 3": empty})
+        self.assertEqual(len(result), 7)
+        self.assertIs(result[4], d1)
+        self.assertIs(result[5], d2)
+        self.assertIsInstance(result[6], advanced.ExecutionBlocker, "a missing slot diagnostic blocks its preview")
+        self.assertEqual(result[3]["title"], "CMK Flow · Detailer Advanced · Merge", "merge diagnostic unchanged")
 
     def test_slot_assignment_is_independent_of_arrival(self):
         prompt = merge_prompt(("Z-Image Turbo", "None", "SDXL"))
@@ -205,7 +227,7 @@ class Merge(unittest.TestCase):
         base = {"blocks": [{"title": "Detailer Prepare Advanced", "order": 70, "lines": ["x"], "enabled": True}]}
         slot_log = lambda title: {"blocks": base["blocks"] + [{"title": title, "order": 70, "lines": ["y"], "enabled": True}]}
         empty = ((16, 16), [])
-        _image, log, _visual, _diag = MERGE().merge(
+        _image, log, _visual, _diag, *_slots = MERGE().merge(
             IMAGE=image, LOG=base, prompt=prompt, unique_id="m",
             **{"SEGS 3": empty, "LOG 3": slot_log("Smart Detailer B"), "diagnostic 3": None,
                "SEGS 1": empty, "LOG 1": slot_log("Smart Detailer A"), "diagnostic 1": None})

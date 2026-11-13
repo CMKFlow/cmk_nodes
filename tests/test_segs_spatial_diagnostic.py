@@ -270,14 +270,17 @@ class MergeNode(unittest.TestCase):
             **{"SEGS 1": self.d1, "SEGS 3": self.d3, "diagnostic 1": sentinel, "diagnostic 3": sentinel})
 
     def test_node_uses_the_mask_merge(self):
-        image, _log, _visual, _diag = self.run_merge()
+        image, _log, _visual, _diag, *_slots = self.run_merge()
         self.assertTrue(torch.equal(image, MASKED(self.source, [self.d1, ((W, H), []), self.d3])))
 
     def test_own_four_stage_diagnostic_with_disabled_slot(self):
-        image, _log, _visual, diagnostic = self.run_merge()
+        image, _log, _visual, diagnostic, *slots = self.run_merge()
         self.assertEqual([stage["title"] for stage in diagnostic["stages"]],
                          ["01 · INPUT SEGS", "02 · OVERLAP", "03 · COMPOSITE", "04 · FINAL"])
         self.assertNotIn("single detailer", str(diagnostic))
+        # Plan B: the single Detailer diagnostics leave the merge unchanged, apart from its own.
+        self.assertEqual([item.get("title") if isinstance(item, dict) else type(item).__name__ for item in slots],
+                         ["single detailer", "ExecutionBlocker", "single detailer"])
         self.assertEqual(diagnostic["metadata"]["families"], {"D1": "sdxl", "D2": "none", "D3": "z_image_turbo"})
         self.assertEqual(diagnostic["metrics"]["share_px"]["D2"], 0)
         weights = diag.merge_weights([self.d1, None, self.d3], H, W)
@@ -312,7 +315,7 @@ class MergeNode(unittest.TestCase):
     def test_no_model_objects_in_diagnostics(self):
         class Model:  # stands for any model/patcher object
             pass
-        _image, _log, _visual, diagnostic = self.run_merge()
+        _image, _log, _visual, diagnostic, *_slots = self.run_merge()
         self.assertFalse(contains_object(diagnostic, (Model,)))
         self.assertTrue(allowed_leaves(diagnostic))
 
