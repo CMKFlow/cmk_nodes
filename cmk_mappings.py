@@ -52,6 +52,7 @@ from .pipe.cmk_module_boundary_cache import (
 )
 from .pipe.cmk_detailer_prepare import CMKDetailerPreparePipe
 from .pipe.cmk_detailer_prepare_multimodel import CMKDetailerFamilyEnable, CMKDetailerPrepareMultiModelPipe
+from .pipe.cmk_faceprocess_mode import CMKFaceProcessModeEnable
 from .pipe.cmk_detailer_advanced_multimodel import CMKDetailerMergeMultiModel, CMKDetailerPrepareAdvancedMultiModelPipe
 from .pipe.cmk_faceprocess_prepare import CMKFaceProcessPreparePipe
 from .pipe.cmk_faceprocess import CMKFaceProcessPipe
@@ -245,6 +246,7 @@ NODE_CLASS_MAPPINGS = {
     "CMKDetailerMergeMultiModel": CMKDetailerMergeMultiModel,
     "CMKFaceProcessPreparePipe": CMKFaceProcessPreparePipe,
     "CMKFaceProcessPipe": CMKFaceProcessPipe,
+    "CMKFaceProcessModeEnable": CMKFaceProcessModeEnable,
     "CMKDetailerFinalizePipe": CMKDetailerFinalizePipe,
     "CMKPipeCreateFaceProcess": CMKPipeCreateFaceProcess,
     "CMKPipePeekPreprocessDetailer": CMKPipePeekPreprocessDetailer,
@@ -421,6 +423,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CMKDetailerMergeMultiModel": "CMK Detailer Merge Multi-Model",
     "CMKFaceProcessPreparePipe": "CMK FaceProcess Prepare -Pipe-",
     "CMKFaceProcessPipe": "CMK FaceProcess -Pipe-",
+    "CMKFaceProcessModeEnable": "CMK FaceProcess Mode Enable",
     "CMKDetailerFinalizePipe": "CMK Detailer Finalize -Pipe-",
     "CMKPipeCreateFaceProcess": "CMK Pipe Create Face Process",
     "CMKPipePeekPreprocessDetailer": "CMK Pipe Peek Preprocess Detailer",

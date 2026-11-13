@@ -115,8 +115,8 @@ async def _cmk_packaged_reference_view(request, handler):
 
 # Inactive CMK gates must not carry unused module inputs into ComfyUI's cache
 # keys; see cmk_prompt_gate_pruning (CMK_PROMPT_GATE_PRUNING=0 disables it).
-# A linked CMK Detailer Family Enable reaches the backend as its literal
-# selection; see cmk_prompt_family_inline.
+# A linked CMK Detailer Family Enable or CMK FaceProcess Mode Enable reaches
+# the backend as its literal selection; see cmk_prompt_family_inline.
 _cmk_register_family_inline(PromptServer.instance)
 _cmk_register_gate_pruning(PromptServer.instance)
 

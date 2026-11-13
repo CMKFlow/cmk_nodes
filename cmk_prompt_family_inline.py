@@ -1,4 +1,9 @@
-"""Inline the selection of CMK Detailer Family Enable into its consumers.
+"""Inline the selection of the CMK mode controls into their consumers.
+
+Controls: CMK Detailer Family Enable (``model_family``: None, SDXL, Z-Image
+Turbo) and, since FaceProcess 2.8, CMK FaceProcess Mode Enable
+(``process_mode``: None, Restore, SDXL, Z-Image Turbo).  Each control inlines
+only its own values; the Detailer control and its prompts are unchanged.
 
 A control node linked to the ``model_family`` widget of the Multi-Model
 Detailer Prepare would otherwise reach the backend as a link.  Gate pruning
@@ -16,19 +21,31 @@ import copy
 import logging
 from typing import Any
 
+from .pipe.cmk_faceprocess_mode import FACEPROCESS_MODE_WIDGET, FACEPROCESS_MODES
+
 FAMILY_CONTROL_CLASS = "CMKDetailerFamilyEnable"
 FAMILY_OUTPUT_SLOT = 1
 FAMILY_VALUES = ("None", "SDXL", "Z-Image Turbo")
+FACEPROCESS_CONTROL_CLASS = "CMKFaceProcessModeEnable"
+
+# control class -> (selection widget, output slot of the selection, valid values)
+CONTROL_CLASSES = {
+    FAMILY_CONTROL_CLASS: ("model_family", FAMILY_OUTPUT_SLOT, FAMILY_VALUES),
+    FACEPROCESS_CONTROL_CLASS: (FACEPROCESS_MODE_WIDGET, 1, tuple(FACEPROCESS_MODES)),
+}
 
 
 def inline_family_links(prompt: dict) -> tuple[dict, int]:
     """Return a copy of ``prompt`` with control links inlined and their count."""
-    selections = {
-        str(node_id): (node.get("inputs") or {}).get("model_family")
-        for node_id, node in prompt.items()
-        if isinstance(node, dict) and str(node.get("class_type", "")) == FAMILY_CONTROL_CLASS
-    }
-    selections = {key: value for key, value in selections.items() if value in FAMILY_VALUES}
+    selections = {}
+    for node_id, node in prompt.items():
+        control = CONTROL_CLASSES.get(str(node.get("class_type", ""))) if isinstance(node, dict) else None
+        if control is None:
+            continue
+        widget, slot, values = control
+        value = (node.get("inputs") or {}).get(widget)
+        if value in values:
+            selections[str(node_id)] = (value, slot)
     if not selections:
         return prompt, 0
     result = copy.deepcopy(prompt)
@@ -42,9 +59,9 @@ def inline_family_links(prompt: dict) -> tuple[dict, int]:
                 isinstance(value, (list, tuple))
                 and len(value) == 2
                 and str(value[0]) in selections
-                and value[1] == FAMILY_OUTPUT_SLOT
+                and value[1] == selections[str(value[0])][1]
             ):
-                inputs[name] = selections[str(value[0])]
+                inputs[name] = selections[str(value[0])][0]
                 count += 1
     return (result, count) if count else (prompt, 0)
 
@@ -61,7 +78,7 @@ def on_prompt(json_data: Any) -> Any:
         result["prompt"] = prompt
         return result
     except Exception:
-        logging.exception("[CMK Detailer Family] inline failed · prompt left unchanged")
+        logging.exception("[CMK Mode Control] inline failed · prompt left unchanged")
         return json_data
 
 
