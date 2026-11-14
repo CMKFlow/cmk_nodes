@@ -1013,7 +1013,8 @@ def _summary_card(data: dict, *, caption: str) -> np.ndarray:
     details = str(data.get("details") or data.get("summary") or "")
     steps = _preview_steps_from_payload(data)
     if not steps:
-        return render_summary_panel(title=title, text=details if caption == "Details" else summary)
+        aligned = (data.get("metadata") or {}).get(SUMMARY_CARD_LAYOUT) == SUMMARY_CARD_FOOTER
+        return render_summary_panel(title=title, text=details if caption == "Details" else summary, footer_rule=aligned)
     return _diagnostic_card(
         steps[-1]["image"],
         title=title,
@@ -1096,7 +1097,16 @@ def _wrap_mono_line(draw: ImageDraw.ImageDraw, line: str, font, max_width: int) 
     return out or [line]
 
 
-def render_summary_panel(*, title: str = "CMK Summary", text: str = "") -> np.ndarray:
+# A text card next to image cards (FaceRebuild v2 Prepare): metadata
+# {SUMMARY_CARD_LAYOUT: SUMMARY_CARD_FOOTER} draws its section rule above the
+# footer.  combine_preview_panels aligns cards at their last full-width rule,
+# so the text body shares the image zone instead of extending the information
+# area of every image card.
+SUMMARY_CARD_LAYOUT = "summary_card_layout"
+SUMMARY_CARD_FOOTER = "footer_rule"
+
+
+def render_summary_panel(*, title: str = "CMK Summary", text: str = "", footer_rule: bool = False) -> np.ndarray:
     """Render a text-only CMK diagnostic summary card as RGB uint8 image."""
     spec = _design()
     bg = spec["card_bg"]
@@ -1127,7 +1137,8 @@ def render_summary_panel(*, title: str = "CMK Summary", text: str = "") -> np.nd
     body_h = len(body_lines) * (line_h + row_gap)
     footer_h = _text_bbox(draw, "CMK_DIAGNOSTIC", small_font)[1]
 
-    total_h = pad + title_h + gap + 4 + gap + body_h + gap + footer_h + pad
+    rule_h = (4 + gap) if footer_rule else 0
+    total_h = pad + title_h + gap + 4 + gap + body_h + gap + rule_h + footer_h + pad
     panel = Image.new("RGB", (card_w, total_h), bg)
     d = ImageDraw.Draw(panel)
 
@@ -1145,6 +1156,9 @@ def render_summary_panel(*, title: str = "CMK Summary", text: str = "") -> np.nd
         y += line_h + row_gap
 
     y += gap
+    if footer_rule:
+        d.rectangle((pad, y, card_w - pad, y + 4), fill=line)
+        y += 4 + gap
     d.text((pad, y), "CMK_DIAGNOSTIC · Summary", fill=muted, font=small_font)
     return np.asarray(panel, dtype=np.uint8)
 

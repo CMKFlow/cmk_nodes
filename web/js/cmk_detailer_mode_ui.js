@@ -8,6 +8,20 @@ const MODE_WIDGETS = {
         widget: "model_family",
         labels: { None: "DISABLE", SDXL: "SDXL", "Z-Image Turbo": "ZIT" },
     },
+    "CMK Flow · MaskDetailer": {
+        widget: "model_family",
+        labels: { None: "DISABLE", SDXL: "SDXL", "Z-Image Turbo": "ZIT" },
+    },
+    // FaceRebuild v2 keeps the title of the SDXL subgraphs; only v2 has the
+    // facerebuild_mode widget, so the legacy ENABLE toggle stays untouched.
+    "CMK Flow · FaceRebuild SDXL": {
+        widget: "facerebuild_mode",
+        labels: { ENABLE: "ENABLE", DISABLE: "DISABLE" },
+    },
+    "CMK Flow · FaceRebuild SDXL · Advanced": {
+        widget: "facerebuild_mode",
+        labels: { ENABLE: "ENABLE", DISABLE: "DISABLE" },
+    },
     "CMK Flow · Detailer · Advanced": {
         widget: "detailer_global_enable",
         labels: { ENABLE: "ENABLE", DISABLE: "DISABLE" },
@@ -18,7 +32,10 @@ const STYLE_ID = "cmk-detailer-mode-style";
 
 export function modeSpec(node) {
     if (!node?.isSubgraphNode?.()) return null;
-    return MODE_WIDGETS[node.subgraph?.name] ?? null;
+    // A blueprint inserted from the library is named after its file, e.g.
+    // "CMK Flow · FaceRebuild SDXL v2"; the spec is that of the title.
+    const name = String(node.subgraph?.name ?? "");
+    return MODE_WIDGETS[name] ?? MODE_WIDGETS[name.replace(/ v2$/, "")] ?? null;
 }
 
 export function applyMode(node) {

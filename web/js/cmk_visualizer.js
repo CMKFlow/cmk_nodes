@@ -209,6 +209,7 @@ export function remappedDeclaredProvider(outerNode, item) {
       "CMKCombinedControlNetPreparePipe",
     ]),
     FaceProcess: new Set(["CMKFaceProcessPipe", "CMK_FaceProcess", "CMKFaceProcess", "CMKFaceProcessMultiModelPipe"]),
+    CMKMaskDetailerProcess: new Set(["CMKMaskDetailerProcess", "CMKMaskDetailerProcessMultiModel"]),
     CMKInstantIDSamplerSDXLPipe: new Set([
       "CMKInstantIDSamplerSDXLPipe",
       "CMKInstantIDRegionalAdvancedSDXLPipe",
@@ -216,6 +217,8 @@ export function remappedDeclaredProvider(outerNode, item) {
     CMKInstantIDFaceRebuildSDXL: new Set([
       "CMKInstantIDFaceRebuildSDXL",
       "CMKInstantIDFaceRebuildAdvancedSDXL",
+      "CMKInstantIDFaceRebuildSDXLV2",
+      "CMKInstantIDFaceRebuildAdvancedSDXLV2",
     ]),
   };
   const matchesLiveType = (inner) => {
@@ -279,7 +282,7 @@ function visualChainNodeIds(displayNode) {
 
 function graphProviders(displayNode) {
   const maskDetailers = (app.graph?._nodes || [])
-    .filter((node) => nodeKind(node) === "CMKMaskDetailerProcess")
+    .filter((node) => ["CMKMaskDetailerProcess", "CMKMaskDetailerProcessMultiModel"].includes(nodeKind(node)))
     .map((node) => ({
       provider_id: `cmk-CMKMaskDetailer-${node.id}`,
       module_instance_id: String(node.id),

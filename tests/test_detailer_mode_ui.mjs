@@ -44,6 +44,31 @@ function subgraphNode(name, widgetName, value, values) {
   assert.deepEqual(widget.options.values, ["None", "SDXL", "Z-Image Turbo"]);
 }
 
+// Mask Detailer (2.8): the same MODE as the Standard Detailer.
+{
+  const node = subgraphNode("CMK Flow · MaskDetailer", "model_family", "SDXL", ["None", "SDXL", "Z-Image Turbo"]);
+  extension.loadedGraphNode(node);
+  const widget = node.widgets[0];
+  assert.equal(widget.label, "MODE");
+  assert.deepEqual(widget.options.values.map(widget.options.getOptionLabel), ["DISABLE", "SDXL", "ZIT"]);
+  assert.equal(widget.value, "SDXL");
+}
+
+// FaceRebuild v2 (same title as the SDXL subgraphs): MODE ENABLE / DISABLE on
+// facerebuild_mode; the legacy subgraph's ENABLE toggle keeps its label.
+for (const name of ["CMK Flow · FaceRebuild SDXL", "CMK Flow · FaceRebuild SDXL · Advanced",
+  // inserted from the blueprint library: named after the file
+  "CMK Flow · FaceRebuild SDXL v2", "CMK Flow · FaceRebuild SDXL · Advanced v2"]) {
+  const v2 = subgraphNode(name, "facerebuild_mode", "ENABLE", ["ENABLE", "DISABLE"]);
+  extension.loadedGraphNode(v2);
+  assert.equal(v2.widgets[0].label, "MODE");
+  assert.deepEqual(v2.widgets[0].options.values.map(v2.widgets[0].options.getOptionLabel), ["ENABLE", "DISABLE"]);
+  const legacy = subgraphNode(name, "FACEREBUILD ENABLE", true, undefined);
+  extension.loadedGraphNode(legacy);
+  assert.equal(legacy.widgets[0].label, "OLD", "the legacy toggle is untouched");
+  assert.equal(legacy.widgets[0].options.getOptionLabel, undefined);
+}
+
 // Advanced: MODE, ENABLE / DISABLE unchanged.
 {
   const node = subgraphNode("CMK Flow · Detailer · Advanced", "detailer_global_enable", "DISABLE", ["ENABLE", "DISABLE"]);

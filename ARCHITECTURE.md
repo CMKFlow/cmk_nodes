@@ -1166,6 +1166,66 @@ MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG ┴→ CMK Detailer Prepare Advan
   früheren Rechteck-Regel wiederverwendet wird; andere Detailer-Keys bleiben
   unverändert. `CMK_SEGSConcate` behält `merge_segs_collections`.
 
+### 5.6c MaskDetailer Multi-Model (2.8, Runde 1)
+
+Diskreter Zwei-Modell-Aufbau nach dem Muster des Multi-Model-Detailers
+(Referenz `CMK · Detailer.json`, Workflow `CMK · MaskDetailer.json`):
+`CMK Detailer Family Enable` → `CMK Mask Detailer · Prepare Multi-Model`
+(`CMKMaskDetailerPrepareMultiModel`) → `CMK Mask Detailer · Process Multi-Model`
+(`CMKMaskDetailerProcessMultiModel`). Die öffentlichen Ausgänge sind die von
+`CMK Mask Detailer Prepare` / `Process` (`CMK_MASK_DETAILER_PROCESS`,
+`result_contract` `mask_detailer`); die Legacy-Nodes bleiben unverändert und
+teilen sich mit dem Prepare die Helfer für Quelle, Maske, Prompt und Prozess.
+
+- **Familie**: `None` / `SDXL` / `Z-Image Turbo`. Der Prepare fordert lazy nur
+  das Modell der aktiven Familie an (`MODEL SDXL` bzw. `MODEL ZIT`); `None` lädt
+  nichts, der Process reicht das Bild unverändert durch. ZIT nutzt die
+  Bausteine des Detailers (`resolve_zit_postprocess_model`, Text-Encoder
+  laden/entladen, `ConditioningZeroOut` als Negativ, `ModelSamplingAuraFlow`).
+- **Maske statt Detektion**: kein SAM, kein Detektor; Quelle ist der
+  `MASK DETAILER SOURCE` der Intake oder `PROCESS` + `IMAGE` mit Maske (CMK Load
+  Image).
+- **Prompt / LoRA / Seed**: Quellprompt plus eigener Zusatz, je Familie eine
+  lokale LoRA; der Seed kommt aus `PROCESS` (0, wenn keiner vorhanden ist).
+  Keine SDXL-Modellpatches, wie beim Legacy-MaskDetailer. Der Prompt läuft
+  vor dem Encoden durch die zentrale Übersetzung (`translate_prompt`, wie
+  CMK Detailer Prepare): SDXL positiv und negativ, ZIT positiv; der Prozess
+  behält den Originaltext. Der Legacy-MaskDetailer übersetzt nicht.
+- **Sampling Entry**: eigener Bereich 0–99 % (Denoise = (100 − Entry)/100,
+  0.01–1.0, Standard 45 % ≙ 0.55). Die Detailer-Grenze (Denoise ≤ 0.5) gilt hier
+  nicht, weil das Inpainting einer gemalten Fläche mehr Denoise braucht.
+- **Diagnostik** (§9.1, wie Detailer): Der Prepare liefert eine Textkarte
+  (`PLAIN_PREVIEW_NODES`) und wird über `opt_diagnostic` des Process in die
+  Modul-Timeline `CMK Flow · MaskDetailer` verkettet (wie beim Smart Detailer).
+  Der Process zeigt `01 Sampling ROI` (crop_region und Grenzen der gemalten
+  Maske auf dem Quellbild), `02 Mask` (effektive Sampling-Maske nach MASK EXPAND
+  als Overlay), `03 Pasteback` (eingefügtes Ergebnis × Pasteback-Gewicht aus
+  MASK FEATHER, alpha 255) und `04 Difference` (nur bei Änderung). Die Geometrie
+  stammt aus den SEGS, die `SEGSPaste` zurückschreibt (`detailer_spatial_stages`).
+  Keine Source-, Detection- oder Result-Stufe. Bei `None` entsteht nur eine
+  Textkarte. Die Diagnosen des Legacy-MaskDetailers bleiben unverändert.
+- **Subgraph `CMK Flow · MaskDetailer`** (neben dem unveränderten
+  `CMK Flow · MaskDetailer SDXL`): dessen Intake-Struktur bleibt –
+  Result Unpack → `CMK Mask Detailer Intake` (Capture, Snapshot,
+  Zustandsautomat) → `CMK Mask Detailer Flow Gate` (`READY`, Bypass = Unpack) →
+  VisualCompare. Ersetzt sind Prepare/Process/Concat durch Prepare/Process
+  Multi-Model (Timeline über `opt_diagnostic`). Öffentliche Ports nach dem
+  CMK-Port-Vertrag wie `CMK Flow · Detailer`: Eingänge MODEL ZIT, MODEL SDXL,
+  PROCESS, IMAGE, LOG, VISUAL, MODE; Ausgänge MODEL ZIT, MODEL SDXL (beide über
+  `CMKModelForwardPipe` aus den Eingängen), PROCESS (Mask-Detailer-Prozess der
+  Gate), IMAGE, LOG, VISUAL, diagnostic. Dazu
+  Family Enable (`ENABLE` → Gate `enabled` und VisualCompare `enable`; ersetzt
+  den Eingang `enabled`) und eine innere Preview Render. Intake-spezifisch:
+  solange die Intake nicht READY ist (S0–S2, Maske leer), fordert der Prepare
+  kein Modell an, materialisiert und sampelt nicht (Status `INTAKE PENDING`,
+  Process `NO PAINTED MASK · BYPASS`), denn die Diagnose an Preview Render und
+  Ausgang erzwingt die Ausführung von Prepare/Process. Der Seed kommt aus dem
+  `PROCESS` des Flows, weil der Snapshot keinen trägt. Die Prepare-Karte nennt
+  Intake-Status und Snapshot. Bild und Maske stammen aus dem gesperrten
+  Snapshot (Maske = 1 − Alpha), die Diagnose-Geometrie aus den SEGS der
+  Verarbeitung.
+- Kein Branch- oder Boundary-Cache (wie Legacy).
+
 ### 5.7 FaceProcess-Modul
 
 Öffentliche Moduloberfläche:
@@ -1404,6 +1464,49 @@ MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG ┴→ CMK FaceProcess Prepare Mu
   ZIT-Freigabe vor SDXL. Der Einstieg wird mit der Detailer-Funktion
   `_sampling_entry_to_denoise` in Denoise umgerechnet; `detail_denoise` gibt es
   im 2.8-Node nicht mehr. Branch-Schema `…_v4`.
+
+### 5.7b FaceRebuild v2 (2.8)
+
+Neue Subgraph-Dateien `CMK Flow · FaceRebuild SDXL v2.json` und
+`CMK Flow · FaceRebuild SDXL · Advanced v2.json` neben den unveränderten
+SDXL-Subgraphen; der sichtbare Titel bleibt. FaceRebuild bleibt ein
+SDXL-Modul, ZIT wird nur durchgereicht.
+
+- **Ports** (CMK-Port-Vertrag wie `CMK Flow · Detailer`): Eingänge MODEL ZIT,
+  MODEL SDXL, PROCESS, IMAGE, LOG, VISUAL, MODE, danach die Quellgesicht-Dateien;
+  Ausgänge MODEL ZIT, MODEL SDXL (beide über `CMKModelForwardPipe` aus den
+  Eingängen), PROCESS, IMAGE, LOG, VISUAL, diagnostic. MODEL ZIT wird weder
+  materialisiert noch verarbeitet; am Visualizer gehört er an
+  `POSTPROCESS MODEL ZIT` (nicht an `MODEL ZIT` der ZIT-Generierungsgruppe).
+- **MODE** ENABLE / DISABLE (äußeres Widget `facerebuild_mode`, Darstellung über
+  `cmk_detailer_mode_ui.js` wie die Advanced-Module): `CMK FaceRebuild · Mode`
+  (`CMKFaceRebuildModeEnable`) liefert `ENABLE` an den Executor
+  (`FACEREBUILD ENABLE`), die Bypass-Gate und VisualCompare; DISABLE ist der
+  bestehende Modul-Bypass. Der Legacy-Schalter `FACEREBUILD ENABLE` bleibt in den
+  SDXL-Subgraphen unverändert.
+- **Executoren** `CMKInstantIDFaceRebuildSDXLV2` / `…AdvancedSDXLV2` erben die
+  SDXL-Verarbeitung unverändert; nur die Diagnose (`_module_diagnostic`,
+  `_bypass_diagnostic`) ist neu. Die Legacy-Executoren liefern bytegleich die
+  bisherige Diagnose.
+- **Diagnose** (`utils/facerebuild_diagnostic.py`, Geometrie aus dem
+  Rebuild-Kontext und den Engine-Masken der Verarbeitung): Prepare-Textkarten
+  mit kurzen Bezeichnungen (höchstens 52 Zeichen je Zeile, höchstens 18 Zeilen,
+  so passt der Text in die Bildzone); Standard eine Karte, Advanced eine
+  Modulkarte („FaceRebuild · Prepare“) und je aktivem Slot eine Karte
+  („Slot n · Prepare“) in Verarbeitungsreihenfolge. Die Karten tragen
+  `summary_card_layout = footer_rule`: `render_summary_panel` zieht dann den
+  Abschnittsstrich über der Fußzeile, an dem `combine_preview_panels` die Karten
+  ausrichtet – sonst zählte der ganze Textkörper als Info-Bereich und vergrößerte
+  jede Bildkarte. Andere Textkarten bleiben unverändert. Standard: Rebuild ROI (Zielgesicht + Kopf/Hals-ROI),
+  Inpaint Mask (Sampling-Maske), Pasteback (eingefügtes Ergebnis ×
+  Pasteback-Gewicht, PASTEBACK NECK), Difference nur bei Änderung. Advanced:
+  Target Faces (Slots, Selektor, Reihenfolge), Inpaint Masks, Pasteback in
+  Pasteback-Reihenfolge (größtes Gesicht zuerst), Overlap nur bei überlappenden
+  Slots, Difference. Keine Source-, Detection- oder Rebuilt-ROI-Stufe; Bypass
+  und „kein aktiver Slot“ sind Textkarten.
+- **Preview-Kette**: Die innere Preview Render hängt an der Bypass-Gate (nach
+  Boundary Cache), nicht mehr direkt am Executor; bei DISABLE blockiert die Gate
+  die Diagnose (keine alte Diagnose, kein Platzhalter).
 
 ### 5.8 Image Resize
 

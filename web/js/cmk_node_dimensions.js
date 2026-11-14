@@ -16,6 +16,7 @@ const BUILTIN_MINIMUMS = {
     CMKRefinerPrepareSDXLPipe: [450, 360],
     CMKInstantIDSamplerSDXLPipe: [450, 800],
     CMKInstantIDFaceRebuildSDXL: [450, 590],
+    CMKInstantIDFaceRebuildSDXLV2: [450, 590],
     CMKFaceSwapImagePipe: [380, 400],
     CMKMultiImageLoader: [300, 420],
 };

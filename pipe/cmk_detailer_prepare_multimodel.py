@@ -13,6 +13,7 @@ from .cmk_sampler_prepare import (
 from .cmk_log_pipe import cmk_add_block, cmk_format_loras
 from ..utils.cmk_translation import translate_prompt
 from ..utils.cmk_diagnostic import make_diagnostic_payload
+from ..utils.prepare_card import footer_card, log_block_rows, merge_rows
 from ..engine.native_detailer import CMKSAMLoader
 from .cmk_detailer_prepare import CMKDetailerPreparePipe
 from .loaders.z_image_turbo_loader import (
@@ -76,6 +77,17 @@ def _sampling_entry_spec(default):
             "content; earlier entry rebuilds it more strongly."
         ),
     })
+
+
+def _prepare_card(result):
+    """The Prepare diagnostic as a 2.8 Prepare card from its LOG block."""
+    detailer_pipe, log_pipe, diagnostic = result
+    rows = merge_rows(log_block_rows(log_pipe, "Detailer Prepare"), (
+        ("STEPS", "CFG", "STEPS / CFG", " / "),
+        ("SAMPLER", "SCHEDULER", "SAMPLER", " / "),
+        ("SAMPLING", "ZSNR", "SAMPLING / ZSNR", " / "),
+    ))
+    return detailer_pipe, log_pipe, footer_card(diagnostic, rows)
 
 
 class CMKDetailerFamilyEnable:
@@ -245,7 +257,7 @@ class CMKDetailerPrepareMultiModelPipe(CMKDetailerPreparePipe):
                 raise TypeError(f"{NODE_LABEL}: PROCESS must be a CMK process pipe")
             if PROCESS.get("result_contract") != "family_neutral":
                 raise ValueError(f"{NODE_LABEL} requires the PostProcess Boundary")
-            return self._prepare_zit(
+            return _prepare_card(self._prepare_zit(
                 zit_inputs.get("MODEL ZIT"),
                 PROCESS,
                 IMAGE,
@@ -263,7 +275,7 @@ class CMKDetailerPrepareMultiModelPipe(CMKDetailerPreparePipe):
                 scheduler=zit_scheduler,
                 LOG=LOG,
                 conditioning_memo=zit_inputs.get(CONDITIONING_MEMO_ARGUMENT),
-            )
+            ))
 
         model_sdxl = zit_inputs.get("MODEL SDXL")
         if (
@@ -312,7 +324,7 @@ class CMKDetailerPrepareMultiModelPipe(CMKDetailerPreparePipe):
         detailer_pipe["detailer_model_family"] = family
         if family == "sdxl":
             detailer_pipe["detailer_sampling_entry"] = _float(sampling_entry, SDXL_SAMPLING_ENTRY)
-        return (detailer_pipe, log_pipe, diagnostic)
+        return _prepare_card((detailer_pipe, log_pipe, diagnostic))
 
     def _prepare_zit(
         self,

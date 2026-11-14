@@ -29,6 +29,7 @@ except ImportError:  # Unit tests outside a running ComfyUI installation.
 import torch
 
 from ..utils.cmk_diagnostic import make_diagnostic_payload
+from ..utils.prepare_card import footer_card, log_block_rows
 from ..utils.face_diagnostic import merge_layer_stages
 from ..utils.face_layers import LAYER_SCHEMA, compose_layers
 from ..utils.stable_segs import image_signature, stable_branch_components
@@ -156,6 +157,7 @@ class CMKFaceProcessPrepareAdvancedMultiModelPipe:
             details="\n".join(lines), mode="deferred",
             metadata={"modes": {str(slot): modes[slot] for slot in ADVANCED_SLOTS}, "models_loaded": False},
         )
+        diagnostic = footer_card(diagnostic, log_block_rows(log_pipe, "FaceProcess Prepare Advanced"))
         return (*faces, any(mode != "none" for mode in modes.values()), log_pipe, diagnostic)
 
 

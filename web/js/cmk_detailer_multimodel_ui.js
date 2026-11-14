@@ -1,11 +1,14 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 
-// UI of the Multi-Model Detailer generation. The SDXL-only Detailer nodes
-// keep their own extensions (cmk_detailer_prepare_labels.js,
-// cmk_smart_detailer_labels.js).
+// UI of the Multi-Model Detailer generation, also used by the Multi-Model
+// Mask Detailer (same Family Enable, family-dependent widgets and NONE
+// bypass). The SDXL-only Detailer nodes keep their own extensions
+// (cmk_detailer_prepare_labels.js, cmk_smart_detailer_labels.js).
 const PREPARE_CLASS = "CMKDetailerPrepareMultiModelPipe";
 const DETAILER_CLASS = "CMK_SmartDetailerMultiModelPipe";
+const MASK_PREPARE_CLASS = "CMKMaskDetailerPrepareMultiModel";
+const MASK_PROCESS_CLASS = "CMKMaskDetailerProcessMultiModel";
 const FAMILY_WIDGET = "model_family";
 
 const PREPARE_LABELS = {
@@ -51,7 +54,48 @@ const FAMILY_WIDGETS = {
         "zit_model_shift",
     ]),
 };
-const FAMILY_SPECIFIC = new Set([...FAMILY_WIDGETS.SDXL, ...FAMILY_WIDGETS["Z-Image Turbo"]]);
+
+const MASK_PREPARE_LABELS = {
+    model_family: "MODEL FAMILY",
+    fill_mask_holes: "FILL MASK HOLES",
+    solid_mask: "SOLID MASK",
+    lora_name: "LORA",
+    lora_strength: "LORA STRENGTH",
+    zit_lora_name: "LORA",
+    zit_lora_strength: "LORA STRENGTH",
+    prompt_pos: "PROMPT ADDITION",
+    steps: "STEPS",
+    cfg: "CFG",
+    sampling_entry: "SAMPLING ENTRY AT %",
+    zit_steps: "STEPS",
+    zit_cfg: "CFG",
+    zit_sampling_entry: "SAMPLING ENTRY AT %",
+    zit_sampler: "sampler",
+    zit_scheduler: "scheduler",
+    zit_model_shift: "MODEL SHIFT",
+};
+
+const MASK_FAMILY_WIDGETS = {
+    SDXL: new Set(["lora_name", "lora_strength", "steps", "cfg", "sampling_entry", "sampler", "scheduler"]),
+    "Z-Image Turbo": new Set([
+        "zit_lora_name", "zit_lora_strength", "zit_steps", "zit_cfg", "zit_sampling_entry", "zit_sampler",
+        "zit_scheduler", "zit_model_shift",
+    ]),
+};
+
+// Per Prepare class its captions and family widget sets; per execution class
+// its captions and the input that carries the Prepare.
+const PREPARE_SPECS = {
+    [PREPARE_CLASS]: { labels: PREPARE_LABELS, families: FAMILY_WIDGETS },
+    [MASK_PREPARE_CLASS]: { labels: MASK_PREPARE_LABELS, families: MASK_FAMILY_WIDGETS },
+};
+const EXECUTION_SPECS = {
+    [DETAILER_CLASS]: { labels: DETAILER_LABELS, input: "DETAILER" },
+    [MASK_PROCESS_CLASS]: {
+        labels: { mask_expand: "MASK EXPAND", mask_feather: "MASK FEATHER" },
+        input: "MASK DETAILER PROCESS",
+    },
+};
 
 // CMK Detailer Family Enable: one control per Detailer. Three choice fields
 // replace the dropdown; the stored value stays the model family name.
@@ -110,12 +154,14 @@ function familyValue(node) {
 // MODEL FAMILY row remains.
 function refreshPrepare(node) {
     if (!Array.isArray(node.widgets)) return;
-    applyLabels(node, PREPARE_LABELS);
+    const spec = PREPARE_SPECS[nodeClass(node)];
+    applyLabels(node, spec.labels);
     const family = familyValue(node);
-    const active = FAMILY_WIDGETS[family] ?? new Set();
+    const active = spec.families[family] ?? new Set();
+    const specific = new Set(Object.values(spec.families).flatMap((names) => [...names]));
     for (const target of node.widgets) {
         const visible = target?.name === FAMILY_WIDGET
-            || (family !== "None" && (!FAMILY_SPECIFIC.has(target?.name) || active.has(target.name)));
+            || (family !== "None" && (!specific.has(target?.name) || active.has(target.name)));
         setWidgetVisible(target, visible);
     }
     for (const detailer of linkedDetailers(node)) refreshDetailer(detailer);
@@ -132,19 +178,20 @@ function linkedDetailers(node) {
     return (node.outputs ?? []).flatMap((output) => output?.links ?? [])
         .map((id) => linkOf(graph, id))
         .map((link) => (link ? graph.getNodeById?.(link.target_id) : null))
-        .filter((target) => nodeClass(target) === DETAILER_CLASS);
+        .filter((target) => nodeClass(target) in EXECUTION_SPECS);
 }
 
 // The Smart Detailer has no switch of its own: its family is the one of the
 // Prepare (Advanced: of the Detailer slot) feeding DETAILER, or null when the
 // input is not linked to one.
 function detailerFamily(node) {
-    const input = node.inputs?.find((item) => item?.name === "DETAILER" && item.link != null);
+    const name = EXECUTION_SPECS[nodeClass(node)].input;
+    const input = node.inputs?.find((item) => item?.name === name && item.link != null);
     const graph = node.graph ?? app.graph;
     const link = input ? linkOf(graph, input.link) : null;
     const source = link ? graph.getNodeById?.(link.origin_id) : null;
     const type = nodeClass(source);
-    if (type === PREPARE_CLASS) return familyValue(source);
+    if (type in PREPARE_SPECS) return familyValue(source);
     if (type !== ADVANCED_PREPARE_CLASS) return null;
     const value = source.widgets?.find((item) => item?.name === `${FAMILY_WIDGET}_${Number(link.origin_slot) + 1}`)?.value;
     return value === "SDXL" || value === "Z-Image Turbo" ? value : "None";
@@ -154,7 +201,7 @@ function detailerFamily(node) {
 // shown (values stay and are serialized; the node keeps its size).
 function refreshDetailer(node) {
     if (!Array.isArray(node.widgets)) return;
-    applyLabels(node, DETAILER_LABELS);
+    applyLabels(node, EXECUTION_SPECS[nodeClass(node)].labels);
     const bypass = detailerFamily(node) === "None";
     for (const target of node.widgets) setWidgetVisible(target, !bypass);
     node.setDirtyCanvas?.(true, true);
@@ -180,7 +227,7 @@ function installFamilyCallback(node) {
 function innerPrepares(host) {
     const inner = host?.subgraph;
     const nodes = inner?.nodes ?? inner?._nodes ?? [];
-    return nodes.filter((node) => nodeClass(node) === PREPARE_CLASS).map((node) => [inner, node]);
+    return nodes.filter((node) => nodeClass(node) in PREPARE_SPECS).map((node) => [inner, node]);
 }
 
 function hostFamilyWidget(host, inner, prepare) {
@@ -224,12 +271,12 @@ function mirrorToPrepares(node) {
         const link = graph?.links?.get?.(linkId) ?? graph?.links?.[linkId];
         const target = link ? graph.getNodeById?.(link.target_id) : null;
         const type = nodeClass(target);
-        if (type !== PREPARE_CLASS && type !== ADVANCED_PREPARE_CLASS) continue;
+        if (!(type in PREPARE_SPECS) && type !== ADVANCED_PREPARE_CLASS) continue;
         // Standard: model_family; Advanced: model_family_1/2/3 of the linked input.
         const name = target.inputs?.[link.target_slot]?.widget?.name ?? FAMILY_WIDGET;
         const widget = target.widgets?.find((item) => item?.name === name);
         if (widget && value != null && widget.value !== value) widget.value = value;
-        if (type === PREPARE_CLASS) refreshPrepare(target);
+        if (type in PREPARE_SPECS) refreshPrepare(target);
         else target._cmkRefreshAdvanced?.();
     }
 }
@@ -311,12 +358,12 @@ function refresh(node) {
         return;
     }
     const type = nodeClass(node);
-    if (type === PREPARE_CLASS) {
+    if (type in PREPARE_SPECS) {
         installFamilyCallback(node);
         refreshPrepare(node);
     } else if (type === FAMILY_CONTROL_CLASS) {
         installFamilyChoice(node);
-    } else if (type === DETAILER_CLASS) {
+    } else if (type in EXECUTION_SPECS) {
         node._cmkRefreshDetailer = () => refreshDetailer(node);
         refreshDetailer(node);
     }
@@ -389,12 +436,14 @@ function migrateGraphData(graph) {
     }
 }
 
+const TRACKED_CLASSES = new Set([...Object.keys(PREPARE_SPECS), ...Object.keys(EXECUTION_SPECS), FAMILY_CONTROL_CLASS]);
+
 app.registerExtension({
     name: "cmk.detailer.multimodel.ui.v1",
 
     beforeRegisterNodeDef(nodeType, nodeData) {
-        if (![PREPARE_CLASS, DETAILER_CLASS, FAMILY_CONTROL_CLASS].includes(nodeData.name)) return;
-        if (nodeData.name === PREPARE_CLASS) registerModelZitFirst(nodeData);
+        if (![...TRACKED_CLASSES].includes(nodeData.name)) return;
+        if (nodeData.name in PREPARE_SPECS) registerModelZitFirst(nodeData);
         for (const hook of ["onNodeCreated", "onConfigure", "onAdded", "onConnectionsChange"]) {
             const original = nodeType.prototype[hook];
             nodeType.prototype[hook] = function () {
@@ -411,15 +460,11 @@ app.registerExtension({
     },
 
     nodeCreated(node) {
-        const type = nodeClass(node);
-        if (type === PREPARE_CLASS || type === DETAILER_CLASS || type === FAMILY_CONTROL_CLASS
-            || innerPrepares(node).length) track(node);
+        if (TRACKED_CLASSES.has(nodeClass(node)) || innerPrepares(node).length) track(node);
     },
 
     loadedGraphNode(node) {
-        const type = nodeClass(node);
-        if (type === PREPARE_CLASS || type === DETAILER_CLASS || type === FAMILY_CONTROL_CLASS
-            || innerPrepares(node).length) track(node);
+        if (TRACKED_CLASSES.has(nodeClass(node)) || innerPrepares(node).length) track(node);
     },
 
     beforeConfigureGraph(graphData) {

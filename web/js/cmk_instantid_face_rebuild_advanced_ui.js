@@ -1,8 +1,9 @@
 import { app } from "../../../scripts/app.js";
 import { installSourceTargetSlider } from "./cmk_source_target_slider.js";
 
-const NODE_CLASS = "CMKInstantIDFaceRebuildAdvancedSDXL";
-const STANDARD_NODE_CLASS = "CMKInstantIDFaceRebuildSDXL";
+// FaceRebuild v2 (2.8) executors share the view of the SDXL executors.
+const NODE_CLASSES = new Set(["CMKInstantIDFaceRebuildAdvancedSDXL", "CMKInstantIDFaceRebuildAdvancedSDXLV2"]);
+const STANDARD_NODE_CLASSES = new Set(["CMKInstantIDFaceRebuildSDXL", "CMKInstantIDFaceRebuildSDXLV2"]);
 const NODE_SIZE = [600, 1400];
 const STANDARD_MIN_SIZE = [450, 590];
 // SAMPLING START (SOURCE/TARGET) stays in the standard view.
@@ -22,20 +23,18 @@ const TECHNICAL_LABELS = {
     scheduler: "SCHEDULER",
 };
 
+function hasClass(node, classes) {
+    return Boolean(node) && [
+        node.comfyClass, node.type, node.constructor?.comfyClass, node.constructor?.nodeData?.name,
+    ].some((name) => classes.has(name));
+}
+
 function isTarget(node) {
-    return Boolean(node) && (
-        node.comfyClass === NODE_CLASS || node.type === NODE_CLASS ||
-        node.constructor?.comfyClass === NODE_CLASS ||
-        node.constructor?.nodeData?.name === NODE_CLASS
-    );
+    return hasClass(node, NODE_CLASSES);
 }
 
 function isStandardTarget(node) {
-    return Boolean(node) && (
-        node.comfyClass === STANDARD_NODE_CLASS || node.type === STANDARD_NODE_CLASS ||
-        node.constructor?.comfyClass === STANDARD_NODE_CLASS ||
-        node.constructor?.nodeData?.name === STANDARD_NODE_CLASS
-    );
+    return hasClass(node, STANDARD_NODE_CLASSES);
 }
 
 function enforceStandardMinimum(node) {
@@ -215,7 +214,7 @@ function schedule(node) {
 app.registerExtension({
     name: "cmk.instantid.face_rebuild.advanced_ui.v1",
     beforeRegisterNodeDef(nodeType, nodeData) {
-        if (nodeData?.name !== NODE_CLASS && nodeData?.name !== STANDARD_NODE_CLASS) return;
+        if (!NODE_CLASSES.has(nodeData?.name) && !STANDARD_NODE_CLASSES.has(nodeData?.name)) return;
         for (const hook of ["onNodeCreated", "onConfigure", "onAdded"]) {
             const original = nodeType.prototype[hook];
             nodeType.prototype[hook] = function() {

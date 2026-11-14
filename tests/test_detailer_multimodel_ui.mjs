@@ -352,4 +352,73 @@ const press = (node, label) => buttons(node).find((b) => b.textContent === label
   assertState(prepare, "Z-Image Turbo");
 }
 
+// Multi-Model Mask Detailer: the same Family Enable, family widget sets of its
+// own, NONE shows only MODEL FAMILY, the Process follows its Prepare.
+{
+  const MASK_PREPARE = [["model_family", "None"], ["fill_mask_holes", false], ["solid_mask", false],
+    ["lora_name", "None"], ["lora_strength", 1], ["zit_lora_name", "None"], ["zit_lora_strength", 1], ["prompt_pos", ""],
+    ["steps", 30], ["cfg", 7], ["sampling_entry", 45], ["zit_steps", 8], ["zit_cfg", 1], ["zit_sampling_entry", 45],
+    ["sampler", "euler"], ["scheduler", "karras"], ["zit_sampler", "res_multistep"], ["zit_scheduler", "simple"],
+    ["zit_model_shift", 3]];
+  const MaskPrepare = nodeType("CMKMaskDetailerPrepareMultiModel", MASK_PREPARE);
+  const MaskProcess = nodeType("CMKMaskDetailerProcessMultiModel", [["mask_expand", 8], ["mask_feather", 12]]);
+  const maskDef = {
+    name: "CMKMaskDetailerPrepareMultiModel",
+    input: { required: { "MODEL SDXL": ["CMK_MODEL_PIPE", { lazy: true }] },
+      optional: { "MODEL ZIT": ["CMK_MODEL_PIPE", { lazy: true }], PROCESS: ["CMK_RESULT_PROCESS"] } },
+  };
+  extension.beforeRegisterNodeDef(MaskPrepare, maskDef);
+  extension.beforeRegisterNodeDef(MaskProcess, { name: "CMKMaskDetailerProcessMultiModel" });
+  assert.deepEqual(Object.keys(maskDef.input.required), ["MODEL ZIT", "MODEL SDXL"], "MODEL ZIT above MODEL SDXL");
+
+  const nodes = new Map();
+  const links = new Map();
+  const graph = { links, getNodeById: (id) => nodes.get(id) };
+  const prepare = create(MaskPrepare);
+  Object.assign(prepare, { id: 11, graph, outputs: [{ name: "MODEL", links: [] }, { name: "MASK DETAILER PROCESS", links: [15] }] });
+  const process = create(MaskProcess);
+  Object.assign(process, { id: 12, graph, inputs: [{ name: "MODEL", link: null }, { name: "MASK DETAILER PROCESS", link: 15 }] });
+  nodes.set(11, prepare); nodes.set(12, process);
+  links.set(15, { id: 15, origin_id: 11, origin_slot: 1, target_id: 12, target_slot: 1 });
+  const shown = (node) => node.widgets.filter((w) => !w.hidden).map((w) => w.name);
+  const always = ["model_family", "fill_mask_holes", "solid_mask", "prompt_pos"];
+  select(prepare, "None");
+  assert.deepEqual(shown(prepare), ["model_family"], "NONE: only MODEL FAMILY");
+  assert.deepEqual(shown(process), [], "NONE: the Process shows nothing");
+  select(prepare, "SDXL");
+  assert.deepEqual(shown(prepare), [...always.slice(0, 3), "lora_name", "lora_strength", "prompt_pos", "steps", "cfg",
+    "sampling_entry", "sampler", "scheduler"]);
+  assert.deepEqual(shown(process), ["mask_expand", "mask_feather"]);
+  select(prepare, "Z-Image Turbo");
+  assert.deepEqual(shown(prepare), [...always.slice(0, 3), "zit_lora_name", "zit_lora_strength", "prompt_pos", "zit_steps",
+    "zit_cfg", "zit_sampling_entry", "zit_sampler", "zit_scheduler", "zit_model_shift"]);
+  assert.equal(byName(prepare, "zit_lora_name").label, "LORA");
+  assert.equal(byName(prepare, "prompt_pos").label, "PROMPT ADDITION");
+  assert.equal(byName(prepare, "zit_sampling_entry").label, "SAMPLING ENTRY AT %");
+  assert.equal(byName(process, "mask_feather").label, "MASK FEATHER");
+  assert.equal(byName(prepare, "steps").value, 30, "values survive family switches");
+  // CMK Detailer Family Enable drives the Mask Detailer Prepare as the Detailer Prepare.
+  const control = create(ControlNode);
+  control.graph = { links: { 21: { target_id: 11, target_slot: 2 } }, getNodeById: (id) => nodes.get(id) };
+  control.outputs[1].links = [21];
+  press(control, "SDXL");
+  assert.equal(byName(prepare, "model_family").value, "SDXL");
+  assert.ok(shown(prepare).includes("lora_name"));
+
+  // CMK Flow · MaskDetailer: MODEL FAMILY of the inner Prepare is linked to a
+  // subgraph input; the inner view follows the outer MODE.
+  const inner = create(MaskPrepare);
+  inner.inputs = [{ name: "model_family", link: 40 }];
+  select(inner, "None");
+  const host = { subgraph: { nodes: [inner], links: new Map([[40, { origin_id: -10, origin_slot: 1 }]]),
+    inputs: [{ name: "MODEL ZIT" }, { name: "model_family" }] }, widgets: [{ name: "model_family", value: "Z-Image Turbo" }] };
+  extension.loadedGraphNode(host);
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  assert.equal(byName(inner, "model_family").value, "Z-Image Turbo", "inner Prepare mirrors the outer MODE");
+  assert.ok(shown(inner).includes("zit_steps"));
+  host.widgets[0].value = "SDXL";
+  host.widgets[0].callback();
+  assert.ok(shown(inner).includes("steps") && !shown(inner).includes("zit_steps"));
+}
+
 console.log("detailer multi-model UI contract: OK");

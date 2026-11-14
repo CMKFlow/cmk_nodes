@@ -43,6 +43,7 @@ from ..nodes.swap.face_process import (
     _sort_face_detectors,
 )
 from ..utils.cmk_diagnostic import make_diagnostic_payload
+from ..utils.prepare_card import footer_card, log_block_rows
 from ..utils.face_diagnostic import detection_view, with_face_stages
 from ..utils.face_layers import LAYER_SCHEMA, layers_roi, paste_layers, quantize_layer, refine_layer, restore_layer, with_layers
 from ..utils.face_matching import MATCH_RULE, OK, assign_faces
@@ -278,6 +279,7 @@ class CMKFaceProcessPrepareMultiModelPipe:
             metadata={"mode": mode, "model_requested": mode in ("sdxl", "z_image_turbo"),
                       "models_loaded": False, "sam_loaded": False, "conditioning_created": False},
         )
+        diagnostic = footer_card(diagnostic, log_block_rows(log_pipe, "FaceProcess Prepare"))
         return (face, log_pipe, diagnostic)
 
 

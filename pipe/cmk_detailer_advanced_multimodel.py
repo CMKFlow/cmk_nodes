@@ -30,6 +30,7 @@ except ImportError:  # Unit tests outside a running ComfyUI installation.
             self.message = message
 
 from ..utils.cmk_diagnostic import make_diagnostic_payload
+from ..utils.prepare_card import footer_card, log_block_rows
 from ..utils.segs_branch_merge import merge_segs_collections_masked, valid_segs
 from ..utils.segs_diagnostic import merge_diagnostic_stages
 from ..utils.stable_segs import stable_branch_components
@@ -289,6 +290,7 @@ class CMKDetailerPrepareAdvancedMultiModelPipe:
             mode="deferred",
             metadata={"families": {str(slot): families[slot] for slot in SLOTS}},
         )
+        diagnostic = footer_card(diagnostic, log_block_rows(log_pipe, "Detailer Prepare Advanced"))
         return (*pipes, bool(active), log_pipe, diagnostic)
 
 

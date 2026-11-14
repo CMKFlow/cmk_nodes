@@ -87,6 +87,7 @@ from .nodes.image.mask_detailer import (
     CMKMaskDetailerPrepare,
     CMKMaskDetailerProcess,
 )
+from .nodes.image.mask_detailer_multimodel import CMKMaskDetailerPrepareMultiModel, CMKMaskDetailerProcessMultiModel
 from .nodes.image.segs_concate import CMK_SEGSConcate
 from .nodes.image.smart_outpaint_pad import CMK_SmartOutpaintPad
 from .nodes.image.smart_upscale import CMK_SmartUpscaler, CMK_SmartUpscalerPipe
@@ -138,6 +139,11 @@ from .nodes.instantid_face_rebuild_advanced import (
     CMKInstantIDFaceRebuildAdvancedSDXL,
     CMKInstantIDFaceRebuildSDXL,
 )
+from .nodes.instantid_face_rebuild_v2 import (
+    CMKFaceRebuildModeEnable,
+    CMKInstantIDFaceRebuildAdvancedSDXLV2,
+    CMKInstantIDFaceRebuildSDXLV2,
+)
 from .loader.checkpoint_vae_loader import CMKCheckpointVAELoader
 from .pipe.loaders.checkpoint_vae_loader import CMKCheckpointVAELoaderPipe, CMKPostProcessModelPipe
 from .pipe.loaders.z_image_turbo_loader import CMKZImageTurboLoaderPipe, CMKZImageTurboPostProcessModelPipe
@@ -182,6 +188,8 @@ NODE_CLASS_MAPPINGS = {
     "CMKMaskDetailerIntake": CMKMaskDetailerIntake,
     "CMKMaskDetailerPrepare": CMKMaskDetailerPrepare,
     "CMKMaskDetailerProcess": CMKMaskDetailerProcess,
+    "CMKMaskDetailerPrepareMultiModel": CMKMaskDetailerPrepareMultiModel,
+    "CMKMaskDetailerProcessMultiModel": CMKMaskDetailerProcessMultiModel,
     "CMKImageCompareEnableGate": CMKImageCompareEnableGate,
     "CMKModuleBypassGate": CMKModuleBypassGate,
     "CMKControlNetBypassGate": CMKControlNetBypassGate,
@@ -323,6 +331,9 @@ NODE_CLASS_MAPPINGS = {
     "CMKInstantIDFaceDetailerSDXL": CMKInstantIDFaceDetailerSDXL,
     "CMKInstantIDFaceRebuildSDXL": CMKInstantIDFaceRebuildSDXL,
     "CMKInstantIDFaceRebuildAdvancedSDXL": CMKInstantIDFaceRebuildAdvancedSDXL,
+    "CMKInstantIDFaceRebuildSDXLV2": CMKInstantIDFaceRebuildSDXLV2,
+    "CMKInstantIDFaceRebuildAdvancedSDXLV2": CMKInstantIDFaceRebuildAdvancedSDXLV2,
+    "CMKFaceRebuildModeEnable": CMKFaceRebuildModeEnable,
 
     # Pipe / ControlNet
     "CMKPipeSetControlNet": CMKPipeSetControlNet,
@@ -364,6 +375,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CMKMaskDetailerIntake": "CMK Mask Detailer · Intake",
     "CMKMaskDetailerPrepare": "CMK Mask Detailer · Prepare",
     "CMKMaskDetailerProcess": "CMK Mask Detailer · Process",
+    "CMKMaskDetailerPrepareMultiModel": "CMK Mask Detailer · Prepare Multi-Model",
+    "CMKMaskDetailerProcessMultiModel": "CMK Mask Detailer · Process Multi-Model",
     "CMKCheckpointVAELoader": "CMK Checkpoint VAE Loader",
     "CMKCheckpointVAELoaderPipe": "CMK Flow · Checkpoint & VAE",
     "CMKPostProcessModelPipe": "CMK PostProcess Model SDXL",
@@ -501,6 +514,9 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CMKInstantIDFaceDetailerSDXL": "CMK InstantID Face Detailer SDXL",
     "CMKInstantIDFaceRebuildSDXL": "CMK FaceRebuild SDXL",
     "CMKInstantIDFaceRebuildAdvancedSDXL": "CMK FaceRebuild SDXL · Advanced",
+    "CMKInstantIDFaceRebuildSDXLV2": "CMK FaceRebuild SDXL v2",
+    "CMKInstantIDFaceRebuildAdvancedSDXLV2": "CMK FaceRebuild SDXL · Advanced v2",
+    "CMKFaceRebuildModeEnable": "CMK FaceRebuild · Mode",
     "CMKPipeSetControlNet": "CMK Pipe Set ControlNet",
 
     "CMKLogCreate": "CMK Log Create",

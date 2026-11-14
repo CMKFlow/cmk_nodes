@@ -276,8 +276,14 @@ def _legend(height: int, items: Sequence[tuple]) -> List[tuple]:
 # Smart Detailer stages
 # --------------------------------------------------------------------------
 
-def detailer_spatial_stages(image, segs, *, feather: int = 5, alpha: int = 255) -> List[Dict[str, Any]]:
-    """SAMPLING ROI, MASK and PASTEBACK of one Detailer from its SEGS."""
+def detailer_spatial_stages(image, segs, *, feather: int = 5, alpha: int = 255, bbox_label: str = "DETECTION BOX",
+                            mask_label: str = "cropped_mask", result=None) -> List[Dict[str, Any]]:
+    """SAMPLING ROI, MASK and PASTEBACK of one Detailer from its SEGS.
+
+    ``bbox_label`` names the SEG ``bbox`` (Mask Detailer: the painted mask's
+    bounds).  With ``result`` the PASTEBACK stage shows the pasted result
+    weighted with the pasteback weight instead of the bare weight.
+    """
     if image is None or not _first_image_segs(segs):
         return []
     base = _rgb(image)
@@ -292,21 +298,27 @@ def detailer_spatial_stages(image, segs, *, feather: int = 5, alpha: int = 255) 
     for seg in items:
         _draw_rect(roi, roi_rect(seg, width, height), ROI_COLOR, t, dashed=True)
         _draw_rect(roi, bbox_rect(seg, width, height), DETECTION_COLOR, t)
-    roi = _draw_labels(roi, _legend(height, [("DETECTION BOX", DETECTION_COLOR), ("SAMPLING ROI (crop_region)", ROI_COLOR)]))
+    roi = _draw_labels(roi, _legend(height, [(bbox_label, DETECTION_COLOR), ("SAMPLING ROI (crop_region)", ROI_COLOR)]))
 
     raw = projected_mask(segs, height, width, feather=0, alpha=255).numpy()
     mask = _tint(_dim(base, 0.45), raw, MASK_COLOR, 0.85).astype(np.uint8)
     for seg in items:
         _draw_rect(mask, roi_rect(seg, width, height), ROI_COLOR, t, dashed=True)
-    mask = _draw_labels(mask, _legend(height, [("cropped_mask", MASK_COLOR), ("SAMPLING ROI", ROI_COLOR)]))
+    mask = _draw_labels(mask, _legend(height, [(mask_label, MASK_COLOR), ("SAMPLING ROI", ROI_COLOR)]))
 
     weight = projected_mask(segs, height, width, feather=feather, alpha=alpha).numpy()
-    paste = np.repeat((weight * 255.0)[..., None], 3, axis=2)
-    paste = (paste * 0.75 + _dim(base, 0.25)).astype(np.float32)
+    if result is None:
+        paste = np.repeat((weight * 255.0)[..., None], 3, axis=2)
+        paste = (paste * 0.75 + _dim(base, 0.25)).astype(np.float32)
+        paste_legend = "PASTEBACK WEIGHT (white = 1)"
+    else:
+        pasted = _rgb(result).astype(np.float32)
+        paste = pasted * weight[..., None] + _dim(pasted, 0.3, gray=True) * (1.0 - weight[..., None])
+        paste_legend = "PASTED RESULT x PASTEBACK WEIGHT"
     paste = paste.clip(0, 255).astype(np.uint8)
     for seg in items:
         _draw_rect(paste, roi_rect(seg, width, height), ROI_COLOR, t, dashed=True)
-    paste = _draw_labels(paste, _legend(height, [("PASTEBACK WEIGHT (white = 1)", (255, 255, 255)), ("SAMPLING ROI", ROI_COLOR)]))
+    paste = _draw_labels(paste, _legend(height, [(paste_legend, (255, 255, 255)), ("SAMPLING ROI", ROI_COLOR)]))
 
     roi_px = int(support.sum())
     mask_px = int((raw > 0).sum())
