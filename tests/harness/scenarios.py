@@ -1406,6 +1406,12 @@ def faceprocess28_prompt(mode: str, overrides: dict | None = None) -> dict:
     execute = dict(prompt[FP28_EXECUTE]["inputs"])
     for name in ("enable", "process_mode", "detail_denoise"):
         execute.pop(name)
+    # REFINE MODE, RESTORE MODEL and VISIBILITY belong to the Prepare (the
+    # fixture's execution sets no restore model); the execution has OUTPUT
+    # IMAGE PROCEED.
+    prompt[FP28_PREPARE]["inputs"].update(refine_mode=execute.pop("refine_mode"), restore_model="GFPGANv1.4.pth",
+                                          restore_visibility=1.0)
+    execute["output_image_proceed"] = True
     prompt[FP28_EXECUTE] = {"class_type": "CMKFaceProcessMultiModelPipe", "inputs": execute}
     prompt["8417:7847"]["inputs"]["ENABLE"] = [FP28_MODE, 0]
     prompt["8417:7846"]["inputs"]["enable"] = [FP28_MODE, 0]

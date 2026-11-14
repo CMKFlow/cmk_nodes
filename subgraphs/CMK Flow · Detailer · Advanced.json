@@ -1178,15 +1178,6 @@
                 "link": 6
               },
               {
-                "localized_name": "enable",
-                "name": "enable",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "enable"
-                },
-                "link": null
-              },
-              {
                 "localized_name": "output_image_proceed",
                 "name": "output_image_proceed",
                 "type": "BOOLEAN",
@@ -1360,7 +1351,6 @@
               "default_output": "b"
             },
             "widgets_values": [
-              true,
               false,
               "bbox/div/hand_yolov8s.pt",
               0.5,
@@ -1503,15 +1493,6 @@
                 "shape": 7,
                 "type": "CMK_DIAGNOSTIC",
                 "link": 12
-              },
-              {
-                "localized_name": "enable",
-                "name": "enable",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "enable"
-                },
-                "link": null
               },
               {
                 "localized_name": "output_image_proceed",
@@ -1687,7 +1668,6 @@
               "default_output": "b"
             },
             "widgets_values": [
-              true,
               false,
               "segm/face/face_yolov8s.pt",
               0.5,
@@ -1829,15 +1809,6 @@
                 "shape": 7,
                 "type": "CMK_DIAGNOSTIC",
                 "link": 18
-              },
-              {
-                "localized_name": "enable",
-                "name": "enable",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "enable"
-                },
-                "link": null
               },
               {
                 "localized_name": "output_image_proceed",
@@ -2013,7 +1984,6 @@
               "default_output": "b"
             },
             "widgets_values": [
-              true,
               false,
               "bbox/div/hand_yolov8n.pt",
               0.5,

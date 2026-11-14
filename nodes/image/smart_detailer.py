@@ -1224,7 +1224,9 @@ class CMK_SmartDetailerMultiModelPipe(CMK_SmartDetailerPipe):
     @classmethod
     def INPUT_TYPES(cls):
         spec = super().INPUT_TYPES()
-        required = {name: value for name, value in spec["required"].items() if name != "denoise"}
+        # No own enable switch (2.8.0): CMK Detailer Family Enable / MODEL
+        # FAMILY is the only activation path; None is the bypass.
+        required = {name: value for name, value in spec["required"].items() if name not in ("denoise", "enable")}
         required["DETAILER"] = ("CMK_DETAILER_MULTIMODEL_PIPE",)
         return {**spec, "required": required}
 
@@ -1301,9 +1303,10 @@ class CMK_SmartDetailerMultiModelPipe(CMK_SmartDetailerPipe):
     def dependency_revision(cls, prompt, unique_id, cache_key):
         # A Detailer whose Advanced slot is None never runs (the merge does not
         # request it); like a switched-off branch it reports DISABLED_REVISION.
+        # A stale ``enable`` of an older API prompt is no switch any more.
         if cls._advanced_slot_family(prompt, unique_id) == "none":
             return DISABLED_REVISION
-        return super().dependency_revision(prompt, unique_id, cache_key)
+        return read_pickle_revision(cls._CACHE_SCOPE, cache_key)
 
     @staticmethod
     def _advanced_slot_family(prompt, unique_id):
@@ -1346,6 +1349,8 @@ class CMK_SmartDetailerMultiModelPipe(CMK_SmartDetailerPipe):
         return {"advanced_prepare_slot": slot, "advanced_prepare": key}
 
     def check_lazy_status(self, DETAILER=None, opt_log=None, opt_diagnostic=None, prompt=None, unique_id=None, **kwargs):
+        # Same run settings as run_pipe: always enabled, the family's entry.
+        kwargs = {**kwargs, "enable": True}
         entry = self._sampling_entry(DETAILER)
         if entry is not None:
             kwargs = {**kwargs, "denoise": entry}
@@ -1361,7 +1366,6 @@ class CMK_SmartDetailerMultiModelPipe(CMK_SmartDetailerPipe):
     def run_pipe(
         self,
         DETAILER,
-        enable,
         output_image_proceed,
         model_name,
         bbox_threshold,
@@ -1379,6 +1383,7 @@ class CMK_SmartDetailerMultiModelPipe(CMK_SmartDetailerPipe):
         prompt=None,
         unique_id=None,
     ):
+        enable = True  # the model family decides; the shared execution keeps its contract
         if not isinstance(DETAILER, dict):
             raise ValueError("CMK Smart Detailer Multi-Model -Pipe-: DETAILER is missing")
         family = str(DETAILER.get("detailer_model_family", "none"))

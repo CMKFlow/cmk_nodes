@@ -32,7 +32,6 @@ const PREPARE_LABELS = {
 };
 
 const DETAILER_LABELS = {
-    enable: "ENABLE",
     output_image_proceed: "OUTPUT IMAGE PROCEED",
     model_name: "DETECT MODEL",
     bbox_threshold: "BBOX THRESHOLD",
@@ -107,15 +106,58 @@ function familyValue(node) {
 
 // Switching families only hides widgets; no value is reset and, like
 // FaceProcess, the node keeps its size (the prompt field takes the space).
+// None is the complete bypass: no Prepare setting has an effect, so only the
+// MODEL FAMILY row remains.
 function refreshPrepare(node) {
     if (!Array.isArray(node.widgets)) return;
     applyLabels(node, PREPARE_LABELS);
-    const active = FAMILY_WIDGETS[familyValue(node)] ?? new Set();
+    const family = familyValue(node);
+    const active = FAMILY_WIDGETS[family] ?? new Set();
     for (const target of node.widgets) {
-        setWidgetVisible(target, !FAMILY_SPECIFIC.has(target?.name) || active.has(target.name));
+        const visible = target?.name === FAMILY_WIDGET
+            || (family !== "None" && (!FAMILY_SPECIFIC.has(target?.name) || active.has(target.name)));
+        setWidgetVisible(target, visible);
     }
+    for (const detailer of linkedDetailers(node)) refreshDetailer(detailer);
     node.setDirtyCanvas?.(true, true);
     app.graph?.setDirtyCanvas?.(true, true);
+}
+
+function linkOf(graph, id) {
+    return graph?.links?.get?.(id) ?? graph?.links?.[id];
+}
+
+function linkedDetailers(node) {
+    const graph = node.graph ?? app.graph;
+    return (node.outputs ?? []).flatMap((output) => output?.links ?? [])
+        .map((id) => linkOf(graph, id))
+        .map((link) => (link ? graph.getNodeById?.(link.target_id) : null))
+        .filter((target) => nodeClass(target) === DETAILER_CLASS);
+}
+
+// The Smart Detailer has no switch of its own: its family is the one of the
+// Prepare (Advanced: of the Detailer slot) feeding DETAILER, or null when the
+// input is not linked to one.
+function detailerFamily(node) {
+    const input = node.inputs?.find((item) => item?.name === "DETAILER" && item.link != null);
+    const graph = node.graph ?? app.graph;
+    const link = input ? linkOf(graph, input.link) : null;
+    const source = link ? graph.getNodeById?.(link.origin_id) : null;
+    const type = nodeClass(source);
+    if (type === PREPARE_CLASS) return familyValue(source);
+    if (type !== ADVANCED_PREPARE_CLASS) return null;
+    const value = source.widgets?.find((item) => item?.name === `${FAMILY_WIDGET}_${Number(link.origin_slot) + 1}`)?.value;
+    return value === "SDXL" || value === "Z-Image Turbo" ? value : "None";
+}
+
+// NONE bypasses the Detailer completely: no widget has an effect, so none is
+// shown (values stay and are serialized; the node keeps its size).
+function refreshDetailer(node) {
+    if (!Array.isArray(node.widgets)) return;
+    applyLabels(node, DETAILER_LABELS);
+    const bypass = detailerFamily(node) === "None";
+    for (const target of node.widgets) setWidgetVisible(target, !bypass);
+    node.setDirtyCanvas?.(true, true);
 }
 
 function installFamilyCallback(node) {
@@ -274,9 +316,9 @@ function refresh(node) {
         refreshPrepare(node);
     } else if (type === FAMILY_CONTROL_CLASS) {
         installFamilyChoice(node);
-    } else if (type === DETAILER_CLASS && Array.isArray(node.widgets)) {
-        applyLabels(node, DETAILER_LABELS);
-        node.setDirtyCanvas?.(true, true);
+    } else if (type === DETAILER_CLASS) {
+        node._cmkRefreshDetailer = () => refreshDetailer(node);
+        refreshDetailer(node);
     }
 }
 

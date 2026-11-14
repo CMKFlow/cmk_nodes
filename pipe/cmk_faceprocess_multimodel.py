@@ -73,11 +73,16 @@ DIFFUSION_SHARED = ("sam_model_name", "sam_device_mode", "use_prompt_lora_from_s
                     "use_lora_from_1st_pass", "prompt_pos")
 TRANSPORT = ("LOG",)
 
-# Execute inputs by the path that reads them.
+# Restore configuration of the Prepare (FACE carries it to the execution).
 RESTORE_INPUTS = ("restore_model", "restore_visibility")
-# Restore controls without effect (E5): not offered by the 2.8 node.
-# detail_denoise: replaced by the sampling entry per family of the Prepare.
-DROPPED_RESTORE_INPUTS = ("restore_facedetection", "restore_codeformer_weight", "detail_denoise")
+RESTORE_VISIBILITY_DEFAULT = 0.5
+# Inputs of the legacy execution the 2.8 node does not offer:
+# restore_facedetection / restore_codeformer_weight have no effect (E5);
+# detail_denoise is replaced by the sampling entry per family of the Prepare;
+# refine_mode and the restore configuration belong to the Prepare.
+DROPPED_EXECUTE_INPUTS = ("restore_facedetection", "restore_codeformer_weight", "detail_denoise", "refine_mode",
+                          *RESTORE_INPUTS)
+REFINE_MODES = ["Off", "Detail", "Sharpen", "Smooth"]
 STATUS_TEXT = {"OK": "RESTORED", "UNMATCHED": "SKIPPED · NO INSIGHTFACE ASSIGNMENT",
                "AMBIGUOUS": "SKIPPED · AMBIGUOUS ASSIGNMENT", "CONFLICT": "SKIPPED · AMBIGUOUS ASSIGNMENT (CONFLICT)"}
 DETAIL_INPUTS = ("detail_guide_size", "detail_guide_size_for", "detail_max_size",
@@ -89,18 +94,17 @@ def prepare_excluded_inputs(mode):
     if mode == "restore":
         return (*TRANSPORT, "MODEL ZIT", "MODEL SDXL", "LoRA ZIT", "PROCESS", *DIFFUSION_SHARED, *SDXL_SETTINGS, *ZIT_SETTINGS)
     if mode == "sdxl":
-        return (*TRANSPORT, "MODEL ZIT", "LoRA ZIT", *ZIT_SETTINGS)
+        return (*TRANSPORT, "MODEL ZIT", "LoRA ZIT", *RESTORE_INPUTS, *ZIT_SETTINGS)
     if mode == "z_image_turbo":
-        return (*TRANSPORT, "MODEL SDXL", *SDXL_SETTINGS)
+        return (*TRANSPORT, "MODEL SDXL", *RESTORE_INPUTS, *SDXL_SETTINGS)
     return (*TRANSPORT,)
 
 
 def execute_excluded_inputs(mode):
-    transport = ("opt_log", "VISUAL", "opt_diagnostic", "FACE")
+    # output_image_proceed only switches an output, like on the Smart Detailer.
+    transport = ("opt_log", "VISUAL", "opt_diagnostic", "FACE", "output_image_proceed")
     if mode == "restore":
         return (*transport, *DETAIL_INPUTS)
-    if mode in ("sdxl", "z_image_turbo"):
-        return (*transport, *RESTORE_INPUTS)
     return transport
 
 
@@ -142,6 +146,13 @@ class CMKFaceProcessPrepareMultiModelPipe:
         detailer = CMKDetailerPrepareMultiModelPipe.INPUT_TYPES()
         required = {name: detailer["required"][name] for name in ("MODEL SDXL", "PROCESS", "IMAGE")}
         required["process_mode"] = (FACEPROCESS_MODES, {"default": "None"})
+        # Refine belongs to the branch configuration of every active mode,
+        # the restore model and its visibility to RESTORE.
+        required["refine_mode"] = (REFINE_MODES, {"default": "Off"})
+        legacy = CMKFaceProcessPipe.INPUT_TYPES()["optional"]
+        required["restore_model"] = legacy["restore_model"]
+        visibility_type, visibility = legacy["restore_visibility"]
+        required["restore_visibility"] = (visibility_type, {**visibility, "default": RESTORE_VISIBILITY_DEFAULT})
         required.update({name: spec for name, spec in detailer["required"].items() if name not in required and name != "model_family"})
         return {"required": required, "optional": dict(detailer["optional"])}
 
@@ -165,7 +176,8 @@ class CMKFaceProcessPrepareMultiModelPipe:
             needed += [name for name in names if name in kwargs and kwargs[name] is None]
         return needed
 
-    def prepare(self, IMAGE, process_mode, PROCESS=None, LOG=None, **settings):
+    def prepare(self, IMAGE, process_mode, refine_mode="Off", restore_model="none",
+                restore_visibility=RESTORE_VISIBILITY_DEFAULT, PROCESS=None, LOG=None, **settings):
         if IMAGE is None:
             raise ValueError(f"{PREPARE_LABEL}: IMAGE is missing")
         mode = faceprocess_mode(process_mode)
@@ -177,7 +189,11 @@ class CMKFaceProcessPrepareMultiModelPipe:
             "face_image": IMAGE,
             "face_global_enable": mode != "none",
             "boolean_face_enable": mode != "none",
+            # NONE is the complete bypass: no Refine either.
+            "face_refine_mode": "Off" if mode == "none" else _normalize_refine_mode(refine_mode),
         }
+        if mode == "restore":
+            face.update(face_restore_model=restore_model, face_restore_visibility=float(restore_visibility))
         model_source = "NOT REQUESTED"
         if mode in ("sdxl", "z_image_turbo"):
             if not isinstance(PROCESS, dict):
@@ -238,9 +254,12 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
     @classmethod
     def INPUT_TYPES(cls):
         spec = super().INPUT_TYPES()
-        required = {name: value for name, value in spec["required"].items() if name not in ("enable", "process_mode")}
-        required["FACE"] = (FACE_MULTIMODEL_PIPE, {"lazy": True})
-        optional = {name: value for name, value in spec["optional"].items() if name not in DROPPED_RESTORE_INPUTS}
+        rest = {name: value for name, value in spec["required"].items() if name not in ("enable", "process_mode", "FACE")}
+        # OUTPUT IMAGE PROCEED as on CMK Smart Detailer -Pipe-: off leaves the
+        # IMAGE PROCEED output empty (SEGS PROCESSED carries the result).
+        required = {"FACE": (FACE_MULTIMODEL_PIPE, {"lazy": True}),
+                    "output_image_proceed": ("BOOLEAN", {"default": True}), **rest}
+        optional = {name: value for name, value in spec["optional"].items() if name not in DROPPED_EXECUTE_INPUTS}
         return {**spec, "required": required, "optional": optional}
 
     # ---- cache identity -------------------------------------------------
@@ -250,8 +269,7 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
         prepare_id, prepare = _prepare_link(prompt, unique_id)
         extra = {"mode": mode or "unknown"}
         if mode in ("restore", None):
-            node = prompt.get(str(unique_id)) if isinstance(prompt, dict) else None
-            restore_model = ((node or {}).get("inputs") or {}).get("restore_model") if isinstance(node, dict) else None
+            restore_model = (prepare.get("inputs") or {}).get("restore_model") if prepare is not None else None
             extra.update(match_rule=MATCH_RULE, restore_backend=backend_identity(restore_model))
         if prepare is not None:
             extra["prepare"], _detail = build_node_fingerprint(
@@ -285,8 +303,20 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
         return super().check_lazy_status(FACE=FACE, prompt=prompt, unique_id=unique_id, **kwargs)
 
     # ---- execution ------------------------------------------------------
-    def run_pipe(self, FACE=None, select_face="Largest", opt_log=None, VISUAL=None, opt_diagnostic=None,
-                 prompt=None, unique_id=None, **kwargs):
+    def run_pipe(self, FACE=None, output_image_proceed=True, select_face="Largest", opt_log=None, VISUAL=None,
+                 opt_diagnostic=None, prompt=None, unique_id=None, **kwargs):
+        return self._image_output(
+            self._run_branch(FACE, select_face, opt_log, VISUAL, opt_diagnostic, prompt, unique_id, kwargs),
+            output_image_proceed,
+        )
+
+    @staticmethod
+    def _image_output(result, output_image_proceed):
+        # Like the Smart Detailer: without OUTPUT IMAGE PROCEED the IMAGE PROCEED
+        # output stays empty; SEGS, VISUAL and diagnostic are unchanged.
+        return result if bool(output_image_proceed) else (None, *result[1:])
+
+    def _run_branch(self, FACE, select_face, opt_log, VISUAL, opt_diagnostic, prompt, unique_id, kwargs):
         from .cmk_persistent_cache import pickle_available
 
         mode = branch_mode(prompt, unique_id)
@@ -301,8 +331,9 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
             # Branch HIT: the legacy path loads the payload; FACE is not read.
             return super().run_pipe(FACE=None, enable=True, process_mode="restore", **transport)
         face_pipe = self._materialize_face(FACE, prompt=prompt)
+        params = {**kwargs, "refine_mode": face_pipe.get("face_refine_mode", "Off")}
         run = self._run_restore if face_pipe.get("face_mode") == "restore" else self._run_detailer
-        return run(face_pipe, select_face, kwargs, opt_log=opt_log, VISUAL=VISUAL, opt_diagnostic=opt_diagnostic,
+        return run(face_pipe, select_face, params, opt_log=opt_log, VISUAL=VISUAL, opt_diagnostic=opt_diagnostic,
                    unique_id=unique_id, cache_key=cache_key, cache_detail=_detail)
 
     # ---- shared ---------------------------------------------------------
@@ -420,8 +451,8 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
         detect_model, detect = self._detection(params)
         if detect_model in (None, "", "none"):
             raise RestoreConfigurationError(f"{EXECUTE_LABEL}: RESTORE requires a YOLO face detector (detect_model)")
-        backend, backend_info = resolve_restore_backend(params.get("restore_model"))
-        visibility = params.get("restore_visibility", 1.0)
+        backend, backend_info = resolve_restore_backend(face_pipe.get("face_restore_model"))
+        visibility = face_pipe.get("face_restore_visibility", RESTORE_VISIBILITY_DEFAULT)
 
         # RESTORE uses the YOLO boxes only; a SAM mask would be replaced by the
         # full crop mask of the coverage, so SAM is not loaded.
@@ -557,7 +588,10 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
         if mode == "restore":
             # Restore needs no diffusion model, conditioning or SAM.
             return {"face_mode": "restore", "face_image": image, "face_global_enable": True,
-                    "boolean_face_enable": True, "face_sam_model": None, "face_seed": 0}
+                    "boolean_face_enable": True, "face_sam_model": None, "face_seed": 0,
+                    "face_refine_mode": face.get("face_refine_mode", "Off"),
+                    "face_restore_model": face.get("face_restore_model"),
+                    "face_restore_visibility": face.get("face_restore_visibility", RESTORE_VISIBILITY_DEFAULT)}
         if mode not in ("sdxl", "z_image_turbo"):
             raise ValueError(f"{EXECUTE_LABEL}: unsupported FACE mode {mode!r}")
         # The Multi-Model Detailer preparation, exactly as its Prepare runs it
@@ -570,6 +604,7 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
         )[0]
         return {
             "face_mode": mode,
+            "face_refine_mode": face.get("face_refine_mode", "Off"),
             "source_pipe": detailer.get("source_pipe"),
             "_source_pipe": detailer.get("source_pipe"),
             "face_model": detailer.get("detailer_model"),

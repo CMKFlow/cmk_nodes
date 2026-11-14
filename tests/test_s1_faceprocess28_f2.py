@@ -132,8 +132,9 @@ class RestoreCaches(ScenarioCase):
             {"mode": "Restore", "overrides": {f"{PREPARE}.zit_steps": 12, f"{PREPARE}.steps": 40,
                                                f"{PREPARE}.prompt_pos": "other", f"{PREPARE}.sampling_entry": 70.0,
                                                f"{PREPARE}.zit_sampling_entry": 60.0, f"{EXECUTE}.detail_paste_feather": 5}},
-            {"mode": "Restore", "overrides": {f"{EXECUTE}.refine_mode": "Smooth"}},
-            {"mode": "None", "overrides": {f"{EXECUTE}.refine_mode": "Smooth"}},
+            {"mode": "Restore", "overrides": {f"{PREPARE}.refine_mode": "Smooth"}},
+            {"mode": "None", "overrides": {f"{PREPARE}.refine_mode": "Smooth"}},
+            {"mode": "Restore", "overrides": {f"{PREPARE}.restore_visibility": 0.3}},
         ]
         result = cls.run_case("faceprocess28_sequence", steps=steps)
         cls.runs = None if result is None else result["runs"]
@@ -163,6 +164,13 @@ class RestoreCaches(ScenarioCase):
         self.assertEqual(compute(run), 1)
         self.assertEqual(loads(run), NO_LOADS)
 
+    def test_visibility_of_the_prepare_recomputes_the_branch(self):
+        run = self.runs[5]
+        self.assertEqual(statuses(run, "faceprocess_branch")[-1], "MISS_STORED")
+        self.assertNotIn(run["branch_key"], {self.runs[0]["branch_key"], self.runs[3]["branch_key"]})
+        self.assertEqual(compute(run), 1)
+        self.assertEqual(loads(run), NO_LOADS)
+
     def test_none_bypasses_refine_too(self):
         run = self.runs[4]
         self.assertEqual(compute(run), 0)
@@ -179,7 +187,7 @@ class DiffusionCaches(ScenarioCase):
         super().setUpClass()
         steps = [
             {"mode": "SDXL"},
-            {"mode": "SDXL", "overrides": {f"{PREPARE}.zit_steps": 12, f"{EXECUTE}.restore_visibility": 0.5}},
+            {"mode": "SDXL", "overrides": {f"{PREPARE}.zit_steps": 12, f"{PREPARE}.restore_visibility": 0.3}},
             {"mode": "SDXL", "restart": True, "drop_scopes": ["faceprocess_boundary"]},
             {"mode": "SDXL", "overrides": {f"{PREPARE}.steps": 40}},
             {"mode": "Z-Image Turbo"},

@@ -102,11 +102,12 @@ class Branches(unittest.TestCase):
             items.append(native.CMKSEG(image[:, y1:y2, x1:x2, :].clone(), mask, 0.9, (x1, y1, x2, y2), box, "face", None, 0))
         return ((W, H), items)
 
-    def branch(self, mode, source, select_face="All Faces", **params):
-        values = {"detect_model": "bbox/face/face_yolov8m.pt", "restore_model": "stub.pth", "restore_visibility": 1.0,
-                  "refine_mode": "Off", "detect_crop_factor": 1.2, "detail_paste_feather": 20, "detail_denoise": 80.0}
+    def branch(self, mode, source, select_face="All Faces", restore_visibility=1.0, **params):
+        values = {"detect_model": "bbox/face/face_yolov8m.pt", "refine_mode": "Off", "detect_crop_factor": 1.2,
+                  "detail_paste_feather": 20, "detail_denoise": 80.0}
         values.update(params)
-        face_pipe = {"face_mode": mode, "face_image": source, "face_global_enable": True, "face_steps": 4, "face_cfg": 1.0}
+        face_pipe = {"face_mode": mode, "face_image": source, "face_global_enable": True, "face_steps": 4, "face_cfg": 1.0,
+                     "face_restore_model": "stub.pth", "face_restore_visibility": restore_visibility}
         run = self.node._run_restore if mode == "restore" else self.node._run_detailer
         return run(face_pipe, select_face, values, opt_log=None, VISUAL=None, opt_diagnostic=None, unique_id="e",
                    cache_key=None, cache_detail="")

@@ -7,6 +7,9 @@ import { app } from "../../../scripts/app.js";
 //   replace the dropdown, styled like CMK Detailer Family Enable.
 // - Outer FaceProcess subgraphs: the mode dropdown is labelled MODE,
 //   right-aligned, with short option labels (getOptionLabel).
+// - CMK FaceProcess Prepare Multi-Model / Multi-Model -Pipe-: CMK labels and
+//   only the widgets the operating mode uses, like the Multi-Model Detailer
+//   Prepare (values stay; hidden widgets are still serialised).
 // The Detailer controls keep their own extensions and are not touched here.
 export const MODE_CONTROL_CLASS = "CMKFaceProcessModeEnable";
 export const MODE_WIDGET = "process_mode";
@@ -24,6 +27,65 @@ export const OUTER_MODES = {
         widget: "faceprocess_global_enable",
         labels: { ENABLE: "ENABLE", DISABLE: "DISABLE" },
     },
+};
+
+export const PREPARE_CLASS = "CMKFaceProcessPrepareMultiModelPipe";
+export const EXECUTE_CLASS = "CMKFaceProcessMultiModelPipe";
+
+// Same captions as CMK Detailer Prepare Multi-Model (cmk_detailer_multimodel_ui.js).
+const PREPARE_LABELS = {
+    process_mode: "PROCESS MODE",
+    refine_mode: "REFINE MODE",
+    restore_model: "RESTORE MODEL",
+    restore_visibility: "VISIBILITY",
+    sam_model_name: "SAM MODEL",
+    sam_device_mode: "SAM DEVICE",
+    use_prompt_lora_from_sampler: "USE PROMPT FROM 1ST PASS",
+    use_lora_from_1st_pass: "USE LORA FROM 1ST PASS",
+    use_1st_pass_sampling: "USE SAMPLING FROM 1ST PASS",
+    lora_name: "LORA",
+    prompt_pos: "PROMPT POS",
+    prompt_neg: "PROMPT NEG",
+    steps: "STEPS",
+    cfg: "CFG",
+    sampling_entry: "SAMPLING ENTRY AT %",
+    zit_steps: "STEPS",
+    zit_cfg: "CFG",
+    zit_sampling_entry: "SAMPLING ENTRY AT %",
+    zit_sampler: "sampler",
+    zit_scheduler: "scheduler",
+    zit_model_shift: "MODEL SHIFT",
+    freeu_enabled: "USE FREEU",
+};
+// Widgets per operating mode: Refine for every active mode, the restore
+// model and its visibility for RESTORE; NONE shows nothing.
+const DIFFUSION_SHARED = ["refine_mode", "sam_model_name", "sam_device_mode", "use_prompt_lora_from_sampler", "use_lora_from_1st_pass", "prompt_pos"];
+const PREPARE_WIDGETS = {
+    Restore: new Set(["refine_mode", "restore_model", "restore_visibility"]),
+    SDXL: new Set([...DIFFUSION_SHARED,
+        "use_1st_pass_sampling", "lora_name", "strength_model", "strength_clip", "prompt_neg", "steps", "cfg",
+        "sampling_entry", "sampler", "scheduler", "stop_at_clip_layer", "pag_scale", "sampling", "zsnr",
+        "freeu_enabled", "freeu_b1", "freeu_b2", "freeu_s1", "freeu_s2"]),
+    "Z-Image Turbo": new Set([...DIFFUSION_SHARED,
+        "zit_steps", "zit_cfg", "zit_sampling_entry", "zit_sampler", "zit_scheduler", "zit_model_shift"]),
+};
+
+const EXECUTE_LABELS = {
+    output_image_proceed: "OUTPUT IMAGE PROCEED",
+    select_face: "SELECT FACE",
+    detect_model: "DETECT MODEL",
+    detect_bbox_threshold: "BBOX THRESHOLD",
+    detect_crop_factor: "CROP FACTOR",
+    detail_guide_size: "GUIDE SIZE",
+};
+const EXECUTE_COMMON = ["output_image_proceed", "select_face", "detect_model", "detect_bbox_threshold", "detect_bbox_dilation",
+    "detect_crop_factor", "detect_drop_size"];
+const DETAIL_WIDGETS = ["detail_guide_size", "detail_guide_size_for", "detail_max_size", "detail_noise_mask",
+    "detail_force_inpaint", "detail_paste_feather"];
+const EXECUTE_WIDGETS = {
+    Restore: new Set(EXECUTE_COMMON),
+    SDXL: new Set([...EXECUTE_COMMON, ...DETAIL_WIDGETS]),
+    "Z-Image Turbo": new Set([...EXECUTE_COMMON, ...DETAIL_WIDGETS]),
 };
 
 const CHOICE_NAME = "cmk_faceprocess_mode_choice";
@@ -57,6 +119,91 @@ function setWidgetVisible(target, visible) {
     target.draw = () => {};
     target.hidden = true;
     target.options.hidden = true;
+}
+
+function applyLabels(node, labels) {
+    for (const target of node.widgets ?? []) {
+        const label = labels[target?.name];
+        if (label) target.label = label;
+    }
+}
+
+function graphOf(node) {
+    return node.graph ?? app.graph;
+}
+
+function linkOf(graph, id) {
+    return graph?.links?.get?.(id) ?? graph?.links?.[id];
+}
+
+function linkedTargets(node, outputName, type) {
+    const graph = graphOf(node);
+    const output = node.outputs?.find((item) => item?.name === outputName);
+    return (output?.links ?? [])
+        .map((id) => linkOf(graph, id))
+        .filter(Boolean)
+        .map((link) => [graph.getNodeById?.(link.target_id), link])
+        .filter(([target]) => nodeClass(target) === type);
+}
+
+function prepareMode(prepare) {
+    const value = prepare?.widgets?.find((item) => item?.name === MODE_WIDGET)?.value;
+    return MODE_CHOICES.some(([mode]) => mode === value) ? value : "None";
+}
+
+export function refreshPrepare(node) {
+    if (!Array.isArray(node.widgets)) return;
+    applyLabels(node, PREPARE_LABELS);
+    const active = PREPARE_WIDGETS[prepareMode(node)] ?? new Set();
+    for (const target of node.widgets) {
+        if (target?.name === MODE_WIDGET) continue;
+        setWidgetVisible(target, active.has(target?.name));
+    }
+    for (const [execute] of linkedTargets(node, "FACE", EXECUTE_CLASS)) refreshExecute(execute);
+    node.setDirtyCanvas?.(true, true);
+    app.graph?.setDirtyCanvas?.(true, true);
+}
+
+function executePrepare(node) {
+    const input = node.inputs?.find((item) => item?.name === "FACE" && item.link != null);
+    const link = input ? linkOf(graphOf(node), input.link) : null;
+    const source = link ? graphOf(node).getNodeById?.(link.origin_id) : null;
+    return nodeClass(source) === PREPARE_CLASS ? source : null;
+}
+
+export function refreshExecute(node) {
+    if (!Array.isArray(node.widgets)) return;
+    applyLabels(node, EXECUTE_LABELS);
+    const prepare = executePrepare(node);
+    // Without a Prepare the mode is unknown: keep every widget reachable.
+    const active = prepare ? (EXECUTE_WIDGETS[prepareMode(prepare)] ?? new Set()) : null;
+    for (const target of node.widgets) setWidgetVisible(target, active === null || active.has(target?.name));
+    node.setDirtyCanvas?.(true, true);
+}
+
+// The control's selection reaches the Prepare as a link; its own widget would
+// stay stale, so mirror the selection into every linked Prepare (as the
+// Detailer Family Enable does) and refresh the projection.
+function mirrorToPrepares(node) {
+    const value = node.widgets?.find((target) => target?.name === MODE_WIDGET)?.value;
+    for (const [prepare, link] of linkedTargets(node, "PROCESS MODE", PREPARE_CLASS)) {
+        const name = prepare.inputs?.[link.target_slot]?.widget?.name ?? MODE_WIDGET;
+        const widget = prepare.widgets?.find((item) => item?.name === name);
+        if (widget && value != null && widget.value !== value) widget.value = value;
+        refreshPrepare(prepare);
+    }
+}
+
+function installPrepareCallback(node) {
+    const widget = node.widgets?.find((target) => target?.name === MODE_WIDGET);
+    if (!widget || widget._cmkFaceProcessMode) return;
+    widget._cmkFaceProcessMode = true;
+    const original = widget.callback;
+    widget.callback = function () {
+        const result = original?.apply(this, arguments);
+        refreshPrepare(node);
+        return result;
+    };
 }
 
 function selectionLinked(node) {
@@ -104,6 +251,7 @@ export function installModeChoice(node) {
                 original.value = value;
                 render(root);
                 try { original.callback?.(value, app.canvas, node); } catch (_) {}
+                mirrorToPrepares(node);
                 node.setDirtyCanvas?.(true, true);
                 app.graph?.setDirtyCanvas?.(true, true);
             });
@@ -129,6 +277,7 @@ export function installModeChoice(node) {
     // decided elsewhere; ComfyUI hides the dropdown, so do the same.
     setWidgetVisible(original, false);
     setWidgetVisible(panel, !selectionLinked(node));
+    mirrorToPrepares(node);
     node.setDirtyCanvas?.(true, true);
 }
 
@@ -179,7 +328,12 @@ function installStyle() {
 }
 
 function refresh(node) {
-    if (nodeClass(node) === MODE_CONTROL_CLASS) installModeChoice(node);
+    const type = nodeClass(node);
+    if (type === MODE_CONTROL_CLASS) installModeChoice(node);
+    else if (type === PREPARE_CLASS) {
+        installPrepareCallback(node);
+        refreshPrepare(node);
+    } else if (type === EXECUTE_CLASS) refreshExecute(node);
     else applyOuterMode(node);
 }
 
@@ -192,7 +346,7 @@ app.registerExtension({
     name: "cmk.faceprocess.mode.ui.v1",
 
     beforeRegisterNodeDef(nodeType, nodeData) {
-        if (nodeData.name !== MODE_CONTROL_CLASS) return;
+        if (![MODE_CONTROL_CLASS, PREPARE_CLASS, EXECUTE_CLASS].includes(nodeData.name)) return;
         for (const hook of ["onNodeCreated", "onConfigure", "onAdded", "onConnectionsChange"]) {
             const original = nodeType.prototype[hook];
             nodeType.prototype[hook] = function () {

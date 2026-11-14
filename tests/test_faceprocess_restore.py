@@ -188,11 +188,12 @@ class RestoreBranch(unittest.TestCase):
         self.assertIsNone(opt_sam_model, "RESTORE never uses SAM")
         return ((240, 160), list(self.detected))
 
-    def restore_run(self, select_face="All Faces", **params):
-        values = {"detect_model": "bbox/face/face_yolov8m.pt", "restore_model": "stub.pth", "restore_visibility": 1.0,
-                  "refine_mode": "Off", "detect_crop_factor": 1.2}
+    def restore_run(self, select_face="All Faces", restore_model="stub.pth", restore_visibility=1.0, **params):
+        values = {"detect_model": "bbox/face/face_yolov8m.pt", "refine_mode": "Off", "detect_crop_factor": 1.2}
         values.update(params)
-        face_pipe = {"face_mode": "restore", "face_image": IMAGE, "face_global_enable": True}
+        # The restore configuration arrives with FACE from the Prepare.
+        face_pipe = {"face_mode": "restore", "face_image": IMAGE, "face_global_enable": True,
+                     "face_restore_model": restore_model, "face_restore_visibility": restore_visibility}
         return self.node._run_restore(face_pipe, select_face, values, opt_log=None, VISUAL=None, opt_diagnostic=None,
                                       unique_id="e", cache_key=None, cache_detail="")
 
@@ -255,7 +256,11 @@ class RestoreBranch(unittest.TestCase):
         optional = EXECUTE.INPUT_TYPES()["optional"]
         self.assertNotIn("restore_facedetection", optional)
         self.assertNotIn("restore_codeformer_weight", optional)
-        self.assertIn("restore_model", optional)
+        self.assertNotIn("restore_model", optional, "restore configuration belongs to the Prepare")
+        self.assertNotIn("restore_visibility", optional)
+        prepare = mm.CMKFaceProcessPrepareMultiModelPipe.INPUT_TYPES()["required"]
+        self.assertIn("restore_model", prepare)
+        self.assertEqual(prepare["restore_visibility"][1]["default"], 0.5)
 
 
 class Engine(unittest.TestCase):

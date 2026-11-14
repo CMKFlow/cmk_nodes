@@ -45,7 +45,7 @@ const PREPARE = [
   ["freeu_s2", 0.2],
 ];
 const DETAILER = [
-  ["enable", true], ["output_image_proceed", true], ["model_name", "bbox/hand_yolov8s.pt"],
+  ["output_image_proceed", true], ["model_name", "bbox/hand_yolov8s.pt"],
   ["bbox_threshold", 0.5], ["bbox_dilation", 0], ["crop_factor", 3], ["drop_size", 10], ["guide_size", 512],
   ["guide_size_for", true], ["max_size", 768], ["noise_mask", true], ["force_inpaint", true],
 ];
@@ -156,7 +156,8 @@ function select(node, family) {
 
 function assertState(node, family) {
   assert.equal(byName(node, "model_family").value, family);
-  for (const name of SHARED) assert.ok(visible(node, name), `${family}: ${name} shared`);
+  // None is the complete bypass: only MODEL FAMILY remains visible.
+  for (const name of SHARED) assert.equal(visible(node, name), name === "model_family" || family !== "None", `${family}: ${name} shared`);
   for (const name of SDXL_ONLY) assert.equal(visible(node, name), family === "SDXL", `${family}: ${name}`);
   for (const name of ZIT_ONLY) assert.equal(visible(node, name), family === "Z-Image Turbo", `${family}: ${name}`);
 }
@@ -214,6 +215,66 @@ function assertState(node, family) {
   node.imgs = ["old"];
   listeners.execution_start();
   assert.equal(node.imgs.length, 0);
+  assert.equal(byName(node, "enable"), undefined, "no second activation path");
+}
+
+// Smart Detailer Multi-Model: NONE of the feeding Prepare (Advanced: of its
+// Detailer slot) hides every widget; values and node size stay.
+{
+  const nodes = new Map();
+  const links = new Map();
+  const graph = { links, getNodeById: (id) => nodes.get(id) };
+  const add = (node, id, outputs) => {
+    Object.assign(node, { id, graph, outputs, size: [450, 830],
+      setSize() { throw new Error("the Smart Detailer must not be resized"); } });
+    nodes.set(id, node);
+    return node;
+  };
+  const prepare = add(create(PrepareNode), 1, [{ name: "DETAILER", links: [5] }]);
+  const detailer = add(create(DetailerNode), 2, []);
+  detailer.inputs = [{ name: "DETAILER", link: 5 }];
+  links.set(5, { id: 5, origin_id: 1, origin_slot: 0, target_id: 2, target_slot: 0 });
+  byName(detailer, "crop_factor").value = 2.5;
+  const shownDetailer = () => detailer.widgets.filter((w) => !w.hidden).map((w) => w.name);
+  extension.loadedGraphNode(detailer);
+  assert.deepEqual(shownDetailer(), [], "NONE: no Smart Detailer widget");
+  select(prepare, "SDXL");
+  assert.deepEqual(shownDetailer(), DETAILER.map(([name]) => name), "SDXL: every widget");
+  select(prepare, "None");
+  assert.deepEqual(shownDetailer(), []);
+  select(prepare, "Z-Image Turbo");
+  assert.deepEqual(shownDetailer(), DETAILER.map(([name]) => name), "ZIT: every widget");
+  assert.equal(byName(detailer, "crop_factor").value, 2.5, "values survive NONE");
+  assert.deepEqual(detailer.serialize().widgets_values.length, DETAILER.length, "hidden widgets are still serialized");
+  assert.deepEqual(detailer.size, [450, 830], "no automatic resize");
+  // Advanced Prepare: DETAILER 2 follows model_family_2.
+  const advanced = add({ comfyClass: "CMKDetailerPrepareAdvancedMultiModelPipe",
+    widgets: [1, 2, 3].map((slot) => ({ name: `model_family_${slot}`, value: slot === 2 ? "None" : "SDXL" })) }, 3, []);
+  links.set(6, { id: 6, origin_id: 3, origin_slot: 1, target_id: 2, target_slot: 0 });
+  detailer.inputs[0].link = 6;
+  detailer._cmkRefreshDetailer();
+  assert.deepEqual(shownDetailer(), [], "Advanced slot 2 is NONE");
+  advanced.widgets[1].value = "SDXL";
+  detailer._cmkRefreshDetailer();
+  assert.deepEqual(shownDetailer(), DETAILER.map(([name]) => name));
+  // Not linked to a Prepare: the family is unknown, every widget stays reachable.
+  detailer.inputs[0].link = null;
+  detailer._cmkRefreshDetailer();
+  assert.deepEqual(shownDetailer(), DETAILER.map(([name]) => name));
+}
+
+// No ENABLE migration (2.8 development states need none): the graph hook
+// only reorders the Prepare sockets and leaves the Smart Detailer untouched.
+{
+  const values = DETAILER.map(([, value]) => value);
+  const graphData = { nodes: [{ id: 7, type: "CMK_SmartDetailerMultiModelPipe", widgets_values: [...values],
+    inputs: [{ name: "DETAILER", link: 1 }] }], links: [[1, 2, 0, 7, 0, "X"]], definitions: { subgraphs: [] } };
+  const before = JSON.stringify(graphData);
+  extension.beforeConfigureGraph(graphData);
+  assert.equal(JSON.stringify(graphData), before);
+  const node = new DetailerNode();
+  node.configure({ widgets_values: [...values] });
+  assert.equal(byName(node, "model_name").value, "bbox/hand_yolov8s.pt");
 }
 
 // CMK Detailer Family Enable: NONE | SDXL | ZIT replace the dropdown; the

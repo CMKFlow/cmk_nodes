@@ -44,7 +44,7 @@ ZIT_SPEC = {"model_family": "z_image_turbo", "diffusion_model_name": "z.safetens
 
 def settings(**overrides):
     values = {
-        "sam_model_name": "sam.pth", "sam_device_mode": "CPU", "use_prompt_lora_from_sampler": True,
+        "refine_mode": "Off", "restore_model": "GFPGANv1.4.pth", "restore_visibility": 0.5, "sam_model_name": "sam.pth", "sam_device_mode": "CPU", "use_prompt_lora_from_sampler": True,
         "use_lora_from_1st_pass": False, "use_1st_pass_sampling": True, "lora_name": "None", "strength_model": 1.0,
         "strength_clip": 1.0, "prompt_pos": "", "prompt_neg": "", "steps": 30, "cfg": 3.0, "sampling_entry": 95.0,
         "sampler": "euler", "scheduler": "simple", "zit_steps": 8, "zit_cfg": 1.0, "zit_sampling_entry": 85.0,
@@ -67,8 +67,8 @@ def prompt(mode="Restore", prepare=None, execute=None):
             "PROCESS": ["src", 1], "IMAGE": ["src", 2], "LOG": ["src", 3]}},
         "e": {"class_type": "CMKFaceProcessMultiModelPipe", "inputs": {
             "FACE": ["p", 0], "opt_log": ["p", 1], "opt_diagnostic": ["p", 2], "select_face": "Largest",
-            "refine_mode": "Off", "detect_model": "bbox/face/face_yolov8m.pt", "restore_model": "GFPGANv1.4.pth",
-            "restore_visibility": 1.0, "detail_paste_feather": 20, **(execute or {})}},
+            "output_image_proceed": True, "detect_model": "bbox/face/face_yolov8m.pt",
+            "detail_paste_feather": 20, **(execute or {})}},
         "b": {"class_type": "CMKFaceBoundaryCache", "inputs": {"MODEL": ["models", 0], "IMAGE": ["e", 0], "LOG": ["e", 4]}},
     }
     return p
@@ -99,7 +99,9 @@ class Registration(unittest.TestCase):
         ours, detailer = PREPARE.INPUT_TYPES(), detailer_mm.CMKDetailerPrepareMultiModelPipe.INPUT_TYPES()
         mine = {**ours["required"], **ours["optional"]}
         theirs = {**detailer["required"], **detailer["optional"]}
-        mine.pop("process_mode"); theirs.pop("model_family")
+        for name in ("process_mode", "refine_mode", "restore_model", "restore_visibility"):
+            mine.pop(name)
+        theirs.pop("model_family")
         self.assertEqual(mine, theirs, "same names, types, defaults and ranges")
         self.assertEqual(ours["required"]["sampling_entry"][1]["default"], 95.0)
         self.assertEqual(ours["required"]["zit_sampling_entry"][1]["default"], 85.0)
@@ -110,7 +112,16 @@ class Registration(unittest.TestCase):
         self.assertNotIn("enable", spec["required"])
         self.assertNotIn("process_mode", spec["required"])
         self.assertEqual(spec["required"]["FACE"], ("CMK_FACE_MULTIMODEL_PIPE", {"lazy": True}))
-        self.assertIn("refine_mode", spec["optional"], "Refine stays an option of the branch")
+        self.assertEqual(list(spec["required"]), ["FACE", "output_image_proceed", "select_face"])
+        self.assertEqual(spec["required"]["output_image_proceed"], ("BOOLEAN", {"default": True}))
+        self.assertNotIn("refine_mode", spec["optional"], "Refine is configured in the Prepare")
+        self.assertFalse({"restore_model", "restore_visibility"} & set(spec["optional"]), "restore is configured in the Prepare")
+        order = list(PREPARE.INPUT_TYPES()["required"])
+        self.assertEqual(order[order.index("process_mode"):order.index("process_mode") + 4],
+                         ["process_mode", "refine_mode", "restore_model", "restore_visibility"])
+        self.assertEqual(PREPARE.INPUT_TYPES()["required"]["restore_visibility"],
+                         ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0, "step": 0.05}))
+        self.assertEqual(PREPARE.INPUT_TYPES()["required"]["refine_mode"], (["Off", "Detail", "Sharpen", "Smooth"], {"default": "Off"}))
 
     def test_legacy_nodes_unchanged(self):
         self.assertIn("face_global_enable", legacy_prepare.CMKFaceProcessPreparePipe.INPUT_TYPES()["required"])
@@ -201,9 +212,11 @@ class BranchIdentity(unittest.TestCase):
         changed = prompt("Restore")
         changed["models"]["inputs"]["ckpt_name"] = "other"
         self.assertEqual(key(changed), base, "the model source is no RESTORE identity")
-        for variant in (prompt("Restore", execute={"refine_mode": "Smooth"}),
+        self.assertEqual(key(prompt("Restore", execute={"output_image_proceed": False})), base, "an output switch only")
+        for variant in (prompt("Restore", prepare={"refine_mode": "Smooth"}),
                         prompt("Restore", execute={"select_face": "Leftmost"}),
-                        prompt("Restore", execute={"restore_visibility": 0.5}),
+                        prompt("Restore", prepare={"restore_visibility": 0.8}),
+                        prompt("Restore", prepare={"restore_model": "codeformer-v0.1.0.pth"}),
                         prompt("SDXL")):
             self.assertNotEqual(key(variant), base)
 
@@ -221,7 +234,9 @@ class BranchIdentity(unittest.TestCase):
         lora_sdxl["lz"] = lora["lz"]; lora_sdxl["p"]["inputs"]["LoRA ZIT"] = ["lz", 0]
         self.assertEqual(key(lora_sdxl), sdxl, "LoRA ZIT is no SDXL identity")
         self.assertEqual(key(prompt("SDXL", prepare={"zit_steps": 12})), sdxl)
-        self.assertEqual(key(prompt("SDXL", execute={"restore_visibility": 0.5})), sdxl)
+        self.assertEqual(key(prompt("SDXL", prepare={"restore_visibility": 0.8})), sdxl)
+        self.assertEqual(key(prompt("SDXL", prepare={"restore_model": "codeformer-v0.1.0.pth"})), sdxl)
+        self.assertEqual(key(prompt("Z-Image Turbo", prepare={"restore_visibility": 0.8})), key(prompt("Z-Image Turbo")))
         self.assertNotEqual(key(prompt("SDXL", prepare={"steps": 40})), sdxl)
         changed = prompt("SDXL")
         changed["models"]["inputs"]["ckpt_name"] = "other"
@@ -307,6 +322,50 @@ class Bypass(unittest.TestCase):
         self.assertFalse(enabled)
         self.assertEqual(segs[1], [])
         self.assertIn("REFINE          : SKIPPED", log["blocks"][-1]["lines"] if isinstance(log, dict) else str(log))
+
+
+class RefineAndOutput(unittest.TestCase):
+    def test_refine_is_carried_by_the_prepare(self):
+        self.assertEqual(PREPARE().prepare(IMAGE=IMAGE, process_mode="None", **settings(refine_mode="Sharpen"))[0]["face_refine_mode"],
+                         "Off", "NONE: no Refine")
+        for mode, extra in (("Restore", {}), ("SDXL", {"MODEL SDXL": SDXL_SPEC}), ("Z-Image Turbo", {"MODEL ZIT": ZIT_SPEC})):
+            face = PREPARE().prepare(IMAGE=IMAGE, process_mode=mode, PROCESS=PROCESS, **settings(refine_mode="Smooth"), **extra)[0]
+            with self.subTest(mode=mode):
+                self.assertEqual(face["face_refine_mode"], "Smooth")
+                self.assertNotIn("refine_mode", face.get("face_prepare_settings") or {}, "not a Detailer Prepare argument")
+
+    def test_restore_configuration_is_carried_by_the_prepare(self):
+        face = PREPARE().prepare(IMAGE=IMAGE, process_mode="Restore",
+                                 **settings(restore_model="GFPGANv1.4.pth", restore_visibility=0.7))[0]
+        self.assertEqual((face["face_restore_model"], face["face_restore_visibility"]), ("GFPGANv1.4.pth", 0.7))
+        pipe = EXECUTE()._materialize_face(face)
+        self.assertEqual((pipe["face_restore_model"], pipe["face_restore_visibility"]), ("GFPGANv1.4.pth", 0.7))
+        self.assertEqual(PREPARE().prepare(IMAGE=IMAGE, process_mode="Restore")[0]["face_restore_visibility"], 0.5)
+        for mode, extra in (("None", {}), ("SDXL", {"MODEL SDXL": SDXL_SPEC}), ("Z-Image Turbo", {"MODEL ZIT": ZIT_SPEC})):
+            face = PREPARE().prepare(IMAGE=IMAGE, process_mode=mode, PROCESS=PROCESS, **settings(), **extra)[0]
+            with self.subTest(mode=mode):
+                self.assertFalse({"face_restore_model", "face_restore_visibility"} & set(face))
+                self.assertFalse({"restore_model", "restore_visibility"} & set(face.get("face_prepare_settings") or {}))
+
+    def test_execution_refines_with_the_prepare_value(self):
+        captured = []
+        node = EXECUTE()
+        node._run_restore = lambda face_pipe, select_face, params, **_kw: (captured.append(params), (IMAGE, None, None, True, None, None, None))[1]
+        face = PREPARE().prepare(IMAGE=IMAGE, process_mode="Restore", **settings(refine_mode="Detail"))[0]
+        node.run_pipe(FACE=face, prompt=None, unique_id="e", select_face="Largest")
+        self.assertEqual(captured[0]["refine_mode"], "Detail")
+
+    def test_output_image_proceed_like_the_smart_detailer(self):
+        node = EXECUTE()
+        node._run_restore = lambda face_pipe, select_face, params, **_kw: (IMAGE, "faces", "segs", True, "log", "visual", "diag")
+        face = PREPARE().prepare(IMAGE=IMAGE, process_mode="Restore", **settings())[0]
+        on = node.run_pipe(FACE=face, output_image_proceed=True, prompt=None, unique_id="e")
+        off = node.run_pipe(FACE=face, output_image_proceed=False, prompt=None, unique_id="e")
+        self.assertIs(on[0], IMAGE)
+        self.assertIsNone(off[0], "IMAGE PROCEED stays empty")
+        self.assertEqual(off[1:], on[1:], "SEGS, ENABLED, LOG, VISUAL and diagnostic unchanged")
+        none = PREPARE().prepare(IMAGE=IMAGE, process_mode="None", **settings())[0]
+        self.assertIsNone(node.run_pipe(FACE=none, output_image_proceed=False, prompt=None, unique_id="e")[0])
 
 
 class BoundaryState(unittest.TestCase):

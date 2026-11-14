@@ -130,6 +130,16 @@ class Parity(unittest.TestCase):
         self.assertEqual(self.kinds("lora_text"), [])
         self.assertEqual(self.kinds("lora_local"), ["local_sdxl.safetensors"], "family-safe local LoRA")
 
+    def test_empty_prompt_works_like_the_detailer(self):
+        # A pure image source and empty prompt fields: both families prepare
+        # without error and encode the empty text, exactly as the Detailer does.
+        sdxl = self.branch("SDXL", IMAGE_SOURCE, prompt_pos="", prompt_neg="", **{"MODEL SDXL": SDXL_SPEC})
+        zit = self.branch("Z-Image Turbo", IMAGE_SOURCE, prompt_pos="", **{"MODEL ZIT": ZIT_SPEC})
+        self.assertEqual(self.kinds("encode"), ["", "", ""])
+        self.assertEqual((sdxl["face_prompt_pos"], zit["face_prompt_pos"]), ("", ""))
+        self.assertIsNotNone(sdxl["face_conditioning_pos"])
+        self.assertIsNotNone(zit["face_conditioning_pos"])
+
     def test_zit_image_source_with_lora_zit(self):
         bundle = {"family": "z_image_turbo", "active_loras": "<lora:bundle.safetensors:0.8>", "lora_stack": None}
         pipe = self.branch("Z-Image Turbo", IMAGE_SOURCE, **{"MODEL ZIT": ZIT_SPEC, "LoRA ZIT": bundle})

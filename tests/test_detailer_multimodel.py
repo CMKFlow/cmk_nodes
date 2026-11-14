@@ -472,7 +472,20 @@ class MultiModelWidgets(unittest.TestCase):
 
     def test_smart_detailer_has_no_sampling_entry_widget(self):
         spec = smart.CMK_SmartDetailerMultiModelPipe.INPUT_TYPES()
-        self.assertEqual(_widget_names(spec), [name for name in LEGACY_DETAILER_WIDGETS if name != "denoise"])
+        # 2.8.0: no ENABLE either; CMK Detailer Family Enable is the only switch.
+        self.assertEqual(_widget_names(spec), [name for name in LEGACY_DETAILER_WIDGETS if name not in ("denoise", "enable")])
+        self.assertIn("enable", smart.CMK_SmartDetailerPipe.INPUT_TYPES()["required"], "the SDXL Smart Detailer keeps its switch")
+
+    def test_stale_enable_is_no_second_switch(self):
+        # An older API prompt may still carry enable=False: it neither disables
+        # the branch revision nor the boundary.
+        prompt = {"d": {"class_type": "CMK_SmartDetailerMultiModelPipe", "inputs": {"enable": False}}}
+        original = smart.read_pickle_revision
+        self.addCleanup(setattr, smart, "read_pickle_revision", original)
+        smart.read_pickle_revision = lambda scope, key: "rev-1"
+        self.assertEqual(smart.CMK_SmartDetailerMultiModelPipe.dependency_revision(prompt, "d", "k"), "rev-1")
+        self.assertEqual(smart.CMK_SmartDetailerPipe.dependency_revision(
+            {"d": {"class_type": "CMK_SmartDetailerPipe", "inputs": {"enable": False}}}, "d", "k"), "disabled")
 
 
 class MultiModelLazy(unittest.TestCase):
@@ -630,7 +643,7 @@ class MultiModelSmartDetailer(unittest.TestCase):
 
     def run_pipe(self, pipe):
         return smart.CMK_SmartDetailerMultiModelPipe().run_pipe(
-            pipe, True, True, "bbox/hand_yolov8s.pt", 0.5, 0, 2.0, 10, 512, True, 768, True, True,
+            pipe, True, "bbox/hand_yolov8s.pt", 0.5, 0, 2.0, 10, 512, True, 768, True, True,
         )
 
     def log_text(self, result):

@@ -1359,15 +1359,6 @@
                 "link": 22901
               },
               {
-                "localized_name": "enable",
-                "name": "enable",
-                "type": "BOOLEAN",
-                "widget": {
-                  "name": "enable"
-                },
-                "link": null
-              },
-              {
                 "localized_name": "output_image_proceed",
                 "name": "output_image_proceed",
                 "type": "BOOLEAN",
@@ -1544,7 +1535,6 @@
               "default_output": "b"
             },
             "widgets_values": [
-              true,
               true,
               "bbox/face/face_yolov8s.pt",
               0.5,

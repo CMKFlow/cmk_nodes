@@ -1096,6 +1096,14 @@ MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG ┴→ CMK Detailer Prepare Advan
   zuvor `release_zit_resources`). Ein Memo je Prompt verwendet ZIT-Conditioning
   nur bei identischer Konfiguration (Encoder, Gerät, Text, keine LoRA) wieder.
   Der SDXL-only Smart Detailer und der Standard-Detailer sind unverändert.
+  Der Smart Detailer Multi-Model hat keinen eigenen `ENABLE`-Schalter: Die
+  Aktivierung erfolgt nur über MODEL FAMILY bzw. CMK Detailer Family Enable.
+  Ein `enable` älterer API-Prompts schaltet weder Branch-Revision noch
+  Boundary ab. Eine Migration gespeicherter 2.8-Entwicklungsstände gibt es
+  nicht; die 2.8-Subgraphen und -Workflows tragen den aktuellen Vertrag.
+  Bei MODEL FAMILY = None zeigt der Prepare nur noch MODEL FAMILY und der
+  Smart Detailer (Familie aus dem verbundenen Prepare bzw. dem Advanced-Slot)
+  kein Widget; alle Werte bleiben erhalten, die Node-Größe ändert sich nicht.
 - **Branch-Cache je Slot:** Der Schlüssel eines Advanced-Detailers enthält nur
   die gemeinsamen Einstellungen und seinen eigenen Slot; ein `None`-Slot meldet
   `DISABLED_REVISION`.
@@ -1270,6 +1278,17 @@ MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG ┴→ CMK FaceProcess Prepare Mu
 - **Prepare (F2):** lädt nichts (kein Modell, SAM, LoRA, Conditioning) und
   fordert je Modus nur an, was der Modus braucht: NONE und RESTORE nur IMAGE
   und LOG; SDXL zusätzlich PROCESS und MODEL SDXL; ZIT PROCESS und MODEL ZIT.
+- **REFINE MODE** gehört zum Prepare (sichtbar bei RESTORE, SDXL, ZIT; bei
+  NONE gilt Off) und erreicht die Ausführung über FACE; er ist Teil der
+  Prepare-Identität des Branch-Schlüssels.
+- **RESTORE MODEL / VISIBILITY** gehören ebenfalls zum Prepare (nur bei
+  RESTORE sichtbar, VISIBILITY-Default 0.50) und erreichen die Ausführung über
+  FACE. Nur RESTORE-Schlüssel enthalten sie (Backend-Identität des gewählten
+  Modells); SDXL/ZIT schließen sie aus.
+- **Execute bei NONE** zeigt kein Widget; Werte bleiben, keine Größenänderung.
+- **OUTPUT IMAGE PROCEED** am Ausführungs-Node wie am Smart Detailer: aus
+  bedeutet leerer Ausgang `IMAGE PROCEED`, SEGS, VISUAL und Diagnose bleiben;
+  kein Teil des Cache-Schlüssels.
 - **Ausführung (F2):** kein eigener Enable- oder Modus-Schalter. NONE ist der
   vollständige Bypass (keine Detektion, kein Restore/Detailer, kein Refine,
   `DISABLED_REVISION`). Nur beim Branch-MISS wird materialisiert: RESTORE ohne

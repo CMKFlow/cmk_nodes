@@ -139,4 +139,68 @@ function subgraphNode(name, widgetName, value, values) {
   assert.equal(detailerControl.widgets.length, 1);
 }
 
+// Prepare / execution: only the widgets the operating mode uses, Detailer captions.
+const PREPARE_WIDGETS = ["process_mode", "refine_mode", "restore_model", "restore_visibility", "sam_model_name", "sam_device_mode", "use_prompt_lora_from_sampler",
+  "use_lora_from_1st_pass", "use_1st_pass_sampling", "lora_name", "strength_model", "strength_clip", "prompt_pos",
+  "prompt_neg", "steps", "cfg", "sampling_entry", "zit_steps", "zit_cfg", "zit_sampling_entry", "sampler", "scheduler",
+  "zit_sampler", "zit_scheduler", "stop_at_clip_layer", "pag_scale", "sampling", "zsnr", "zit_model_shift",
+  "freeu_enabled", "freeu_b1", "freeu_b2", "freeu_s1", "freeu_s2"];
+const EXECUTE_WIDGETS = ["output_image_proceed", "select_face", "detect_model", "detect_bbox_threshold", "detect_bbox_dilation",
+  "detect_crop_factor", "detect_drop_size", "detail_guide_size", "detail_guide_size_for", "detail_max_size", "detail_noise_mask", "detail_force_inpaint", "detail_paste_feather"];
+const widget = (name, value = 0) => ({ name, value, options: {}, computeSize: () => [200, 24], draw() {} });
+const links = new Map();
+const nodes = new Map();
+const graph = { links, getNodeById: (id) => nodes.get(id) };
+function graphNode(id, comfyClass, widgetNames, inputs = [], outputs = []) {
+  // Geometry stays the user's: mode switches never resize a node.
+  const node = { id, comfyClass, graph, widgets: widgetNames.map((name) => widget(name)), inputs, outputs, size: [450, 900],
+    setSize() { throw new Error(`node ${id} must not be resized`); } };
+  nodes.set(id, node);
+  return node;
+}
+function connect(id, origin, originSlot, target, targetSlot) {
+  links.set(id, { id, origin_id: origin.id, origin_slot: originSlot, target_id: target.id, target_slot: targetSlot });
+  (origin.outputs[originSlot].links ??= []).push(id);
+  target.inputs[targetSlot].link = id;
+}
+const control = new ControlNode();
+control.id = 1; control.graph = graph; control.outputs = [{ name: "ENABLE", links: [] }, { name: "PROCESS MODE", links: [] }];
+nodes.set(1, control);
+const prepare = graphNode(2, "CMKFaceProcessPrepareMultiModelPipe", PREPARE_WIDGETS,
+  [{ name: "process_mode", widget: { name: "process_mode" }, link: null }],
+  [{ name: "FACE", links: [] }, { name: "LOG", links: [] }, { name: "diagnostic", links: [] }]);
+const execute = graphNode(3, "CMKFaceProcessMultiModelPipe", EXECUTE_WIDGETS, [{ name: "FACE", link: null }], []);
+connect(10, control, 1, prepare, 0);
+connect(11, prepare, 0, execute, 0);
+for (const node of [prepare, execute]) extension.nodeCreated(node);
+control.onNodeCreated?.();
+const shown = (node) => node.widgets.filter((w) => !w.hidden).map((w) => w.name);
+const SHARED = ["refine_mode", "sam_model_name", "sam_device_mode", "use_prompt_lora_from_sampler", "use_lora_from_1st_pass", "prompt_pos"];
+const expected = {
+  NONE: { prepare: ["process_mode"], execute: [] },
+  RESTORE: { prepare: ["process_mode", "refine_mode", "restore_model", "restore_visibility"], execute: ["output_image_proceed",
+    "select_face", "detect_model", "detect_bbox_threshold", "detect_bbox_dilation", "detect_crop_factor", "detect_drop_size"] },
+  SDXL: { prepare: ["process_mode", ...PREPARE_WIDGETS.filter((n) => !n.startsWith("zit_") && !n.startsWith("restore_") && n !== "process_mode")] },
+  ZIT: { prepare: ["process_mode", ...SHARED, "zit_steps", "zit_cfg", "zit_sampling_entry",
+    "zit_sampler", "zit_scheduler", "zit_model_shift"] },
+};
+const DETAILER_EXECUTE = ["output_image_proceed", "select_face", "detect_model", "detect_bbox_threshold", "detect_bbox_dilation",
+  "detect_crop_factor", "detect_drop_size", "detail_guide_size", "detail_guide_size_for", "detail_max_size",
+  "detail_noise_mask", "detail_force_inpaint", "detail_paste_feather"];
+for (const [label, value] of [["SDXL", "SDXL"], ["ZIT", "Z-Image Turbo"], ["RESTORE", "Restore"], ["NONE", "None"]]) {
+  press(control, label);
+  assert.equal(byName(prepare, "process_mode").value, value, `${label}: the selection is mirrored into the linked Prepare`);
+  assert.deepEqual(shown(prepare), expected[label].prepare, `${label}: Prepare widgets`);
+  assert.deepEqual(shown(execute), expected[label].execute ?? DETAILER_EXECUTE, `${label}: execution widgets`);
+}
+press(control, "ZIT");
+assert.equal(byName(prepare, "zit_sampling_entry").label, "SAMPLING ENTRY AT %");
+assert.equal(byName(prepare, "prompt_pos").label, "PROMPT POS");
+assert.equal(byName(prepare, "restore_visibility").label, "VISIBILITY");
+assert.equal(byName(prepare, "restore_model").label, "RESTORE MODEL");
+assert.deepEqual([prepare.size, execute.size], [[450, 900], [450, 900]], "no automatic resize");
+assert.equal(byName(prepare, "refine_mode").label, "REFINE MODE");
+assert.equal(byName(execute, "output_image_proceed").label, "OUTPUT IMAGE PROCEED");
+assert.equal(byName(prepare, "steps").value, 0, "switching hides widgets but keeps their values");
+
 console.log("faceprocess mode UI contract: OK");

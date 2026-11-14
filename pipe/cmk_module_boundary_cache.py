@@ -326,8 +326,11 @@ def _detailer_disabled_state(prompt, unique_id):
         return bool(inputs.get("detailer_global_enable", True))
 
     global_values = [prepare_active(node) for node in prepares]
+    # The Multi-Model Smart Detailer has no local switch (2.8.0); a stale
+    # ``enable`` of an older API prompt does not disable it.
     local_values = [
-        bool((node.get("inputs", {}) or {}).get("enable", True))
+        True if str(node.get("class_type", "")) == "CMK_SmartDetailerMultiModelPipe"
+        else bool((node.get("inputs", {}) or {}).get("enable", True))
         for node in branches
     ]
     if global_values and not any(global_values):

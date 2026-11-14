@@ -95,6 +95,12 @@ export function refreshAdvanced(node) {
     if (Array.isArray(manual) && Number(manual[1]) > 0 && node.size?.[1] > Number(manual[1])) {
         node.setSize?.([node.size[0], Number(manual[1]) - 30]);
     }
+    // The Smart Detailers fed by DETAILER 1/2/3 follow their slot's family.
+    const graph = node.graph ?? app.graph;
+    for (const id of node.outputs?.slice(0, 3).flatMap((output) => output?.links ?? []) ?? []) {
+        const link = graph?.links?.get?.(id) ?? graph?.links?.[id];
+        graph?.getNodeById?.(link?.target_id)?._cmkRefreshDetailer?.();
+    }
     node.setDirtyCanvas?.(true, true);
     app.graph?.setDirtyCanvas?.(true, true);
     queueMicrotask(decorate);
