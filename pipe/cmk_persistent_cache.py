@@ -121,6 +121,25 @@ DETAILER_MULTIMODEL_ZIT_INPUTS = frozenset({
     "zit_sampler", "zit_scheduler", "zit_model_shift",
 })
 _INPUT_CONTENT_FIELD = "\0input_content"
+# 2.8.0 Multi-Model execution nodes: OUTPUT IMAGE PROCEED only switches the
+# IMAGE PROCEED output (class -> its slot). The node's identity ignores the
+# switch; a link reading IMAGE PROCEED carries it, so its consumer still sees
+# the change, while a boundary fed by DETAILER IMAGE / FACE IMAGE stays stable.
+OUTPUT_SWITCH_INPUT = "output_image_proceed"
+OUTPUT_SWITCH_SLOTS = {
+    "CMK_SmartDetailerMultiModelPipe": 2,
+    "CMKFaceProcessMultiModelPipe": 0,
+}
+
+
+def _canonical_link(prompt: dict, value: Any, node_identity: Any) -> dict:
+    link = {"node": node_identity, "output": int(value[1])}
+    node = _lookup_node(prompt, value[0])
+    class_type = str(node.get("class_type", "")) if isinstance(node, dict) else ""
+    if OUTPUT_SWITCH_SLOTS.get(class_type) == int(value[1]):
+        switch = (node.get("inputs", {}) or {}).get(OUTPUT_SWITCH_INPUT, True)
+        link[OUTPUT_SWITCH_INPUT] = switch if isinstance(switch, (list, tuple)) else bool(switch)
+    return link
 
 
 def _loader_content_digest(prompt: dict, node: dict) -> str | None:
@@ -220,17 +239,16 @@ def _canonical_node(
             and (node.get("inputs", {}) or {}).get("model_family", "None") != "Z-Image Turbo"
         ):
             continue
+        if class_type in OUTPUT_SWITCH_SLOTS and str(input_name) == OUTPUT_SWITCH_INPUT:
+            continue
         if _is_link(prompt, value):
             inputs[str(input_name)] = {
-                "link": {
-                    "node": _canonical_node(
-                        prompt,
-                        value[0],
-                        memo,
-                        stack,
-                    ),
-                    "output": int(value[1]),
-                }
+                "link": _canonical_link(prompt, value, _canonical_node(
+                    prompt,
+                    value[0],
+                    memo,
+                    stack,
+                )),
             }
         else:
             inputs[str(input_name)] = _canonical_scalar(value)
@@ -351,15 +369,12 @@ def build_node_fingerprint(
 
         if _is_link(prompt, value):
             canonical_inputs[str(input_name)] = {
-                "link": {
-                    "node": _canonical_node(
-                        prompt,
-                        value[0],
-                        canonical_memo,
-                        set(),
-                    ),
-                    "output": int(value[1]),
-                }
+                "link": _canonical_link(prompt, value, _canonical_node(
+                    prompt,
+                    value[0],
+                    canonical_memo,
+                    set(),
+                )),
             }
         else:
             canonical_inputs[str(input_name)] = _canonical_scalar(value)

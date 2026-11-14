@@ -249,6 +249,11 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
     # v3 (F4): processing layers in SEGS PROCESSED; Refine only on the branch's faces.
     # v4: Multi-Model Detailer parameters (sampling entry per family, LoRA ZIT).
     _CACHE_SCHEMA = "cmk_faceprocess_multimodel_branch_v4"
+    # The legacy outputs keep their positions; FACE IMAGE is appended. Like
+    # DETAILER IMAGE of the Smart Detailer it always carries the processed
+    # image, independent of OUTPUT IMAGE PROCEED, and feeds the boundary.
+    RETURN_TYPES = (*CMKFaceProcessPipe.RETURN_TYPES, "IMAGE")
+    RETURN_NAMES = (*CMKFaceProcessPipe.RETURN_NAMES, "FACE IMAGE")
     _ZIT_TEXT_ENCODER = "released after FaceProcess Prepare"
 
     @classmethod
@@ -313,8 +318,11 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
     @staticmethod
     def _image_output(result, output_image_proceed):
         # Like the Smart Detailer: without OUTPUT IMAGE PROCEED the IMAGE PROCEED
-        # output stays empty; SEGS, VISUAL and diagnostic are unchanged.
-        return result if bool(output_image_proceed) else (None, *result[1:])
+        # output stays empty; SEGS, VISUAL and diagnostic are unchanged. FACE
+        # IMAGE (like DETAILER IMAGE) always carries the processed image, so the
+        # boundary can store a MISS whatever the switch says.
+        image = result[0]
+        return (image if bool(output_image_proceed) else None, *result[1:], image)
 
     def _run_branch(self, FACE, select_face, opt_log, VISUAL, opt_diagnostic, prompt, unique_id, kwargs):
         from .cmk_persistent_cache import pickle_available

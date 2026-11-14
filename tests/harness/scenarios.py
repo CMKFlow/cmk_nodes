@@ -1413,6 +1413,9 @@ def faceprocess28_prompt(mode: str, overrides: dict | None = None) -> dict:
                                           restore_visibility=1.0)
     execute["output_image_proceed"] = True
     prompt[FP28_EXECUTE] = {"class_type": "CMKFaceProcessMultiModelPipe", "inputs": execute}
+    # The boundary stores FACE IMAGE (always the processed image), so OUTPUT
+    # IMAGE PROCEED stays an output switch of the execution node.
+    prompt[FP28_BOUNDARY]["inputs"]["IMAGE"] = [FP28_EXECUTE, 7]
     prompt["8417:7847"]["inputs"]["ENABLE"] = [FP28_MODE, 0]
     prompt["8417:7846"]["inputs"]["enable"] = [FP28_MODE, 0]
     for key, value in (overrides or {}).items():

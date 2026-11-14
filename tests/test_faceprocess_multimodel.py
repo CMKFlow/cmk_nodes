@@ -84,7 +84,11 @@ class Registration(unittest.TestCase):
         self.assertIs(mappings.NODE_CLASS_MAPPINGS["CMKFaceProcessMultiModelPipe"], EXECUTE)
         self.assertEqual(PREPARE.RETURN_NAMES, ("FACE", "LOG", "diagnostic"))
         self.assertEqual(PREPARE.RETURN_TYPES[0], "CMK_FACE_MULTIMODEL_PIPE")
-        self.assertEqual(EXECUTE.RETURN_NAMES, legacy_pipe.CMKFaceProcessPipe.RETURN_NAMES, "public outputs unchanged")
+        legacy = legacy_pipe.CMKFaceProcessPipe
+        self.assertEqual(EXECUTE.RETURN_NAMES[:-1], legacy.RETURN_NAMES, "legacy output positions unchanged")
+        self.assertEqual(EXECUTE.RETURN_TYPES[:-1], legacy.RETURN_TYPES)
+        self.assertEqual((EXECUTE.RETURN_NAMES[-1], EXECUTE.RETURN_TYPES[-1]), ("FACE IMAGE", "IMAGE"))
+        self.assertEqual(len(legacy.RETURN_NAMES), 7, "the legacy node keeps its outputs")
 
     def test_prepare_inputs(self):
         spec = PREPARE.INPUT_TYPES()
@@ -316,9 +320,10 @@ class Bypass(unittest.TestCase):
         node = EXECUTE()
         node.run = lambda *a, **k: (_ for _ in ()).throw(AssertionError("no processing"))
         face = PREPARE().prepare(IMAGE=IMAGE, process_mode="None", **settings())[0]
-        image, selected, segs, enabled, log, _visual, diagnostic = node.run_pipe(
+        image, selected, segs, enabled, log, _visual, diagnostic, face_image = node.run_pipe(
             FACE=face, prompt=prompt("None"), unique_id="e", refine_mode="Sharpen")
         self.assertIs(image, IMAGE)
+        self.assertIs(face_image, IMAGE)
         self.assertFalse(enabled)
         self.assertEqual(segs[1], [])
         self.assertIn("REFINE          : SKIPPED", log["blocks"][-1]["lines"] if isinstance(log, dict) else str(log))
@@ -363,7 +368,9 @@ class RefineAndOutput(unittest.TestCase):
         off = node.run_pipe(FACE=face, output_image_proceed=False, prompt=None, unique_id="e")
         self.assertIs(on[0], IMAGE)
         self.assertIsNone(off[0], "IMAGE PROCEED stays empty")
-        self.assertEqual(off[1:], on[1:], "SEGS, ENABLED, LOG, VISUAL and diagnostic unchanged")
+        self.assertEqual(off[1:], on[1:], "SEGS, ENABLED, LOG, VISUAL, diagnostic and FACE IMAGE unchanged")
+        self.assertEqual(len(on), len(EXECUTE.RETURN_NAMES))
+        self.assertIs(off[-1], IMAGE, "FACE IMAGE carries the processed image for the boundary")
         none = PREPARE().prepare(IMAGE=IMAGE, process_mode="None", **settings())[0]
         self.assertIsNone(node.run_pipe(FACE=none, output_image_proceed=False, prompt=None, unique_id="e")[0])
 

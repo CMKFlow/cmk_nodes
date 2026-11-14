@@ -1104,6 +1104,12 @@ MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG ┴→ CMK Detailer Prepare Advan
   Bei MODEL FAMILY = None zeigt der Prepare nur noch MODEL FAMILY und der
   Smart Detailer (Familie aus dem verbundenen Prepare bzw. dem Advanced-Slot)
   kein Widget; alle Werte bleiben erhalten, die Node-Größe ändert sich nicht.
+  Die Boundary des Standard-Subgraphen liest `DETAILER IMAGE`, nicht
+  `IMAGE PROCEED`: OUTPUT IMAGE PROCEED = aus funktioniert auch beim
+  Boundary-MISS, und Umschalten ändert den Boundary-Schlüssel nicht. Der
+  Preview Render liest die Diagnose hinter dem Gate (kein Output-Root am
+  Zweig, ein Boundary-HIT führt Prepare und Smart Detailer nicht aus).
+  Paket-Subgraph und Showcase folgen bei der Paketübernahme.
 - **Branch-Cache je Slot:** Der Schlüssel eines Advanced-Detailers enthält nur
   die gemeinsamen Einstellungen und seinen eigenen Slot; ein `None`-Slot meldet
   `DISABLED_REVISION`.
@@ -1288,7 +1294,20 @@ MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG ┴→ CMK FaceProcess Prepare Mu
 - **Execute bei NONE** zeigt kein Widget; Werte bleiben, keine Größenänderung.
 - **OUTPUT IMAGE PROCEED** am Ausführungs-Node wie am Smart Detailer: aus
   bedeutet leerer Ausgang `IMAGE PROCEED`, SEGS, VISUAL und Diagnose bleiben;
-  kein Teil des Cache-Schlüssels.
+  kein Teil des Cache-Schlüssels. Die Boundary liest nicht IMAGE PROCEED,
+  sondern den angehängten Ausgang `FACE IMAGE` (wie `DETAILER IMAGE` am Smart
+  Detailer Multi-Model), der unabhängig vom Schalter das verarbeitete Bild
+  trägt; „aus“ funktioniert so auch beim Boundary-MISS. In Upstream-
+  Fingerprints zählt der Schalter dieser beiden Multi-Model-Nodes nur für
+  Links, die IMAGE PROCEED lesen (`OUTPUT_SWITCH_SLOTS` in
+  `cmk_persistent_cache`); Umschalten hält die Boundary auf HIT.
+- **Standard-Subgraph `CMK Flow · FaceProcess` (F5, Entwicklungsstand):**
+  äußere Ports wie der Multi-Model Detailer, `MODE` (DISABLE / RESTORE / SDXL
+  / ZIT) ist ein Subgraph-Eingang am `process_mode` des Prepare und des Mode
+  Enable (dessen `ENABLE` steuert Gate und Compare). Das Frontend spiegelt den
+  äußeren MODE wie beim Detailer in den inneren Prepare (beim Umschalten und
+  beim Öffnen des Subgraphen), damit die Innenansicht den aktiven Satz zeigt.
+  Preview Render und Compare hängen hinter dem Gate, nicht am Zweig.
 - **Ausführung (F2):** kein eigener Enable- oder Modus-Schalter. NONE ist der
   vollständige Bypass (keine Detektion, kein Restore/Detailer, kein Refine,
   `DISABLED_REVISION`). Nur beim Branch-MISS wird materialisiert: RESTORE ohne

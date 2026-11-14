@@ -224,5 +224,61 @@ class DiffusionCaches(ScenarioCase):
         self.assertEqual(loads(run), NO_LOADS)
 
 
+class OutputImageProceed(ScenarioCase):
+    """OUTPUT IMAGE PROCEED is an output switch only: the boundary stores FACE
+    IMAGE, so OFF works on a boundary MISS, and switching never recomputes or
+    materialises anything."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        off = {f"{EXECUTE}.output_image_proceed": False}
+        steps = [
+            {"mode": "Restore", "overrides": off},                       # cold: branch and boundary MISS
+            {"mode": "Restore"},                                         # ON: boundary HIT
+            {"mode": "Restore", "overrides": off, "restart": True},      # OFF after restart: boundary HIT
+            {"mode": "Restore", "overrides": off, "drop_scopes": ["faceprocess_boundary"]},  # branch HIT, boundary MISS
+            {"mode": "SDXL", "overrides": off},                          # diffusion path, cold
+            {"mode": "SDXL"},                                            # ON again
+        ]
+        result = cls.run_case("faceprocess28_sequence", steps=steps)
+        cls.runs = None if result is None else result["runs"]
+
+    def test_all_runs_succeed(self):
+        for index, run in enumerate(self.runs):
+            with self.subTest(run=index):
+                self.assertTrue(run["succeeded"], run["errors"])
+
+    def test_off_stores_the_processed_image_on_a_miss(self):
+        cold = self.runs[0]
+        self.assertEqual(statuses(cold, "faceprocess_branch")[-1], "MISS_STORED")
+        self.assertEqual(statuses(cold, "faceprocess_boundary")[-1], "MISS_STORED")
+        self.assertIsNotNone(cold["outputs"]["image"], "the module passes the processed image on")
+        self.assertEqual(cold["outputs"]["image"], self.runs[1]["outputs"]["image"], "ON and OFF give the same module image")
+
+    def test_switching_does_not_recompute(self):
+        for index in (1, 2):
+            with self.subTest(run=index):
+                run = self.runs[index]
+                self.assertEqual(statuses(run, "faceprocess_boundary")[-1], "HIT")
+                self.assertEqual(compute(run), 0)
+                self.assertEqual(loads(run), NO_LOADS)
+
+    def test_branch_hit_with_off_feeds_the_boundary(self):
+        run = self.runs[3]
+        self.assertEqual(statuses(run, "faceprocess_branch")[-1], "HIT")
+        self.assertEqual(statuses(run, "faceprocess_boundary")[-1], "MISS_STORED")
+        self.assertEqual(compute(run), 0)
+        self.assertEqual(loads(run), NO_LOADS)
+        self.assertEqual(run["outputs"]["image"], self.runs[0]["outputs"]["image"])
+
+    def test_sdxl_off_and_on(self):
+        off, on = self.runs[4], self.runs[5]
+        self.assertEqual(statuses(off, "faceprocess_boundary")[-1], "MISS_STORED")
+        self.assertEqual(statuses(on, "faceprocess_boundary")[-1], "HIT")
+        self.assertEqual(loads(on), NO_LOADS, "switching ON materialises nothing")
+        self.assertEqual(off["outputs"]["image"], on["outputs"]["image"])
+
+
 if __name__ == "__main__":
     unittest.main()
