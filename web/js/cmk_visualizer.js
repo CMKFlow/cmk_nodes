@@ -208,7 +208,7 @@ export function remappedDeclaredProvider(outerNode, item) {
       "CMKZITControlNetPreparePipe",
       "CMKCombinedControlNetPreparePipe",
     ]),
-    FaceProcess: new Set(["CMKFaceProcessPipe", "CMK_FaceProcess", "CMKFaceProcess"]),
+    FaceProcess: new Set(["CMKFaceProcessPipe", "CMK_FaceProcess", "CMKFaceProcess", "CMKFaceProcessMultiModelPipe"]),
     CMKInstantIDSamplerSDXLPipe: new Set([
       "CMKInstantIDSamplerSDXLPipe",
       "CMKInstantIDRegionalAdvancedSDXLPipe",

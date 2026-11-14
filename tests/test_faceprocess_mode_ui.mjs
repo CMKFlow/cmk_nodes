@@ -11,7 +11,9 @@ const source = readFileSync(new URL("../web/js/cmk_faceprocess_mode_ui.js", impo
   .replaceAll("export function ", "function ");
 
 let extension = null;
-const app = { graph: { setDirtyCanvas() {} }, registerExtension(value) { extension = value; } };
+const canvasListeners = {};
+const app = { graph: { setDirtyCanvas() {} }, registerExtension(value) { extension = value; },
+  canvas: { canvas: { addEventListener(name, callback) { canvasListeners[name] = callback; } } } };
 class FakeElement {
   constructor(tag) {
     this.tagName = tag.toUpperCase(); this.style = {}; this.dataset = {}; this.children = [];
@@ -202,5 +204,56 @@ assert.deepEqual([prepare.size, execute.size], [[450, 900], [450, 900]], "no aut
 assert.equal(byName(prepare, "refine_mode").label, "REFINE MODE");
 assert.equal(byName(execute, "output_image_proceed").label, "OUTPUT IMAGE PROCEED");
 assert.equal(byName(prepare, "steps").value, 0, "switching hides widgets but keeps their values");
+
+// CMK Flow · FaceProcess: MODE is a subgraph input linked to the inner
+// Prepare's PROCESS MODE (as MODEL FAMILY in the Multi-Model Detailer). The
+// inner widget would stay stale, so the outer choice is mirrored into the
+// Prepare on change and when the subgraph is opened; the Execute follows.
+{
+  const innerLinks = new Map();
+  const innerNodes = new Map();
+  const inner = { name: "CMK Flow · FaceProcess", links: innerLinks, getNodeById: (id) => innerNodes.get(id),
+    inputs: [{ name: "MODEL ZIT" }, { name: "MODEL_1" }, { name: "PROCESS_1" }, { name: "IMAGE_1" }, { name: "LOG BYPASS" },
+      { name: "VISUAL IN" }, { name: "process_mode" }] };
+  const make = (id, comfyClass, names, inputs, outputs) => {
+    const node = { id, comfyClass, graph: inner, widgets: names.map((name) => widget(name)), inputs, outputs, size: [450, 900],
+      setSize() { throw new Error(`node ${id} must not be resized`); } };
+    innerNodes.set(id, node);
+    inner.nodes = [...innerNodes.values()];
+    return node;
+  };
+  const innerPrepare = make(8601, "CMKFaceProcessPrepareMultiModelPipe", PREPARE_WIDGETS,
+    [{ name: "process_mode", widget: { name: "process_mode" }, link: 23006 }], [{ name: "FACE", links: [23011] }]);
+  const innerExecute = make(8602, "CMKFaceProcessMultiModelPipe", EXECUTE_WIDGETS, [{ name: "FACE", link: 23011 }], []);
+  innerLinks.set(23006, { id: 23006, origin_id: -10, origin_slot: 6, target_id: 8601, target_slot: 0 });
+  innerLinks.set(23011, { id: 23011, origin_id: 8601, origin_slot: 0, target_id: 8602, target_slot: 0 });
+  byName(innerPrepare, "process_mode").value = "Restore";
+  for (const node of [innerPrepare, innerExecute]) extension.nodeCreated(node);
+  const hostMode = { ...widget("process_mode", "SDXL"), options: { values: MODES } };
+  const host = { id: 8555, subgraph: inner, isSubgraphNode: () => true, widgets: [hostMode] };
+  extension.nodeCreated(host);
+  assert.equal(byName(innerPrepare, "process_mode").value, "SDXL", "the outer MODE reaches the inner Prepare");
+  assert.deepEqual(shown(innerPrepare), expected.SDXL.prepare);
+  assert.deepEqual(shown(innerExecute), DETAILER_EXECUTE);
+  assert.equal(hostMode.label, "MODE");
+  for (const [label, value] of [["NONE", "None"], ["RESTORE", "Restore"], ["ZIT", "Z-Image Turbo"]]) {
+    hostMode.value = value;
+    hostMode.callback(value);
+    assert.equal(byName(innerPrepare, "process_mode").value, value, `${label}: mirrored on change`);
+    assert.deepEqual(shown(innerPrepare), expected[label].prepare, `${label}: inner Prepare widgets`);
+    assert.deepEqual(shown(innerExecute), expected[label].execute ?? DETAILER_EXECUTE, `${label}: inner execution widgets`);
+  }
+  hostMode.value = "Restore";  // changed elsewhere, e.g. another instance of the shared definition
+  canvasListeners["subgraph-opened"]({ detail: { fromNode: host } });
+  assert.equal(byName(innerPrepare, "process_mode").value, "Restore", "mirrored again when the subgraph opens");
+  assert.deepEqual(shown(innerPrepare), expected.RESTORE.prepare);
+  assert.equal(byName(innerPrepare, "steps").value, 0, "values stay");
+  assert.deepEqual([innerPrepare.size, innerExecute.size], [[450, 900], [450, 900]], "no automatic resize");
+  // A subgraph without a linked FaceProcess Prepare is left alone.
+  const other = { id: 9, subgraph: { name: "CMK Flow · Detailer", nodes: [], links: new Map(), inputs: [] },
+    isSubgraphNode: () => true, widgets: [widget("model_family", "SDXL")] };
+  extension.nodeCreated(other);
+  assert.equal(other.widgets[0].callback, undefined);
+}
 
 console.log("faceprocess mode UI contract: OK");

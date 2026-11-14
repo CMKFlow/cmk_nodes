@@ -327,6 +327,46 @@ function installStyle() {
     document.head.appendChild(style);
 }
 
+// Inside CMK Flow · FaceProcess the Prepare's PROCESS MODE is linked to the
+// subgraph input MODE, so the inner widget keeps a stale value while the
+// prompt uses the outer one. As in the Multi-Model Detailer, mirror the outer
+// choice into the inner Prepare so the inner view shows the active set (and
+// the Execute follows it). Instances share one definition, so the entered
+// instance is mirrored again when the canvas opens its subgraph.
+function innerPrepares(host) {
+    const inner = host?.subgraph;
+    const nodes = inner?.nodes ?? inner?._nodes ?? [];
+    return nodes.filter((node) => nodeClass(node) === PREPARE_CLASS).map((node) => [inner, node]);
+}
+
+function hostModeWidget(host, inner, prepare) {
+    const input = prepare.inputs?.find((item) => item?.name === MODE_WIDGET && item.link != null);
+    if (!input) return null;
+    const link = linkOf(inner, input.link);
+    if (!link || Number(link.origin_id) !== -10) return null;
+    const name = inner.inputs?.[link.origin_slot]?.name;
+    return host.widgets?.find((item) => item?.name === name) ?? null;
+}
+
+export function syncHostMode(host) {
+    for (const [inner, prepare] of innerPrepares(host)) {
+        const hostWidget = hostModeWidget(host, inner, prepare);
+        const widget = prepare.widgets?.find((item) => item?.name === MODE_WIDGET);
+        if (!hostWidget || !widget) continue;
+        widget.value = hostWidget.value;
+        refreshPrepare(prepare);
+        if (!hostWidget._cmkFaceProcessHost) {
+            hostWidget._cmkFaceProcessHost = true;
+            const original = hostWidget.callback;
+            hostWidget.callback = function () {
+                const result = original?.apply(this, arguments);
+                syncHostMode(host);
+                return result;
+            };
+        }
+    }
+}
+
 function refresh(node) {
     const type = nodeClass(node);
     if (type === MODE_CONTROL_CLASS) installModeChoice(node);
@@ -334,7 +374,10 @@ function refresh(node) {
         installPrepareCallback(node);
         refreshPrepare(node);
     } else if (type === EXECUTE_CLASS) refreshExecute(node);
-    else applyOuterMode(node);
+    else {
+        applyOuterMode(node);
+        if (node?.subgraph) syncHostMode(node);
+    }
 }
 
 // Late passes cover widgets the frontend re-creates after creation.
@@ -360,6 +403,10 @@ app.registerExtension({
     setup() {
         installStyle();
         new MutationObserver(decorate).observe(document.documentElement, { childList: true, subtree: true });
+        app.canvas?.canvas?.addEventListener?.("subgraph-opened", (event) => {
+            const host = event.detail?.fromNode;
+            if (innerPrepares(host).length) syncHostMode(host);
+        });
     },
 
     nodeCreated(node) {
