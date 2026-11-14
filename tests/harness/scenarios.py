@@ -1424,6 +1424,122 @@ def faceprocess28_prompt(mode: str, overrides: dict | None = None) -> dict:
     return prompt
 
 
+FP28A_PREPARE, FP28A_MERGE = "8417:7845", "8417:7850"
+FP28A_BRANCHES = {1: "8417:7842", 2: "8417:7848", 3: "8417:7849"}
+FP28A_PREVIEWS = ("8417:7851", "8417:7852", "8417:7853", "8417:7854")
+
+
+def faceprocess28_advanced_prompt(modes, enable: str = "ENABLE", overrides: dict | None = None) -> dict:
+    """FaceProcess 2.8 Advanced on the Standard fixture: Advanced Prepare (each
+    branch's mode from its own Mode Enable) -> three Multi-Model branches ->
+    layer merge -> the unchanged FaceProcess boundary and gate; the four
+    Preview Renders hang on the merge outputs."""
+    base = faceprocess28_prompt("Restore")
+    standard = base[FP28_PREPARE]["inputs"]
+    execute = base[FP28_EXECUTE]["inputs"]
+    prompt = {key: base[key] for key in ("1", "8419", "8418", "8417:7843", "8417:8420", "8417:7846", "8417:7847", FP28_BOUNDARY)}
+    shared = ("sam_model_name", "sam_device_mode", "use_prompt_lora_from_sampler", "stop_at_clip_layer", "pag_scale",
+              "sampling", "zsnr", "freeu_enabled", "freeu_b1", "freeu_b2", "freeu_s1", "freeu_s2")
+    per_slot = ("refine_mode", "restore_model", "restore_visibility", "steps", "cfg", "sampling_entry", "sampler",
+                "scheduler", "zit_steps", "zit_cfg", "zit_sampling_entry", "zit_sampler", "zit_scheduler", "zit_model_shift")
+    inputs = {"MODEL SDXL": ["8419", 0], "MODEL ZIT": ["8419", 1], "PROCESS": ["1", 1], "IMAGE": ["1", 2], "LOG": ["1", 3],
+              "faceprocess_global_enable": enable, **{name: standard[name] for name in shared}}
+    merge = {"IMAGE": ["1", 2], "LOG": [FP28A_PREPARE, 4]}
+    for slot, mode in enumerate(modes, 1):
+        control = f"8417:900{slot}"
+        prompt[control] = {"class_type": "CMKFaceProcessModeEnable", "inputs": {"process_mode": mode}}
+        inputs[f"process_mode_{slot}"] = [control, 1]
+        inputs.update({f"{name}_{slot}": standard[name] for name in per_slot})
+        branch = FP28A_BRANCHES[slot]
+        prompt[branch] = {"class_type": "CMKFaceProcessMultiModelPipe", "inputs": {
+            **execute, "FACE": [FP28A_PREPARE, slot - 1], "opt_log": [FP28A_PREPARE, 4], "opt_diagnostic": [FP28A_PREPARE, 5]}}
+        merge.update({f"SEGS {slot}": [branch, 2], f"LOG {slot}": [branch, 4], f"diagnostic {slot}": [branch, 6]})
+    prompt[FP28A_PREPARE] = {"class_type": "CMKFaceProcessPrepareAdvancedMultiModelPipe", "inputs": inputs}
+    prompt[FP28A_MERGE] = {"class_type": "CMKFaceProcessMergeMultiModel", "inputs": merge}
+    prompt[FP28_BOUNDARY]["inputs"].update(IMAGE=[FP28A_MERGE, 0], LOG=[FP28A_MERGE, 1], VISUAL=[FP28A_MERGE, 2],
+                                           diagnostic=[FP28A_MERGE, 3])
+    prompt["8417:7847"]["inputs"]["ENABLE"] = [FP28A_PREPARE, 3]
+    prompt["8417:7846"]["inputs"]["enable"] = [FP28A_PREPARE, 3]
+    for index, preview in enumerate(FP28A_PREVIEWS):
+        prompt[preview] = {"class_type": "CMKPreviewRender", "inputs": {"caption": "Details", "diagnostic": [FP28A_MERGE, 3 + index]}}
+    for key, value in (overrides or {}).items():
+        node_id, name = key.rsplit(".", 1)
+        prompt[node_id]["inputs"][name] = value
+    return prompt
+
+
+def faceprocess28_advanced_sequence(workdir: str, steps: list, extra_model_paths: str | None = None) -> dict:
+    """Run FaceProcess 2.8 Advanced prompts in one session with the real
+    PromptExecutor.  Each step: {"modes", "enable", "overrides", "drop_scopes",
+    "restart"}.  Records the order the branches run in (with their loads) and
+    the merge image against ``compose_layers`` over the SEGS the branches gave."""
+    import shutil
+
+    runtime, probes, seams = _session(workdir, extra_model_paths, "classic", True, False, SELFCHECK_INPUT,
+                                      fake_postprocess=True)
+    counters = {"zit_load": []}
+    _install_zit_fakes(runtime, counters)
+    _install_restore_fakes(runtime, seams)
+    inline = runtime.cmk_module("cmk_prompt_family_inline")
+    pc = runtime.cmk_module("pipe.cmk_persistent_cache")
+    zit = runtime.cmk_module("pipe.loaders.z_image_turbo_loader")
+    ckpt = runtime.cmk_module("pipe.loaders.checkpoint_vae_loader")
+    mm = runtime.cmk_module("pipe.cmk_faceprocess_multimodel")
+    layers = runtime.cmk_module("utils.face_layers")
+    branch = mm.CMKFaceProcessMultiModelPipe
+    events = []
+
+    def total(name):
+        return seams.original_calls.get(name, 0) + seams.substituted_calls.get(name, 0)
+
+    def recording(self, *args, unique_id=None, prompt=None, **kwargs):
+        before = (len(counters["zit_load"]), total("checkpoint.load_resources"))
+        result = original(self, *args, unique_id=unique_id, prompt=prompt, **kwargs)
+        slot = next(s for s, node in FP28A_BRANCHES.items() if node == str(unique_id))
+        events.append({"slot": slot, "mode": mm.branch_mode(prompt, unique_id),
+                       "zit": len(counters["zit_load"]) - before[0], "checkpoint": total("checkpoint.load_resources") - before[1]})
+        return result
+
+    original = branch.run_pipe
+    branch.run_pipe = recording
+    records = []
+    try:
+        for step in steps:
+            if step.get("restart"):
+                zit._ZIT_RESOURCE_CACHE.clear()
+                ckpt._SDXL_RESOURCE_CACHE.clear()
+                runtime.new_executor("classic")
+            for scope in step.get("drop_scopes", []):
+                shutil.rmtree(pc.cache_directory(scope), ignore_errors=True)
+            prompt = faceprocess28_advanced_prompt(step["modes"], step.get("enable", "ENABLE"), step.get("overrides"))
+            prompt, inlined = inline.inline_family_links(prompt)
+            counters["zit_load"].clear()
+            events.clear()
+            record = _run_once(runtime, probes, seams, Path(workdir), prompt,
+                               {"image": "8417:7847:1", "source": "1:2", "merge": f"{FP28A_MERGE}:0",
+                                **{f"preview {index}": f"{node}:0" for index, node in enumerate(FP28A_PREVIEWS)}})
+            record["inlined"] = inlined
+            record["branches"] = list(events)
+            record["zit_load"] = list(counters["zit_load"])
+            record["branch_keys"] = {slot: (branch.dependency_cache_key(prompt, node)[0] or "")[:16]
+                                     for slot, node in FP28A_BRANCHES.items()}
+            merged, source = runtime.output(FP28A_MERGE), runtime.output("1")
+            if merged is not None and source is not None:
+                expected = source[2][0]
+                for slot, node in FP28A_BRANCHES.items():
+                    output = runtime.output(node)
+                    if output is not None and mm.branch_mode(prompt, node) != "none":
+                        expected = layers.compose_layers(expected, output[2][0].cmk_layers)
+                record["composition_deviation"] = float((merged[0][0] - expected).abs().max())
+            records.append(record)
+            runtime.new_executor("classic")
+    finally:
+        branch.run_pipe = original
+        seams.uninstall()
+        probes.uninstall()
+    return {"runs": records}
+
+
 def _install_zit_fakes(runtime, counters):
     """Model-free Z-Image Turbo materialisation (UNet/VAE/text encoder loads counted)."""
     class FakeZit:

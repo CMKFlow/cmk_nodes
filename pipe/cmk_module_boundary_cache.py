@@ -204,7 +204,8 @@ def _faceprocess_disabled_state(prompt, unique_id):
     visited = set()
     # 2.8.0: the Multi-Model Prepare holds the operating mode (None = off);
     # its execution node has no own enable switch.
-    wanted = {"CMKFaceProcessPreparePipe", "CMKFaceProcessPipe", "CMKFaceProcessPrepareMultiModelPipe"}
+    wanted = {"CMKFaceProcessPreparePipe", "CMKFaceProcessPipe", "CMKFaceProcessPrepareMultiModelPipe",
+              "CMKFaceProcessPrepareAdvancedMultiModelPipe"}
 
     for input_name in ("IMAGE", "LOG"):
         value = (boundary.get("inputs", {}) or {}).get(input_name)
@@ -231,13 +232,18 @@ def _faceprocess_disabled_state(prompt, unique_id):
         for node in prepares
     ]
     from .cmk_faceprocess_mode import faceprocess_mode
+    from .cmk_faceprocess_multimodel import ADVANCED_SLOTS, advanced_slot_mode
 
     for _node_id, node in found:
-        if str(node.get("class_type", "")) != "CMKFaceProcessPrepareMultiModelPipe":
-            continue
-        value = (node.get("inputs", {}) or {}).get("process_mode")
-        # A selection that is still a link is undetermined and counts as active.
-        global_values.append(not isinstance(value, str) or faceprocess_mode(value) != "none")
+        class_type = str(node.get("class_type", ""))
+        inputs = node.get("inputs", {}) or {}
+        if class_type == "CMKFaceProcessPrepareMultiModelPipe":
+            value = inputs.get("process_mode")
+            # A selection that is still a link is undetermined and counts as active.
+            global_values.append(not isinstance(value, str) or faceprocess_mode(value) != "none")
+        elif class_type == "CMKFaceProcessPrepareAdvancedMultiModelPipe":
+            # Off with its global switch or with every FACE slot NONE.
+            global_values.append(any(advanced_slot_mode(inputs, slot) != "none" for slot in ADVANCED_SLOTS))
     local_values = [
         bool((node.get("inputs", {}) or {}).get("enable", True))
         for node in branches

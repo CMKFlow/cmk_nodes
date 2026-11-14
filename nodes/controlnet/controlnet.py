@@ -362,14 +362,13 @@ def _build_controlnet_diagnostic(
         enabled=enabled,
         log=log,
     )
-    previews = []
-    if base_image is not None:
-        previews.append(base_image)
+    # Named stages: the source image is a plain preview (CMK diagnostic rule),
+    # the mask and the control image are technical information.
     mask_preview = mask_to_preview_rgb(mask) if mask is not None else None
-    if mask_preview is not None:
-        previews.append(mask_preview)
-    if controlnet_image is not None:
-        previews.append(controlnet_image)
+    stages = [{"title": title_text, "image": image} for title_text, image in
+              (("01 Source", base_image), ("02 Mask", mask_preview), ("03 Control Image", controlnet_image))
+              if image is not None]
+    previews = [stage["image"] for stage in stages]
 
     summary = "\n".join(log_lines)
     warnings = []
@@ -380,6 +379,7 @@ def _build_controlnet_diagnostic(
         title=title,
         node=node,
         previews=previews,
+        stages=stages,
         summary=summary,
         details=summary,
         mode="ControlNet",

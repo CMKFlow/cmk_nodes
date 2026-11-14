@@ -1360,6 +1360,36 @@ MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG ┴→ CMK FaceProcess Prepare Mu
   reproduziert das Zweigergebnis innerhalb der Regionen exakt; außerhalb liegt
   nur die 2.7-Ganzbild-Quantisierung (0 auf dem 8-Bit-Raster, sonst ≤ 1/255).
   Branch-Schema `…_v3`.
+- **Advanced (F5, `pipe/cmk_faceprocess_advanced_multimodel.py`):**
+  `CMK FaceProcess Prepare Advanced Multi-Model -Pipe-` liefert FACE 1–3 im
+  unveränderten Standard-FACE-Vertrag; jeder Zweig ist die abgenommene
+  Ausführung mit eigenem Branch-Cache. Je Zweig MODE (über einen eigenen Mode
+  Enable), REFINE, RESTORE MODEL/VISIBILITY und SDXL-/ZIT-Einstellungen;
+  gemeinsame Einstellungen und promptloses Verhalten wie beim Advanced
+  Multi-Model Detailer, globaler Schalter `faceprocess_global_enable`
+  (ENABLE/DISABLE). Der Branch-Schlüssel enthält nur den eigenen Slot und die
+  gemeinsamen Werte, die sein Modus liest (`advanced_prepare_excluded_inputs`).
+  `CMK FaceProcess Merge Multi-Model` fordert lazy RESTORE → ZIT → SDXL an
+  (NONE nur Diagnose, zuletzt) und komponiert in Slotreihenfolge D1 → D2 → D3
+  mit `compose_layers` über die F4-Ebenen jedes Zweigs: tatsächliche Restore-,
+  Detailer- und Refine-Masken samt Mischarithmetik, jeder Zweig auf dem
+  Ergebnis der vorigen. Außerhalb aller Zweigregionen bleibt das Eingangsbild
+  unverändert (keine Ganzbild-Quantisierung). Zweige aus einem anderen Bild
+  werden abgewiesen. `diagnostic 1..3` reicht die Zweigdiagnosen unverändert
+  weiter; die Previews hängen hinter dem Merge (kein Output-Root am Zweig).
+  Boundary unverändert; Modul aus bei DISABLE oder drei NONE-Zweigen.
+- **Räumliche Diagnostik (F5, `utils/face_diagnostic.py`):** nur aus
+  vorhandenen Daten (Quellbild, YOLO-Detektion/-Auswahl, RESTORE-Zuordnung,
+  F4-Ebenen); das Bild bleibt unberührt. Payload-Stufen (sichtbar ohne
+  Source, Primary-/Refine-Ergebnis und Final, siehe 9.1): Zweig SDXL/ZIT: Source, Detection
+  (erkannt/ausgewählt), Sampling ROI, Mask, Pasteback (Detailer-Ebenen-Alpha),
+  Detailer, Differenz, Final. RESTORE: Source, Detection · Assignment, Restore
+  Region, Restore Alpha, Visibility (Alpha × Visibility), Restore, Differenz,
+  Final. Mit Refine zusätzlich Refine Mask (0,75 · Ellipse), Refine und
+  Differenzen. NONE ohne. Ältere Branch-Cache-Einträge werden beim HIT aus
+  ihren SEGS/Ebenen ergänzt (`with_face_stages`, idempotent). Merge:
+  INPUT LAYERS (wirksame Alpha je Zweig), OVERLAP (Alpha-Überlappung, später
+  oben), COMPOSITE (exakte Anteile D1 → D2 → D3), FINAL.
 - **GFPGAN ist nicht deterministisch:** Der Decoder speist Zufallsrauschen ein;
   dieselbe Eingabe ergibt ohne festen Torch-Seed unterschiedliche Pixel (auch
   in 2.7). Der Branch-Cache hält einen Lauf fest.
@@ -1807,6 +1837,34 @@ CMK LOG CONCAT  → LOG BLOCK 1 ... N
 ```
 
 Preview- und Comparer-Nodes innerhalb eines geschlossenen Moduls müssen hinter dem jeweiligen Boundary angeschlossen sein, sofern sie ein verarbeitetes Modulergebnis anzeigen.
+
+### 9.1 Grundregel: Preview zeigt das Ergebnis, Diagnostik den Vorgang (2.8)
+
+Gilt für alle CMK-Module mit Preview- und Diagnosefunktion.
+
+- **Preview / Compare** (Visualizer, Preview & Compare) zeigt die Bilder zur
+  Qualitätsbeurteilung: Eingang, Ergebnis, Before/After.
+- **Diagnostik** zeigt, wo, wie und mit welcher Wirkung ein Ergebnis entstand:
+  Detektion und Auswahl, ROI, Masken, Alpha, Pasteback und Visibility,
+  Refine-Masken, Überlappungen, Kompositionsanteile, Differenzen zwischen
+  relevanten Stufen (z. B. Source → Primary, Primary → Refine, Source → Final),
+  Zuordnungen und Status.
+- **Keine Vollbilder in der Diagnosefolge:** Source, Primary-Ergebnis,
+  Refine-Ergebnis, Final und die gewöhnliche Node-Vorschau („Preview N“)
+  erscheinen nicht als Diagnosekachel. Jede Kachel beantwortet eine eigene
+  technische Frage; eine Kachel ohne Informationsgewinn entfällt.
+- **Umsetzung:** Die Erzeuger behalten diese Bilder in ihren Payloads (Caches,
+  Rekonstruktion, andere Verbraucher); die Diagnose-Renderer (`CMK Preview
+  Render`, `CMK Preview Board`, `utils/comfy_preview_output.py`) lassen sie
+  aus. Zugeordnet wird je (Node, Stufentitel) in `utils/cmk_diagnostic.py`
+  (`PLAIN_IMAGE_STAGES`, `PLAIN_PREVIEW_NODES`), weil derselbe Titel woanders
+  technisch sein kann (die „Source“ von `CMK Face Crop` zeigt die Auswahl mit
+  Boxen und Landmarken). Gecachte Diagnosen folgen der Regel ohne
+  Neuberechnung. Bleibt einer Diagnose kein sichtbarer Schritt, zeigt der
+  Renderer ihre Zusammenfassung als Textkarte statt eines Vollbilds.
+- Neue Diagnosen benennen ihre Stufen eindeutig; reine Vollbilder einer neuen
+  Node werden in die Tabelle aufgenommen. Bildverarbeitung, Caches,
+  Lazy-Verträge und Preview/Compare bleiben davon unberührt.
 
 ## 10. UI- und Benennungsvertrag
 

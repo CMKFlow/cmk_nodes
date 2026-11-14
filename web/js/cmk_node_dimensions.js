@@ -37,6 +37,7 @@ const BUILTIN_DEFAULTS = {
     CMKDetailerFamilyEnable: [450, 130],
     CMKFaceProcessModeEnable: [450, 130],
     CMKDetailerPrepareAdvancedMultiModelPipe: [450, 900],
+    CMKFaceProcessPrepareAdvancedMultiModelPipe: [450, 900],
     CMKImageLoadAndResizePipe: [600, 860],
     CMKLoadImage: [600, 1225],
     CMKSwapImageLoaderPipe: [1200, 800],

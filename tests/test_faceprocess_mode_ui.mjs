@@ -35,7 +35,7 @@ const document = {
   querySelectorAll: () => [],
 };
 class MutationObserver { observe() {} }
-vm.runInNewContext(source, { app, document, MutationObserver, setTimeout(callback) { callback(); } });
+vm.runInNewContext(source, { app, document, MutationObserver, setTimeout(callback) { callback(); }, queueMicrotask() {} });
 assert.ok(extension, "FaceProcess mode UI extension was not registered");
 extension.setup();
 assert.match(styles.join(""), /data-cmk-faceprocess-mode-select\] \[data-testid="widget-select-default-trigger"\] > span \{ text-align: right; \}/);
@@ -254,6 +254,69 @@ assert.equal(byName(prepare, "steps").value, 0, "switching hides widgets but kee
     isSubgraphNode: () => true, widgets: [widget("model_family", "SDXL")] };
   extension.nodeCreated(other);
   assert.equal(other.widgets[0].callback, undefined);
+}
+
+// CMK FaceProcess Prepare Advanced Multi-Model: per FaceProcess branch only the
+// widgets of its mode; a Mode Enable sets its branch's mode; each execution
+// follows the mode of the FACE slot it is fed from.
+{
+  const SHARED_NAMES = ["sam_model_name", "sam_device_mode", "use_prompt_lora_from_sampler"];
+  const SDXL_SHARED_NAMES = ["stop_at_clip_layer", "pag_scale", "sampling", "zsnr", "freeu_enabled", "freeu_b1",
+    "freeu_b2", "freeu_s1", "freeu_s2"];
+  const SLOT_NAMES = ["process_mode", "refine_mode", "restore_model", "restore_visibility", "steps", "cfg",
+    "sampling_entry", "sampler", "scheduler", "zit_steps", "zit_cfg", "zit_sampling_entry", "zit_sampler",
+    "zit_scheduler", "zit_model_shift"];
+  const names = [...SHARED_NAMES, ...SDXL_SHARED_NAMES,
+    ...[1, 2, 3].flatMap((slot) => SLOT_NAMES.map((name) => `${name}_${slot}`)), "faceprocess_global_enable"];
+  const advancedPrepare = graphNode(20, "CMKFaceProcessPrepareAdvancedMultiModelPipe", names,
+    [1, 2, 3].map((slot) => ({ name: `process_mode_${slot}`, widget: { name: `process_mode_${slot}` }, link: null })),
+    [{ name: "FACE 1", links: [] }, { name: "FACE 2", links: [] }, { name: "FACE 3", links: [] }]);
+  const executions = [21, 22, 23].map((id) => graphNode(id, "CMKFaceProcessMultiModelPipe", EXECUTE_WIDGETS,
+    [{ name: "FACE", link: null }], []));
+  executions.forEach((execute, index) => connect(30 + index, advancedPrepare, index, execute, 0));
+  const modeControl = new ControlNode();
+  modeControl.id = 24; modeControl.graph = graph;
+  modeControl.outputs = [{ name: "ENABLE", links: [] }, { name: "PROCESS MODE", links: [] }];
+  nodes.set(24, modeControl);
+  connect(40, modeControl, 1, advancedPrepare, 1);  // Mode Enable -> process_mode_2
+  for (const [slot, value] of [[1, "Restore"], [3, "Z-Image Turbo"]]) byName(advancedPrepare, `process_mode_${slot}`).value = value;
+  extension.nodeCreated(advancedPrepare);
+  for (const node of executions) extension.nodeCreated(node);
+  modeControl.onNodeCreated?.();
+  press(modeControl, "SDXL");
+  assert.equal(byName(advancedPrepare, "process_mode_2").value, "SDXL", "the Mode Enable sets its branch");
+  const visible = shown(advancedPrepare);
+  assert.deepEqual(visible.filter((name) => name.endsWith("_1")),
+    ["process_mode_1", "refine_mode_1", "restore_model_1", "restore_visibility_1"], "RESTORE branch");
+  assert.deepEqual(visible.filter((name) => name.endsWith("_2")),
+    ["refine_mode_2", "steps_2", "cfg_2", "sampling_entry_2", "sampler_2", "scheduler_2"],
+    "SDXL branch; its linked mode is decided by the Mode Enable");
+  assert.deepEqual(visible.filter((name) => name.endsWith("_3")),
+    ["process_mode_3", "refine_mode_3", "zit_steps_3", "zit_cfg_3", "zit_sampling_entry_3", "zit_sampler_3",
+      "zit_scheduler_3", "zit_model_shift_3"], "ZIT branch");
+  assert.ok([...SHARED_NAMES, ...SDXL_SHARED_NAMES].every((name) => visible.includes(name)), "shared settings while SDXL runs");
+  assert.ok(visible.includes("faceprocess_global_enable"));
+  assert.deepEqual(shown(executions[0]), expected.RESTORE.execute, "execution 1 follows FACE 1 (RESTORE)");
+  assert.deepEqual(shown(executions[1]), DETAILER_EXECUTE, "execution 2 follows FACE 2 (SDXL)");
+  press(modeControl, "NONE");
+  assert.deepEqual(shown(advancedPrepare).filter((name) => name.endsWith("_2")), [], "NONE: nothing of branch 2");
+  assert.deepEqual(shown(executions[1]), [], "execution 2 bypassed");
+  assert.ok(!shown(advancedPrepare).includes("pag_scale"), "SDXL shared settings only while a branch uses SDXL");
+  assert.ok(shown(advancedPrepare).includes("sam_model_name"), "diffusion shared settings while ZIT runs");
+  byName(advancedPrepare, "process_mode_3").value = "Restore";
+  byName(advancedPrepare, "process_mode_3").callback?.("Restore");
+  assert.ok(!shown(advancedPrepare).includes("sam_model_name"), "no SAM without a diffusion branch");
+  assert.equal(byName(advancedPrepare, "steps_2").value, 0, "values stay");
+  assert.equal(byName(advancedPrepare, "restore_visibility_1").label, "VISIBILITY");
+  assert.equal(byName(advancedPrepare, "faceprocess_global_enable").label, "ENABLE");
+  assert.deepEqual(advancedPrepare.size, [450, 900], "no automatic resize");
+  // A node laid out with every widget visible returns to its remembered size.
+  const grown = graphNode(25, "CMKFaceProcessPrepareAdvancedMultiModelPipe", names, [], []);
+  grown.size = [450, 1530];
+  grown.properties = { cmkManualSize: [450, 790] };
+  grown.setSize = (size) => { grown.size = size; };
+  extension.nodeCreated(grown);
+  assert.deepEqual([...grown.size], [450, 760], "back to the remembered size, as the Advanced Detailer");
 }
 
 console.log("faceprocess mode UI contract: OK");

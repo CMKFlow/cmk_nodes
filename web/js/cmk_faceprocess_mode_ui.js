@@ -30,6 +30,7 @@ export const OUTER_MODES = {
 };
 
 export const PREPARE_CLASS = "CMKFaceProcessPrepareMultiModelPipe";
+export const ADVANCED_CLASS = "CMKFaceProcessPrepareAdvancedMultiModelPipe";
 export const EXECUTE_CLASS = "CMKFaceProcessMultiModelPipe";
 
 // Same captions as CMK Detailer Prepare Multi-Model (cmk_detailer_multimodel_ui.js).
@@ -88,6 +89,35 @@ const EXECUTE_WIDGETS = {
     "Z-Image Turbo": new Set([...EXECUTE_COMMON, ...DETAIL_WIDGETS]),
 };
 
+// CMK FaceProcess Prepare Advanced Multi-Model: shared settings and one
+// section per FaceProcess branch (suffix _1/_2/_3), like the Advanced
+// Multi-Model Detailer; each branch shows only what its mode reads.
+const SLOTS = [1, 2, 3];
+const ADVANCED_SHARED = ["sam_model_name", "sam_device_mode", "use_prompt_lora_from_sampler"];
+const ADVANCED_SDXL_SHARED = ["stop_at_clip_layer", "pag_scale", "sampling", "zsnr", "freeu_enabled",
+    "freeu_b1", "freeu_b2", "freeu_s1", "freeu_s2"];
+const ADVANCED_SLOT_WIDGETS = {
+    Restore: new Set(["refine_mode", "restore_model", "restore_visibility"]),
+    SDXL: new Set(["refine_mode", "steps", "cfg", "sampling_entry", "sampler", "scheduler"]),
+    "Z-Image Turbo": new Set(["refine_mode", "zit_steps", "zit_cfg", "zit_sampling_entry", "zit_sampler", "zit_scheduler",
+        "zit_model_shift"]),
+};
+const ADVANCED_SLOT_NAMES = [MODE_WIDGET, "refine_mode", "restore_model", "restore_visibility", "steps", "cfg",
+    "sampling_entry", "sampler", "scheduler", "zit_steps", "zit_cfg", "zit_sampling_entry", "zit_sampler",
+    "zit_scheduler", "zit_model_shift"];
+const ADVANCED_LABELS = {
+    ...PREPARE_LABELS,
+    faceprocess_global_enable: "ENABLE",
+    stop_at_clip_layer: "CLIP SKIP (SDXL)", pag_scale: "PAG SCALE (SDXL)", sampling: "SAMPLING (SDXL)",
+    zsnr: "ZSNR (SDXL)", freeu_enabled: "USE FREEU (SDXL)", freeu_b1: "FREEU B1", freeu_b2: "FREEU B2",
+    freeu_s1: "FREEU S1", freeu_s2: "FREEU S2",
+};
+// Section frames come from the Advanced Detailer stylesheet (cmk_detailer_advanced_ui.js).
+const SECTION_CLASS = "cmk-advanced-section";
+const GRID_CLASS = "cmk-advanced-grid";
+const baseName = (name) => String(name ?? "").replace(/_[123]$/, "");
+const slotOf = (name) => Number(String(name ?? "").match(/_([123])$/)?.[1]) || null;
+
 const CHOICE_NAME = "cmk_faceprocess_mode_choice";
 const ACCENT = "rgb(88, 190, 230)";
 const ROW_ATTRIBUTE = "data-cmk-faceprocess-mode-select";
@@ -136,18 +166,19 @@ function linkOf(graph, id) {
     return graph?.links?.get?.(id) ?? graph?.links?.[id];
 }
 
-function linkedTargets(node, outputName, type) {
+function linkedTargets(node, outputName, types) {
     const graph = graphOf(node);
     const output = node.outputs?.find((item) => item?.name === outputName);
     return (output?.links ?? [])
         .map((id) => linkOf(graph, id))
         .filter(Boolean)
         .map((link) => [graph.getNodeById?.(link.target_id), link])
-        .filter(([target]) => nodeClass(target) === type);
+        .filter(([target]) => [types].flat().includes(nodeClass(target)));
 }
 
-function prepareMode(prepare) {
-    const value = prepare?.widgets?.find((item) => item?.name === MODE_WIDGET)?.value;
+function prepareMode(prepare, slot = null) {
+    const name = slot ? `${MODE_WIDGET}_${slot}` : MODE_WIDGET;
+    const value = prepare?.widgets?.find((item) => item?.name === name)?.value;
     return MODE_CHOICES.some(([mode]) => mode === value) ? value : "None";
 }
 
@@ -164,21 +195,80 @@ export function refreshPrepare(node) {
     app.graph?.setDirtyCanvas?.(true, true);
 }
 
-function executePrepare(node) {
+// The mode of the FACE feeding an execution: the Standard Prepare's, or the
+// one of the Advanced Prepare's FACE slot; null without a Prepare.
+function executeMode(node) {
     const input = node.inputs?.find((item) => item?.name === "FACE" && item.link != null);
     const link = input ? linkOf(graphOf(node), input.link) : null;
     const source = link ? graphOf(node).getNodeById?.(link.origin_id) : null;
-    return nodeClass(source) === PREPARE_CLASS ? source : null;
+    if (nodeClass(source) === PREPARE_CLASS) return prepareMode(source);
+    if (nodeClass(source) === ADVANCED_CLASS) return prepareMode(source, Number(link.origin_slot) + 1);
+    return null;
 }
 
 export function refreshExecute(node) {
     if (!Array.isArray(node.widgets)) return;
     applyLabels(node, EXECUTE_LABELS);
-    const prepare = executePrepare(node);
+    const mode = executeMode(node);
     // Without a Prepare the mode is unknown: keep every widget reachable.
-    const active = prepare ? (EXECUTE_WIDGETS[prepareMode(prepare)] ?? new Set()) : null;
+    const active = mode ? (EXECUTE_WIDGETS[mode] ?? new Set()) : null;
     for (const target of node.widgets) setWidgetVisible(target, active === null || active.has(target?.name));
     node.setDirtyCanvas?.(true, true);
+}
+
+function inputLinked(node, name) {
+    return Boolean(node.inputs?.some((input) => input?.widget?.name === name && input.link != null));
+}
+
+export function refreshAdvanced(node) {
+    if (!Array.isArray(node.widgets)) return;
+    const modes = SLOTS.map((slot) => prepareMode(node, slot));
+    for (const target of node.widgets) {
+        const name = target?.name ?? "";
+        const label = ADVANCED_LABELS[baseName(name)];
+        if (label) target.label = label;
+        const slot = slotOf(name);
+        let visible = true;
+        if (slot && baseName(name) === MODE_WIDGET) {
+            // A mode linked to a CMK FaceProcess Mode Enable is decided there.
+            visible = !inputLinked(node, name);
+        } else if (slot) {
+            visible = ADVANCED_SLOT_WIDGETS[modes[slot - 1]]?.has(baseName(name)) ?? false;
+        } else if (ADVANCED_SHARED.includes(name)) {
+            visible = modes.some((mode) => mode === "SDXL" || mode === "Z-Image Turbo");
+        } else if (ADVANCED_SDXL_SHARED.includes(name)) {
+            visible = modes.includes("SDXL");
+        } else if (name === "faceprocess_global_enable") {
+            visible = !inputLinked(node, name);
+        }
+        setWidgetVisible(target, visible);
+    }
+    // As the Advanced Detailer: the node is first laid out with every widget
+    // visible and grows to that height; return to the remembered size.
+    const manual = node.properties?.cmkManualSize;
+    if (Array.isArray(manual) && Number(manual[1]) > 0 && node.size?.[1] > Number(manual[1])) {
+        node.setSize?.([node.size[0], Number(manual[1]) - 30]);
+    }
+    for (const slot of SLOTS) {
+        for (const [execute] of linkedTargets(node, `FACE ${slot}`, EXECUTE_CLASS)) refreshExecute(execute);
+    }
+    node.setDirtyCanvas?.(true, true);
+    app.graph?.setDirtyCanvas?.(true, true);
+    queueMicrotask(decorate);
+}
+
+function installAdvancedCallbacks(node) {
+    for (const slot of SLOTS) {
+        const widget = node.widgets?.find((target) => target?.name === `${MODE_WIDGET}_${slot}`);
+        if (!widget || widget._cmkFaceProcessMode) continue;
+        widget._cmkFaceProcessMode = true;
+        const original = widget.callback;
+        widget.callback = function () {
+            const result = original?.apply(this, arguments);
+            refreshAdvanced(node);
+            return result;
+        };
+    }
 }
 
 // The control's selection reaches the Prepare as a link; its own widget would
@@ -186,11 +276,12 @@ export function refreshExecute(node) {
 // Detailer Family Enable does) and refresh the projection.
 function mirrorToPrepares(node) {
     const value = node.widgets?.find((target) => target?.name === MODE_WIDGET)?.value;
-    for (const [prepare, link] of linkedTargets(node, "PROCESS MODE", PREPARE_CLASS)) {
+    for (const [prepare, link] of linkedTargets(node, "PROCESS MODE", [PREPARE_CLASS, ADVANCED_CLASS])) {
         const name = prepare.inputs?.[link.target_slot]?.widget?.name ?? MODE_WIDGET;
         const widget = prepare.widgets?.find((item) => item?.name === name);
         if (widget && value != null && widget.value !== value) widget.value = value;
-        refreshPrepare(prepare);
+        if (nodeClass(prepare) === ADVANCED_CLASS) refreshAdvanced(prepare);
+        else refreshPrepare(prepare);
     }
 }
 
@@ -306,9 +397,46 @@ function graphNode(id) {
         .find(Boolean);
 }
 
+function rowName(row) {
+    return row.querySelector("[data-widget-name]")?.getAttribute("data-widget-name") ?? null;
+}
+
+// Section frames of the Advanced Prepare: SHARED and FACEPROCESS 1/2/3 with
+// the branch's mode, as the Advanced Detailer shows its Detailers.
+function decorateAdvanced(root, node) {
+    const grid = root.querySelector(".lg-node-widgets");
+    const rows = Array.from(grid?.children ?? []).filter((row) => rowName(row));
+    if (!grid || !rows.length) return;
+    grid.classList.add(GRID_CLASS);
+    for (const row of rows) {
+        row.classList.remove(SECTION_CLASS);
+        row.removeAttribute("data-cmk-section");
+    }
+    const sections = [
+        { title: "SHARED", names: [...ADVANCED_SHARED, ...ADVANCED_SDXL_SHARED] },
+        ...SLOTS.map((slot) => ({
+            title: `FACEPROCESS ${slot} · ${MODE_CHOICES.find(([mode]) => mode === prepareMode(node, slot))?.[1] ?? "NONE"}`,
+            names: ADVANCED_SLOT_NAMES.map((name) => `${name}_${slot}`),
+        })),
+    ];
+    for (const section of sections) {
+        const members = rows.filter((row) => section.names.includes(rowName(row)));
+        if (!members.length) continue;
+        const first = members[0];
+        const last = members.at(-1);
+        first.classList.add(SECTION_CLASS);
+        first.setAttribute("data-cmk-section", section.title);
+        first.style.setProperty("--cmk-advanced-section-height", `${last.offsetTop + last.offsetHeight - first.offsetTop}px`);
+    }
+}
+
 function decorate() {
     for (const root of document.querySelectorAll(".lg-node[data-node-id]")) {
         const node = graphNode(root.getAttribute("data-node-id"));
+        if (nodeClass(node) === ADVANCED_CLASS) {
+            decorateAdvanced(root, node);
+            continue;
+        }
         const spec = outerModeSpec(node);
         if (!spec) continue;
         applyOuterMode(node);
@@ -373,6 +501,9 @@ function refresh(node) {
     else if (type === PREPARE_CLASS) {
         installPrepareCallback(node);
         refreshPrepare(node);
+    } else if (type === ADVANCED_CLASS) {
+        installAdvancedCallbacks(node);
+        refreshAdvanced(node);
     } else if (type === EXECUTE_CLASS) refreshExecute(node);
     else {
         applyOuterMode(node);
@@ -389,7 +520,7 @@ app.registerExtension({
     name: "cmk.faceprocess.mode.ui.v1",
 
     beforeRegisterNodeDef(nodeType, nodeData) {
-        if (![MODE_CONTROL_CLASS, PREPARE_CLASS, EXECUTE_CLASS].includes(nodeData.name)) return;
+        if (![MODE_CONTROL_CLASS, PREPARE_CLASS, ADVANCED_CLASS, EXECUTE_CLASS].includes(nodeData.name)) return;
         for (const hook of ["onNodeCreated", "onConfigure", "onAdded", "onConnectionsChange"]) {
             const original = nodeType.prototype[hook];
             nodeType.prototype[hook] = function () {

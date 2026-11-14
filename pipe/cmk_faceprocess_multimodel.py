@@ -43,6 +43,7 @@ from ..nodes.swap.face_process import (
     _sort_face_detectors,
 )
 from ..utils.cmk_diagnostic import make_diagnostic_payload
+from ..utils.face_diagnostic import detection_view, with_face_stages
 from ..utils.face_layers import LAYER_SCHEMA, layers_roi, paste_layers, quantize_layer, refine_layer, restore_layer, with_layers
 from ..utils.face_matching import MATCH_RULE, OK, assign_faces
 from ..utils.stable_segs import make_stable_segs, segs_with_image_crops
@@ -55,6 +56,7 @@ from .cmk_log_pipe import cmk_add_block, cmk_block_to_string
 from .cmk_persistent_cache import DISABLED_REVISION, build_node_fingerprint, save_pickle, write_status
 
 PREPARE_CLASS = "CMKFaceProcessPrepareMultiModelPipe"
+ADVANCED_PREPARE_CLASS = "CMKFaceProcessPrepareAdvancedMultiModelPipe"
 EXECUTE_CLASS = "CMKFaceProcessMultiModelPipe"
 PREPARE_LABEL = "CMK FaceProcess Prepare Multi-Model -Pipe-"
 EXECUTE_LABEL = "CMK FaceProcess Multi-Model -Pipe-"
@@ -108,15 +110,54 @@ def execute_excluded_inputs(mode):
     return transport
 
 
+# CMK FaceProcess Prepare Advanced Multi-Model: per FACE slot the suffix _1/_2/_3.
+ADVANCED_SLOTS = (1, 2, 3)
+ADVANCED_SLOT_INPUTS = ("process_mode", "refine_mode", *RESTORE_INPUTS, "steps", "cfg", "sampling_entry", "sampler",
+                        "scheduler", *ZIT_SETTINGS)
+ADVANCED_SDXL_SLOT = ("steps", "cfg", "sampling_entry", "sampler", "scheduler")
+ADVANCED_SDXL_SHARED = ("stop_at_clip_layer", "pag_scale", "sampling", "zsnr",
+                        "freeu_enabled", "freeu_b1", "freeu_b2", "freeu_s1", "freeu_s2")
+ADVANCED_DIFFUSION_SHARED = ("sam_model_name", "sam_device_mode", "use_prompt_lora_from_sampler", *ADVANCED_SDXL_SHARED)
+ADVANCED_GLOBAL_ENABLE = "faceprocess_global_enable"
+
+
+def advanced_slot_mode(inputs, slot):
+    """Mode of FACE ``slot`` of the Advanced Prepare; ``None`` while it is a link."""
+    if inputs.get(ADVANCED_GLOBAL_ENABLE, "ENABLE") == "DISABLE":
+        return "none"
+    value = inputs.get(f"process_mode_{slot}")
+    return faceprocess_mode(value) if isinstance(value, str) else None
+
+
+def advanced_prepare_excluded_inputs(mode, slot):
+    """Advanced Prepare inputs outside FACE ``slot``'s identity in ``mode``."""
+    excluded = [*TRANSPORT, ADVANCED_GLOBAL_ENABLE]
+    excluded += [f"{name}_{other}" for other in ADVANCED_SLOTS if other != slot for name in ADVANCED_SLOT_INPUTS]
+    own = lambda names: [f"{name}_{slot}" for name in names]
+    if mode == "restore":
+        return (*excluded, "MODEL ZIT", "MODEL SDXL", "PROCESS", *ADVANCED_DIFFUSION_SHARED,
+                *own(ADVANCED_SDXL_SLOT), *own(ZIT_SETTINGS))
+    if mode == "sdxl":
+        return (*excluded, "MODEL ZIT", *own(RESTORE_INPUTS), *own(ZIT_SETTINGS))
+    if mode == "z_image_turbo":
+        return (*excluded, "MODEL SDXL", *ADVANCED_SDXL_SHARED, *own(RESTORE_INPUTS), *own(ADVANCED_SDXL_SLOT))
+    return tuple(excluded)
+
+
 def _prepare_link(prompt, unique_id):
+    """(prepare id, prepare node, FACE slot) of this branch; the slot is
+    ``None`` for the Standard Prepare."""
     node = prompt.get(str(unique_id)) if isinstance(prompt, dict) else None
     link = ((node or {}).get("inputs") or {}).get("FACE") if isinstance(node, dict) else None
     if not (isinstance(link, (list, tuple)) and len(link) == 2):
-        return None, None
+        return None, None, None
     prepare = prompt.get(str(link[0]))
-    if not isinstance(prepare, dict) or prepare.get("class_type") != PREPARE_CLASS:
-        return None, None
-    return str(link[0]), prepare
+    class_type = prepare.get("class_type") if isinstance(prepare, dict) else None
+    if class_type == PREPARE_CLASS:
+        return str(link[0]), prepare, None
+    if class_type == ADVANCED_PREPARE_CLASS:
+        return str(link[0]), prepare, int(link[1]) + 1
+    return None, None, None
 
 
 def branch_mode(prompt, unique_id):
@@ -125,10 +166,13 @@ def branch_mode(prompt, unique_id):
     A Mode Enable control arrives as its literal selection (prompt inline
     handler); a selection that is still a link cannot be resolved statically.
     """
-    _prepare_id, prepare = _prepare_link(prompt, unique_id)
+    _prepare_id, prepare, slot = _prepare_link(prompt, unique_id)
     if prepare is None:
         return None
-    value = (prepare.get("inputs") or {}).get("process_mode")
+    inputs = prepare.get("inputs") or {}
+    if slot is not None:
+        return advanced_slot_mode(inputs, slot)
+    value = inputs.get("process_mode")
     return faceprocess_mode(value) if isinstance(value, str) else None
 
 
@@ -271,18 +315,28 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
     @classmethod
     def dependency_cache_key(cls, prompt, unique_id):
         mode = branch_mode(prompt, unique_id)
-        prepare_id, prepare = _prepare_link(prompt, unique_id)
+        prepare_id, prepare, slot = _prepare_link(prompt, unique_id)
+        suffix = "" if slot is None else f"_{slot}"
         extra = {"mode": mode or "unknown"}
         if mode in ("restore", None):
-            restore_model = (prepare.get("inputs") or {}).get("restore_model") if prepare is not None else None
+            restore_model = (prepare.get("inputs") or {}).get(f"restore_model{suffix}") if prepare is not None else None
             extra.update(match_rule=MATCH_RULE, restore_backend=backend_identity(restore_model))
-        if prepare is not None:
+        if prepare is not None and slot is None:
             extra["prepare"], _detail = build_node_fingerprint(
                 prompt,
                 prepare_id,
                 (PREPARE_CLASS,),
                 "cmk_faceprocess_multimodel_prepare_v1",
                 exclude_inputs=prepare_excluded_inputs(mode),
+            )
+        elif prepare is not None:
+            # Only this FACE slot's settings and the shared ones its mode reads.
+            extra["prepare"], _detail = build_node_fingerprint(
+                prompt,
+                prepare_id,
+                (ADVANCED_PREPARE_CLASS,),
+                "cmk_faceprocess_advanced_prepare_v1",
+                exclude_inputs=advanced_prepare_excluded_inputs(mode, slot),
             )
         return build_node_fingerprint(
             prompt,
@@ -323,6 +377,17 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
         # boundary can store a MISS whatever the switch says.
         image = result[0]
         return (image if bool(output_image_proceed) else None, *result[1:], image)
+
+    @staticmethod
+    def _merge_transport(image_proceed, selected_face, segs_processed, enabled, log_block, diagnostic, *, before, **kwargs):
+        # A branch-cache entry written before the spatial stages gets them on
+        # its HIT, from its cached SEGS and layers; nothing is processed again.
+        if bool(enabled) and isinstance(diagnostic, dict):
+            restore = (diagnostic.get("metadata") or {}).get("primary_process") == "Restore"
+            diagnostic = with_face_stages(diagnostic, before, "restore" if restore else "detailer", selected_face,
+                                          getattr(segs_processed, "cmk_layers", []))
+        return CMKFaceProcessPipe._merge_transport(image_proceed, selected_face, segs_processed, enabled, log_block,
+                                                   diagnostic, before=before, **kwargs)
 
     def _run_branch(self, FACE, select_face, opt_log, VISUAL, opt_diagnostic, prompt, unique_id, kwargs):
         from .cmk_persistent_cache import pickle_available
@@ -389,7 +454,7 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
 
     def _finish(self, *, mode_label, image, primary, primary_layers, quantize, refine_targets, coverage, full_crop_mask,
                 select_face, params, log_lines, diagnostic_args, opt_log, VISUAL, opt_diagnostic, unique_id, cache_key,
-                cache_detail):
+                cache_detail, selected=None):
         refine_mode = params.get("refine_mode", "Off")
         processed, refine_layers, refine_info = self._refine(primary, refine_targets, refine_mode)
         layers = list(primary_layers)
@@ -414,6 +479,13 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
         )
         diagnostic["metadata"]["layers"] = {"schema": LAYER_SCHEMA, "kinds": [layer["kind"] for layer in layers],
                                             "roi": list(roi) if roi else None}
+        restore = mode_label == "Restore"
+        records = diagnostic_args.get("metadata", {}).get("faces") if restore else None
+        diagnostic = with_face_stages(
+            diagnostic, image, "restore" if restore else "detailer", coverage, layers,
+            detection=detection_view(image, diagnostic_args.get("segs_detected"),
+                                     coverage if selected is None else selected, records),
+        )
         payload = {"before_image": image, "image_proceed": processed, "selected_face": coverage,
                    "segs_processed": segs_processed, "enabled": True, "diagnostic": diagnostic, "log_block": log_block}
         if cache_key:
@@ -493,7 +565,7 @@ class CMKFaceProcessMultiModelPipe(CMKFaceProcessPipe):
             mode_label="Restore", image=image, primary=primary, primary_layers=primary_layers, quantize="round",
             # Refine only on assigned and restored faces (E9).
             refine_targets=restored_segs, coverage=restored_segs, full_crop_mask=True, select_face=select_face,
-            params=params,
+            params=params, selected=selected,
             log_lines=["STATUS          : EXECUTED", "PROCESS MODE    : RESTORE", f"SELECTION       : {select_face} (YOLO)",
                        f"RESTORE BACKEND : {backend_info['backend']} · {Path(backend_info['file']).name}",
                        f"FACES DETECTED  : {self._seg_count(detected)}", f"FACES SELECTED  : {self._seg_count(selected)}",

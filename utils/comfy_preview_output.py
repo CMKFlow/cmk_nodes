@@ -6,6 +6,8 @@ from typing import Any, Dict, List
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+from .cmk_diagnostic import plain_image_stage, plain_preview_node
+
 
 _CAPTION_MODES = ["Off", "Standard", "Details"]
 
@@ -481,9 +483,18 @@ def _flow_caption_panel(data: dict, *, caption: str, width: int) -> np.ndarray |
 
 
 def _preview_steps_from_payload(data: dict) -> list[dict]:
+    """The visible diagnostic steps of one payload.
+
+    CMK rule (``utils/cmk_diagnostic.py``): plain full images (source, primary
+    and Refine results, final result, ordinary node preview) are left out;
+    they belong to Preview / Compare.  A payload whose stages are all plain
+    images has no visible step, it never falls back to its previews.
+    """
     metadata = dict(data.get("metadata") or {})
+    node = str(data.get("node") or "")
     raw_steps = data.get("stages") or data.get("preview_steps") or metadata.get("stages") or metadata.get("preview_steps")
     steps: list[dict] = []
+    plain_steps = 0
 
     if isinstance(raw_steps, list):
         for idx, item in enumerate(raw_steps):
@@ -509,6 +520,9 @@ def _preview_steps_from_payload(data: dict) -> list[dict]:
             else:
                 continue
             if _image_like_to_rgb(image) is not None:
+                if plain_image_stage(node, title):
+                    plain_steps += 1
+                    continue
                 steps.append({
                     "title": str(title),
                     "subtitle": str(subtitle),
@@ -518,7 +532,7 @@ def _preview_steps_from_payload(data: dict) -> list[dict]:
                     "metadata": step_metadata,
                 })
 
-    if steps:
+    if steps or plain_steps or plain_preview_node(node):
         return steps
 
     previews = data.get("previews") or data.get("preview") or []
@@ -953,7 +967,7 @@ def _diagnostic_card(image: np.ndarray, *, title: str, summary: str, details: st
 
 
 def render_preview_panel(preview_payload: dict, *, caption: str = "Standard") -> np.ndarray:
-    from .preview_payload import normalize_preview_payload, select_preview_image
+    from .preview_payload import normalize_preview_payload
 
     caption = "Standard" if str(caption) == "Summary" else str(caption)
     caption = caption if caption in _CAPTION_MODES else "Standard"
@@ -974,24 +988,7 @@ def render_preview_panel(preview_payload: dict, *, caption: str = "Standard") ->
                     if stage_panels:
                         group_panels.extend(stage_panels)
                         continue
-                group_panels.append(
-                    _diagnostic_card(
-                        select_preview_image(group_data, image_index=-1),
-                        title=str(
-                            group_data.get("title")
-                            or group_data.get("node")
-                            or "CMK Preview"
-                        ),
-                        summary=str(group_data.get("summary") or ""),
-                        details=str(
-                            group_data.get("details")
-                            or group_data.get("summary")
-                            or ""
-                        ),
-                        metadata=dict(group_data.get("metadata") or {}),
-                        caption=caption,
-                    )
-                )
+                group_panels.append(_summary_card(group_data, caption=caption))
             except Exception:
                 continue
         if group_panels:
@@ -1005,12 +1002,23 @@ def render_preview_panel(preview_payload: dict, *, caption: str = "Standard") ->
         if stage_panels:
             return combine_preview_panels(stage_panels)
 
-    image = select_preview_image(data, image_index=-1)
+    return _summary_card(data, caption=caption)
+
+
+def _summary_card(data: dict, *, caption: str) -> np.ndarray:
+    """One card per diagnostic: its last visible diagnostic step, or its text
+    when it has none (a diagnostic never shows a plain full image)."""
+    title = str(data.get("title") or data.get("node") or "CMK Preview")
+    summary = str(data.get("summary") or "")
+    details = str(data.get("details") or data.get("summary") or "")
+    steps = _preview_steps_from_payload(data)
+    if not steps:
+        return render_summary_panel(title=title, text=details if caption == "Details" else summary)
     return _diagnostic_card(
-        image,
-        title=str(data.get("title") or data.get("node") or "CMK Preview"),
-        summary=str(data.get("summary") or ""),
-        details=str(data.get("details") or data.get("summary") or ""),
+        steps[-1]["image"],
+        title=title,
+        summary=summary,
+        details=details,
         metadata=dict(data.get("metadata") or {}),
         caption=caption,
     )
