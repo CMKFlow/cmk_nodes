@@ -3447,7 +3447,7 @@
     "CMKFlow": {
       "schemaVersion": 2,
       "published": true,
-      "variantOf": "5ac186bf-4185-4957-bdee-859164e567fc",
+      "variantOf": "70aa4358-3856-4a78-8304-7fef47a51263",
       "variantLabel": "Advanced",
       "category": "Process",
       "description": "Erkennt und bearbeitet bis zu drei Bildbereiche unabhängig, jeden wahlweise mit SDXL oder Z-Image Turbo, und führt die Ergebnisse anhand ihrer tatsächlichen Pasteback-Masken zusammen.",
@@ -3478,17 +3478,17 @@
       "recommendedBefore": [
         {
           "label": "30 PostProcess Setup",
-          "targetId": "CMKPostProcessSetupPipe"
+          "targetId": "CMKPostProcessSetupV2Pipe"
         }
       ],
       "recommendedAfter": [
         {
-          "label": "FaceProcess SDXL",
-          "targetId": "0a3f7a10-a21c-49ed-9faa-7e55e7b7a4dd"
+          "label": "FaceProcess",
+          "targetId": "2f64eba0-47e2-4a50-8505-41736a22ff35"
         },
         {
           "label": "FaceSwap",
-          "targetId": "9993a5f9-7cd5-431c-8653-6e187ef9d214"
+          "targetId": "2a24e1b4-11e8-4c16-b11a-f6d5527482b2"
         },
         {
           "label": "Visualizer",
@@ -3496,7 +3496,7 @@
         },
         {
           "label": "Upscale & Save",
-          "targetId": "6f8d63a4-7ea5-4c18-9900-2ec3ed33c9b6"
+          "targetId": "6a25aa85-d5c8-48a9-87d8-7e9a123c947b"
         }
       ],
       "dependencyNote": "Jeder Detailer benötigt ein passendes Detektormodell für seinen Bildbereich sowie die Modelle seiner gewählten Familie.",

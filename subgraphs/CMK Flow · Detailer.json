@@ -1,18 +1,18 @@
 {
   "revision": 0,
-  "last_node_id": "8573",
+  "last_node_id": "8625",
   "last_link_id": 0,
   "nodes": [
     {
-      "id": 8573,
-      "type": "5ac186bf-4185-4957-bdee-859164e567fc",
+      "id": 8625,
+      "type": "70aa4358-3856-4a78-8304-7fef47a51263",
       "pos": [
-        2405,
-        1710
+        5120,
+        1390
       ],
       "size": [
         300,
-        206
+        210
       ],
       "flags": {
         "collapsed": false
@@ -116,22 +116,22 @@
         "previewExposures": [],
         "cmkOuterSize": [
           300,
-          100
+          206
         ],
         "cmkManualSize": [
           300,
-          100
+          206
         ],
         "cmkVisualProviders": [
           {
-            "provider_id": "cmk-CMK_SmartDetailerMultiModelPipe-8570",
+            "provider_id": "cmk-CMK_SmartDetailerMultiModelPipe-8419",
             "key": "detailer",
             "enable_widget": "model_family",
             "branch": "sdxl",
             "stage_key": "sdxl.detailer.standard",
             "label": "Detailer",
             "sequence": 23,
-            "live_node_id": "8570",
+            "live_node_id": "8419",
             "capabilities": {
               "preview": true,
               "multi_source": true,
@@ -169,12 +169,12 @@
   "definitions": {
     "subgraphs": [
       {
-        "id": "5ac186bf-4185-4957-bdee-859164e567fc",
+        "id": "70aa4358-3856-4a78-8304-7fef47a51263",
         "version": 1,
         "state": {
-          "lastGroupId": 255,
-          "lastNodeId": 8574,
-          "lastLinkId": 22933,
+          "lastGroupId": 258,
+          "lastNodeId": 8625,
+          "lastLinkId": 23082,
           "lastRerouteId": 1
         },
         "revision": 0,
@@ -192,8 +192,8 @@
         "outputNode": {
           "id": -20,
           "bounding": [
-            9480,
-            2680,
+            9475,
+            2700,
             128,
             188
           ]
@@ -204,8 +204,8 @@
             "name": "MODEL ZIT",
             "type": "CMK_MODEL_PIPE",
             "linkIds": [
-              22906,
-              22922
+              22946,
+              22962
             ],
             "pos": [
               7959,
@@ -217,9 +217,9 @@
             "name": "MODEL_1",
             "type": "CMK_MODEL_PIPE",
             "linkIds": [
-              22907,
-              22908,
-              22909
+              22947,
+              22948,
+              22949
             ],
             "label": "MODEL SDXL",
             "pos": [
@@ -232,8 +232,8 @@
             "name": "PROCESS_1",
             "type": "CMK_RESULT_PROCESS",
             "linkIds": [
-              22910,
-              22911
+              22950,
+              22951
             ],
             "label": "PROCESS",
             "pos": [
@@ -246,9 +246,9 @@
             "name": "IMAGE_1",
             "type": "IMAGE",
             "linkIds": [
-              22912,
-              22913,
-              22914
+              22952,
+              22953,
+              22954
             ],
             "label": "IMAGE",
             "pos": [
@@ -261,9 +261,9 @@
             "name": "LOG BYPASS",
             "type": "*",
             "linkIds": [
-              22915,
-              22916,
-              22917
+              22955,
+              22956,
+              22957
             ],
             "label": "LOG",
             "pos": [
@@ -276,9 +276,9 @@
             "name": "VISUAL IN",
             "type": "CMK_VISUAL_PIPE",
             "linkIds": [
-              22918,
-              22919,
-              22920
+              22958,
+              22959,
+              22960
             ],
             "label": "VISUAL",
             "pos": [
@@ -291,8 +291,8 @@
             "name": "model_family",
             "type": "COMBO",
             "linkIds": [
-              22921,
-              22930
+              22961,
+              22970
             ],
             "label": "MODE",
             "pos": [
@@ -307,12 +307,12 @@
             "name": "MODEL_1",
             "type": "CMK_MODEL_PIPE",
             "linkIds": [
-              22923
+              22963
             ],
             "label": "MODEL ZIT",
             "pos": [
-              9504,
-              2704
+              9499,
+              2724
             ]
           },
           {
@@ -320,12 +320,12 @@
             "name": "MODEL_2",
             "type": "CMK_MODEL_PIPE",
             "linkIds": [
-              22924
+              22964
             ],
             "label": "MODEL SDXL",
             "pos": [
-              9504,
-              2724
+              9499,
+              2744
             ]
           },
           {
@@ -333,12 +333,12 @@
             "name": "PROCESS_1",
             "type": "CMK_RESULT_PROCESS",
             "linkIds": [
-              22925
+              22965
             ],
             "label": "PROCESS",
             "pos": [
-              9504,
-              2744
+              9499,
+              2764
             ]
           },
           {
@@ -346,12 +346,12 @@
             "name": "IMAGE_1",
             "type": "IMAGE",
             "linkIds": [
-              22926
+              22966
             ],
             "label": "IMAGE",
             "pos": [
-              9504,
-              2764
+              9499,
+              2784
             ]
           },
           {
@@ -359,12 +359,12 @@
             "name": "LOG_1",
             "type": "CMK_LOG_PIPE",
             "linkIds": [
-              22927
+              22967
             ],
             "label": "LOG",
             "pos": [
-              9504,
-              2784
+              9499,
+              2804
             ]
           },
           {
@@ -372,11 +372,11 @@
             "name": "VISUAL",
             "type": "CMK_VISUAL_PIPE",
             "linkIds": [
-              22928
+              22968
             ],
             "pos": [
-              9504,
-              2804
+              9499,
+              2824
             ]
           },
           {
@@ -384,22 +384,22 @@
             "name": "diagnostic",
             "type": "CMK_DIAGNOSTIC",
             "linkIds": [
-              22929
+              22969
             ],
             "pos": [
-              9504,
-              2824
+              9499,
+              2844
             ]
           }
         ],
         "widgets": [],
         "nodes": [
           {
-            "id": 8563,
+            "id": 8575,
             "type": "CMKDetailerBoundaryCache",
             "pos": [
-              8275,
-              3310
+              8250,
+              2910
             ],
             "size": [
               230,
@@ -408,61 +408,61 @@
             "flags": {
               "collapsed": true
             },
-            "order": 1,
+            "order": 0,
             "mode": 0,
             "inputs": [
               {
                 "localized_name": "MODEL",
                 "name": "MODEL",
                 "type": "CMK_MODEL_PIPE",
-                "link": 22909
+                "link": 22949
               },
               {
                 "localized_name": "IMAGE",
                 "name": "IMAGE",
                 "type": "IMAGE",
-                "link": 22902
+                "link": 23082
               },
               {
                 "localized_name": "LOG",
                 "name": "LOG",
                 "type": "CMK_LOG_PIPE",
-                "link": 22904
+                "link": 22944
               },
               {
                 "localized_name": "VISUAL IN",
                 "name": "VISUAL IN",
                 "shape": 7,
                 "type": "CMK_VISUAL_PIPE",
-                "link": 22918
+                "link": 22958
               },
               {
                 "localized_name": "VISUAL",
                 "name": "VISUAL",
                 "shape": 7,
                 "type": "CMK_VISUAL_PIPE",
-                "link": 22903
+                "link": 22943
               },
               {
                 "localized_name": "IMAGE IN",
                 "name": "IMAGE IN",
                 "shape": 7,
                 "type": "IMAGE",
-                "link": 22913
+                "link": 22953
               },
               {
                 "localized_name": "LOG IN",
                 "name": "LOG IN",
                 "shape": 7,
                 "type": "CMK_LOG_PIPE",
-                "link": 22917
+                "link": 22957
               },
               {
                 "localized_name": "diagnostic",
                 "name": "diagnostic",
                 "shape": 7,
                 "type": "CMK_DIAGNOSTIC",
-                "link": 22905
+                "link": 22945
               }
             ],
             "outputs": [
@@ -477,7 +477,7 @@
                 "name": "IMAGE",
                 "type": "IMAGE",
                 "links": [
-                  22895
+                  22935
                 ]
               },
               {
@@ -485,7 +485,7 @@
                 "name": "LOG",
                 "type": "CMK_LOG_PIPE",
                 "links": [
-                  22896
+                  22936
                 ]
               },
               {
@@ -493,7 +493,7 @@
                 "name": "VISUAL",
                 "type": "CMK_VISUAL_PIPE",
                 "links": [
-                  22897
+                  22937
                 ]
               },
               {
@@ -501,7 +501,7 @@
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  22898
+                  22938
                 ]
               }
             ],
@@ -521,11 +521,11 @@
             "shape": 1
           },
           {
-            "id": 8564,
+            "id": 8576,
             "type": "CMKResultProcessForwardPipe",
             "pos": [
-              8745,
-              3310
+              8720,
+              2910
             ],
             "size": [
               280,
@@ -534,14 +534,14 @@
             "flags": {
               "collapsed": true
             },
-            "order": 2,
+            "order": 1,
             "mode": 0,
             "inputs": [
               {
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
                 "type": "*",
-                "link": 22911
+                "link": 22951
               }
             ],
             "outputs": [
@@ -550,7 +550,7 @@
                 "name": "PROCESS",
                 "type": "CMK_RESULT_PROCESS",
                 "links": [
-                  22925
+                  22965
                 ]
               }
             ],
@@ -570,11 +570,11 @@
             "shape": 1
           },
           {
-            "id": 8565,
+            "id": 8577,
             "type": "CMKVisualCompare",
             "pos": [
-              8930,
-              1920
+              8915,
+              1915
             ],
             "size": [
               530,
@@ -583,21 +583,21 @@
             "flags": {
               "collapsed": false
             },
-            "order": 3,
+            "order": 2,
             "mode": 0,
             "inputs": [
               {
                 "localized_name": "VISUAL",
                 "name": "VISUAL",
                 "type": "CMK_VISUAL_PIPE",
-                "link": 22894
+                "link": 22934
               },
               {
                 "localized_name": "enable",
                 "name": "enable",
                 "shape": 7,
                 "type": "BOOLEAN",
-                "link": 22932
+                "link": 22972
               }
             ],
             "outputs": [],
@@ -633,11 +633,11 @@
             "shape": 1
           },
           {
-            "id": 8566,
+            "id": 8578,
             "type": "CMKModuleBypassGate",
             "pos": [
-              8510,
-              3310
+              8485,
+              2910
             ],
             "size": [
               230,
@@ -646,7 +646,7 @@
             "flags": {
               "collapsed": true
             },
-            "order": 4,
+            "order": 3,
             "mode": 0,
             "inputs": [
               {
@@ -661,14 +661,14 @@
                 "name": "IMAGE BYPASS",
                 "shape": 7,
                 "type": "*",
-                "link": 22914
+                "link": 22954
               },
               {
                 "localized_name": "LOG BYPASS",
                 "name": "LOG BYPASS",
                 "shape": 7,
                 "type": "*",
-                "link": 22915
+                "link": 22955
               },
               {
                 "localized_name": "MODEL ACTIVE",
@@ -682,35 +682,35 @@
                 "name": "IMAGE ACTIVE",
                 "shape": 7,
                 "type": "*",
-                "link": 22895
+                "link": 22935
               },
               {
                 "localized_name": "LOG ACTIVE",
                 "name": "LOG ACTIVE",
                 "shape": 7,
                 "type": "*",
-                "link": 22896
+                "link": 22936
               },
               {
                 "localized_name": "DIAGNOSTIC ACTIVE",
                 "name": "DIAGNOSTIC ACTIVE",
                 "shape": 7,
                 "type": "CMK_DIAGNOSTIC",
-                "link": 22898
+                "link": 22938
               },
               {
                 "localized_name": "VISUAL BYPASS",
                 "name": "VISUAL BYPASS",
                 "shape": 7,
                 "type": "CMK_VISUAL_PIPE",
-                "link": 22919
+                "link": 22959
               },
               {
                 "localized_name": "VISUAL ACTIVE",
                 "name": "VISUAL ACTIVE",
                 "shape": 7,
                 "type": "CMK_VISUAL_PIPE",
-                "link": 22897
+                "link": 22937
               },
               {
                 "localized_name": "PROCESS BYPASS",
@@ -733,7 +733,7 @@
                 "widget": {
                   "name": "ENABLE"
                 },
-                "link": 22931
+                "link": 22971
               }
             ],
             "outputs": [
@@ -748,7 +748,7 @@
                 "name": "IMAGE",
                 "type": "IMAGE",
                 "links": [
-                  22926
+                  22966
                 ]
               },
               {
@@ -756,7 +756,7 @@
                 "name": "LOG",
                 "type": "CMK_LOG_PIPE",
                 "links": [
-                  22927
+                  22967
                 ]
               },
               {
@@ -764,7 +764,8 @@
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  22929
+                  22969,
+                  23081
                 ]
               },
               {
@@ -772,8 +773,8 @@
                 "name": "VISUAL",
                 "type": "CMK_VISUAL_PIPE",
                 "links": [
-                  22894,
-                  22928
+                  22934,
+                  22968
                 ]
               },
               {
@@ -810,11 +811,11 @@
             "shape": 1
           },
           {
-            "id": 8567,
+            "id": 8579,
             "type": "CMKModelForwardPipe",
             "pos": [
-              9230,
-              3310
+              9205,
+              2910
             ],
             "size": [
               235,
@@ -823,7 +824,7 @@
             "flags": {
               "collapsed": true
             },
-            "order": 5,
+            "order": 4,
             "mode": 0,
             "inputs": [
               {
@@ -831,7 +832,7 @@
                 "name": "MODEL",
                 "shape": 7,
                 "type": "CMK_MODEL_PIPE",
-                "link": 22908
+                "link": 22948
               }
             ],
             "outputs": [
@@ -840,7 +841,7 @@
                 "name": "MODEL",
                 "type": "CMK_MODEL_PIPE",
                 "links": [
-                  22924
+                  22964
                 ]
               }
             ],
@@ -865,18 +866,18 @@
             "shape": 1
           },
           {
-            "id": 8568,
+            "id": 8580,
             "type": "CMKDetailerPrepareMultiModelPipe",
             "pos": [
-              8010,
-              1920
+              8005,
+              1915
             ],
             "size": [
               450,
               590
             ],
             "flags": {},
-            "order": 6,
+            "order": 5,
             "mode": 0,
             "showAdvanced": false,
             "inputs": [
@@ -885,32 +886,32 @@
                 "name": "MODEL ZIT",
                 "shape": 7,
                 "type": "CMK_MODEL_PIPE",
-                "link": 22906
+                "link": 22946
               },
               {
                 "localized_name": "MODEL SDXL",
                 "name": "MODEL SDXL",
                 "type": "CMK_MODEL_PIPE",
-                "link": 22907
+                "link": 22947
               },
               {
                 "localized_name": "PROCESS",
                 "name": "PROCESS",
                 "type": "CMK_RESULT_PROCESS",
-                "link": 22910
+                "link": 22950
               },
               {
                 "localized_name": "IMAGE",
                 "name": "IMAGE",
                 "type": "IMAGE",
-                "link": 22912
+                "link": 22952
               },
               {
                 "localized_name": "LOG",
                 "name": "LOG",
                 "shape": 7,
                 "type": "CMK_LOG_PIPE",
-                "link": 22916
+                "link": 22956
               },
               {
                 "localized_name": "LoRA ZIT",
@@ -926,7 +927,7 @@
                 "widget": {
                   "name": "model_family"
                 },
-                "link": 22921
+                "link": 22961
               },
               {
                 "localized_name": "sam_model_name",
@@ -1205,7 +1206,7 @@
                 "name": "DETAILER",
                 "type": "CMK_DETAILER_MULTIMODEL_PIPE",
                 "links": [
-                  22899
+                  22939
                 ]
               },
               {
@@ -1213,7 +1214,7 @@
                 "name": "LOG",
                 "type": "CMK_LOG_PIPE",
                 "links": [
-                  22900
+                  22940
                 ]
               },
               {
@@ -1221,7 +1222,7 @@
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  22901
+                  22941
                 ]
               }
             ],
@@ -1317,46 +1318,46 @@
             "shape": 1
           },
           {
-            "id": 8570,
+            "id": 8581,
             "type": "CMK_SmartDetailerMultiModelPipe",
             "pos": [
-              8470,
-              1925
+              8460,
+              1915
             ],
             "size": [
               450,
-              585
+              590
             ],
             "flags": {},
-            "order": 7,
+            "order": 6,
             "mode": 0,
             "inputs": [
               {
                 "localized_name": "DETAILER",
                 "name": "DETAILER",
                 "type": "CMK_DETAILER_MULTIMODEL_PIPE",
-                "link": 22899
+                "link": 22939
               },
               {
                 "localized_name": "opt_log",
                 "name": "opt_log",
                 "shape": 7,
                 "type": "CMK_LOG_PIPE",
-                "link": 22900
+                "link": 22940
               },
               {
                 "localized_name": "VISUAL",
                 "name": "VISUAL",
                 "shape": 7,
                 "type": "CMK_VISUAL_PIPE",
-                "link": 22920
+                "link": 22960
               },
               {
                 "localized_name": "opt_diagnostic",
                 "name": "opt_diagnostic",
                 "shape": 7,
                 "type": "CMK_DIAGNOSTIC",
-                "link": 22901
+                "link": 22941
               },
               {
                 "localized_name": "output_image_proceed",
@@ -1475,16 +1476,14 @@
                 "localized_name": "IMAGE PROCEED",
                 "name": "IMAGE PROCEED",
                 "type": "IMAGE",
-                "links": [
-                  22902
-                ]
+                "links": []
               },
               {
                 "localized_name": "LOG",
                 "name": "LOG",
                 "type": "CMK_LOG_PIPE",
                 "links": [
-                  22904
+                  22944
                 ]
               },
               {
@@ -1492,7 +1491,7 @@
                 "name": "VISUAL",
                 "type": "CMK_VISUAL_PIPE",
                 "links": [
-                  22903
+                  22943
                 ]
               },
               {
@@ -1500,15 +1499,16 @@
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  22905,
-                  22933
+                  22945
                 ]
               },
               {
                 "localized_name": "DETAILER IMAGE",
                 "name": "DETAILER IMAGE",
                 "type": "IMAGE",
-                "links": []
+                "links": [
+                  23082
+                ]
               }
             ],
             "properties": {
@@ -1520,16 +1520,16 @@
               "cmkCleanViewExpandedHeight": 830,
               "cmkCleanViewSize": [
                 450,
-                585
+                590
               ],
               "cmkCleanView": true,
               "cmkOuterSize": [
                 450,
-                585
+                590
               ],
               "cmkManualSize": [
                 450,
-                585
+                590
               ],
               "comparer_mode": "Click",
               "default_output": "b"
@@ -1548,7 +1548,6 @@
               true
             ],
             "widgets_values_named": {
-              "enable": true,
               "output_image_proceed": true,
               "model_name": "bbox/face/face_yolov8s.pt",
               "bbox_threshold": 0.5,
@@ -1564,11 +1563,11 @@
             "shape": 1
           },
           {
-            "id": 8571,
+            "id": 8582,
             "type": "CMKModelForwardPipe",
             "pos": [
-              8995,
-              3310
+              8970,
+              2910
             ],
             "size": [
               235,
@@ -1577,7 +1576,7 @@
             "flags": {
               "collapsed": true
             },
-            "order": 8,
+            "order": 7,
             "mode": 0,
             "inputs": [
               {
@@ -1585,7 +1584,7 @@
                 "name": "MODEL",
                 "shape": 7,
                 "type": "CMK_MODEL_PIPE",
-                "link": 22922
+                "link": 22962
               }
             ],
             "outputs": [
@@ -1594,7 +1593,7 @@
                 "name": "MODEL",
                 "type": "CMK_MODEL_PIPE",
                 "links": [
-                  22923
+                  22963
                 ]
               }
             ],
@@ -1604,11 +1603,11 @@
             "shape": 1
           },
           {
-            "id": 8572,
+            "id": 8583,
             "type": "CMKDetailerFamilyEnable",
             "pos": [
-              8040,
-              3310
+              8015,
+              2910
             ],
             "size": [
               230,
@@ -1617,7 +1616,7 @@
             "flags": {
               "collapsed": true
             },
-            "order": 9,
+            "order": 8,
             "mode": 0,
             "inputs": [
               {
@@ -1627,7 +1626,7 @@
                 "widget": {
                   "name": "model_family"
                 },
-                "link": 22930
+                "link": 22970
               }
             ],
             "outputs": [
@@ -1636,8 +1635,8 @@
                 "name": "ENABLE",
                 "type": "BOOLEAN",
                 "links": [
-                  22931,
-                  22932
+                  22971,
+                  22972
                 ]
               },
               {
@@ -1659,25 +1658,27 @@
             "shape": 1
           },
           {
-            "id": 8574,
+            "id": 8584,
             "type": "CMKPreviewRender",
             "pos": [
               8005,
-              2550
+              2540
             ],
             "size": [
-              1455,
-              326
+              1435,
+              330
             ],
-            "flags": {},
-            "order": 0,
+            "flags": {
+              "collapsed": false
+            },
+            "order": 9,
             "mode": 0,
             "inputs": [
               {
                 "localized_name": "diagnostic",
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
-                "link": 22933
+                "link": 23081
               },
               {
                 "localized_name": "caption",
@@ -1694,28 +1695,28 @@
                 "localized_name": "image",
                 "name": "image",
                 "type": "IMAGE",
-                "links": []
+                "links": null
               }
             ],
             "properties": {
               "Node name for S&R": "CMKPreviewRender",
               "cmkCleanViewExpandedSize": [
-                270,
-                58
+                1435,
+                330
               ],
-              "cmkCleanViewExpandedHeight": 58,
+              "cmkCleanViewExpandedHeight": 330,
               "cmkCleanViewSize": [
-                1455,
-                326
+                1440,
+                325
               ],
-              "cmkCleanView": true,
+              "cmkCleanView": false,
               "cmkOuterSize": [
-                1455,
-                326
+                1435,
+                330
               ],
               "cmkManualSize": [
-                1455,
-                326
+                1435,
+                330
               ],
               "comparer_mode": "Click",
               "default_output": "b"
@@ -1731,13 +1732,13 @@
         ],
         "groups": [
           {
-            "id": 255,
+            "id": 258,
             "title": "CMK Flow · Detailer",
             "bounding": [
               8000,
               1850,
-              1465,
-              1030
+              1450,
+              1020
             ],
             "color": "#332D26",
             "flags": {}
@@ -1745,324 +1746,324 @@
         ],
         "links": [
           {
-            "id": 22894,
-            "origin_id": 8566,
+            "id": 22934,
+            "origin_id": 8578,
             "origin_slot": 4,
-            "target_id": 8565,
+            "target_id": 8577,
             "target_slot": 0,
             "type": "CMK_VISUAL_PIPE"
           },
           {
-            "id": 22895,
-            "origin_id": 8563,
+            "id": 22935,
+            "origin_id": 8575,
             "origin_slot": 1,
-            "target_id": 8566,
+            "target_id": 8578,
             "target_slot": 4,
             "type": "IMAGE"
           },
           {
-            "id": 22896,
-            "origin_id": 8563,
+            "id": 22936,
+            "origin_id": 8575,
             "origin_slot": 2,
-            "target_id": 8566,
+            "target_id": 8578,
             "target_slot": 5,
             "type": "CMK_LOG_PIPE"
           },
           {
-            "id": 22897,
-            "origin_id": 8563,
+            "id": 22937,
+            "origin_id": 8575,
             "origin_slot": 3,
-            "target_id": 8566,
+            "target_id": 8578,
             "target_slot": 8,
             "type": "CMK_VISUAL_PIPE"
           },
           {
-            "id": 22898,
-            "origin_id": 8563,
+            "id": 22938,
+            "origin_id": 8575,
             "origin_slot": 4,
-            "target_id": 8566,
+            "target_id": 8578,
             "target_slot": 6,
             "type": "CMK_DIAGNOSTIC"
           },
           {
-            "id": 22899,
-            "origin_id": 8568,
+            "id": 22939,
+            "origin_id": 8580,
             "origin_slot": 0,
-            "target_id": 8570,
+            "target_id": 8581,
             "target_slot": 0,
             "type": "CMK_DETAILER_MULTIMODEL_PIPE"
           },
           {
-            "id": 22900,
-            "origin_id": 8568,
+            "id": 22940,
+            "origin_id": 8580,
             "origin_slot": 1,
-            "target_id": 8570,
+            "target_id": 8581,
             "target_slot": 1,
             "type": "CMK_LOG_PIPE"
           },
           {
-            "id": 22901,
-            "origin_id": 8568,
+            "id": 22941,
+            "origin_id": 8580,
             "origin_slot": 2,
-            "target_id": 8570,
+            "target_id": 8581,
             "target_slot": 3,
             "type": "CMK_DIAGNOSTIC"
           },
           {
-            "id": 22902,
-            "origin_id": 8570,
-            "origin_slot": 2,
-            "target_id": 8563,
-            "target_slot": 1,
-            "type": "IMAGE"
-          },
-          {
-            "id": 22903,
-            "origin_id": 8570,
+            "id": 22943,
+            "origin_id": 8581,
             "origin_slot": 4,
-            "target_id": 8563,
+            "target_id": 8575,
             "target_slot": 4,
             "type": "CMK_VISUAL_PIPE"
           },
           {
-            "id": 22904,
-            "origin_id": 8570,
+            "id": 22944,
+            "origin_id": 8581,
             "origin_slot": 3,
-            "target_id": 8563,
+            "target_id": 8575,
             "target_slot": 2,
             "type": "CMK_LOG_PIPE"
           },
           {
-            "id": 22905,
-            "origin_id": 8570,
+            "id": 22945,
+            "origin_id": 8581,
             "origin_slot": 5,
-            "target_id": 8563,
+            "target_id": 8575,
             "target_slot": 7,
             "type": "CMK_DIAGNOSTIC"
           },
           {
-            "id": 22906,
+            "id": 22946,
             "origin_id": -10,
             "origin_slot": 0,
-            "target_id": 8568,
+            "target_id": 8580,
             "target_slot": 0,
             "type": "CMK_MODEL_PIPE"
           },
           {
-            "id": 22907,
+            "id": 22947,
             "origin_id": -10,
             "origin_slot": 1,
-            "target_id": 8568,
+            "target_id": 8580,
             "target_slot": 1,
             "type": "CMK_MODEL_PIPE"
           },
           {
-            "id": 22908,
+            "id": 22948,
             "origin_id": -10,
             "origin_slot": 1,
-            "target_id": 8567,
+            "target_id": 8579,
             "target_slot": 0,
             "type": "CMK_MODEL_PIPE"
           },
           {
-            "id": 22909,
+            "id": 22949,
             "origin_id": -10,
             "origin_slot": 1,
-            "target_id": 8563,
+            "target_id": 8575,
             "target_slot": 0,
             "type": "CMK_MODEL_PIPE"
           },
           {
-            "id": 22910,
+            "id": 22950,
             "origin_id": -10,
             "origin_slot": 2,
-            "target_id": 8568,
+            "target_id": 8580,
             "target_slot": 2,
             "type": "CMK_RESULT_PROCESS"
           },
           {
-            "id": 22911,
+            "id": 22951,
             "origin_id": -10,
             "origin_slot": 2,
-            "target_id": 8564,
+            "target_id": 8576,
             "target_slot": 0,
             "type": "*"
           },
           {
-            "id": 22912,
+            "id": 22952,
             "origin_id": -10,
             "origin_slot": 3,
-            "target_id": 8568,
+            "target_id": 8580,
             "target_slot": 3,
             "type": "IMAGE"
           },
           {
-            "id": 22913,
+            "id": 22953,
             "origin_id": -10,
             "origin_slot": 3,
-            "target_id": 8563,
+            "target_id": 8575,
             "target_slot": 5,
             "type": "IMAGE"
           },
           {
-            "id": 22914,
+            "id": 22954,
             "origin_id": -10,
             "origin_slot": 3,
-            "target_id": 8566,
+            "target_id": 8578,
             "target_slot": 1,
             "type": "*"
           },
           {
-            "id": 22915,
+            "id": 22955,
             "origin_id": -10,
             "origin_slot": 4,
-            "target_id": 8566,
+            "target_id": 8578,
             "target_slot": 2,
             "type": "*"
           },
           {
-            "id": 22916,
+            "id": 22956,
             "origin_id": -10,
             "origin_slot": 4,
-            "target_id": 8568,
+            "target_id": 8580,
             "target_slot": 4,
             "type": "CMK_LOG_PIPE"
           },
           {
-            "id": 22917,
+            "id": 22957,
             "origin_id": -10,
             "origin_slot": 4,
-            "target_id": 8563,
+            "target_id": 8575,
             "target_slot": 6,
             "type": "CMK_LOG_PIPE"
           },
           {
-            "id": 22918,
+            "id": 22958,
             "origin_id": -10,
             "origin_slot": 5,
-            "target_id": 8563,
+            "target_id": 8575,
             "target_slot": 3,
             "type": "CMK_VISUAL_PIPE"
           },
           {
-            "id": 22919,
+            "id": 22959,
             "origin_id": -10,
             "origin_slot": 5,
-            "target_id": 8566,
+            "target_id": 8578,
             "target_slot": 7,
             "type": "CMK_VISUAL_PIPE"
           },
           {
-            "id": 22920,
+            "id": 22960,
             "origin_id": -10,
             "origin_slot": 5,
-            "target_id": 8570,
+            "target_id": 8581,
             "target_slot": 2,
             "type": "CMK_VISUAL_PIPE"
           },
           {
-            "id": 22921,
+            "id": 22961,
             "origin_id": -10,
             "origin_slot": 6,
-            "target_id": 8568,
+            "target_id": 8580,
             "target_slot": 6,
             "type": "COMBO"
           },
           {
-            "id": 22922,
+            "id": 22962,
             "origin_id": -10,
             "origin_slot": 0,
-            "target_id": 8571,
+            "target_id": 8582,
             "target_slot": 0,
             "type": "CMK_MODEL_PIPE"
           },
           {
-            "id": 22923,
-            "origin_id": 8571,
+            "id": 22963,
+            "origin_id": 8582,
             "origin_slot": 0,
             "target_id": -20,
             "target_slot": 0,
             "type": "CMK_MODEL_PIPE"
           },
           {
-            "id": 22924,
-            "origin_id": 8567,
+            "id": 22964,
+            "origin_id": 8579,
             "origin_slot": 0,
             "target_id": -20,
             "target_slot": 1,
             "type": "CMK_MODEL_PIPE"
           },
           {
-            "id": 22925,
-            "origin_id": 8564,
+            "id": 22965,
+            "origin_id": 8576,
             "origin_slot": 0,
             "target_id": -20,
             "target_slot": 2,
             "type": "CMK_RESULT_PROCESS"
           },
           {
-            "id": 22926,
-            "origin_id": 8566,
+            "id": 22966,
+            "origin_id": 8578,
             "origin_slot": 1,
             "target_id": -20,
             "target_slot": 3,
             "type": "IMAGE"
           },
           {
-            "id": 22927,
-            "origin_id": 8566,
+            "id": 22967,
+            "origin_id": 8578,
             "origin_slot": 2,
             "target_id": -20,
             "target_slot": 4,
             "type": "CMK_LOG_PIPE"
           },
           {
-            "id": 22928,
-            "origin_id": 8566,
+            "id": 22968,
+            "origin_id": 8578,
             "origin_slot": 4,
             "target_id": -20,
             "target_slot": 5,
             "type": "CMK_VISUAL_PIPE"
           },
           {
-            "id": 22929,
-            "origin_id": 8566,
+            "id": 22969,
+            "origin_id": 8578,
             "origin_slot": 3,
             "target_id": -20,
             "target_slot": 6,
             "type": "CMK_DIAGNOSTIC"
           },
           {
-            "id": 22930,
+            "id": 22970,
             "origin_id": -10,
             "origin_slot": 6,
-            "target_id": 8572,
+            "target_id": 8583,
             "target_slot": 0,
             "type": "COMBO"
           },
           {
-            "id": 22931,
-            "origin_id": 8572,
+            "id": 22971,
+            "origin_id": 8583,
             "origin_slot": 0,
-            "target_id": 8566,
+            "target_id": 8578,
             "target_slot": 11,
             "type": "BOOLEAN"
           },
           {
-            "id": 22932,
-            "origin_id": 8572,
+            "id": 22972,
+            "origin_id": 8583,
             "origin_slot": 0,
-            "target_id": 8565,
+            "target_id": 8577,
             "target_slot": 1,
             "type": "BOOLEAN"
           },
           {
-            "id": 22933,
-            "origin_id": 8570,
-            "origin_slot": 5,
-            "target_id": 8574,
+            "id": 23081,
+            "origin_id": 8578,
+            "origin_slot": 3,
+            "target_id": 8584,
             "target_slot": 0,
             "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 23082,
+            "origin_id": 8581,
+            "origin_slot": 6,
+            "target_id": 8575,
+            "target_slot": 1,
+            "type": "IMAGE"
           }
         ],
         "extra": {}
@@ -2113,17 +2114,17 @@
       "recommendedBefore": [
         {
           "label": "30 PostProcess Setup",
-          "targetId": "CMKPostProcessSetupPipe"
+          "targetId": "CMKPostProcessSetupV2Pipe"
         }
       ],
       "recommendedAfter": [
         {
-          "label": "FaceProcess SDXL",
-          "targetId": "0a3f7a10-a21c-49ed-9faa-7e55e7b7a4dd"
+          "label": "FaceProcess",
+          "targetId": "2f64eba0-47e2-4a50-8505-41736a22ff35"
         },
         {
           "label": "FaceSwap",
-          "targetId": "9993a5f9-7cd5-431c-8653-6e187ef9d214"
+          "targetId": "2a24e1b4-11e8-4c16-b11a-f6d5527482b2"
         },
         {
           "label": "Visualizer",
@@ -2131,7 +2132,7 @@
         },
         {
           "label": "Upscale & Save",
-          "targetId": "6f8d63a4-7ea5-4c18-9900-2ec3ed33c9b6"
+          "targetId": "6a25aa85-d5c8-48a9-87d8-7e9a123c947b"
         }
       ],
       "previewAlt": "CMK Flow Detailer mit einem Detailer-Zweig (SDXL oder ZIT)",

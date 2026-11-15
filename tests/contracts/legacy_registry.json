@@ -112,6 +112,38 @@
         "f4c0bc065cc77a370dbbe1ed35a65763985e73dfbae8256f2e1cc473f7749f0d"
       ],
       "reason": "Workflow-local helper subgraph without a package definition."
+    },
+    {
+      "workflow": "CMK 2.8 · FaceRebuild SDXL · Modul.json",
+      "definition": "CMK Flow · FaceRebuild SDXL",
+      "signatures": [
+        "68257a038acf4ddac316a2a4d7476422d52d142829902b003c78c7dfed4c2fb1"
+      ],
+      "reason": "2.8 showcase sync: the embedded definition is topologically identical to the canonical CMK Flow · FaceRebuild SDXL v2 (same signature); only its definition name predates the v2 rename. User workflow taken over unchanged."
+    },
+    {
+      "workflow": "CMK 2.8 · FaceRebuild Advanced SDXL · Modul.json",
+      "definition": "CMK Flow · FaceRebuild SDXL · Advanced",
+      "signatures": [
+        "c7678bb751ed62790863f470258b74c13f21d4ceb47882cdd0967dca07386af7"
+      ],
+      "reason": "2.8 showcase sync: the embedded definition is topologically identical to the canonical CMK Flow · FaceRebuild SDXL · Advanced v2 (same signature); only its definition name predates the v2 rename. User workflow taken over unchanged."
+    },
+    {
+      "workflow": "CMK 2.8 · FaceSwap · Modul.json",
+      "definition": "CMK Flow · FaceSwap",
+      "signatures": [
+        "d7472cb024fa5fda26be13cd159d00c8247c77c4aea9d8a207607ff5d4d10379"
+      ],
+      "reason": "2.8 showcase sync: the embedded definition is topologically identical to the canonical CMK Flow · FaceSwap v2 (same signature); only its definition name predates the v2 rename. User workflow taken over unchanged."
+    },
+    {
+      "workflow": "CMK 2.8 · FaceSwap Advanced · Modul.json",
+      "definition": "CMK Flow · FaceSwap · Advanced",
+      "signatures": [
+        "c54d17e5e9c75803cad11b6e145a1ac58e34569e6a57929cc925bdb337806020"
+      ],
+      "reason": "2.8 showcase sync: the embedded definition is topologically identical to the canonical CMK Flow · FaceSwap · Advanced v2 (same signature); only its definition name predates the v2 rename. User workflow taken over unchanged."
     }
   ]
 }

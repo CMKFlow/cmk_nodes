@@ -58,7 +58,7 @@
       "previewAlt": "CMK Flow Create Image Node",
       "flowPublished": true
     },
-    "CMKImageResize": {
+    "CMKImageResizeV2": {
       "category": "PostProcess",
       "domain": "Image Processing",
       "compatibility": [
@@ -66,7 +66,7 @@
         "Z-Image Turbo",
         "Hybrid"
       ],
-      "version": "1.0.0",
+      "version": "2.8.0",
       "author": "CMK Nodes",
       "status": "STABLE",
       "description": "Skaliert das aktuelle Bild ohne Upscale-Modell und erhält den vollständigen CMK-PostProcess-Transportvertrag.",
@@ -75,7 +75,8 @@
         "Behält das ursprüngliche Seitenverhältnis bei.",
         "Skaliert wahlweise auf eine maximale Kantenlänge oder eine Ziel-Megapixelzahl.",
         "Passt Bilder alternativ in feste Zielabmessungen ein und ergänzt schwarze oder weiße Ränder.",
-        "Reicht das Bild bei deaktiviertem SCALE ENABLE unverändert weiter."
+        "Reicht das Bild bei SCALE = DISABLE unverändert weiter.",
+        "Reicht MODEL ZIT und MODEL SDXL unverändert durch (CMK-Portvertrag)."
       ],
       "placementNote": "Auf dem familienneutralen Pfad nach der PostProcess Boundary und vor Upscale & Save oder dem Visualizer platzieren.",
       "previews": [
@@ -85,7 +86,8 @@
         }
       ],
       "previewAlt": "CMK Flow Image Resize mit den drei Skalierungsmethoden",
-      "flowPublished": true
+      "flowPublished": true,
+      "displayName": "Image Resize"
     },
     "CMKLoadImage": {
       "variantOf": "CMKImageLoadAndResizePipe",
@@ -106,7 +108,7 @@
       "recommendedAfter": [
         {
           "label": "Upscale & Save",
-          "targetId": "6f8d63a4-7ea5-4c18-9900-2ec3ed33c9b6"
+          "targetId": "6a25aa85-d5c8-48a9-87d8-7e9a123c947b"
         }
       ],
       "previews": [
@@ -147,20 +149,20 @@
       "placementNote": "Am Anfang eines bildbasierten Stand-Alone-Flows direkt vor einem familienneutralen PostProcess-Modul platzieren.",
       "recommendedAfter": [
         {
-          "label": "Detailer SDXL",
-          "targetId": "c1b3b220-bc27-479a-ae12-a43e226d96e3"
+          "label": "Detailer",
+          "targetId": "70aa4358-3856-4a78-8304-7fef47a51263"
         },
         {
           "label": "FaceRebuild SDXL",
-          "targetId": "f1cd74c6-da65-40cb-91b5-2e27d16a4c04"
+          "targetId": "abf9d2d6-e61b-48ea-8a94-ce2aae383478"
         },
         {
-          "label": "FaceProcess SDXL",
-          "targetId": "0a3f7a10-a21c-49ed-9faa-7e55e7b7a4dd"
+          "label": "FaceProcess",
+          "targetId": "2f64eba0-47e2-4a50-8505-41736a22ff35"
         },
         {
           "label": "FaceSwap",
-          "targetId": "9993a5f9-7cd5-431c-8653-6e187ef9d214"
+          "targetId": "2a24e1b4-11e8-4c16-b11a-f6d5527482b2"
         }
       ],
       "previews": [
@@ -172,7 +174,7 @@
       "previewAlt": "CMK Flow Image Input Node",
       "variantOrder": 10
     },
-    "CMKPostProcessSetupPipe": {
+    "CMKPostProcessSetupV2Pipe": {
       "browserOrder": 100,
       "displayName": "30 PostProcess Setup",
       "category": "Process",
@@ -181,14 +183,15 @@
         "SDXL",
         "Z-Image Turbo"
       ],
-      "version": "2.0.0",
+      "version": "2.8.0",
       "author": "CMK Nodes",
       "status": "STABLE",
       "description": "Beendet den aktiven SDXL-, ZIT- oder HYBRID-Generationspfad und stellt einen unabhängigen Arbeitskontext für nachfolgende PostProcess-Module bereit.",
       "features": [
         "Übernimmt ausschließlich den aktiven Generationszweig",
         "Übergibt dessen Ergebnis an den PostProcess",
-        "Lädt ein separates PostProcess-Modell nur bei Bedarf"
+        "Lädt ein separates PostProcess-Modell nur bei Bedarf",
+        "Stellt das PostProcess-Modell getrennt als MODEL SDXL und MODEL ZIT bereit (SDXL- und Z-Image-Turbo-Bereich)"
       ],
       "placementNote": "Combined-Variante direkt hinter den letzten SDXL- und ZIT-Generationsstufen und vor Detailer/FaceRebuild/FaceProcess platzieren. Rein modellfreie Wege laden das konfigurierte PostProcess-Modell nicht.",
       "recommendedBefore": [
@@ -203,24 +206,24 @@
       ],
       "recommendedAfter": [
         {
-          "label": "Detailer SDXL",
-          "targetId": "c1b3b220-bc27-479a-ae12-a43e226d96e3"
+          "label": "Detailer",
+          "targetId": "70aa4358-3856-4a78-8304-7fef47a51263"
         },
         {
           "label": "FaceRebuild SDXL",
-          "targetId": "f1cd74c6-da65-40cb-91b5-2e27d16a4c04"
+          "targetId": "abf9d2d6-e61b-48ea-8a94-ce2aae383478"
         },
         {
-          "label": "FaceProcess SDXL",
-          "targetId": "0a3f7a10-a21c-49ed-9faa-7e55e7b7a4dd"
+          "label": "FaceProcess",
+          "targetId": "2f64eba0-47e2-4a50-8505-41736a22ff35"
         },
         {
           "label": "FaceSwap",
-          "targetId": "9993a5f9-7cd5-431c-8653-6e187ef9d214"
+          "targetId": "2a24e1b4-11e8-4c16-b11a-f6d5527482b2"
         },
         {
           "label": "Upscale & Save",
-          "targetId": "6f8d63a4-7ea5-4c18-9900-2ec3ed33c9b6"
+          "targetId": "6a25aa85-d5c8-48a9-87d8-7e9a123c947b"
         },
         {
           "label": "Visualizer",

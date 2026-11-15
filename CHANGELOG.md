@@ -1,4 +1,4 @@
-# CMK Flow 2.8.0 — in Entwicklung (Detailer-Stand, 2026-11-13)
+# CMK Flow 2.8.0 — in Entwicklung (Stand 2026-11-15)
 
 Noch kein Release; die Paketversion bleibt bis zur Veröffentlichung 2.7.0.
 
@@ -20,9 +20,28 @@ Noch kein Release; die Paketversion bleibt bis zur Veröffentlichung 2.7.0.
 - Außenansicht beider Detailer mit Dropdown `MODE` (Standard: DISABLE · SDXL ·
   ZIT, Advanced: ENABLE · DISABLE) mit rechtsbündigen Werten.
 - Flow Browser: Flows-Katalog zeigt `Detailer` mit den Varianten Standard und
-  Advanced; MODULE WORKFLOWS 301/302 sind `CMK 2.8 · Detailer · Modul` und
-  `CMK 2.8 · Detailer Advanced · Modul`. Die SDXL-Detailer und ihre
-  Referenz-Workflows bleiben als Dateien erhalten, sind aber nicht mehr veröffentlicht.
+  Advanced. Die SDXL-Detailer und ihre Referenz-Workflows bleiben als Dateien
+  erhalten, sind aber nicht mehr veröffentlicht.
+- Einheitlicher Portvertrag für alle PostProcess-Module: Eingänge und Ausgänge
+  MODEL ZIT, MODEL SDXL, PROCESS, IMAGE, LOG, VISUAL (plus `diagnostic`).
+- Neue v2-Subgraphen `FaceProcess` (Standard/Advanced, RESTORE · SDXL · ZIT),
+  `FaceRebuild SDXL v2`, `FaceSwap v2` (jeweils Standard/Advanced),
+  `MaskDetailer` (SDXL oder ZIT) und `Upscale & Save v2`; die Vorgänger
+  bleiben als Dateien erhalten, sind aber nicht mehr veröffentlicht.
+- MODE-Dropdowns statt Toggles: FaceSwap, MaskDetailer (außen ENABLE · DISABLE,
+  innen Modellfamilie SDXL · ZIT), Upscale & Save (`SAVE`) und Image Resize v2
+  (`SCALE`).
+- MaskDetailer Flow Gate v2: Diagnose nur bei ENABLE; bei DISABLE bleiben
+  Intake, Prepare und Process stumm.
+- `30 PostProcess Setup v2` mit getrennten SDXL- und Z-Image-Turbo-Bereichen
+  und `Image Resize v2` ersetzen ihre Vorgänger im Flows-Katalog (die
+  Vorgänger-Nodes bleiben registriert).
+- Showcase 2.8: Text2Image, InOutpaint, Identity 1/3, Text2Image ZIT ·
+  FaceRebuild, Full Flow, CMK · Detailer/FaceProcess/MaskDetailer und die
+  Modul-Workflows Detailer, FaceProcess, FaceRebuild SDXL, FaceSwap und
+  MaskDetailer ersetzen ihre 2.7-Gegenstücke. Die Advanced-Modul-Workflows
+  (302 Detailer, FaceProcess, FaceRebuild SDXL, FaceSwap) sind katalogisiert,
+  aber nicht veröffentlicht. Die Previews werden mit der Release-Validierung ersetzt.
 
 # CMK Flow 2.7.0 — 2026-11-10
 

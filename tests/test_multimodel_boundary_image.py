@@ -45,13 +45,12 @@ def graphs(path):
 
 
 class BoundaryImageSource(unittest.TestCase):
-    # The active 2.8 development subgraphs (user/default/subgraphs) are rewired.
-    # The package Detailer subgraph and its showcase workflow follow at the
-    # package adoption (no showcase sync before it); then this passes.
-    @unittest.expectedFailure
+    # 2.8 package and showcase sync: every package subgraph and every shipped
+    # workflow feeds the boundary from the switch-independent image output.
     def test_package_subgraphs_store_the_switch_independent_image(self):
         checked = 0
-        for path in sorted((PACKAGE_ROOT / "subgraphs").glob("*.json")):
+        paths = [*(PACKAGE_ROOT / "subgraphs").glob("*.json"), *(PACKAGE_ROOT / "workflows").glob("**/*.json")]
+        for path in sorted(paths):
             for graph in graphs(path):
                 for source_type, output in boundary_image_sources(graph):
                     checked += 1

@@ -18,9 +18,10 @@ REFERENCES = PACKAGE / "assets" / "references"
 
 VISIBLE_NODES = {
     "CMKVisualizer", "CMKImageLoadAndResizePipe", "CMKLoadImage", "CMKImageFileLoader", "CMKMultiImageLoader",
-    "CMKPipeCreateImage", "CMKRegionalLayoutSDXL", "CMKPostProcessSetupPipe", "CMKImageResize",
+    "CMKPipeCreateImage", "CMKRegionalLayoutSDXL", "CMKPostProcessSetupV2Pipe", "CMKImageResizeV2",
 }
 CATEGORIES = ["REAL-WORLD WORKFLOWS", "TASK WORKFLOWS", "MODULE WORKFLOWS", "SYSTEM WORKFLOW", "COMPARISONS", "LEGACY"]
+# 2.8 showcase sync: the Advanced module workflows are catalogued, not published.
 COUNTS = {"REAL-WORLD WORKFLOWS": 4, "TASK WORKFLOWS": 13, "MODULE WORKFLOWS": 10, "SYSTEM WORKFLOW": 1, "COMPARISONS": 2, "LEGACY": 1}
 
 
@@ -135,7 +136,7 @@ class ShowcaseRegistry(unittest.TestCase):
                             self.assertTrue(slot["file"].split(" · ", 1)[-1] in names, (name, slot["file"]))
 
 
-DETAILER_STANDARD = "5ac186bf-4185-4957-bdee-859164e567fc"
+DETAILER_STANDARD = "70aa4358-3856-4a78-8304-7fef47a51263"
 DETAILER_ADVANCED = "c65f6b01-4f30-4937-8ea6-2b229ef2e076"
 
 
@@ -160,9 +161,14 @@ class DetailerPackage(unittest.TestCase):
             self.assertTrue(english[flow_id]["description"], flow_id)
 
     def test_module_workflows_301_and_302_are_the_new_detailers(self):
-        rows = {data["order"]: (name, data) for name, data in published_showcase()}
-        self.assertEqual(rows[301][0], "CMK 2.8 · Detailer · Modul.json")
-        self.assertEqual(rows[302][0], "CMK 2.8 · Detailer Advanced · Modul.json")
+        # Like every module pair: odd = CMK · <module>, even = its 2.8 module workflow.
+        rows = {}
+        for name, data in published_showcase():
+            rows.setdefault(data["order"], []).append(name)
+        self.assertEqual(rows[301], ["CMK · Detailer.json"])
+        self.assertEqual(rows[302], ["CMK 2.8 · Detailer · Modul.json"], "the Advanced module workflow is catalogued, not published")
+        advanced = json.loads((SHOWCASE / "metadata" / "CMK 2.8 · Detailer Advanced · Modul.json").read_text(encoding="utf-8"))
+        self.assertEqual((advanced["order"], advanced["published"]), (302, False))
         published = {name for name, _ in published_showcase()}
         for legacy in ("CMK · Detailer SDXL.json", "CMK 2.7 · Detailer SDXL · Modul.json"):
             self.assertNotIn(legacy, published)
