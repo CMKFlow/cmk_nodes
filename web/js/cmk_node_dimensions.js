@@ -18,6 +18,8 @@ const BUILTIN_MINIMUMS = {
     CMKInstantIDFaceRebuildSDXL: [450, 590],
     CMKInstantIDFaceRebuildSDXLV2: [450, 590],
     CMKFaceSwapImagePipe: [380, 400],
+    CMKFaceSwapImagePipeV2: [380, 400],
+    CMKFaceSwapSlotPipeV2: [380, 400],
     CMKMultiImageLoader: [300, 420],
 };
 // CMK nodes registered by the frontend only.  ComfyUI does not call
@@ -43,6 +45,7 @@ const BUILTIN_DEFAULTS = {
     CMKLoadImage: [600, 1225],
     CMKSwapImageLoaderPipe: [1200, 800],
     CMKPostProcessSetupPipe: [600, 500],
+    CMKPostProcessSetupV2Pipe: [600, 500],
     CMKDiagnosticConcat: [320, 135],
     CMK_FaceProcess: [540, 1015],
     CMKFaceSwapImage: [400, 395],

@@ -102,6 +102,11 @@ const EXECUTION_SPECS = {
 const FAMILY_CONTROL_CLASS = "CMKDetailerFamilyEnable";
 const ADVANCED_PREPARE_CLASS = "CMKDetailerPrepareAdvancedMultiModelPipe";
 const FAMILY_CHOICES = [["None", "NONE"], ["SDXL", "SDXL"], ["Z-Image Turbo", "ZIT"]];
+// Mask Detailer 2.8: its outer MODE switches the module, so the inner Family
+// Enable offers SDXL | ZIT only. None stays a valid value with its meaning.
+const FAMILY_CHOICES_BY_SUBGRAPH = {
+    "CMK Flow · MaskDetailer": FAMILY_CHOICES.filter(([value]) => value !== "None"),
+};
 const FAMILY_TABS_NAME = "cmk_family_choice";
 const FAMILY_ACCENT = "rgb(88, 190, 230)";
 
@@ -291,6 +296,11 @@ function renderFamilyChoice(root) {
     }
 }
 
+function familyChoices(node) {
+    const name = String(node.graph?.name ?? "").replace(/ v2$/, "");
+    return FAMILY_CHOICES_BY_SUBGRAPH[name] ?? FAMILY_CHOICES;
+}
+
 function installFamilyChoice(node) {
     const original = node.widgets?.find((target) => target?.name === FAMILY_WIDGET);
     if (!original || typeof node.addDOMWidget !== "function") return;
@@ -298,11 +308,12 @@ function installFamilyChoice(node) {
     if (!panel) {
         const root = document.createElement("div");
         root.className = "cmk-family-choice";
+        const choices = familyChoices(node);
         Object.assign(root.style, {
-            display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px",
+            display: "grid", gridTemplateColumns: `repeat(${choices.length}, 1fr)`, gap: "8px",
             width: "100%", boxSizing: "border-box", padding: "2px 0",
         });
-        for (const [value, label] of FAMILY_CHOICES) {
+        for (const [value, label] of choices) {
             const button = document.createElement("button");
             button.type = "button";
             button.dataset.value = value;

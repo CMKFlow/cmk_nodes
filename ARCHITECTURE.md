@@ -595,6 +595,41 @@ Z-IMAGE TURBO: diffusion_model + text_encoder + vae + weight_dtype
 - Wird in einem Workflow die Quelle gewechselt, ändern sich die
   graphbasierten Cache-Schlüssel nachgelagerter Boundaries einmalig.
 
+#### PostProcess Setup v2 (2.8)
+
+`CMK Flow · 30 PostProcess Setup v2` (`CMKPostProcessSetupV2Pipe`) erbt das
+unveränderte `CMK Flow · 30 PostProcess Setup`: Generierungsabschluss, dessen
+Cache, Freigabe der Generierungsmodelle und die SDXL-PostProcess-Spezifikation.
+Neu ist die ZIT-PostProcess-Spezifikation aus den Einstellungen von
+`CMK PostProcess Model` (`CMKPostProcessModelSourcePipe.load`).
+
+```text
+Eingänge   : MODEL/PROCESS/IMAGE/LOG/VISUAL ZIT und SDXL (wie bisher)
+Einstellung: postprocess_checkpoint, postprocess_vae, use_checkpoint_vae (SDXL, wie bisher)
+             postprocess_zit_model, _text_encoder, _vae, _weight_dtype, _clip_device (ZIT)
+Ausgänge   : MODEL ZIT, MODEL SDXL, PROCESS, IMAGE, LOG, VISUAL
+```
+
+- Beide Modelle sind nicht materialisierte Spezifikationen; jede Familie lädt
+  erst ihr erster Verbraucher. Der Generierungs-Cache-Schlüssel hängt nicht an
+  den Modell-Einstellungen.
+- PROCESS erhält zusätzlich `postprocess_zit_model`, LOG den Block
+  `PostProcess Model ZIT`; bei STOP AFTER HANDOFF bleiben PROCESS und LOG wie
+  beim Legacy-Setup.
+- Oberfläche: Bereiche `SDXL` und `Z-IMAGE TURBO` wie bei `CMK PostProcess
+  Model` (`cmk_postprocess_model_source_ui.js`); alle Einstellungen sind
+  Advanced-Inputs.
+- CleanView: 230 × 100 ist nur die erste kompakte Größe. Eine gewählte
+  kompakte Größe (`cmkCleanViewSize`) und die erweiterte Größe
+  (`cmkCleanViewExpandedSize`) bleiben über Umschalten, Speichern und Laden
+  erhalten. Das Legacy-Setup setzt beim Einschalten weiterhin jedes Mal
+  230 × 100.
+- Laden eines Graphen (Workflow-Tab-Wechsel, Seiten-Neuladen):
+  `ComfyApp.loadGraphDataNow` vergrößert jeden Node auf `computeSize()` (für
+  die v2 rund 410 px Höhe, alle Port- und Widget-Zeilen) und ruft direkt danach
+  `loadedGraphNode` auf. Dort stellt `cmk_clean_view_prototype.js` für die v2
+  die gespeicherte Größe des aktiven Zustands wieder her.
+
 #### ZIT-Modellquelle für PostProcess
 
 `CMK Z-Image Turbo PostProcess Model` liefert eine nicht materialisierte
@@ -1508,6 +1543,42 @@ SDXL-Modul, ZIT wird nur durchgereicht.
   Boundary Cache), nicht mehr direkt am Executor; bei DISABLE blockiert die Gate
   die Diagnose (keine alte Diagnose, kein Platzhalter).
 
+### 5.7c FaceSwap v2 (2.8)
+
+Neue Subgraph-Dateien `CMK Flow · FaceSwap v2.json` und
+`CMK Flow · FaceSwap · Advanced v2.json` neben den unveränderten
+Legacy-Subgraphen; Subgraph-Name und Gruppentitel ohne „v2“, eigene IDs.
+FaceSwap bleibt modellunabhängig: MODEL ZIT und MODEL SDXL werden nur
+durchgereicht.
+
+- **Ports** (CMK-Port-Vertrag wie `CMK Flow · Detailer`): Eingänge MODEL ZIT,
+  MODEL SDXL, PROCESS, IMAGE, LOG, VISUAL, MODE, Quelldateien; Ausgänge
+  MODEL ZIT, MODEL SDXL, PROCESS, IMAGE, LOG, VISUAL, diagnostic.
+  MODEL ZIT: `CMKModelForwardPipe`. MODEL SDXL: der Legacy-Pfad
+  (Result Unpack → Boundary → Bypass Gate) unverändert; die Ausgänge kommen
+  vom Gate (der Result Pack hat sie nur auf CMK_RESULT_* umtypisiert).
+- **MODE**: `CMKFaceSwapModeEnable` (Widget `faceswap_mode`, Unterklasse von
+  `CMKFaceRebuildModeEnable`) speist alle früheren FACESWAP-ENABLE-Ziele
+  (Executor GLOBAL ENABLE, Gate ENABLE, Visual Compare). DISABLE: das Gate
+  fordert nur die Bypass-Eingänge an; Executor, Quell-Loader und Boundary
+  laufen nicht.
+- **Executoren**: `CMKFaceSwapImagePipeV2` (Standard) und
+  `CMKFaceSwapSlotPipeV2` (Advanced) erben die Verarbeitung von
+  `CMKFaceSwapImagePipe` unverändert; nur `_merge_transport` ersetzt die
+  Diagnose. `CMKFaceSwapAdvancedDiagnosticV2` hinter dem unveränderten
+  SEGS CONCAT baut die Advanced-Diagnose und speist den Boundary-Eingang
+  diagnostic.
+- **Diagnose** (`utils/faceswap_diagnostic.py`, Daten nur aus dem Lauf):
+  Prepare-Karte(n) mit `footer_rule`; Standard: Swap Face (gewähltes
+  Zielgesicht + Einfügeregion), Paste Mask (`branch_mask` der stabilen SEGS =
+  paste mask × BLEND > 0), Pasteback, Difference nur bei Änderung. Advanced:
+  Modulkarte (Slots, Merge-Reihenfolge), je aktivem Slot eine Karte, dann
+  Target Faces, Paste Masks, Merge (SEGS-CONCAT-Eingangsreihenfolge, späterer
+  Slot oben), Overlap nur bei Überlappung, Difference. Abgeschaltete Läufe:
+  Textkarte ohne Platzhalterbild.
+- **Preview Render** liest die Gate-Diagnose: bei Cache-HIT die gespeicherte
+  Boundary-Diagnose ohne FaceSwap-Neuberechnung, bei DISABLE blockiert.
+
 ### 5.8 Image Resize
 
 `CMK Flow · Image Resize` ist ein modellfreies, familienunabhängiges
@@ -1528,6 +1599,15 @@ einem methodenspezifischen Fingerprint verwendet; Parameter inaktiver Verfahren
 gehören deshalb nicht zum Cache-Schlüssel. Erfolgreiche Verarbeitung ergänzt
 LOG, VISUAL und das CMK-Diagnostic-Format, ohne Modelle zu laden oder den
 Model-Lifecycle zu verändern.
+
+**Image Resize v2 (2.8):** `CMKImageResizeV2` (`CMK Flow · Image Resize v2`)
+ist der unveränderte Image Resize mit dem CMK-Port-Vertrag
+`MODEL ZIT, MODEL SDXL, PROCESS, IMAGE, LOG, VISUAL` → zusätzlich `diagnostic`.
+Beide MODEL-Eingänge sind reiner Transport und wie PROCESS und VISUAL nicht Teil
+des Cache-Schlüssels; Verarbeitung, Bypass, Diagnose und VISUAL-Provider sind
+die des Legacy-Nodes.
+Statt des Schalters `SCALE ENABLE` hat v2 das Dropdown `scale_mode`
+(ENABLE/DISABLE, Beschriftung SCALE, rechtsbündig) mit derselben Bedeutung.
 
 ### 5.8a Upscale und Save
 
@@ -1563,6 +1643,19 @@ PROCESS + IMAGE + LOG + Speicherparameter → Datei (keine verbrauchten Ausgäng
 ist echter Bypass ohne Upscaler-, Boundary- oder Speicherausführung.
 Eingebettete Definitionen vor Version 1.4.0 bleiben unverändert lauffähig und
 behalten ihre bisherige Semantik (Abschnitt 3.0).
+
+**Upscale & Save v2 (2.8):** `CMK Flow · Upscale & Save v2.json` (User-Verzeichnis,
+eigene ID, Titel unverändert) folgt dem CMK-Port-Vertrag:
+`MODEL ZIT, MODEL SDXL, PROCESS, IMAGE, LOG, VISUAL, SAVE ENABLED, FILENAME PREFIX`
+→ `MODEL ZIT, MODEL SDXL, PROCESS, IMAGE, LOG, VISUAL, diagnostic`. MODEL ZIT,
+MODEL SDXL (`CMKModelForwardPipe`) und PROCESS (`CMKResultProcessForwardPipe`,
+Eingang `*`, Ausgang `CMK_RESULT_PROCESS`) werden direkt vom Subgraph-Eingang
+weitergereicht; PROCESS speist weiterhin den Save Endpoint. Upscaler, Boundary,
+Gate, Visual Provider und Save Endpoint sind unverändert: Ein Anfordern der
+Forward-Ausgänge führt keinen von ihnen aus.
+Statt des Schalters `SAVE ENABLED` hat v2 das Dropdown `upscale_save_mode`
+(ENABLE/DISABLE, Beschriftung SAVE, rechtsbündig); `CMKUpscaleSaveModeEnable`
+speist alle bisherigen SAVE-ENABLED-Ziele.
 
 Der Zielpfad wird unterhalb von ComfyUIs Output-Verzeichnis in dieser Reihenfolge
 gebildet:

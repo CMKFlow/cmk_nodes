@@ -15,6 +15,13 @@ legacy nodes are unchanged.
 
 from __future__ import annotations
 
+try:
+    from comfy_execution.graph_utils import ExecutionBlocker
+except ImportError:  # Unit tests outside a running ComfyUI installation.
+    class ExecutionBlocker:
+        def __init__(self, message):
+            self.message = message
+
 from ...loader.cmk_lora_text_loader import CMKLoRATextLoader
 from ...pipe.cmk_detailer_prepare import CMKDetailerPreparePipe
 from ...pipe.cmk_detailer_prepare_multimodel import (
@@ -36,11 +43,13 @@ from ...utils.cmk_diagnostic import make_diagnostic_payload
 from ...utils.cmk_translation import translate_prompt
 from ...utils.prepare_card import footer_card
 from ...utils.segs_diagnostic import detailer_spatial_stages
+from ..instantid_face_rebuild_v2 import CMKFaceRebuildModeEnable
 from ..utils.diagnostic_concat import CMKDiagnosticConcat
 from .smart_detailer import CMK_SmartDetailer
 from .mask_detailer import (
     MASK_DETAILER_PROCESS,
     MASK_DETAILER_SOURCE,
+    CMKMaskDetailerFlowGate,
     CMKMaskDetailerPrepare,
     CMKMaskDetailerProcess,
     _node,
@@ -418,3 +427,52 @@ def process_diagnostic(legacy, run, *, family, entry, mask_expand, mask_feather)
                   "change": changed},
         metrics=legacy.get("metrics"),
     )
+
+
+class CMKMaskDetailerFlowGateV2(CMKMaskDetailerFlowGate):
+    """CMK Mask Detailer Flow Gate with the module diagnostic behind the gate.
+
+    IMAGE, PROCESS, MODEL, LOG and VISUAL are selected exactly as by the Flow
+    Gate.  DIAGNOSTIC (the Process diagnostic) is requested whenever the
+    module is enabled, independent of READY, so the Intake states S0-S2 keep
+    their pending diagnostic and S3 its spatial one.  Disabled, it is not
+    requested and the diagnostic output is blocked: neither the Preview Render
+    nor a consumer of the public diagnostic pulls Process, Prepare or Intake.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        types = super().INPUT_TYPES()
+        types["optional"]["DIAGNOSTIC"] = ("CMK_DIAGNOSTIC", {"lazy": True})
+        return types
+
+    RETURN_TYPES = (*CMKMaskDetailerFlowGate.RETURN_TYPES, "CMK_DIAGNOSTIC")
+    RETURN_NAMES = (*CMKMaskDetailerFlowGate.RETURN_NAMES, "diagnostic")
+
+    def check_lazy_status(self, enabled=True, READY=None, prompt=None, unique_id=None, **inputs):
+        needed = super().check_lazy_status(enabled=enabled, READY=READY, prompt=prompt, unique_id=unique_id, **inputs)
+        if bool(enabled) and "DIAGNOSTIC" not in needed:
+            needed = needed + self._pending_connected_visual("DIAGNOSTIC", prompt, unique_id, inputs)
+        return needed
+
+    def gate(self, enabled=True, READY=None, unique_id=None, DIAGNOSTIC=None, **inputs):
+        result = super().gate(enabled=enabled, READY=READY, unique_id=unique_id, **inputs)
+        return (*result, DIAGNOSTIC if bool(enabled) else ExecutionBlocker(None))
+
+
+MASKDETAILER_MODE_WIDGET = "maskdetailer_mode"
+
+
+class CMKMaskDetailerModeEnable(CMKFaceRebuildModeEnable):
+    """MODE of the 2.8 Mask Detailer subgraph (the FaceRebuild v2 MODE
+    control): ENABLE activates the module, DISABLE is its bypass.  The model
+    family is chosen inside the subgraph (CMK Detailer Family Enable)."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        modes, options = CMKFaceRebuildModeEnable.INPUT_TYPES()["required"]["facerebuild_mode"]
+        return {"required": {MASKDETAILER_MODE_WIDGET: (modes, dict(options))}}
+
+    @staticmethod
+    def read(maskdetailer_mode="ENABLE"):
+        return CMKFaceRebuildModeEnable.read(maskdetailer_mode)

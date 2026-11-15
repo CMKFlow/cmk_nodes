@@ -1,6 +1,9 @@
 import { app } from "../../../scripts/app.js";
 
 const NODE_CLASS = "CMKImageResize";
+// Image Resize v2 (2.8): same widgets; MODEL ZIT and MODEL SDXL lead the ports.
+const V2_CLASS = "CMKImageResizeV2";
+const V2_MODEL_INPUTS = ["MODEL ZIT", "MODEL SDXL"];
 const METHOD_WIDGET = "scale_method";
 const METHOD_PARAMETERS = {
     "Scale to Max Dimension": new Set(["largest_size"]),
@@ -10,10 +13,10 @@ const METHOD_PARAMETERS = {
 const CONDITIONAL = new Set(["largest_size", "megapixels", "target_width", "target_height", "padding_color"]);
 
 function isTarget(node) {
-    return Boolean(node) && (
-        node.comfyClass === NODE_CLASS || node.type === NODE_CLASS ||
-        node.constructor?.comfyClass === NODE_CLASS ||
-        node.constructor?.nodeData?.name === NODE_CLASS
+    return Boolean(node) && [NODE_CLASS, V2_CLASS].some((name) =>
+        node.comfyClass === name || node.type === name ||
+        node.constructor?.comfyClass === name ||
+        node.constructor?.nodeData?.name === name
     );
 }
 
@@ -62,6 +65,19 @@ function registerModelInputFirst(nodeData) {
         ...required,
     };
     delete optional["MODEL (opt)"];
+    delete nodeData.input_order;
+}
+
+function registerModelPipesFirst(nodeData) {
+    const required = nodeData?.input?.required;
+    const optional = nodeData?.input?.optional;
+    if (!required || !V2_MODEL_INPUTS.every((name) => optional?.[name])) return;
+    const models = Object.fromEntries(V2_MODEL_INPUTS.map((name) => {
+        const [type, options = {}] = optional[name];
+        delete optional[name];
+        return [name, [type, { ...options, isOptional: true }]];
+    }));
+    nodeData.input.required = { ...models, ...required };
     delete nodeData.input_order;
 }
 
@@ -114,8 +130,9 @@ function schedule(node) {
 app.registerExtension({
     name: "cmk.image_resize.ui.v1",
     beforeRegisterNodeDef(nodeType, nodeData) {
-        if (nodeData?.name !== NODE_CLASS) return;
-        registerModelInputFirst(nodeData);
+        if (nodeData?.name === NODE_CLASS) registerModelInputFirst(nodeData);
+        else if (nodeData?.name === V2_CLASS) registerModelPipesFirst(nodeData);
+        else return;
         for (const hook of ["onNodeCreated", "onConfigure", "onAdded"]) {
             const original = nodeType.prototype[hook];
             nodeType.prototype[hook] = function() {

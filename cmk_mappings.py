@@ -87,11 +87,18 @@ from .nodes.image.mask_detailer import (
     CMKMaskDetailerPrepare,
     CMKMaskDetailerProcess,
 )
-from .nodes.image.mask_detailer_multimodel import CMKMaskDetailerPrepareMultiModel, CMKMaskDetailerProcessMultiModel
+from .nodes.image.mask_detailer_multimodel import (
+    CMKMaskDetailerFlowGateV2,
+    CMKMaskDetailerModeEnable,
+    CMKMaskDetailerPrepareMultiModel,
+    CMKMaskDetailerProcessMultiModel,
+)
 from .nodes.image.segs_concate import CMK_SEGSConcate
 from .nodes.image.smart_outpaint_pad import CMK_SmartOutpaintPad
 from .nodes.image.smart_upscale import CMK_SmartUpscaler, CMK_SmartUpscalerPipe
 from .nodes.image.image_resize import CMKImageResize
+from .nodes.image.image_resize_v2 import CMKImageResizeV2
+from .nodes.io.upscale_save_mode import CMKUpscaleSaveModeEnable
 from .nodes.swap.face_process import CMK_FaceProcess
 from .nodes.io.filename_tools import CMK_FilenameBase
 from .nodes.io.source_path_info import CMKSourcePathInfo
@@ -148,6 +155,7 @@ from .loader.checkpoint_vae_loader import CMKCheckpointVAELoader
 from .pipe.loaders.checkpoint_vae_loader import CMKCheckpointVAELoaderPipe, CMKPostProcessModelPipe
 from .pipe.loaders.z_image_turbo_loader import CMKZImageTurboLoaderPipe, CMKZImageTurboPostProcessModelPipe
 from .pipe.loaders.postprocess_model_source import CMKPostProcessModelSourcePipe
+from .pipe.cmk_postprocess_setup_v2 import CMKPostProcessSetupV2Pipe
 from .pipe.cmk_z_image_turbo import (
     CMKSamplerPrepareZImageTurboPipe,
     CMKZImageTurboFinalizePipe,
@@ -177,6 +185,12 @@ from .nodes.utils.native_flow_helpers import (
 from .nodes.swap.face_mask import CMKFaceMask
 from .nodes.swap.face_restore import CMKFaceRestore
 from .nodes.swap.face_swap import CMKFaceSwapImage, CMKFaceSwapImagePipe
+from .nodes.swap.face_swap_v2 import (
+    CMKFaceSwapAdvancedDiagnosticV2,
+    CMKFaceSwapImagePipeV2,
+    CMKFaceSwapModeEnable,
+    CMKFaceSwapSlotPipeV2,
+)
 
 
 NODE_CLASS_MAPPINGS = {
@@ -185,6 +199,8 @@ NODE_CLASS_MAPPINGS = {
     "CMKVisualizer": CMKVisualizer,
     "CMKVisualCompare": CMKVisualCompare,
     "CMKMaskDetailerFlowGate": CMKMaskDetailerFlowGate,
+    "CMKMaskDetailerFlowGateV2": CMKMaskDetailerFlowGateV2,
+    "CMKMaskDetailerModeEnable": CMKMaskDetailerModeEnable,
     "CMKMaskDetailerIntake": CMKMaskDetailerIntake,
     "CMKMaskDetailerPrepare": CMKMaskDetailerPrepare,
     "CMKMaskDetailerProcess": CMKMaskDetailerProcess,
@@ -238,6 +254,7 @@ NODE_CLASS_MAPPINGS = {
     "CMKProcessForwardPipe": CMKProcessForwardPipe,
     "CMKSDXLResultBridgePipe": CMKSDXLResultBridgePipe,
     "CMKPostProcessSetupPipe": CMKPostProcessSetupPipe,
+    "CMKPostProcessSetupV2Pipe": CMKPostProcessSetupV2Pipe,
     "CMKResultToLegacyBridgePipe": CMKResultToLegacyBridgePipe,
     "CMKZImageProcessForwardPipe": CMKZImageProcessForwardPipe,
     "CMKResultProcessForwardPipe": CMKResultProcessForwardPipe,
@@ -301,6 +318,8 @@ NODE_CLASS_MAPPINGS = {
     "CMK_SmartUpscaler": CMK_SmartUpscaler,
     "CMK_SmartUpscalerPipe": CMK_SmartUpscalerPipe,
     "CMKImageResize": CMKImageResize,
+    "CMKImageResizeV2": CMKImageResizeV2,
+    "CMKUpscaleSaveModeEnable": CMKUpscaleSaveModeEnable,
     "CMK_FaceProcess": CMK_FaceProcess,
     "CMK_FilenameBase": CMK_FilenameBase,
     "CMK_SourcePathInfo": CMKSourcePathInfo,
@@ -334,6 +353,10 @@ NODE_CLASS_MAPPINGS = {
     "CMKInstantIDFaceRebuildSDXLV2": CMKInstantIDFaceRebuildSDXLV2,
     "CMKInstantIDFaceRebuildAdvancedSDXLV2": CMKInstantIDFaceRebuildAdvancedSDXLV2,
     "CMKFaceRebuildModeEnable": CMKFaceRebuildModeEnable,
+    "CMKFaceSwapImagePipeV2": CMKFaceSwapImagePipeV2,
+    "CMKFaceSwapSlotPipeV2": CMKFaceSwapSlotPipeV2,
+    "CMKFaceSwapAdvancedDiagnosticV2": CMKFaceSwapAdvancedDiagnosticV2,
+    "CMKFaceSwapModeEnable": CMKFaceSwapModeEnable,
 
     # Pipe / ControlNet
     "CMKPipeSetControlNet": CMKPipeSetControlNet,
@@ -372,6 +395,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CMKVisualizer": "CMK Flow · Visualizer",
     "CMKVisualCompare": "CMK Preview & Compare",
     "CMKMaskDetailerFlowGate": "CMK Mask Detailer Flow Gate",
+    "CMKMaskDetailerFlowGateV2": "CMK Mask Detailer Flow Gate v2",
+    "CMKMaskDetailerModeEnable": "CMK Mask Detailer · Mode",
     "CMKMaskDetailerIntake": "CMK Mask Detailer · Intake",
     "CMKMaskDetailerPrepare": "CMK Mask Detailer · Prepare",
     "CMKMaskDetailerProcess": "CMK Mask Detailer · Process",
@@ -425,6 +450,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CMKZImageProcessEnableFlag": "CMK Z-Image Process Enable Flag",
     "CMKSDXLResultBridgePipe": "CMK SDXL Result Bridge -Pipe-",
     "CMKPostProcessSetupPipe": "CMK Flow · 30 PostProcess Setup",
+    "CMKPostProcessSetupV2Pipe": "CMK Flow · 30 PostProcess Setup v2",
     "CMKResultToLegacyBridgePipe": "CMK Result Bridge -Pipe-",
     "CMKZImageProcessForwardPipe": "CMK Z-Image Process Forward -Pipe-",
     "CMKResultProcessForwardPipe": "CMK Result Process Forward -Pipe-",
@@ -485,6 +511,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CMK_SmartUpscaler": "CMK Smart Upscaler",
     "CMK_SmartUpscalerPipe": "CMK Smart Upscaler -Pipe-",
     "CMKImageResize": "CMK Flow · Image Resize",
+    "CMKImageResizeV2": "CMK Flow · Image Resize v2",
+    "CMKUpscaleSaveModeEnable": "CMK Upscale & Save · Mode",
     "CMK_FaceProcess": "CMK FaceProcess",
     "CMK_FilenameBase": "CMK Filename Base",
     "CMK_SourcePathInfo": "CMK SourcePathInfo",
@@ -517,6 +545,10 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CMKInstantIDFaceRebuildSDXLV2": "CMK FaceRebuild SDXL v2",
     "CMKInstantIDFaceRebuildAdvancedSDXLV2": "CMK FaceRebuild SDXL · Advanced v2",
     "CMKFaceRebuildModeEnable": "CMK FaceRebuild · Mode",
+    "CMKFaceSwapImagePipeV2": "CMK FaceSwap Image -Pipe- v2",
+    "CMKFaceSwapSlotPipeV2": "CMK FaceSwap Slot -Pipe- v2",
+    "CMKFaceSwapAdvancedDiagnosticV2": "CMK FaceSwap · Advanced Diagnostic v2",
+    "CMKFaceSwapModeEnable": "CMK FaceSwap · Mode",
     "CMKPipeSetControlNet": "CMK Pipe Set ControlNet",
 
     "CMKLogCreate": "CMK Log Create",

@@ -1,10 +1,10 @@
 import { app } from "../../../scripts/app.js";
 
-const POSTPROCESS_SETUP_TYPE = "CMKPostProcessSetupPipe";
+const POSTPROCESS_SETUP_TYPES = new Set(["CMKPostProcessSetupPipe", "CMKPostProcessSetupV2Pipe"]);
 const VISUALIZER_TYPE = "CMKVisualizer";
-const FAMILY_BLOCK_STARTS = new Map([
-    [POSTPROCESS_SETUP_TYPE, new Set(["MODEL SDXL"])],
-]);
+const FAMILY_BLOCK_STARTS = new Map(
+    [...POSTPROCESS_SETUP_TYPES].map((type) => [type, new Set(["MODEL SDXL"])]),
+);
 // Visualizer rows are matched by input name: the labels "MODEL ZIT" and
 // "MODEL SDXL" occur in a generation group and in the POSTPROCESS group.
 const VISUALIZER_SDXL_START = "MODEL SDXL";
@@ -20,6 +20,11 @@ const ADVANCED_WIDGETS = new Set([
     "postprocess_checkpoint",
     "postprocess_vae",
     "use_checkpoint_vae",
+    "postprocess_zit_model",
+    "postprocess_zit_text_encoder",
+    "postprocess_zit_vae",
+    "postprocess_zit_weight_dtype",
+    "postprocess_zit_clip_device",
 ]);
 function nodeClass(node) {
     return node?.comfyClass
@@ -29,7 +34,7 @@ function nodeClass(node) {
 }
 
 function isBoundary(node) {
-    return nodeClass(node) === POSTPROCESS_SETUP_TYPE;
+    return POSTPROCESS_SETUP_TYPES.has(nodeClass(node));
 }
 
 function configureAdvancedWidgets(node) {

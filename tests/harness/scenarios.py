@@ -542,17 +542,28 @@ def tensor_hash_of(value) -> str:
     return tensor_hash(value) if hasattr(value, "detach") else type(value).__name__
 
 
-def _add_postprocess_tail(prompt: dict) -> None:
+POSTPROCESS_ZIT_SETTINGS = {
+    "postprocess_zit_model": "z_image_turbo_bf16.safetensors", "postprocess_zit_text_encoder": "qwen_3_4b.safetensors",
+    "postprocess_zit_vae": "ae.safetensors", "postprocess_zit_weight_dtype": "default",
+    "postprocess_zit_clip_device": "default",
+}
+
+
+def _add_postprocess_tail(prompt: dict, version=True) -> None:
+    """PostProcess Setup (``version="v2"``: PostProcess Setup v2)."""
     visualizer = prompt["8334"]["inputs"]
     family = {name: visualizer.pop(name) for name in list(visualizer)
-              if name.endswith((" ZIT", " SDXL"))}
-    prompt["9100"] = {"class_type": "CMKPostProcessSetupPipe", "inputs": {
+              if name.endswith((" ZIT", " SDXL")) and not name.startswith("POSTPROCESS")}
+    v2 = version == "v2"
+    prompt["9100"] = {"class_type": "CMKPostProcessSetupV2Pipe" if v2 else "CMKPostProcessSetupPipe", "inputs": {
         **family, "postprocess_checkpoint": "juggernautXL_ragnarok.safetensors",
         "postprocess_vae": "ClearVAE_V2.2.safetensors", "use_checkpoint_vae": True,
+        **(POSTPROCESS_ZIT_SETTINGS if v2 else {}),
     }}
-    prompt["9101"] = {"class_type": "CMKModelForwardPipe", "inputs": {"MODEL": ["9100", 0]}}
-    visualizer.update({"MODEL (opt)": ["9101", 0], "PROCESS": ["9100", 1], "IMAGE": ["9100", 2],
-                       "LOG": ["9100", 3], "VISUAL": ["9100", 4]})
+    first = 1 if v2 else 0
+    prompt["9101"] = {"class_type": "CMKModelForwardPipe", "inputs": {"MODEL": ["9100", first]}}
+    visualizer.update({"MODEL (opt)": ["9101", 0], "PROCESS": ["9100", first + 1], "IMAGE": ["9100", first + 2],
+                       "LOG": ["9100", first + 3], "VISUAL": ["9100", first + 4]})
 
 
 def _add_mask_detailer_tail(prompt: dict) -> None:
@@ -780,7 +791,7 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
             if inpaint_source is not None:
                 _add_inpaint_source(prompt, inpaint_source)
             if postprocess_tail:
-                _add_postprocess_tail(prompt)
+                _add_postprocess_tail(prompt, postprocess_tail)
             if mask_detailer_tail:
                 _add_mask_detailer_tail(prompt)
             prompt["8334"]["inputs"].update(visualizer_inputs or {})
@@ -803,9 +814,12 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
                 "stop": bool(stop),
                 "public_image_png": _tensor_png_hash(runtime, refiner_gate[1][0]) if refiner_gate and refiner_gate[1] else None,
                 "visualizer_model": (lambda output: None if not output else _payload_view(output[0][0]))(runtime.output("9101")),
-                "setup_image": (lambda output: None if not output else tensor_hash_of(output[2][0]))(runtime.output("9100")),
-                "setup_guard": (lambda output: None if not output or not isinstance(output[1][0], dict)
-                                else output[1][0].get("content_guard_enabled", "missing"))(runtime.output("9100")),
+                "setup_image": (lambda output: None if not output else tensor_hash_of(output[-4][0]))(runtime.output("9100")),
+                "setup_guard": (lambda output: None if not output or not isinstance(output[-5][0], dict)
+                                else output[-5][0].get("content_guard_enabled", "missing"))(runtime.output("9100")),
+                "setup_process": (lambda output: None if not output else _payload_view(output[-5][0]))(runtime.output("9100")),
+                "setup_zit_model": (lambda output: None if not output or len(output) != 6
+                                    else _payload_view(output[0][0]))(runtime.output("9100")),
                 "sampling": dict(seam_module.GENERATION_CALLS),
                 "inpaint_prepares": [dict(item) for item in seam_module.INPAINT_PREPARES],
                 "sampler_noise_masks": list(seam_module.SAMPLER_NOISE_MASKS),

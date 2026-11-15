@@ -1,6 +1,7 @@
 import { app } from "../../../scripts/app.js";
 
-const NODE_CLASS = "CMKFaceSwapImagePipe";
+// FaceSwap v2 executors run the same FaceSwap node inputs.
+const NODE_CLASSES = new Set(["CMKFaceSwapImagePipe", "CMKFaceSwapImagePipeV2", "CMKFaceSwapSlotPipeV2"]);
 const PROFILE_WIDGET = "QUALITY PROFILE";
 const PROFILE_CONTROLLED_WIDGETS = new Set([
     "FACE ENHANCER",
@@ -12,10 +13,10 @@ const PROFILE_CONTROLLED_WIDGETS = new Set([
 
 function isTarget(node) {
     return Boolean(node) && (
-        node.comfyClass === NODE_CLASS ||
-        node.type === NODE_CLASS ||
-        node.constructor?.comfyClass === NODE_CLASS ||
-        node.constructor?.nodeData?.name === NODE_CLASS
+        NODE_CLASSES.has(node.comfyClass) ||
+        NODE_CLASSES.has(node.type) ||
+        NODE_CLASSES.has(node.constructor?.comfyClass) ||
+        NODE_CLASSES.has(node.constructor?.nodeData?.name)
     );
 }
 
@@ -123,7 +124,7 @@ app.registerExtension({
     name: "cmk.faceswap.quality_profile_ui.v4",
 
     beforeRegisterNodeDef(nodeType, nodeData) {
-        if (nodeData.name !== NODE_CLASS) return;
+        if (!NODE_CLASSES.has(nodeData.name)) return;
         for (const hook of ["onNodeCreated", "onConfigure", "onAdded"]) {
             const original = nodeType.prototype[hook];
             nodeType.prototype[hook] = function () {

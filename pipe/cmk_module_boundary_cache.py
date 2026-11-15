@@ -431,6 +431,11 @@ def _face_rebuild_disabled_state(prompt, unique_id):
     )
 
 
+# FaceSwap executors whose switches decide a static module bypass (v2: same
+# processing and switches as the legacy executor).
+_FACESWAP_EXECUTORS = frozenset({"CMKFaceSwapImagePipe", "CMKFaceSwapImagePipeV2", "CMKFaceSwapSlotPipeV2"})
+
+
 def _faceswap_disabled_state(prompt, unique_id):
     resolved_id, boundary = _resolve_boundary_node(
         prompt, unique_id, "CMKFaceSwapBoundaryCache",
@@ -442,7 +447,7 @@ def _faceswap_disabled_state(prompt, unique_id):
         value = (boundary.get("inputs") or {}).get(name)
         if _prompt_link(prompt, value):
             _collect_upstream_nodes(
-                prompt, value[0], {"CMKFaceSwapImagePipe"}, found, visited,
+                prompt, value[0], _FACESWAP_EXECUTORS, found, visited,
             )
     # Unknown or dynamically linked switches must not be interpreted as OFF.
     disabled = bool(found) and all(

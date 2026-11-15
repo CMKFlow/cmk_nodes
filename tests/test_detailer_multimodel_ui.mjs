@@ -339,6 +339,25 @@ const press = (node, label) => buttons(node).find((b) => b.textContent === label
   linked.onNodeCreated?.(); extension.nodeCreated(linked);
   assert.ok(byName(linked, "cmk_family_choice").hidden);
 }
+// Mask Detailer 2.8: inside its subgraph the control offers SDXL | ZIT only;
+// the values and None keep their meaning, other Family Enables keep NONE.
+{
+  const inner = new ControlNode();
+  inner.graph = { name: "CMK Flow · MaskDetailer", links: new Map(), getNodeById: () => null };
+  inner.widgets[0].value = "Z-Image Turbo";
+  inner.onNodeCreated?.(); extension.nodeCreated(inner);
+  assert.deepEqual(buttons(inner).map((b) => [b.textContent, b.dataset.value]),
+    [["SDXL", "SDXL"], ["ZIT", "Z-Image Turbo"]]);
+  assert.equal(byName(inner, "cmk_family_choice").element.style.gridTemplateColumns, "repeat(2, 1fr)");
+  assert.deepEqual(pressed(inner), ["ZIT"]);
+  press(inner, "SDXL");
+  assert.equal(byName(inner, "model_family").value, "SDXL");
+  assert.deepEqual([...byName(inner, "model_family").options.values], FAMILIES, "the node's values are unchanged");
+  const detailer = new ControlNode();
+  detailer.graph = { name: "CMK Flow · Detailer · Advanced", links: new Map(), getNodeById: () => null };
+  detailer.onNodeCreated?.(); extension.nodeCreated(detailer);
+  assert.deepEqual(buttons(detailer).map((b) => b.textContent), ["NONE", "SDXL", "ZIT"]);
+}
 // A Prepare linked to MODEL FAMILY follows the control.
 {
   const control = create(ControlNode);

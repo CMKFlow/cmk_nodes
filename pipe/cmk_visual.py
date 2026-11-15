@@ -20,6 +20,8 @@ _STATUSES = {
 }
 _LIVE_TYPE_ALIASES = {
     "FaceProcess": {"CMKFaceProcessPipe", "CMK_FaceProcess", "CMKFaceProcess"},
+    # FaceSwap v2 runs the unchanged FaceSwap processing (SEGS CONCAT provider).
+    "CMKFaceSwapImagePipe": {"CMKFaceSwapImagePipeV2", "CMKFaceSwapSlotPipeV2"},
 }
 
 

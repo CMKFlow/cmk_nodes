@@ -8,9 +8,11 @@ const MODE_WIDGETS = {
         widget: "model_family",
         labels: { None: "DISABLE", SDXL: "SDXL", "Z-Image Turbo": "ZIT" },
     },
+    // Mask Detailer (2.8): MODE only switches the module; the model family
+    // is chosen inside the subgraph (CMK Detailer Family Enable).
     "CMK Flow · MaskDetailer": {
-        widget: "model_family",
-        labels: { None: "DISABLE", SDXL: "SDXL", "Z-Image Turbo": "ZIT" },
+        widget: "maskdetailer_mode",
+        labels: { ENABLE: "ENABLE", DISABLE: "DISABLE" },
     },
     // FaceRebuild v2 keeps the title of the SDXL subgraphs; only v2 has the
     // facerebuild_mode widget, so the legacy ENABLE toggle stays untouched.
@@ -22,8 +24,35 @@ const MODE_WIDGETS = {
         widget: "facerebuild_mode",
         labels: { ENABLE: "ENABLE", DISABLE: "DISABLE" },
     },
+    // FaceSwap v2 keeps the title of the legacy subgraphs; only v2 has the
+    // faceswap_mode widget, so the legacy ENABLE toggle stays untouched.
+    "CMK Flow · FaceSwap": {
+        widget: "faceswap_mode",
+        labels: { ENABLE: "ENABLE", DISABLE: "DISABLE" },
+    },
+    "CMK Flow · FaceSwap · Advanced": {
+        widget: "faceswap_mode",
+        labels: { ENABLE: "ENABLE", DISABLE: "DISABLE" },
+    },
+    // Upscale & Save v2: ENABLE / DISABLE in place of the SAVE ENABLED toggle,
+    // captioned SAVE.
+    "CMK Flow · Upscale & Save": {
+        widget: "upscale_save_mode",
+        label: "SAVE",
+        labels: { ENABLE: "ENABLE", DISABLE: "DISABLE" },
+    },
     "CMK Flow · Detailer · Advanced": {
         widget: "detailer_global_enable",
+        labels: { ENABLE: "ENABLE", DISABLE: "DISABLE" },
+    },
+};
+// Nodes (not subgraphs) with the same dropdown, by node class.
+const NODE_MODE_WIDGETS = {
+    // Image Resize v2: ENABLE / DISABLE in place of the SCALE ENABLE toggle,
+    // captioned SCALE (it up- and downscales).
+    CMKImageResizeV2: {
+        widget: "scale_mode",
+        label: "SCALE",
         labels: { ENABLE: "ENABLE", DISABLE: "DISABLE" },
     },
 };
@@ -31,7 +60,9 @@ const ROW_ATTRIBUTE = "data-cmk-mode-select";
 const STYLE_ID = "cmk-detailer-mode-style";
 
 export function modeSpec(node) {
-    if (!node?.isSubgraphNode?.()) return null;
+    if (!node?.isSubgraphNode?.()) {
+        return NODE_MODE_WIDGETS[node?.comfyClass ?? node?.constructor?.comfyClass ?? node?.type] ?? null;
+    }
     // A blueprint inserted from the library is named after its file, e.g.
     // "CMK Flow · FaceRebuild SDXL v2"; the spec is that of the title.
     const name = String(node.subgraph?.name ?? "");
@@ -43,7 +74,7 @@ export function applyMode(node) {
     if (!spec) return false;
     const widget = node.widgets?.find((item) => item?.name === spec.widget);
     if (!widget) return false;
-    widget.label = "MODE";
+    widget.label = spec.label ?? "MODE";
     widget.options ??= {};
     if (widget.options.cmkModeLabels !== spec.labels) {
         widget.options.cmkModeLabels = spec.labels;

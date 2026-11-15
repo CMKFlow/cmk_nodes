@@ -3801,6 +3801,7 @@ _VISUALIZER_COMMON_INPUTS = {
 _VISUALIZER_FAMILY_SUFFIXES = ("ZIT", "SDXL")
 _POSTPROCESS_COMPLETION_NODES = {
     "CMKPostProcessSetupPipe",
+    "CMKPostProcessSetupV2Pipe",
     "CMKPostProcessBoundarySDXLPipe",
     "CMKPostProcessBoundaryZITPipe",
     "CMKFamilyResultMergePipe",

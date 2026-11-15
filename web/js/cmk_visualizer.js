@@ -214,6 +214,7 @@ export function remappedDeclaredProvider(outerNode, item) {
       "CMKInstantIDSamplerSDXLPipe",
       "CMKInstantIDRegionalAdvancedSDXLPipe",
     ]),
+    CMKFaceSwapImagePipe: new Set(["CMKFaceSwapImagePipe", "CMKFaceSwapImagePipeV2", "CMKFaceSwapSlotPipeV2"]),
     CMKInstantIDFaceRebuildSDXL: new Set([
       "CMKInstantIDFaceRebuildSDXL",
       "CMKInstantIDFaceRebuildAdvancedSDXL",

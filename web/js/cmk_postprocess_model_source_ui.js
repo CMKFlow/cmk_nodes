@@ -4,21 +4,42 @@ import { app } from "../../../scripts/app.js";
 // are shown in two separated sections that line up with the outputs
 // MODEL SDXL and MODEL ZIT. Presentation only: widget names, values and the
 // serialized order are those of the backend definition.
-const NODE_CLASS = "CMKPostProcessModelSourcePipe";
-const LABELS = {
-    ckpt_name: "CHECKPOINT",
-    vae_name: "VAE",
-    checkpoint_vae: "CHECKPOINT VAE",
-    diffusion_model: "DIFFUSION MODEL",
-    text_encoder: "TEXT ENCODER",
-    vae: "VAE",
-    weight_dtype: "WEIGHT DTYPE",
-    clip_device: "CLIP DEVICE",
+// CMK Flow · 30 PostProcess Setup v2 (2.8) has the same settings under the
+// names of the Setup and shows them the same way.
+const NODE_SPECS = {
+    CMKPostProcessModelSourcePipe: {
+        labels: {
+            ckpt_name: "CHECKPOINT",
+            vae_name: "VAE",
+            checkpoint_vae: "CHECKPOINT VAE",
+            diffusion_model: "DIFFUSION MODEL",
+            text_encoder: "TEXT ENCODER",
+            vae: "VAE",
+            weight_dtype: "WEIGHT DTYPE",
+            clip_device: "CLIP DEVICE",
+        },
+        sections: [
+            { title: "SDXL", first: "ckpt_name" },
+            { title: "Z-IMAGE TURBO", first: "diffusion_model" },
+        ],
+    },
+    CMKPostProcessSetupV2Pipe: {
+        labels: {
+            postprocess_checkpoint: "CHECKPOINT",
+            postprocess_vae: "VAE",
+            use_checkpoint_vae: "CHECKPOINT VAE",
+            postprocess_zit_model: "DIFFUSION MODEL",
+            postprocess_zit_text_encoder: "TEXT ENCODER",
+            postprocess_zit_vae: "VAE",
+            postprocess_zit_weight_dtype: "WEIGHT DTYPE",
+            postprocess_zit_clip_device: "CLIP DEVICE",
+        },
+        sections: [
+            { title: "SDXL", first: "postprocess_checkpoint" },
+            { title: "Z-IMAGE TURBO", first: "postprocess_zit_model" },
+        ],
+    },
 };
-const SECTIONS = [
-    { title: "SDXL", first: "ckpt_name" },
-    { title: "Z-IMAGE TURBO", first: "diffusion_model" },
-];
 const STYLE_ID = "cmk-postprocess-model-source-style";
 const SECTION_CLASS = "cmk-pp-model-section";
 const GRID_CLASS = "cmk-pp-model-grid";
@@ -28,8 +49,9 @@ function nodeClass(node) {
 }
 
 function applyLabels(node) {
+    const labels = NODE_SPECS[nodeClass(node)]?.labels ?? {};
     for (const widget of node.widgets ?? []) {
-        const label = LABELS[widget?.name];
+        const label = labels[widget?.name];
         if (label) widget.label = label;
     }
     node.setDirtyCanvas?.(true, true);
@@ -48,12 +70,13 @@ function rowWidgetName(row) {
 function decorate() {
     for (const root of document.querySelectorAll(".lg-node[data-node-id]")) {
         const node = graphNode(root.getAttribute("data-node-id"));
-        if (nodeClass(node) !== NODE_CLASS) continue;
+        const spec = NODE_SPECS[nodeClass(node)];
+        if (!spec) continue;
         const grid = root.querySelector(".lg-node-widgets");
         const rows = Array.from(grid?.children ?? []).filter((row) => rowWidgetName(row));
         if (!grid || !rows.length) continue;
         grid.classList.add(GRID_CLASS);
-        const starts = SECTIONS.map((section) => rows.findIndex((row) => rowWidgetName(row) === section.first));
+        const starts = spec.sections.map((section) => rows.findIndex((row) => rowWidgetName(row) === section.first));
         rows.forEach((row) => {
             row.classList.remove(SECTION_CLASS);
             row.removeAttribute("data-cmk-section");
@@ -63,7 +86,7 @@ function decorate() {
             const end = index + 1 < starts.length && starts[index + 1] > start ? starts[index + 1] - 1 : rows.length - 1;
             const row = rows[start];
             row.classList.add(SECTION_CLASS);
-            row.setAttribute("data-cmk-section", SECTIONS[index].title);
+            row.setAttribute("data-cmk-section", spec.sections[index].title);
             const last = rows[end];
             const height = last.offsetTop + last.offsetHeight - row.offsetTop;
             row.style.setProperty("--cmk-pp-section-height", `${height}px`);
@@ -107,10 +130,10 @@ app.registerExtension({
     },
 
     nodeCreated(node) {
-        if (nodeClass(node) === NODE_CLASS) schedule(node);
+        if (NODE_SPECS[nodeClass(node)]) schedule(node);
     },
 
     loadedGraphNode(node) {
-        if (nodeClass(node) === NODE_CLASS) schedule(node);
+        if (NODE_SPECS[nodeClass(node)]) schedule(node);
     },
 });
