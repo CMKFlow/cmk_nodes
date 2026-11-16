@@ -57,7 +57,16 @@ const NODE_MODE_WIDGETS = {
     },
 };
 const ROW_ATTRIBUTE = "data-cmk-mode-select";
+// Active state of a marked MODE row (also set by cmk_faceprocess_mode_ui.js):
+// the selected text shows the CMK accent unless the module is off.
+const ACTIVE_ATTRIBUTE = "data-cmk-mode-active";
+const INACTIVE_VALUES = ["None", "DISABLE"];
 const STYLE_ID = "cmk-detailer-mode-style";
+
+function markModeState(row, value) {
+    const active = String(!INACTIVE_VALUES.includes(String(value)));
+    if (row.getAttribute(ACTIVE_ATTRIBUTE) !== active) row.setAttribute(ACTIVE_ATTRIBUTE, active);
+}
 
 export function modeSpec(node) {
     if (!node?.isSubgraphNode?.()) {
@@ -96,7 +105,9 @@ function decorate() {
         if (!spec) continue;
         applyMode(node);
         const row = root.querySelector(`.lg-node-widget[data-widget-name="${spec.widget}"]`);
-        if (row && !row.hasAttribute(ROW_ATTRIBUTE)) row.setAttribute(ROW_ATTRIBUTE, "");
+        if (!row) continue;
+        if (!row.hasAttribute(ROW_ATTRIBUTE)) row.setAttribute(ROW_ATTRIBUTE, "");
+        markModeState(row, node.widgets?.find((item) => item?.name === spec.widget)?.value);
     }
 }
 
@@ -106,6 +117,8 @@ function installStyle() {
     style.id = STYLE_ID;
     style.textContent = `
 .lg-node-widget[${ROW_ATTRIBUTE}] [data-testid="widget-select-default-trigger"] > span { text-align: right; }
+:root { --cmk-accent: rgb(88, 190, 230); }
+.lg-node-widget[${ACTIVE_ATTRIBUTE}="true"] [data-testid="widget-select-default-trigger"] > span { color: var(--cmk-accent); }
 `;
     document.head.appendChild(style);
 }

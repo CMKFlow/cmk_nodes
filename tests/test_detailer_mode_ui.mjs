@@ -10,16 +10,19 @@ const source = readFileSync(new URL("../web/js/cmk_detailer_mode_ui.js", import.
   .replace("export function applyMode", "function applyMode");
 
 let extension = null;
-const app = { registerExtension(value) { extension = value; } };
+const graphNodes = new Map();
+const app = { registerExtension(value) { extension = value; }, graph: { getNodeById: (id) => graphNodes.get(String(id)) } };
+const domRoots = [];
+const observers = [];
 const styles = [];
 const document = {
   getElementById: () => null,
   createElement: () => ({ style: {}, textContent: "" }),
   head: { appendChild(node) { styles.push(node.textContent); } },
   documentElement: {},
-  querySelectorAll: () => [],
+  querySelectorAll: (selector) => (selector === ".lg-node[data-node-id]" ? domRoots : []),
 };
-class MutationObserver { observe() {} }
+class MutationObserver { constructor(callback) { observers.push(callback); } observe() {} }
 vm.runInNewContext(source, { app, document, MutationObserver, setTimeout(callback) { callback(); } });
 assert.ok(extension, "MODE UI extension was not registered");
 extension.setup();
@@ -126,6 +129,66 @@ for (const name of ["CMK Flow · Upscale & Save", "CMK Flow · Upscale & Save v2
     assert.equal(node.widgets[0].label, "OLD");
     assert.equal(node.widgets[0].options.getOptionLabel, undefined);
   }
+}
+
+// Active MODE: only the selected text of the marked dropdown takes the CMK
+// accent (one --cmk-accent); None and DISABLE stay neutral.  Values, labels
+// and options are not touched; rows without a MODE spec get no state.
+{
+  const css = styles.join("");
+  assert.match(css, /:root \{ --cmk-accent: rgb\(88, 190, 230\); \}/);
+  assert.match(css, /\.lg-node-widget\[data-cmk-mode-active="true"\] \[data-testid="widget-select-default-trigger"\] > span \{ color: var\(--cmk-accent\); \}/);
+  assert.doesNotMatch(css, /background|border|chevron|label/, "only the selected text is colored");
+
+  const row = () => {
+    const attributes = {};
+    return { attributes, hasAttribute: (n) => n in attributes, getAttribute: (n) => attributes[n] ?? null,
+      setAttribute(n, v) { attributes[n] = String(v); } };
+  };
+  const mount = (id, node, widgetName) => {
+    const widgetRow = row();
+    graphNodes.set(id, node);
+    domRoots.push({ getAttribute: () => id,
+      querySelector: (selector) => (selector === `.lg-node-widget[data-widget-name="${widgetName}"]` ? widgetRow : null) });
+    return widgetRow;
+  };
+  const decorate = () => observers.forEach((callback) => callback());
+  const cases = [
+    ["CMK Flow · Detailer", "model_family", ["None", "SDXL", "Z-Image Turbo"], { None: "false", SDXL: "true", "Z-Image Turbo": "true" }],
+    ["CMK Flow · Detailer · Advanced", "detailer_global_enable", ["ENABLE", "DISABLE"], { ENABLE: "true", DISABLE: "false" }],
+    ["CMK Flow · MaskDetailer", "maskdetailer_mode", ["ENABLE", "DISABLE"], { ENABLE: "true", DISABLE: "false" }],
+    ["CMK Flow · FaceSwap v2", "faceswap_mode", ["ENABLE", "DISABLE"], { ENABLE: "true", DISABLE: "false" }],
+    ["CMK Flow · FaceRebuild SDXL · Advanced v2", "facerebuild_mode", ["ENABLE", "DISABLE"], { ENABLE: "true", DISABLE: "false" }],
+    ["CMK Flow · Upscale & Save v2", "upscale_save_mode", ["ENABLE", "DISABLE"], { ENABLE: "true", DISABLE: "false" }],
+  ];
+  let id = 100;
+  for (const [name, widgetName, values, expected] of cases) {
+    const node = subgraphNode(name, widgetName, values[0], values);
+    const widgetRow = mount(String(++id), node, widgetName);
+    for (const [value, active] of Object.entries(expected)) {
+      node.widgets[0].value = value;  // a value change re-renders the text: the observer runs
+      decorate();
+      assert.equal(widgetRow.attributes["data-cmk-mode-active"], active, `${name} = ${value}`);
+      assert.equal(node.widgets[0].value, value, "the value is unchanged");
+      assert.ok("data-cmk-mode-select" in widgetRow.attributes, "right alignment stays");
+    }
+  }
+  // SCALE (Image Resize v2, a node, not a subgraph).
+  const resize = { comfyClass: "CMKImageResizeV2", widgets: [{ name: "scale_mode", label: "OLD", value: "ENABLE", options: { values: ["ENABLE", "DISABLE"] } }] };
+  const resizeRow = mount(String(++id), resize, "scale_mode");
+  decorate();
+  assert.equal(resizeRow.attributes["data-cmk-mode-active"], "true");
+  resize.widgets[0].value = "DISABLE";
+  decorate();
+  assert.equal(resizeRow.attributes["data-cmk-mode-active"], "false");
+  // Legacy and foreign dropdowns get no state.
+  const legacy = subgraphNode("CMK Flow · Upscale & Save", "SAVE ENABLED", true, undefined);
+  const legacyRow = mount(String(++id), legacy, "SAVE ENABLED");
+  const foreign = { comfyClass: "KSampler", widgets: [{ name: "sampler_name", value: "euler", options: {} }] };
+  const foreignRow = mount(String(++id), foreign, "sampler_name");
+  decorate();
+  assert.deepEqual(legacyRow.attributes, {});
+  assert.deepEqual(foreignRow.attributes, {});
 }
 
 console.log("detailer mode UI contract: OK");

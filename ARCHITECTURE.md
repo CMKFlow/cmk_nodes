@@ -1116,7 +1116,8 @@ CMK Detailer Family Enable ×3 ──MODEL FAMILY──┐
 MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG ┴→ CMK Detailer Prepare Advanced Multi-Model -Pipe-
     → DETAILER 1/2/3 (Specs, keine Modelle) → CMK Smart Detailer Multi-Model -Pipe- ×3
     → CMK Detailer Merge Multi-Model (lazy, ZIT → SDXL, von None nur die Diagnose) → Detailer-Boundary → Gate
-    Merge diagnostic 1/2/3 → CMK Preview Render ×3 · Merge diagnostic → CMK Preview Render
+    MODE → CMK Detailer Advanced · Mode → ENABLE von Gate, Diagnostic Gate und Preview & Compare
+    Gate diagnostic → CMK Preview Render · Merge diagnostic 1/2/3 → CMK Module Diagnostic Gate → CMK Preview Render ×3
 ```
 
 - **Advanced Prepare:** gemeinsame Einstellungen (SAM, Prompt aus 1st Pass,
@@ -1174,12 +1175,20 @@ MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG ┴→ CMK Detailer Prepare Advan
   Dropdown die Beschriftung `MODE`; die Anzeige `DISABLE`/`ZIT` des Standard-
   Detailers ist reine Frontend-Darstellung (`web/js/cmk_detailer_mode_ui.js`),
   die gespeicherten Werte bleiben `None`/`Z-Image Turbo`.
-- **Globaler Schalter** `detailer_global_enable` (Dropdown `ENABLE`/`DISABLE`,
-  Standard `ENABLE`, letzter Prepare-Eingang, am Außenknoten als `ENABLE`):
-  Bei `DISABLE` gelten alle drei Detailer als None. Prepare fordert keine
-  Modellquelle an, ihr `ENABLE`-Ausgang schaltet Gate und Preview ab, die
-  Boundary-Prüfung sieht das Modul als aus. Die Detailer-Einstellungen bleiben
-  erhalten; die Branch-Keys enthalten den Schalter nicht.
+- **MODE** (2.8.0, Ausführungsgrenze der Standard-Variante): Der äußere MODE
+  `detailer_global_enable` (`ENABLE`/`DISABLE`) speist
+  `CMKDetailerAdvancedModeEnable` (FaceRebuild-v2-MODE-Control, gleicher
+  Widget-Name). Sein `ENABLE` schaltet Bypass Gate, `CMKModuleDiagnosticGate`
+  und Preview & Compare; das Gate entscheidet also, ohne Prepare anzufordern.
+  Die Haupt-Preview liest die Diagnose des Gates, die drei Slot-Previews die
+  des Diagnostic Gates (lazy, bei DISABLE blockiert). Bei `DISABLE` laufen nur
+  Mode, Gates, Compare (leer) und Transport-Forwards; Prepare, Smart Detailer,
+  Merge, Boundary und Diagnose-Renders werden nicht angefordert. Der
+  Prepare-Schalter selbst bleibt im Subgraphen auf `ENABLE`; ein älterer
+  Prepare mit `DISABLE` gilt auch im Merge als drei None-Slots
+  (`slot_families`). Die Detailer-Einstellungen bleiben erhalten; die
+  Branch-Keys enthalten den Schalter nicht. Das Frontend wertet den MODE nach
+  seinem Steuerungsvertrag aus (`MODULE_CONTROLS` in `cmk_visualizer.js`).
 - **Räumliche Diagnose** (`utils/segs_diagnostic.py`, nur Bilddaten aus
   vorhandenen SEGS, keine Detektion, kein Sampling, keine Modelle): Der Smart
   Detailer ergänzt `Sampling ROI` (`crop_region` neben der Detektionsbox),
@@ -1462,7 +1471,10 @@ MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG ┴→ CMK FaceProcess Prepare Mu
   Enable), REFINE, RESTORE MODEL/VISIBILITY und SDXL-/ZIT-Einstellungen;
   gemeinsame Einstellungen und promptloses Verhalten wie beim Advanced
   Multi-Model Detailer, globaler Schalter `faceprocess_global_enable`
-  (ENABLE/DISABLE). Der Branch-Schlüssel enthält nur den eigenen Slot und die
+  (ENABLE/DISABLE). Wie dort (5.6b, MODE) speist der äußere MODE
+  `CMKFaceProcessAdvancedModeEnable`, dessen `ENABLE` Bypass Gate, Diagnostic
+  Gate und Preview & Compare schaltet; bei DISABLE werden Prepare, Zweige,
+  Merge und Diagnose-Renders nicht angefordert. Der Branch-Schlüssel enthält nur den eigenen Slot und die
   gemeinsamen Werte, die sein Modus liest (`advanced_prepare_excluded_inputs`).
   `CMK FaceProcess Merge Multi-Model` fordert lazy RESTORE → ZIT → SDXL an
   (NONE nur Diagnose, zuletzt) und komponiert in Slotreihenfolge D1 → D2 → D3

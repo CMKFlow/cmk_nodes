@@ -441,8 +441,17 @@ function decorate() {
         if (!spec) continue;
         applyOuterMode(node);
         const row = root.querySelector(`.lg-node-widget[data-widget-name="${spec.widget}"]`);
-        if (row && !row.hasAttribute(ROW_ATTRIBUTE)) row.setAttribute(ROW_ATTRIBUTE, "");
+        if (!row) continue;
+        if (!row.hasAttribute(ROW_ATTRIBUTE)) row.setAttribute(ROW_ATTRIBUTE, "");
+        markModeState(row, node.widgets?.find((item) => item?.name === spec.widget)?.value);
     }
+}
+
+// The accent rule for this attribute lives in cmk_detailer_mode_ui.js (one
+// --cmk-accent); RESTORE, SDXL, ZIT and ENABLE are active, None and DISABLE not.
+function markModeState(row, value) {
+    const active = String(!["None", "DISABLE"].includes(String(value)));
+    if (row.getAttribute("data-cmk-mode-active") !== active) row.setAttribute("data-cmk-mode-active", active);
 }
 
 function installStyle() {

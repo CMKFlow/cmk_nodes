@@ -12,7 +12,10 @@ const source = readFileSync(new URL("../web/js/cmk_faceprocess_mode_ui.js", impo
 
 let extension = null;
 const canvasListeners = {};
-const app = { graph: { setDirtyCanvas() {} }, registerExtension(value) { extension = value; },
+const graphNodes = new Map();
+const domRoots = [];
+const observers = [];
+const app = { graph: { setDirtyCanvas() {}, getNodeById: (id) => graphNodes.get(String(id)) }, registerExtension(value) { extension = value; },
   canvas: { canvas: { addEventListener(name, callback) { canvasListeners[name] = callback; } } } };
 class FakeElement {
   constructor(tag) {
@@ -32,9 +35,9 @@ const document = {
   getElementById: () => null,
   head: { appendChild(node) { styles.push(node.textContent); } },
   documentElement: {},
-  querySelectorAll: () => [],
+  querySelectorAll: (selector) => (selector === ".lg-node[data-node-id]" ? domRoots : []),
 };
-class MutationObserver { observe() {} }
+class MutationObserver { constructor(callback) { observers.push(callback); } observe() {} }
 vm.runInNewContext(source, { app, document, MutationObserver, setTimeout(callback) { callback(); }, queueMicrotask() {} });
 assert.ok(extension, "FaceProcess mode UI extension was not registered");
 extension.setup();
@@ -317,6 +320,41 @@ assert.equal(byName(prepare, "steps").value, 0, "switching hides widgets but kee
   grown.setSize = (size) => { grown.size = size; };
   extension.nodeCreated(grown);
   assert.deepEqual([...grown.size], [450, 760], "back to the remembered size, as the Advanced Detailer");
+}
+
+// Active MODE text (the accent rule is cmk_detailer_mode_ui.js'): RESTORE,
+// SDXL, ZIT and ENABLE are active, None (DISABLE) neutral; values unchanged.
+{
+  const mount = (id, node, widgetName) => {
+    const attributes = {};
+    const widgetRow = { attributes, hasAttribute: (n) => n in attributes, getAttribute: (n) => attributes[n] ?? null,
+      setAttribute(n, v) { attributes[n] = String(v); } };
+    graphNodes.set(id, node);
+    domRoots.push({ getAttribute: () => id,
+      querySelector: (selector) => (selector === `.lg-node-widget[data-widget-name="${widgetName}"]` ? widgetRow : null),
+      querySelectorAll: () => [] });
+    return widgetRow;
+  };
+  const decorate = () => observers.forEach((callback) => callback());
+  const outer = (name, widget, value, values) => ({ isSubgraphNode: () => true, subgraph: { name, nodes: [] },
+    widgets: [{ name: widget, value, options: { values } }] });
+  const standard = outer("CMK Flow · FaceProcess", "process_mode", "None", MODES);
+  const standardRow = mount("901", standard, "process_mode");
+  for (const [value, active] of [["None", "false"], ["Restore", "true"], ["SDXL", "true"], ["Z-Image Turbo", "true"], ["None", "false"]]) {
+    standard.widgets[0].value = value;
+    decorate();
+    assert.equal(standardRow.attributes["data-cmk-mode-active"], active, `FaceProcess = ${value}`);
+    assert.equal(standard.widgets[0].value, value);
+    assert.ok("data-cmk-faceprocess-mode-select" in standardRow.attributes, "right alignment stays");
+  }
+  const advanced = outer("CMK Flow · FaceProcess · Advanced", "faceprocess_global_enable", "DISABLE", ["ENABLE", "DISABLE"]);
+  const advancedRow = mount("902", advanced, "faceprocess_global_enable");
+  decorate();
+  assert.equal(advancedRow.attributes["data-cmk-mode-active"], "false");
+  advanced.widgets[0].value = "ENABLE";
+  decorate();
+  assert.equal(advancedRow.attributes["data-cmk-mode-active"], "true");
+  assert.doesNotMatch(styles.join(""), /--cmk-accent/, "one accent definition, in the Detailer mode UI");
 }
 
 console.log("faceprocess mode UI contract: OK");

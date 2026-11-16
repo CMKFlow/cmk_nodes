@@ -13,6 +13,8 @@ const VISUALIZER_INPUT_LABELS = {
   "MODEL (opt)": "MODEL SDXL",
 };
 const stateByNode = new WeakMap();
+// Read-only access for the frontend contract tests.
+export const visualState = (node) => stateByNode.get(node);
 const graphHookInstalled = Symbol("cmkVisualGraphHookInstalled");
 const providerWidgetHookInstalled = Symbol("cmkVisualProviderWidgetHookInstalled");
 const providerWidgetNames = new Set([
@@ -132,7 +134,51 @@ function graphLink(graph, linkId) {
   return graph?.links?.get?.(linkId) || graph?.links?.[linkId] || null;
 }
 
-function displayNodeEnabled(node) {
+// CMK 2.8 module controls that drive the ENABLE of a Preview & Compare: the
+// control widget and the values that switch the module off.  A MODE is off at
+// DISABLE, a model family / process mode at None; every other value of the
+// control is an active operating mode.
+export const MODULE_CONTROLS = {
+  CMKDetailerFamilyEnable: { widget: "model_family", off: ["None"] },
+  CMKFaceProcessModeEnable: { widget: "process_mode", off: ["None"] },
+  CMKFaceRebuildModeEnable: { widget: "facerebuild_mode", off: ["DISABLE"] },
+  CMKFaceSwapModeEnable: { widget: "faceswap_mode", off: ["DISABLE"] },
+  CMKMaskDetailerModeEnable: { widget: "maskdetailer_mode", off: ["DISABLE"] },
+  CMKUpscaleSaveModeEnable: { widget: "upscale_save_mode", off: ["DISABLE"] },
+  CMKDetailerAdvancedModeEnable: { widget: "detailer_global_enable", off: ["DISABLE"] },
+  CMKFaceProcessAdvancedModeEnable: { widget: "faceprocess_global_enable", off: ["DISABLE"] },
+  // Advanced subgraphs saved before the 2.8 MODE node drove ENABLE from the Prepare.
+  CMKDetailerPrepareAdvancedMultiModelPipe: { widget: "detailer_global_enable", off: ["DISABLE"] },
+  CMKFaceProcessPrepareAdvancedMultiModelPipe: { widget: "faceprocess_global_enable", off: ["DISABLE"] },
+};
+// ENABLE / DISABLE dropdowns of a subgraph input (outer MODE without a node).
+const SWITCH_OFF_VALUES = ["DISABLE"];
+
+// The value a widget of an inner node really has: a widget promoted to the
+// outer subgraph node (its input linked to the subgraph input) holds the value
+// of that outer widget.
+function effectiveWidgetValue(node, name) {
+  const input = (node?.inputs || []).find((item) => (item?.widget?.name || item?.name) === name);
+  if (input?.link != null) {
+    const graph = node.graph || node._graph;
+    const link = graphLink(graph, input.link);
+    if (link && Number(link.origin_id ?? link.originId) === -10) {
+      const outerNode = owningSubgraphNode(node);
+      const outerInput = outerNode?.inputs?.[Number(link.origin_slot ?? link.originSlot ?? 0)];
+      const outerName = outerInput?.widget?.name || outerInput?.name;
+      if (outerNode && outerName) return widgetValue(outerNode, outerName, undefined);
+    }
+  }
+  return widgetValue(node, name, undefined);
+}
+
+function switchValueEnabled(value, offValues) {
+  if (value === undefined || value === null) return true;
+  if (typeof value === "boolean") return value;
+  return !offValues.includes(String(value));
+}
+
+export function displayNodeEnabled(node) {
   if (nodeKind(node) !== VISUAL_COMPARE) return true;
   const input = (node.inputs || []).find((item) => item.name === "enable");
   if (!input || input.link == null) return true;
@@ -145,12 +191,17 @@ function displayNodeEnabled(node) {
     const outerNode = owningSubgraphNode(node);
     const outerInput = outerNode?.inputs?.[originSlot];
     const widgetName = outerInput?.widget?.name || outerInput?.name;
-    return widgetName ? Boolean(widgetValue(outerNode, widgetName, true)) : true;
+    return widgetName ? switchValueEnabled(widgetValue(outerNode, widgetName, undefined), SWITCH_OFF_VALUES) : true;
   }
   const originNode = graph?.getNodeById?.(originId);
+  const control = MODULE_CONTROLS[nodeKind(originNode)];
+  if (control) return switchValueEnabled(effectiveWidgetValue(originNode, control.widget), control.off);
+  // Unknown producers keep their former reading: a Boolean widget of the
+  // output's name, otherwise enabled (the backend decides).
   const output = originNode?.outputs?.[originSlot];
   const widgetName = output?.widget?.name || output?.name;
-  return widgetName ? Boolean(widgetValue(originNode, widgetName, true)) : true;
+  const value = widgetName ? widgetValue(originNode, widgetName, undefined) : undefined;
+  return typeof value === "boolean" ? value : true;
 }
 
 function widgetValue(node, name, fallback) {
@@ -922,7 +973,52 @@ function finishExecution(event) {
   }
 }
 
+// An interrupted run never completes its VISUAL pipes.  Its live previews
+// are no result: they are dropped, results this run already delivered stay,
+// and a display without any is given back its last completed state (the
+// regular result before the run) instead of a stale live image.
+export function interruptExecution(event) {
+  const eventId = eventExecutionId(event);
+  if (eventId && eventId !== executionId) return;
+  executingNodeIds = [];
+  for (const node of [...new Set([...(app.graph?._nodes || []), ...visualDisplayNodes])]) {
+    const state = stateByNode.get(node);
+    if (!state || !state.runActive) continue;
+    const completed = state.completedProviderIds instanceof Set ? state.completedProviderIds : new Set();
+    for (const provider of state.providers) {
+      if (provider.liveUrl) URL.revokeObjectURL(provider.liveUrl);
+      provider.liveUrl = null;
+    }
+    state.providers = state.providers.filter((provider) =>
+      completed.has(provider.provider_id) || provider.executedUrl
+    );
+    const snapshot = state.cachedSnapshot;
+    if (!state.providers.length && snapshot && displayNodeEnabled(node)) {
+      state.providers = snapshot.providers.map((provider) => ({
+        ...provider,
+        liveUrl: null,
+        status: "available",
+        channels: (provider.channels || []).map((channel) => ({ ...channel })),
+      }));
+      state.images = [...snapshot.images];
+      state.providerId = snapshot.providerId;
+      state.channel = snapshot.channel;
+    }
+    if (!state.providers.some((provider) => provider.provider_id === state.providerId)) {
+      state.providerId = state.providers.at(-1)?.provider_id || null;
+    }
+    state.cachedSnapshot = null;
+    state.runActive = false;
+    state.autoFollow = false;
+    state.live = null;
+    node.progress = null;
+    node.setDirtyCanvas?.(true, false);
+    render(node);
+  }
+}
+
 api.addEventListener("execution_success", finishExecution);
+api.addEventListener("execution_interrupted", interruptExecution);
 api.addEventListener("execution_error", finishExecution);
 
 app.registerExtension({

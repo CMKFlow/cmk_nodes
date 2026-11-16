@@ -33,6 +33,15 @@ Noch kein Release; die Paketversion bleibt bis zur Veröffentlichung 2.7.0.
   (`SCALE`).
 - MaskDetailer Flow Gate v2: Diagnose nur bei ENABLE; bei DISABLE bleiben
   Intake, Prepare und Process stumm.
+- Detailer Advanced und FaceProcess Advanced mit der Ausführungsgrenze der
+  Standard-Varianten: Ein eigener Mode-Node speist Bypass Gate, Preview &
+  Compare und das neue `CMK Module Diagnostic Gate`; bei MODE = DISABLE laufen
+  Prepare, Zweige, Merge und Diagnose-Renders nicht mehr. Der Detailer-Merge
+  beachtet den globalen Schalter des Prepare.
+- Preview & Compare: Deaktivierte Module werden nach ihrer tatsächlichen
+  Steuerung (MODE, Modellfamilie, Prozessmodus) erkannt und übernehmen keine
+  Live-Vorschau fremder Module; ein abgebrochener Lauf hinterlässt keine
+  Live-Bilder, sondern den zuletzt abgeschlossenen Stand.
 - `30 PostProcess Setup v2` mit getrennten SDXL- und Z-Image-Turbo-Bereichen
   und `Image Resize v2` ersetzen ihre Vorgänger im Flows-Katalog (die
   Vorgänger-Nodes bleiben registriert).

@@ -354,8 +354,13 @@ class CMKDetailerMergeMultiModel:
             if isinstance(detailer_link, (list, tuple)) and len(detailer_link) == 2:
                 prepare = prompt.get(str(detailer_link[0]))
                 if isinstance(prepare, dict) and prepare.get("class_type") == "CMKDetailerPrepareAdvancedMultiModelPipe":
-                    value = (prepare.get("inputs") or {}).get(slot_name("model_family", int(detailer_link[1]) + 1))
-                    if isinstance(value, str):
+                    prepare_inputs = prepare.get("inputs") or {}
+                    value = prepare_inputs.get(slot_name("model_family", int(detailer_link[1]) + 1))
+                    # A globally disabled Prepare has no active slot (as in
+                    # CMK FaceProcess Merge Multi-Model).
+                    if not global_enabled(prepare_inputs):
+                        family = "none"
+                    elif isinstance(value, str):
                         family = detailer_model_family(value)
             result[slot] = family
         return result
