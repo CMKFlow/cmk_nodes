@@ -510,6 +510,8 @@ def fake_call_node_kwargs(names, **kwargs):
     if name.startswith("Conditioning"):
         if name == "ConditioningSetAreaPercentage":
             REGIONAL_AREAS.append({key: kwargs[key] for key in ("x", "y", "width", "height", "strength")})
+        if name == "ConditioningSetMask":
+            REGIONAL_AREAS[-1]["mask_shape"] = tuple(kwargs["mask"].shape)
         return (next(iter(kwargs.values())),)
     if name == "UNETLoader":
         return (_fake_model("zit", kwargs.get("unet_name", "zit")),)

@@ -51,6 +51,44 @@ Noch kein Release; die Paketversion bleibt bis zur Veröffentlichung 2.7.0.
   MaskDetailer ersetzen ihre 2.7-Gegenstücke. Die Advanced-Modul-Workflows
   (302 Detailer, FaceProcess, FaceRebuild SDXL, FaceSwap) sind katalogisiert,
   aber nicht veröffentlicht. Die Previews werden mit der Release-Validierung ersetzt.
+- `07 Regional Layout`: Regler `Conditioning Blend` unter ADVANCED mit sieben
+  Rastpunkten von `AREA` (Stufe 0, nativer ComfyUI-AREA-Pfad) bis `MASK`
+  (Stufe 6, gemeinsames Kantenprofil `cmk-regional-edge-true-v1` ohne
+  ComfyUIs AREA-Randabschwächung); die Stufen 1–5 mischen beide mit
+  stufenweise wachsendem UNet-Ausschnitt, ohne zusätzliche UNet-Durchgänge.
+  Gespeichert als `conditioning_blend` (0–6) in `regions_json`; Standard,
+  Layouts ohne Wert und `02 Regional Conditioning SDXL` nutzen MASK (6). LOG und
+  Cache-Schlüssel nennen die verwendete Stufe. Offen und nicht Teil dieser
+  Änderung: die Global-/Regionalprompt-Koordination bei mehreren Regionen und
+  die visuelle und funktionale Validierung von InstantID-Hybrid mit dem neuen
+  Regional Conditioning.
+- InstantID Sampler und InstantID Regional Advanced (`InstantID reference`):
+  Die native Referenz wird pro Conditioning-Eintrag aus dessen eigenem Prompt
+  kodiert; Regionalprompts werden nicht mehr zu 75 % durch den Globalprompt
+  ersetzt. Ohne Regionen bleibt das Conditioning bitgleich. Passt das
+  Conditioning nicht zu den aktiven Regionen, bricht der Lauf mit einer
+  Diagnose ab. Gespeicherte InstantID-Ergebnisse werden einmal neu berechnet.
+  Die visuelle Validierung steht noch aus.
+- `07 Regional Layout`: **Bewusste Begrenzung gegenüber CMK Flow 2.7** – der
+  Editor legt höchstens zwei Regionen neu an (Hinzufügen, Duplizieren und
+  Aufziehen auf der Fläche). Drei und mehr Regionen zeigten in der
+  2.8-Validierung wiederholt Kompositionsprobleme ohne geklärte Ursache.
+  Gespeicherte Layouts mit mehr Regionen werden vollständig geladen, bleiben
+  bearbeitbar, werden verlustfrei gespeichert und unverändert ausgeführt;
+  das Backend und `regions_json` sind unverändert.
+- InstantID Regional Advanced (Hybrid, Text2Image): **adaptiver Handoff**.
+  Der Handoff-Regler bezeichnet den angestrebten Übergabe-Step. Modul 10
+  sampelt bis zu vier Steps darüber hinaus (höchstens bis Steps − 1) und hält
+  für jeden Step ab 1 das x0 und den Latent-Zustand bereit. Advanced prüft
+  zuerst den Ziel-Step, dann die späteren Steps aufsteigend, zuletzt die
+  früheren absteigend bis Step 1, und übernimmt den ersten Step, auf dem seine
+  unveränderte TARGET-Auswahl beide (bzw. das eine) Zielgesicht auflöst; ohne
+  Treffer bricht es mit Gesichtsdiagnose pro Step ab. Das LOG nennt Ziel- und
+  tatsächlichen Step sowie die Suchrichtung. Nur für präfixstabile Sampler
+  (u. a. Euler, Euler Ancestral, DPM++ 2M); SDE-Sampler, Inpaint-Bridge,
+  Zero-Pass und InstantID Standard behalten den festen Handoff. STOP AFTER
+  HANDOFF sampelt bei Advanced dasselbe Fenster (bis zu vier SDXL-Steps mehr,
+  ohne InstantID), sodass die anschließende Fortsetzung den Handoff-Cache trifft. SDXL-Handoff-Cache-Schema v2, Suchstrategie `cmk-adaptive-handoff-v2`.
 
 # CMK Flow 2.7.0 — 2026-11-10
 

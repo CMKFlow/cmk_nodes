@@ -25,6 +25,14 @@ all other nodes → regular ComfyUI node search
 
 [`ARCHITECTURE.md`](ARCHITECTURE.md) is the authoritative architecture and interface contract.
 
+CMK Flow emerged as a hobby project from the continuous collaboration between an independent developer and artificial intelligence.
+
+Its development combines human conception, goal setting, architectural decisions and practical validation with AI-assisted analysis, ideation and implementation. The AI's contribution is not limited to writing source code: essential architectural and user-interaction concepts have also emerged from this collaboration.
+
+CMK Flow is not a software package generated from a one-time instruction, but the result of an ongoing, experimental development process in which requirements, solution approaches and implementations are repeatedly reviewed, changed and refined.
+
+Responsibility for the project's direction, decisions and publication rests with the project owner.
+
 ## Inspiration and acknowledgement
 
 The [ComfyUI LoRA Manager by willmiao](https://github.com/willmiao/ComfyUI-Lora-Manager)

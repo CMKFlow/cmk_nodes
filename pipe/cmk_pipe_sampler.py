@@ -6,6 +6,13 @@ from ..cmk_distribution import (
     content_guard_prompt_token,
     effective_content_guard_enabled,
 )
+from .cmk_adaptive_handoff import (
+    CandidateRecorder,
+    adaptive_handoff_plan,
+    plan_token,
+    search_label,
+    search_order,
+)
 from ..engine.content_guard import (
     ContentGuardBlocked,
     GUARD_VERSION,
@@ -20,7 +27,7 @@ from ..utils.cmk_sampling_warnings import ignore_torchsde_boundary_rounding
 
 
 _SDXL_HANDOFF_CACHE_SCOPE = "sdxl_handoff_boundary"
-_SDXL_HANDOFF_CACHE_SCHEMA = "cmk_sdxl_handoff_boundary_v1"
+_SDXL_HANDOFF_CACHE_SCHEMA = "cmk_sdxl_handoff_boundary_v2"
 _SDXL_HANDOFF_GUARD_VERSION = f"{GUARD_VERSION}:sdxl-handoff-v1"
 _SDXL_HANDOFF_CACHE_MAX_ENTRIES = 8
 _SDXL_HANDOFF_RESULT_FIELDS = (
@@ -34,6 +41,7 @@ _SDXL_HANDOFF_RESULT_FIELDS = (
     "image_1st_pass",
     "controlnet_model_status",
     "ksampler_log",
+    "instantid_handoff_candidates",
 )
 _SDXL_HANDOFF_CONTRACT_FIELDS = (
     "checkpoint_name",
@@ -52,6 +60,7 @@ _SDXL_HANDOFF_CONTRACT_FIELDS = (
     "sdxl_height",
     "boolean_inpaint_mode",
     "controlnet_applied",
+    "instantid_handoff_window",
 )
 
 
@@ -69,7 +78,7 @@ def _sdxl_handoff_enabled(pipe):
     )
 
 
-def _sdxl_handoff_cache_key(prompt, unique_id):
+def _sdxl_handoff_cache_key(prompt, unique_id, handoff="fixed"):
     if not isinstance(prompt, dict):
         return None
     try:
@@ -85,7 +94,9 @@ def _sdxl_handoff_cache_key(prompt, unique_id):
                 "content_guard": (
                     f"{_SDXL_HANDOFF_GUARD_VERSION}:"
                     f"{content_guard_prompt_token(prompt, unique_id)}"
-                )
+                ),
+                # Fixed and adaptive handoffs sample different step ranges.
+                "handoff": str(handoff),
             },
         )
         return key
@@ -140,7 +151,9 @@ def _invalidate_sdxl_handoff(cache_key):
 
 
 def _load_sdxl_handoff(pipe, visual, prompt, unique_id):
-    cache_key = _sdxl_handoff_cache_key(prompt, unique_id)
+    cache_key = _sdxl_handoff_cache_key(
+        prompt, unique_id, plan_token(pipe.get("instantid_handoff_window"))
+    )
     if not cache_key:
         return None
     try:
@@ -165,6 +178,11 @@ def _load_sdxl_handoff(pipe, visual, prompt, unique_id):
         cached_visual = payload.get("visual")
         if not isinstance(sampled, dict) or cached_visual is None:
             raise ValueError("handoff payload is incomplete")
+        plan = pipe.get("instantid_handoff_window")
+        if plan and [
+            candidate.get("step") for candidate in sampled.get("instantid_handoff_candidates") or []
+        ] != search_order(plan["target"], plan["forward"]):
+            raise ValueError("handoff candidates do not match the adaptive search")
         if (
             effective_content_guard_enabled(pipe)
             and sampled.get("content_guard_handoff") != "PASS · SDXL HANDOFF"
@@ -194,7 +212,9 @@ def _load_sdxl_handoff(pipe, visual, prompt, unique_id):
 
 
 def _persist_sdxl_handoff(pipe, visual, prompt, unique_id):
-    cache_key = _sdxl_handoff_cache_key(prompt, unique_id)
+    cache_key = _sdxl_handoff_cache_key(
+        prompt, unique_id, plan_token(pipe.get("instantid_handoff_window"))
+    )
     if not cache_key:
         return None
     if (
@@ -767,6 +787,16 @@ class CMKKSamplerPipe:
         visual = empty_visual() if VISUAL is None else VISUAL
 
         if _sdxl_handoff_enabled(pipe):
+            # InstantID Advanced picks its handoff step around the slider's
+            # target step (cmk_adaptive_handoff), with or without STOP AFTER
+            # HANDOFF; every other configuration keeps the fixed step.  Decided
+            # before the cache lookup: it is part of the key.
+            plan = adaptive_handoff_plan(pipe, prompt, unique_id)
+            if plan is not None:
+                pipe = dict(pipe)
+                pipe["instantid_handoff_window"] = plan
+
+        if _sdxl_handoff_enabled(pipe):
             cached = _load_sdxl_handoff(
                 pipe, visual, prompt, unique_id
             )
@@ -877,6 +907,8 @@ class CMKKSamplerPipe:
             import latent_preview
 
             end_at_step = int(pipe.get("instantid_end_at_step", 2))
+            handoff_window = pipe.get("instantid_handoff_window")
+            last_step = int(handoff_window["forward"]) if handoff_window else end_at_step
             latent_tensor = latent_image["samples"]
             latent_tensor = comfy.sample.fix_empty_latent_channels(
                 model,
@@ -888,10 +920,23 @@ class CMKKSamplerPipe:
             noise = comfy.sample.prepare_noise(latent_tensor, seed, batch_inds)
             x0_output = {}
             preview_callback = latent_preview.prepare_callback(model, steps, x0_output)
+            recorder = (
+                CandidateRecorder(
+                    handoff_window["target"], handoff_window["forward"], preview_callback,
+                )
+                if handoff_window
+                else None
+            )
             handoff_percent = int(pipe.get("instantid_handoff_percent", 70))
+            handoff_detail = (
+                f"{handoff_percent} % · target step {end_at_step}/{steps} · sampled to {last_step} · "
+                f"search {search_label(search_order(handoff_window['target'], last_step))}"
+                if handoff_window
+                else f"{handoff_percent} % · step {end_at_step}/{steps}"
+            )
             with cmk_timed(
                 "10 SDXL INSTANTID HYBRID HANDOFF",
-                f"{handoff_percent} % · step {end_at_step}/{steps} | leftover noise",
+                f"{handoff_detail} | leftover noise",
             ):
                 with ignore_torchsde_boundary_rounding():
                     sampled_tensor = comfy.sample.sample(
@@ -906,10 +951,10 @@ class CMKKSamplerPipe:
                         latent_tensor,
                         denoise=denoise,
                         start_step=0,
-                        last_step=end_at_step,
+                        last_step=last_step,
                         force_full_denoise=False,
                         noise_mask=latent_image.get("noise_mask"),
-                        callback=preview_callback,
+                        callback=recorder if recorder is not None else preview_callback,
                         disable_pbar=not comfy.utils.PROGRESS_BAR_ENABLED,
                         seed=seed,
                     )
@@ -917,7 +962,25 @@ class CMKKSamplerPipe:
             samples.pop("downscale_ratio_spacial", None)
             samples.pop("downscale_ratio_temporal", None)
             samples["samples"] = sampled_tensor
-            if "x0" in x0_output:
+            handoff_candidates = None
+            if recorder is not None:
+                import comfy.model_management
+
+                handoff_candidates = recorder.candidates(
+                    sampled_tensor,
+                    model.model.process_latent_out,
+                    comfy.model_management.intermediate_device(),
+                )
+                # The pipe's own handoff stays the target step (first in search
+                # order): its latent and x0 are exactly those of the fixed
+                # handoff.  Advanced chooses the actual step.
+                samples["samples"] = handoff_candidates[0]["latent"]
+            if handoff_candidates is not None:
+                keypoints_latent = latent_image.copy()
+                keypoints_latent.pop("downscale_ratio_spacial", None)
+                keypoints_latent.pop("downscale_ratio_temporal", None)
+                keypoints_latent["samples"] = handoff_candidates[0]["x0"]
+            elif "x0" in x0_output:
                 keypoints_latent = latent_image.copy()
                 keypoints_latent.pop("downscale_ratio_spacial", None)
                 keypoints_latent.pop("downscale_ratio_temporal", None)
@@ -1046,6 +1109,8 @@ class CMKKSamplerPipe:
             new_pipe["hybrid_handoff_complete"] = True
         if pipe.get("instantid_enabled", False) and keypoints_latent is not None:
             new_pipe["instantid_keypoints_latent"] = keypoints_latent
+            if handoff_candidates is not None:
+                new_pipe["instantid_handoff_candidates"] = handoff_candidates
             new_pipe["instantid_inpaint_bridge"] = bool(instantid_inpaint_bridge)
             new_pipe["content_guard_handoff"] = content_guard_handoff_status
         new_pipe["ksampler_log"] = (
@@ -1053,7 +1118,20 @@ class CMKKSamplerPipe:
             f"seed={seed} | steps={steps} | cfg={cfg} | sampler={sampler_name} | "
             f"scheduler={scheduler} | denoise={denoise} | "
             f"controlnet_model={controlnet_unload_status} | "
-            f"hybrid_handoff={pipe.get('instantid_handoff_percent', 70)}% · step {pipe.get('instantid_end_at_step', 0)} | "
+            f"hybrid_handoff={pipe.get('instantid_handoff_percent', 70)}% · step {pipe.get('instantid_end_at_step', 0)}"
+            + (
+                " · target, adaptive search "
+                + search_label(
+                    search_order(
+                        pipe["instantid_handoff_window"]["target"],
+                        pipe["instantid_handoff_window"]["forward"],
+                    )
+                )
+                + " · actual step chosen by InstantID Advanced"
+                if pipe.get("instantid_handoff_window")
+                else ""
+            )
+            + " | "
             f"content_guard_handoff={content_guard_handoff_status if pipe.get('instantid_enabled', False) else 'N/A'} | "
             f"instantid_inpaint_bridge={bool(pipe.get('instantid_enabled', False) and instantid_inpaint_bridge)}"
         )

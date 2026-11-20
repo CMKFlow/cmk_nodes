@@ -305,9 +305,9 @@
       "previewAlt": "CMK Image Multi-File Loader"
     },
     "CMKRegionalLayoutSDXL": {
-      "description": "Extends global SDXL conditioning with freely definable image regions and individual prompts. Regions can be created, positioned and edited directly with the mouse on the layout canvas, with no fixed limit on their number.",
+      "description": "Extends global SDXL conditioning with freely definable image regions and individual prompts. Regions can be created, positioned and edited directly with the mouse on the layout canvas. Up to two new regions can be created; existing workflows with additional regions remain supported.",
       "features": [
-        "Create any number of image regions directly with the mouse",
+        "Create up to two image regions directly with the mouse; workflows with additional regions remain supported",
         "Freely move, scale and name regions",
         "Set individual prompts and conditioning strengths for each region",
         "Adjust duration and further settings individually",

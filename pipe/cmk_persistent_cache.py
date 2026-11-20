@@ -16,6 +16,23 @@ from ..cmk_distribution import (
     STOP_AFTER_HANDOFF_WIDGET,
     instantid_inpaint_prompt_active,
 )
+from .cmk_regional_weighting import PROFILE_VERSION as REGIONAL_PROFILE_VERSION
+
+
+# Code revisions that change a node's result while its inputs stay identical.
+# Every graph fingerprint embeds them, so all persisted results downstream of
+# such a node are invalidated while graphs without it keep their keys.
+# The InstantID samplers average each prepared entry with the native encoding
+# of its own prompt (pipe/instantid/cmk_instantid_reference.py); results stored
+# before that used the global prompt for regional entries as well.
+INSTANTID_REFERENCE_REVISION = "cmk-instantid-entry-reference-v1"
+NODE_BEHAVIOUR_REVISIONS = {
+    "CMKRegionalLayoutSDXL": REGIONAL_PROFILE_VERSION,
+    "CMKRegionalConditioningSDXL": REGIONAL_PROFILE_VERSION,
+    "CMKInstantIDSamplerSDXLPipe": INSTANTID_REFERENCE_REVISION,
+    # The adaptive handoff can change which step Advanced continues from.
+    "CMKInstantIDRegionalAdvancedSDXLPipe": f"{INSTANTID_REFERENCE_REVISION}+cmk-adaptive-handoff-v2",
+}
 
 
 PERSISTENT_DISK_SCOPES = (
@@ -258,6 +275,8 @@ def _canonical_node(
         "class_type": class_type,
         "inputs": inputs,
     }
+    if class_type in NODE_BEHAVIOUR_REVISIONS:
+        payload["revision"] = NODE_BEHAVIOUR_REVISIONS[class_type]
     stack.remove(key)
     # Return a content address instead of embedding the complete upstream
     # object. Expanded CMK graphs are DAGs with many converging pipe links.

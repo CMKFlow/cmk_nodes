@@ -680,7 +680,9 @@ def _insert_regional_node(runtime, prompt: dict, spec: dict) -> None:
         regions = [{"id": f"region-id-{index}", "name": f"REGION NAME {index}", "prompt": text, "strength": 1.5,
                     "end": 0.65, "box": {"x": 0.1, "y": 0.2, "width": 0.3, "height": 0.4}}
                    for index, text in enumerate(spec["layout"])]
-        layout = json.dumps({"version": 1, "width": 1024, "height": 1024, "regions": regions})
+        layout = json.dumps({"version": 1, "width": 1024, "height": 1024, "regions": regions,
+                             **({"conditioning_mode": spec["mode"]} if "mode" in spec else {}),
+                             **({"conditioning_blend": spec["blend"]} if "blend" in spec else {})})
         prompt[REGIONAL_NODE] = {"class_type": "CMKRegionalLayoutSDXL",
                                  "inputs": {**links, "width": 1024, "height": 1024, "regions_json": layout}}
     else:

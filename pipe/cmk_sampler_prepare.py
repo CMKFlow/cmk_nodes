@@ -19,6 +19,10 @@ from .loaders.checkpoint_vae_loader import (
     ensure_sdxl_text_encoder,
     evict_sdxl_text_encoder,
 )
+from .cmk_regional_weighting import (
+    BLEND_STEPS, DEFAULT_CONDITIONING_BLEND, PROFILE_VERSION, active_regions, blend_label, build_region_weights,
+    conditioning_blend, regional_prompt_translation,
+)
 
 
 SAMPLING_MODES = ["eps", "v_prediction", "lcm"]
@@ -503,9 +507,19 @@ class CMKSamplerPrepareSDXLPipe:
     ):
         combined = conditioning
         translation_results = []
-        active = [region for region in (regions or []) if isinstance(region, dict) and str(region.get("prompt", "")).strip()]
+        active = active_regions(regions)
+        # Blend step 0 stays ComfyUI's native AREA.  Regions of every other step
+        # share one joint profile per step that replaces the native edge
+        # falloff (see cmk_regional_weighting).
+        steps = [conditioning_blend(region.get("conditioning_blend", DEFAULT_CONDITIONING_BLEND)) for region in active]
+        profile_by_region = {}
+        for step in sorted(set(steps) - {0}):
+            group = [region for region, region_step in zip(active, steps) if region_step == step]
+            profile_by_region.update(zip(map(id, group), build_region_weights(group, int(width) // 8, int(height) // 8, step)))
+        profiles = []
         for index, region in enumerate(active, 1):
-            translation = translate_prompt(region.get("prompt", ""))
+            profile = profile_by_region.get(id(region))
+            translation = regional_prompt_translation(region, translate_prompt)
             translation_results.append((index, translation))
             regional = _validate_conditioning(
                 self._encode_sdxl_plus(
@@ -513,18 +527,35 @@ class CMKSamplerPrepareSDXLPipe:
                 ),
                 f"regional_conditioning_{index}",
             )
+            if profile is None:
+                area_x, area_y = float(region.get("x", 0.25)), float(region.get("y", 0.25))
+                area_width, area_height = float(region.get("width", 0.5)), float(region.get("height", 0.5))
+            else:
+                area_x, area_y, area_width, area_height = profile.crop_percent
             regional = _validate_conditioning(
                 _unwrap_node_output(_call_node_kwargs(
                     ("ConditioningSetAreaPercentage",),
                     conditioning=regional,
-                    width=float(region.get("width", 0.5)),
-                    height=float(region.get("height", 0.5)),
-                    x=float(region.get("x", 0.25)),
-                    y=float(region.get("y", 0.25)),
+                    width=area_width,
+                    height=area_height,
+                    x=area_x,
+                    y=area_y,
                     strength=float(region.get("strength", 1.0)),
                 )),
                 f"regional_area_{index}",
             )
+            if profile is not None:
+                profiles.append((index, profile, steps[index - 1]))
+                regional = _validate_conditioning(
+                    _unwrap_node_output(_call_node_kwargs(
+                        ("ConditioningSetMask",),
+                        conditioning=regional,
+                        mask=profile.mask,
+                        set_cond_area="default",
+                        strength=1.0,
+                    )),
+                    f"regional_mask_{index}",
+                )
             regional = _validate_conditioning(
                 _unwrap_node_output(_call_node_kwargs(
                     ("ConditioningSetTimestepRange",),
@@ -542,7 +573,7 @@ class CMKSamplerPrepareSDXLPipe:
                 )),
                 f"regional_combined_{index}",
             )
-        return combined, translation_results
+        return combined, translation_results, profiles
 
 
     def _vae_encode(self, vae, image):
@@ -867,7 +898,7 @@ class CMKSamplerPrepareSDXLPipe:
             ),
             "conditioning_neg",
         )
-        conditioning_pos, regional_translations = self._apply_regional_conditioning(
+        conditioning_pos, regional_translations, regional_profiles = self._apply_regional_conditioning(
             conditioning_pos,
             prepared_clip,
             width,
@@ -875,6 +906,10 @@ class CMKSamplerPrepareSDXLPipe:
             _int(size_cond_factor, 4),
             pipe.get("regional_conditioning", []),
         )
+        regional_blends = " + ".join(dict.fromkeys(
+            blend_label(conditioning_blend(region.get("conditioning_blend", DEFAULT_CONDITIONING_BLEND)))
+            for region in active_regions(pipe.get("regional_conditioning", []))
+        ))
 
         # 6) Reconstruct the original two complete branches. NORMAL keeps the
         # conditioned/model-modified base state and receives a native empty
@@ -1234,9 +1269,28 @@ class CMKSamplerPrepareSDXLPipe:
                 log_lines.append(result.log_line(label))
         if regional_translations:
             log_lines.append(f"REGIONAL AREAS  : {len(regional_translations)} · COMBINE")
+            log_lines.append(f"REGIONAL CONDITIONING: {regional_blends}")
             for index, result in regional_translations:
                 if result.status not in {"empty", "disabled", "not_configured"}:
                     log_lines.append(result.log_line(f"REGION {index}"))
+        if regional_profiles:
+            log_lines.append(f"REGIONAL PROFILE: {PROFILE_VERSION} · native mask + AREA crop")
+            for index, profile, step in regional_profiles:
+                x0, y0, x1, y1 = profile.box
+                cx0, cy0, cx1, cy1 = profile.crop
+                log_lines.append(
+                    f"REGION {index} WEIGHT : box x{x0}-{x1} y{y0}-{y1} | crop x{cx0}-{cx1} y{cy0}-{cy1} | "
+                    f"own mean={profile.mean_weight:.3f} min={profile.min_weight:.2f} | "
+                    f"foreign max={profile.max_foreign_weight:.2f}"
+                    + ("" if step == BLEND_STEPS else f" | blend {step}/{BLEND_STEPS}")
+                )
+            latent_samples = latent_image.get("samples") if isinstance(latent_image, dict) else None
+            profile_grid = (int(height) // 8, int(width) // 8)
+            if latent_samples is not None and tuple(latent_samples.shape[-2:]) != profile_grid:
+                log_lines.append(
+                    f"REGIONAL GRID   : latent {tuple(latent_samples.shape[-2:])} differs from profile "
+                    f"{profile_grid}; ComfyUI rescales the masks"
+                )
         if requested_process_mode == "remove":
             log_lines.extend(
                 ["", "REMOVE ENGINE   : FOOOCUS RECONSTRUCTION", "DIFFUSION       : ENABLED"]

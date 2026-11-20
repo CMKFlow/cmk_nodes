@@ -354,9 +354,9 @@
       "author": "CMK Nodes",
       "status": "STABLE",
       "displayName": "07 Regional Layout",
-      "description": "Erweitert das globale SDXL-Conditioning um frei definierbare Bildregionen mit individuellen Prompts. Regionen lassen sich direkt mit der Maus auf der Layoutfläche erstellen, positionieren und bearbeiten – ohne feste Begrenzung ihrer Anzahl.",
+      "description": "Erweitert das globale SDXL-Conditioning um frei definierbare Bildregionen mit individuellen Prompts. Regionen lassen sich direkt mit der Maus auf der Layoutfläche erstellen, positionieren und bearbeiten. Neu anlegen lassen sich bis zu zwei Regionen; bestehende Workflows mit weiteren Regionen bleiben unterstützt.",
       "features": [
-        "Beliebig viele Bildregionen direkt mit dem Mauszeiger anlegen",
+        "Bis zu zwei Bildregionen direkt mit dem Mauszeiger anlegen; Workflows mit weiteren Regionen bleiben unterstützt",
         "Regionen frei verschieben, skalieren und individuell benennen",
         "Für jede Region eigene Prompts und Conditioning-Stärken festlegen",
         "Wirkungsdauer und weitere Einstellungen individuell anpassen",

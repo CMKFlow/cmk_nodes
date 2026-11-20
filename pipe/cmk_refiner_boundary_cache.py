@@ -14,6 +14,7 @@ from ..cmk_distribution import (
 )
 from ..utils.cmk_timing import cmk_timed_call
 from .cmk_persistent_cache import (
+    NODE_BEHAVIOUR_REVISIONS,
     cache_directory,
     _INPUT_CONTENT_MEMO_KEY,
     apply_input_content,
@@ -158,6 +159,8 @@ def _canonical_node(prompt: dict, node_id: Any, memo: dict, stack: set):
         "class_type": class_type,
         "inputs": canonical_inputs,
     }
+    if class_type in NODE_BEHAVIOUR_REVISIONS:
+        payload["revision"] = NODE_BEHAVIOUR_REVISIONS[class_type]
     stack.remove(key)
     encoded = json.dumps(
         payload,

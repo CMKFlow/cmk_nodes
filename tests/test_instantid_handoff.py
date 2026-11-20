@@ -145,7 +145,11 @@ class InstantIDHandoffTests(unittest.TestCase):
         self.assertIn('new_pipe["instantid_end_at_step"] = instantid_handoff', prepare_source)
         self.assertIn('new_pipe["instantid_handoff_percent"] = instantid_handoff_percent', prepare_source)
         self.assertIn('end_at_step = int(pipe.get("instantid_end_at_step", 2))', sampler_source)
-        self.assertIn('last_step=end_at_step', sampler_source)
+        # The fixed handoff samples to end_at_step; InstantID Advanced's
+        # adaptive search targets it and samples up to its forward limit
+        # (cmk_adaptive_handoff).
+        self.assertIn('last_step = int(handoff_window["forward"]) if handoff_window else end_at_step', sampler_source)
+        self.assertIn('last_step=last_step', sampler_source)
         for path in INSTANTID_PATHS:
             with self.subTest(path=path.name):
                 source = path.read_text(encoding="utf-8")

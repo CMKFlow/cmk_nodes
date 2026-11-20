@@ -25,6 +25,14 @@ CMK **** -Pipe- → geschlossenes, geführtes Ökosystem
 
 Der verbindliche Architektur- und Schnittstellenvertrag steht in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
+CMK Flow ist aus der kontinuierlichen Zusammenarbeit zwischen einem unabhängigen Entwickler und künstlicher Intelligenz als Freizeitprojekt entstanden.
+
+Die Entwicklung verbindet menschliche Konzeption, Zielsetzung, Architekturentscheidungen und praktische Validierung mit KI-gestützter Analyse, Ideenfindung und Implementierung. Dabei beschränkt sich der Beitrag der KI nicht auf die Erstellung von Quellcode: Auch wesentliche Architektur- und Bedienkonzepte sind aus dieser Zusammenarbeit hervorgegangen.
+
+CMK Flow ist kein auf Grundlage einer einmaligen Anweisung generiertes Softwarepaket, sondern das Ergebnis eines fortlaufenden, experimentellen Entwicklungsprozesses, in dem Anforderungen, Lösungsansätze und Implementierungen wiederholt überprüft, verändert und weiterentwickelt werden.
+
+Die Verantwortung für die Ausrichtung, die Entscheidungen und die Veröffentlichung des Projekts liegt beim Projektinhaber.
+
 ## Inspiration und Anerkennung
 
 Der [ComfyUI LoRA Manager von willmiao](https://github.com/willmiao/ComfyUI-Lora-Manager)
