@@ -9,6 +9,11 @@ import torch
 _STABLE_SEGS_SCHEMA = 2
 _DELTA_EPSILON = 1.0 / 65535.0
 
+# Pasteback of the CMK Smart Detailer that composes ``cmk_branch_image``.
+# The mask-based Advanced merge re-applies exactly this paste.
+BRANCH_PASTE_FEATHER = 5
+BRANCH_PASTE_ALPHA = 255
+
 
 class CMKStableSEGS(tuple):
     """Impact-compatible SEGS with a cache-stable full branch composition.

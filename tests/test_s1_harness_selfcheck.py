@@ -60,7 +60,7 @@ class HarnessSelfCheck(unittest.TestCase):
         self.assertEqual(second["runs"][0]["cached"], [])
         self.assertIn("2", second["runs"][0]["executed"])
         # ... while the private work directory survives the restart.
-        self.assertTrue((workdir / "temp" / "cmk" / "upscale_save_boundary").is_dir())
+        self.assertTrue((workdir / "user" / "cmk_cache" / "upscale_save_boundary").is_dir())
         self.assertEqual(first["runs"][0]["image_hash"], second["runs"][0]["image_hash"])
 
     def test_harness_ram_pressure_mode_runs(self):

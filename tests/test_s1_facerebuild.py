@@ -61,7 +61,9 @@ class BoundaryKeys(ScenarioCase):
     def test_keys_byte_identical(self):
         for fixture, pinned in PINNED.items():
             with self.subTest(fixture=fixture):
-                result = self.run_case("boundary_key", fixture=fixture, boundary_class="CMKFaceRebuildBoundaryCache")
+                # The record was taken in BASELINE; the key carries the guard token.
+                result = self.run_case("boundary_key", fixture=fixture, boundary_class="CMKFaceRebuildBoundaryCache",
+                                       distribution_mode="BASELINE")
                 self.assertEqual(result["key"], pinned["key"])
 
 
@@ -245,7 +247,7 @@ class EntryWithoutDiagnostic(ScenarioCase):
         common = dict(fixture="facerebuild_std", fake_postprocess=True, inspect=_inspect("facerebuild_std"))
         cold = cls.run_case("run_fixture", workdir=workdir, **common)["runs"][0]
         removed = []
-        for path in (Path(workdir) / "temp" / "cmk" / SCOPE).glob("*.diagnostic.*"):
+        for path in (Path(workdir) / "user" / "cmk_cache" / SCOPE).glob("*.diagnostic.*"):
             path.unlink()
             removed.append(path.name)
         again = cls.run_case("run_fixture", workdir=workdir, **common)["runs"][0]

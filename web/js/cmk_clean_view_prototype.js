@@ -1,4 +1,5 @@
 import { app } from "../../../scripts/app.js";
+import { applyFixedSize, fixedSize } from "./cmk_fixed_size.js";
 
 const EXTENSION_NAME = "cmk.clean_view.prototype.v1";
 const STYLE_ID = "cmk-clean-view-prototype-style";
@@ -134,6 +135,28 @@ function isPostProcessSetup(node) {
     return nodeIdentity(node).some((value) => value === "CMKPostProcessSetupPipe");
 }
 
+// PostProcess Setup v2: 230 × 100 is only the first compact size. A compact
+// size the user chose is kept (the legacy Setup reapplies 230 × 100 on every
+// switch into Clean View and loses it).
+const POSTPROCESS_SETUP_COMPACT = [230, 100];
+
+function isPostProcessSetupV2(node) {
+    return nodeIdentity(node).some((value) => value === "CMKPostProcessSetupV2Pipe");
+}
+
+// Every graph load (workflow tab switch, page reload) grows each node to
+// computeSize() in ComfyApp.loadGraphDataNow right before loadedGraphNode.
+// That LiteGraph estimate counts every port and widget row (~410 px for the
+// Setup v2), not the rendered node, and replaced a smaller chosen height.
+// The size remembered for the active Clean View state is the chosen one.
+function restoreLoadedSize(node) {
+    // A pinned size (cmkFixedSize) is the only valid outer size in both views.
+    if (applyFixedSize(node)) return;
+    if (!isPostProcessSetupV2(node)) return;
+    const stored = node.properties?.[cleanEnabled(node) ? COMPACT_SIZE_PROPERTY : EXPANDED_SIZE_PROPERTY];
+    if (validSize(stored)) node.setSize?.([Number(stored[0]), Number(stored[1])]);
+}
+
 function isCleanSlot(node, slot) {
     // Clean View is now deliberately connector-free. The aggregate docking
     // points retain the wiring presence and type colors without reserving a
@@ -256,7 +279,7 @@ function applyCompactSize(node, size, remember = false) {
 function restoreCompactSize(node) {
     if (!cleanEnabled(node)) return false;
     if (node.__cmkManualResizeActive) return false;
-    return applyCompactSize(node, node?.properties?.[COMPACT_SIZE_PROPERTY]);
+    return applyCompactSize(node, fixedSize(node) || node?.properties?.[COMPACT_SIZE_PROPERTY]);
 }
 
 function scheduleCompactSizeRestore(node) {
@@ -419,9 +442,9 @@ function decorate(root) {
         node.setDirtyCanvas?.(true, true);
         app.graph?.setDirtyCanvas?.(true, true);
     }
-    if (isPostProcessSetup(node)
+    if ((isPostProcessSetup(node) || isPostProcessSetupV2(node))
         && !validSize(node?.properties?.[COMPACT_SIZE_PROPERTY])) {
-        rememberCompactSize(node, [230, 100]);
+        rememberCompactSize(node, POSTPROCESS_SETUP_COMPACT);
     }
 
     const body = root.querySelector(`[data-testid="node-body-${CSS.escape(String(node.id))}"]`)
@@ -463,8 +486,13 @@ function scheduleScan() {
     requestAnimationFrame(scan);
 }
 
+// Inputs added after a node's Clean View size formula was established. They
+// are hidden like every other port but must not shrink the first compact size
+// (2.7.1: the Visualizer's POSTPROCESS MODEL ZIT).
+const COMPACT_HEIGHT_EXEMPT_INPUTS = new Set(["POSTPROCESS MODEL ZIT"]);
+
 function compactHeight(node) {
-    const inputs = visibleInputSlots(node);
+    const inputs = visibleInputSlots(node).filter((slot) => !COMPACT_HEIGHT_EXEMPT_INPUTS.has(slot?.name));
     const outputs = node?.outputs || [];
     const normalRows = Math.max(inputs.length, outputs.length);
     const specialRows = Math.max(
@@ -479,15 +507,29 @@ function resizeForState(node, enabled) {
     const height = Number(node?.size?.[1]);
     if (!Number.isFinite(width) || !Number.isFinite(height)) return;
 
+    // A pinned outer size does not change with the view: both remembered
+    // sizes follow it, so no later restore can resize the node either.
+    const fixed = fixedSize(node);
+    if (fixed) {
+        rememberExpandedSize(node, fixed);
+        rememberCompactSize(node, fixed);
+        applyFixedSize(node);
+        return;
+    }
+
     if (enabled) {
         rememberExpandedSize(node, [width, height]);
         if (isPostProcessSetup(node)) {
-            applyCompactSize(node, [230, 100], true);
+            applyCompactSize(node, POSTPROCESS_SETUP_COMPACT, true);
             return;
         }
         const rememberedCompact = node.properties?.[COMPACT_SIZE_PROPERTY];
         if (validSize(rememberedCompact)) {
             applyCompactSize(node, rememberedCompact);
+            return;
+        }
+        if (isPostProcessSetupV2(node)) {
+            applyCompactSize(node, POSTPROCESS_SETUP_COMPACT, true);
             return;
         }
         const reduction = compactHeight(node);
@@ -595,6 +637,7 @@ app.registerExtension({
 
     loadedGraphNode(node) {
         installMenu(node);
+        restoreLoadedSize(node);
         scheduleScan();
     },
 });

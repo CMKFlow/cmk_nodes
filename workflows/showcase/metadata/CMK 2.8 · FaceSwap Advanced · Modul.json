@@ -1,0 +1,20 @@
+{
+  "published": true,
+  "searchOnly": true,
+  "displayName": "CMK 2.8 · FaceSwap Advanced · Modul",
+  "kind": "module",
+  "order": 306,
+  "category": "MODULE WORKFLOWS",
+  "category_en": "MODULE WORKFLOWS",
+  "description": "Zeigt FaceSwap · Advanced als fertiges CMK-Modul: bis zu drei Zielgesichter werden unabhängig durch Referenzgesichter ersetzt und über ihre Einfügemasken zusammengeführt. MODE schaltet das gesamte Modul ein oder aus.",
+  "description_en": "Shows FaceSwap · Advanced as a complete CMK module: up to three target faces are replaced independently by reference faces and merged through their paste masks. MODE switches the whole module on or off.",
+  "cmkHighlight": "Der diskrete FaceSwap-Prozess ist zu einem wiederverwendbaren Modul mit einheitlicher Schnittstelle gekapselt.",
+  "cmkHighlight_en": "The discrete FaceSwap process is encapsulated in a reusable module with a consistent interface.",
+  "previews": [
+    {
+      "src": "assets/showcase/MODULE WORKFLOWS/CMK · FaceSwap Advanced · Modul/CMK 2.8 · FaceSwap Advanced · Modul.webp",
+      "label": "Workflow",
+      "label_en": "Workflow"
+    }
+  ]
+}

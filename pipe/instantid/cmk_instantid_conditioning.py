@@ -7,6 +7,8 @@ _REGIONAL_PROMPT_KEYS = (
     "set_area_to_bounds",
     "start_percent",
     "end_percent",
+    "mask",
+    "mask_strength",
 )
 
 _EXTERNAL_CONTROLNET_KEYS = (

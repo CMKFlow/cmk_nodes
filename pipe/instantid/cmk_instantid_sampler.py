@@ -27,6 +27,7 @@ from ...engine.content_guard import (
 from ...engine.instantid_face_rebuild import select_target_face
 from ...utils.tensor_utils import tensor_to_uint8_rgb
 from .cmk_instantid_conditioning import _hybrid_positive_conditioning
+from .cmk_instantid_reference import apply_reference_conditioning
 
 
 INSTANTID_PROVIDERS = ["CoreML", "CPU", "CUDA", "ROCM"]
@@ -423,6 +424,9 @@ class CMKInstantIDSamplerSDXLPipe:
         if missing:
             raise ValueError("CMK InstantID Sampler SDXL -Pipe-: missing " + ", ".join(missing))
 
+        # Before the hybrid handoff removes the spatial keys: the reference
+        # assignment checks them.
+        source_positive = positive
         positive = _hybrid_positive_conditioning(
             positive,
             instantid_mode=process.get("instantid_mode", "HYBRID"),
@@ -435,55 +439,18 @@ class CMKInstantIDSamplerSDXLPipe:
         )
         conditioning_source = "CMK prepared"
         if str(conditioning_mode) == "InstantID reference":
-            prepared_positive = positive
-            prepared_negative = negative
-            clean_clip = model_pipe.get("clip")
-            if clean_clip is None:
-                from ..loaders.checkpoint_vae_loader import ensure_sdxl_text_encoder
-
-                clean_clip, _ = ensure_sdxl_text_encoder(model_pipe)
-            prompt_pos = str(process.get("prompt_pos", sampled_in.get("prompt_pos", "")) or "")
-            prompt_neg = str(process.get("prompt_neg", sampled_in.get("prompt_neg", "")) or "")
-            translation_pos = translate_prompt(prompt_pos)
-            translation_neg = translate_prompt(prompt_neg)
-            with cmk_timed("15 INSTANTID REFERENCE CONDITIONING", "native CLIP Text Encode"):
-                reference_positive = _outputs(_call_node(("CLIPTextEncode",), clip=clean_clip, text=translation_pos.text))[0]
-                reference_negative = _outputs(_call_node(("CLIPTextEncode",), clip=clean_clip, text=translation_neg.text))[0]
-            if bool(process.get("unload_models_after_use", True)):
-                from ..loaders.checkpoint_vae_loader import evict_sdxl_text_encoder
-
-                evict_sdxl_text_encoder(model_pipe, sampled_in)
-                clean_clip = None
-                import gc
-
-                gc.collect()
-                try:
-                    import comfy.model_management
-
-                    comfy.model_management.cleanup_models_gc()
-                    comfy.model_management.soft_empty_cache(force=True)
-                except Exception:
-                    pass
-            reference_weight = max(0.0, min(1.0, float(reference_conditioning_weight)))
-            with cmk_timed(
-                "15 INSTANTID HYBRID CONDITIONING",
-                f"reference={reference_weight:.2f} | CMK prepared={1.0 - reference_weight:.2f}",
-            ):
-                positive = _outputs(_call_node(
-                    ("ConditioningAverage",),
-                    conditioning_to=prepared_positive,
-                    conditioning_from=reference_positive,
-                    conditioning_to_strength=1.0 - reference_weight,
-                ))[0]
-                negative = _outputs(_call_node(
-                    ("ConditioningAverage",),
-                    conditioning_to=prepared_negative,
-                    conditioning_from=reference_negative,
-                    conditioning_to_strength=1.0 - reference_weight,
-                ))[0]
-            conditioning_source = (
-                f"hybrid: {reference_weight:.0%} native reference | "
-                f"{1.0 - reference_weight:.0%} CMK prepared"
+            positive, negative, conditioning_source, translation_pos, translation_neg = apply_reference_conditioning(
+                source_positive=source_positive,
+                positive=positive,
+                negative=negative,
+                process=process,
+                sampled_in=sampled_in,
+                model_pipe=model_pipe,
+                reference_conditioning_weight=reference_conditioning_weight,
+                call_node=_call_node,
+                outputs=_outputs,
+                translate=translate_prompt,
+                timed=cmk_timed,
             )
 
         if zero_pass_mode:

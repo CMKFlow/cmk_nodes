@@ -397,8 +397,11 @@ class BoundaryKeys(ScenarioCase):
         cls.new = {}
         for fixture, boundary_class in BOUNDARY.items():
             schema = PINNED["schemas"]["detailer"] if fixture in DETAILER else None
-            cls.old[fixture] = cls.run_case("boundary_key", fixture=fixture, boundary_class=boundary_class, schema=schema)
-            cls.new[fixture] = cls.run_case("boundary_key", fixture=fixture, boundary_class=boundary_class)
+            # The record was taken in BASELINE; the keys carry the guard token.
+            cls.old[fixture] = cls.run_case("boundary_key", fixture=fixture, boundary_class=boundary_class, schema=schema,
+                                            distribution_mode="BASELINE")
+            cls.new[fixture] = cls.run_case("boundary_key", fixture=fixture, boundary_class=boundary_class,
+                                            distribution_mode="BASELINE")
 
     def test_keys_and_manifests_unchanged_with_the_old_schema(self):
         for fixture, result in self.old.items():

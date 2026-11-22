@@ -26,6 +26,7 @@ from .utils.cmk_persistent_cache_control import (
 from .utils.cmk_statistics import collect_statistics as _collect_statistics
 from .pipe.cmk_prompt_result_state import register_prompt_result_provider
 from .cmk_prompt_gate_pruning import register as _cmk_register_gate_pruning
+from .cmk_prompt_family_inline import register as _cmk_register_family_inline
 
 _EXECUTION_CACHE_BOOT_STATUS = _apply_execution_cache_config()
 _PROMPT_RESULT_PROVIDER = register_prompt_result_provider()
@@ -50,7 +51,6 @@ _REFERENCE_FILENAMES = (
     "face_00003.png",
     "face_identity_referenceII.png",
     "portrait_reference_00001.png",
-    "clipspace-mask-1792499379891.png",
     "controlnet_reference.png",
     "controlnet_reference4.png",
     "detailer_reference.png",
@@ -58,10 +58,9 @@ _REFERENCE_FILENAMES = (
     "face_reference.png",
     "faceswap_reference.png",
     "inpaint_reference.png",
-    "inpaint_reference2.png",
     "mask_detailer_reference.png",
     "portrait_reference_00002.png",
-    "remove_refrence.png",
+    "Group_Reference_00001.png",
 )
 _PACKAGED_REFERENCES = {
     f"CMK Package · {filename}": filename
@@ -114,6 +113,9 @@ async def _cmk_packaged_reference_view(request, handler):
 
 # Inactive CMK gates must not carry unused module inputs into ComfyUI's cache
 # keys; see cmk_prompt_gate_pruning (CMK_PROMPT_GATE_PRUNING=0 disables it).
+# A linked CMK Detailer Family Enable or CMK FaceProcess Mode Enable reaches
+# the backend as its literal selection; see cmk_prompt_family_inline.
+_cmk_register_family_inline(PromptServer.instance)
 _cmk_register_gate_pruning(PromptServer.instance)
 
 if not getattr(PromptServer.instance, "_cmk_reference_view_middleware", False):
@@ -559,6 +561,9 @@ async def cmk_showcase_workflows(request):
             "info": metadata.get("info", ""),
             "info_en": metadata.get("info_en", ""),
             "previews": metadata.get("previews", []),
+            # Published, loadable and found by the browser search, but not
+            # listed in the category view (2.8 Advanced module workflows).
+            "searchOnly": metadata.get("searchOnly", False) is True,
         })
     entries.sort(key=lambda item: (item["order"], item["name"].casefold()))
     return web.json_response({"workflows": entries})

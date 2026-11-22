@@ -16,6 +16,23 @@ from ..cmk_distribution import (
     STOP_AFTER_HANDOFF_WIDGET,
     instantid_inpaint_prompt_active,
 )
+from .cmk_regional_weighting import PROFILE_VERSION as REGIONAL_PROFILE_VERSION
+
+
+# Code revisions that change a node's result while its inputs stay identical.
+# Every graph fingerprint embeds them, so all persisted results downstream of
+# such a node are invalidated while graphs without it keep their keys.
+# The InstantID samplers average each prepared entry with the native encoding
+# of its own prompt (pipe/instantid/cmk_instantid_reference.py); results stored
+# before that used the global prompt for regional entries as well.
+INSTANTID_REFERENCE_REVISION = "cmk-instantid-entry-reference-v1"
+NODE_BEHAVIOUR_REVISIONS = {
+    "CMKRegionalLayoutSDXL": REGIONAL_PROFILE_VERSION,
+    "CMKRegionalConditioningSDXL": REGIONAL_PROFILE_VERSION,
+    "CMKInstantIDSamplerSDXLPipe": INSTANTID_REFERENCE_REVISION,
+    # The adaptive handoff can change which step Advanced continues from.
+    "CMKInstantIDRegionalAdvancedSDXLPipe": f"{INSTANTID_REFERENCE_REVISION}+cmk-adaptive-handoff-v2",
+}
 
 
 PERSISTENT_DISK_SCOPES = (
@@ -115,7 +132,31 @@ _IMAGE_FILE_LOADERS = frozenset({
     "CMKImageLoadAndResizePipe",
 })
 _INPUT_CONTENT_MEMO_KEY = "\0input_content"
+# Multi-Model Detailer Prepare inputs read only by MODEL FAMILY = Z-Image Turbo.
+DETAILER_MULTIMODEL_ZIT_INPUTS = frozenset({
+    "MODEL ZIT", "LoRA ZIT", "zit_steps", "zit_cfg", "zit_sampling_entry",
+    "zit_sampler", "zit_scheduler", "zit_model_shift",
+})
 _INPUT_CONTENT_FIELD = "\0input_content"
+# 2.8.0 Multi-Model execution nodes: OUTPUT IMAGE PROCEED only switches the
+# IMAGE PROCEED output (class -> its slot). The node's identity ignores the
+# switch; a link reading IMAGE PROCEED carries it, so its consumer still sees
+# the change, while a boundary fed by DETAILER IMAGE / FACE IMAGE stays stable.
+OUTPUT_SWITCH_INPUT = "output_image_proceed"
+OUTPUT_SWITCH_SLOTS = {
+    "CMK_SmartDetailerMultiModelPipe": 2,
+    "CMKFaceProcessMultiModelPipe": 0,
+}
+
+
+def _canonical_link(prompt: dict, value: Any, node_identity: Any) -> dict:
+    link = {"node": node_identity, "output": int(value[1])}
+    node = _lookup_node(prompt, value[0])
+    class_type = str(node.get("class_type", "")) if isinstance(node, dict) else ""
+    if OUTPUT_SWITCH_SLOTS.get(class_type) == int(value[1]):
+        switch = (node.get("inputs", {}) or {}).get(OUTPUT_SWITCH_INPUT, True)
+        link[OUTPUT_SWITCH_INPUT] = switch if isinstance(switch, (list, tuple)) else bool(switch)
+    return link
 
 
 def _loader_content_digest(prompt: dict, node: dict) -> str | None:
@@ -207,17 +248,24 @@ def _canonical_node(
             STOP_AFTER_HANDOFF_WIDGET,
         }:
             continue
+        # SDXL and None never read the Z-Image Turbo inputs of the Multi-Model
+        # Prepare, so changing them must not invalidate those results.
+        if (
+            class_type == "CMKDetailerPrepareMultiModelPipe"
+            and str(input_name) in DETAILER_MULTIMODEL_ZIT_INPUTS
+            and (node.get("inputs", {}) or {}).get("model_family", "None") != "Z-Image Turbo"
+        ):
+            continue
+        if class_type in OUTPUT_SWITCH_SLOTS and str(input_name) == OUTPUT_SWITCH_INPUT:
+            continue
         if _is_link(prompt, value):
             inputs[str(input_name)] = {
-                "link": {
-                    "node": _canonical_node(
-                        prompt,
-                        value[0],
-                        memo,
-                        stack,
-                    ),
-                    "output": int(value[1]),
-                }
+                "link": _canonical_link(prompt, value, _canonical_node(
+                    prompt,
+                    value[0],
+                    memo,
+                    stack,
+                )),
             }
         else:
             inputs[str(input_name)] = _canonical_scalar(value)
@@ -227,6 +275,8 @@ def _canonical_node(
         "class_type": class_type,
         "inputs": inputs,
     }
+    if class_type in NODE_BEHAVIOUR_REVISIONS:
+        payload["revision"] = NODE_BEHAVIOUR_REVISIONS[class_type]
     stack.remove(key)
     # Return a content address instead of embedding the complete upstream
     # object. Expanded CMK graphs are DAGs with many converging pipe links.
@@ -338,15 +388,12 @@ def build_node_fingerprint(
 
         if _is_link(prompt, value):
             canonical_inputs[str(input_name)] = {
-                "link": {
-                    "node": _canonical_node(
-                        prompt,
-                        value[0],
-                        canonical_memo,
-                        set(),
-                    ),
-                    "output": int(value[1]),
-                }
+                "link": _canonical_link(prompt, value, _canonical_node(
+                    prompt,
+                    value[0],
+                    canonical_memo,
+                    set(),
+                )),
             }
         else:
             canonical_inputs[str(input_name)] = _canonical_scalar(value)
@@ -377,29 +424,29 @@ def build_node_fingerprint(
     return result
 
 
-def cache_directory(scope: str) -> Path:
-    import folder_paths  # type: ignore
+# Branch and boundary caches live in their own directory below the ComfyUI
+# user directory: ComfyUI removes its temp directory at every start and
+# shutdown, so caches there never survive a restart.
+PERSISTENT_CACHE_DIRNAME = "cmk_cache"
 
-    directory = (
-        Path(folder_paths.get_temp_directory())
-        / "cmk"
-        / str(scope)
-    )
+
+def _persistent_cache_root(base_directory: Path | str | None = None) -> Path:
+    if base_directory is None:
+        import folder_paths  # type: ignore
+
+        base_directory = folder_paths.get_user_directory()
+    return Path(base_directory) / PERSISTENT_CACHE_DIRNAME
+
+
+def cache_directory(scope: str) -> Path:
+    directory = _persistent_cache_root() / str(scope)
     directory.mkdir(parents=True, exist_ok=True)
     return directory
 
 
-def _persistent_cache_root(temp_root: Path | str | None = None) -> Path:
-    if temp_root is None:
-        import folder_paths  # type: ignore
-
-        temp_root = folder_paths.get_temp_directory()
-    return Path(temp_root) / "cmk"
-
-
-def validate_persistent_disk_scopes(temp_root: Path | str | None = None) -> Path:
+def validate_persistent_disk_scopes(base_directory: Path | str | None = None) -> Path:
     """Validate every fixed CMK disk-cache scope before any deletion starts."""
-    root = _persistent_cache_root(temp_root)
+    root = _persistent_cache_root(base_directory)
     if root.is_symlink():
         raise OSError(f"refusing symbolic-link CMK cache root: {root}")
     if root.exists() and not root.is_dir():
@@ -454,10 +501,10 @@ def _scope_inventory(path: Path) -> dict[str, int]:
 
 
 def persistent_disk_scope_inventory(
-    temp_root: Path | str | None = None,
+    base_directory: Path | str | None = None,
 ) -> dict[str, dict[str, int]]:
     """Inventory the clearable CMK disk scopes without creating or changing them."""
-    root = validate_persistent_disk_scopes(temp_root)
+    root = validate_persistent_disk_scopes(base_directory)
     return {
         scope: _scope_inventory(root / scope)
         for scope in PERSISTENT_DISK_SCOPES
@@ -477,9 +524,9 @@ def _remove_scope_contents(path: Path) -> None:
             candidate.rmdir()
 
 
-def clear_persistent_disk_scopes(temp_root: Path | str | None = None) -> dict[str, dict[str, int]]:
-    """Clear only the explicitly registered CMK temp-cache scopes."""
-    root = validate_persistent_disk_scopes(temp_root)
+def clear_persistent_disk_scopes(base_directory: Path | str | None = None) -> dict[str, dict[str, int]]:
+    """Clear only the explicitly registered CMK disk-cache scopes."""
+    root = validate_persistent_disk_scopes(base_directory)
     root.mkdir(parents=True, exist_ok=True)
     inventories = {
         scope: _scope_inventory(root / scope)

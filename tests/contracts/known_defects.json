@@ -6,341 +6,6 @@
     "summary": "cmkVisualProviders reference inner nodes that do not exist in the definition.",
     "instances": [
       {
-        "file": "CMK Flow · 05 ControlNet Combined.json",
-        "node": "8429",
-        "key": "controlnet"
-      },
-      {
-        "file": "CMK Flow · 20 Refiner SDXL.json",
-        "node": "8365",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK Flow · Detailer SDXL · Advanced.json",
-        "node": "8553",
-        "key": "detailer"
-      },
-      {
-        "file": "CMK Flow · Detailer SDXL.json",
-        "node": "8551",
-        "key": "detailer"
-      },
-      {
-        "file": "CMK Flow · FaceProcess SDXL · Advanced.json",
-        "node": "8549",
-        "key": "faceprocess"
-      },
-      {
-        "file": "CMK Flow · FaceProcess SDXL.json",
-        "node": "8547",
-        "key": "faceprocess"
-      },
-      {
-        "file": "CMK Flow · FaceRebuild SDXL · Advanced.json",
-        "node": "8502",
-        "key": "facerebuild"
-      },
-      {
-        "file": "CMK Flow · FaceRebuild SDXL.json",
-        "node": "8500",
-        "key": "facerebuild"
-      },
-      {
-        "file": "CMK Flow · FaceSwap · Advanced.json",
-        "node": "8522",
-        "key": "faceswap"
-      },
-      {
-        "file": "CMK Flow · FaceSwap.json",
-        "node": "8521",
-        "key": "faceswap"
-      },
-      {
-        "file": "CMK Flow · MaskDetailer SDXL.json",
-        "node": "8554",
-        "key": "mask-detailer"
-      },
-      {
-        "file": "CMK Flow · Upscale & Save.json",
-        "node": "8556",
-        "key": "upscale_save"
-      },
-      {
-        "file": "CMK 2.6 · FaceProcess · Modul.json",
-        "node": "7849",
-        "key": "faceprocess"
-      },
-      {
-        "file": "CMK 2.6 · FaceRebuild · Modul.json",
-        "node": "7829",
-        "key": "facerebuild"
-      },
-      {
-        "file": "CMK 2.6 · FaceSwap · Modul.json",
-        "node": "7772",
-        "key": "faceswap"
-      },
-      {
-        "file": "CMK 2.6 · Flow · InOutpaint SDXL · HYBRID · ZIT.json",
-        "node": "8433",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK 2.6 · Flow · InOutpaint SDXL.json",
-        "node": "8433",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK 2.6 · Flow · InstantID · Hybrid Inpaint SDXL.json",
-        "node": "8433",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT.json",
-        "node": "8438",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK 2.6 · Flow · Text2Image - InstantID SDXL and FaceRebuild HYBRID · ZIT.json",
-        "node": "8451",
-        "key": "facerebuild"
-      },
-      {
-        "file": "CMK 2.6 · Flow · Text2Image - Regional Conditioning SDXL.json",
-        "node": "8433",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK 2.6 · Flow · Text2Image ControlNet HYBRID.json",
-        "node": "8438",
-        "key": "controlnet"
-      },
-      {
-        "file": "CMK 2.6 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT.json",
-        "node": "8438",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK 2.6 · Flow · Text2Image ControlNet SDXL · HYBRID · ZIT.json",
-        "node": "8439",
-        "key": "controlnet"
-      },
-      {
-        "file": "CMK 2.6 · Flow · Text2Image ControlNet Z-Image Turbo.json",
-        "node": "8438",
-        "key": "controlnet"
-      },
-      {
-        "file": "CMK 2.6 · Flow · Text2Image HYBRID.json",
-        "node": "8438",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK 2.6 · Flow · Text2Image SDXL · HYBRID · ZIT.json",
-        "node": "8438",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK 2.6 · Flow · Text2Image SDXL.json",
-        "node": "8433",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK 2.6 · Flow · Text2Image-ControlNet SDXL.json",
-        "node": "8433",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK 2.6 · Flow · Text2Image-ControlNet SDXL.json",
-        "node": "8437",
-        "key": "controlnet"
-      },
-      {
-        "file": "CMK 2.6 · Flow · Text2Image-FaceRebuild HYBRID.json",
-        "node": "8449",
-        "key": "facerebuild"
-      },
-      {
-        "file": "CMK 2.6 · Flow · Text2Image-FaceRebuild Z-Image Turbo.json",
-        "node": "8447",
-        "key": "facerebuild"
-      },
-      {
-        "file": "CMK 2.6 · Flow · Text2Image-InstantID SDXL.json",
-        "node": "8433",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK 2.6 · Full Flow .json",
-        "node": "8433",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK 2.6 · Full Flow .json",
-        "node": "8435",
-        "key": "facerebuild"
-      },
-      {
-        "file": "CMK 2.6 · Full Flow .json",
-        "node": "8436",
-        "key": "faceswap"
-      },
-      {
-        "file": "CMK 2.6 · Full Flow .json",
-        "node": "8440",
-        "key": "facerebuild"
-      },
-      {
-        "file": "CMK 2.6 · Full Flow .json",
-        "node": "8441",
-        "key": "faceswap"
-      },
-      {
-        "file": "CMK 2.6 · Full Flow .json",
-        "node": "8442",
-        "key": "faceprocess"
-      },
-      {
-        "file": "CMK 2.6 · Full Flow .json",
-        "node": "8443",
-        "key": "faceprocess"
-      },
-      {
-        "file": "CMK 2.6 · Full Flow .json",
-        "node": "8444",
-        "key": "upscale_save"
-      },
-      {
-        "file": "CMK 2.6 · Full Flow .json",
-        "node": "8445",
-        "key": "detailer"
-      },
-      {
-        "file": "CMK 2.6 · Full Flow .json",
-        "node": "8446",
-        "key": "detailer"
-      },
-      {
-        "file": "CMK 2.6 · Full Flow .json",
-        "node": "8455",
-        "key": "mask-detailer"
-      },
-      {
-        "file": "CMK 2.6 · Full Flow .json",
-        "node": "8459",
-        "key": "controlnet"
-      },
-      {
-        "file": "CMK 2.6 · InOutPaint.json",
-        "node": "8433",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK 2.6 · InOutPaint.json",
-        "node": "8438",
-        "key": "controlnet"
-      },
-      {
-        "file": "CMK 2.6 · InOutPaint.json",
-        "node": "8442",
-        "key": "faceprocess"
-      },
-      {
-        "file": "CMK 2.6 · InOutPaint.json",
-        "node": "8451",
-        "key": "mask-detailer"
-      },
-      {
-        "file": "CMK 2.6 · MaskDetailer · Modul.json",
-        "node": "8451",
-        "key": "mask-detailer"
-      },
-      {
-        "file": "CMK 2.6 · SmartDetailer · Modul.json",
-        "node": "7822",
-        "key": "detailer"
-      },
-      {
-        "file": "CMK 2.6 · Text2Image Identity 1.json",
-        "node": "8429",
-        "key": "controlnet"
-      },
-      {
-        "file": "CMK 2.6 · Text2Image Identity 1.json",
-        "node": "8433",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK 2.6 · Text2Image Identity 1.json",
-        "node": "8453",
-        "key": "facerebuild"
-      },
-      {
-        "file": "CMK 2.6 · Text2Image Identity 1.json",
-        "node": "8454",
-        "key": "faceswap"
-      },
-      {
-        "file": "CMK 2.6 · Text2Image Identity 3.json",
-        "node": "8429",
-        "key": "controlnet"
-      },
-      {
-        "file": "CMK 2.6 · Text2Image Identity 3.json",
-        "node": "8433",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK 2.6 · Text2Image Identity 3.json",
-        "node": "8456",
-        "key": "facerebuild"
-      },
-      {
-        "file": "CMK 2.6 · Text2Image Identity 3.json",
-        "node": "8462",
-        "key": "faceswap"
-      },
-      {
-        "file": "CMK 2.6 · Text2Image.json",
-        "node": "8429",
-        "key": "controlnet"
-      },
-      {
-        "file": "CMK 2.6 · Text2Image.json",
-        "node": "8433",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK 2.6 · Text2Image.json",
-        "node": "8438",
-        "key": "detailer"
-      },
-      {
-        "file": "CMK 2.6 · Text2Image.json",
-        "node": "8451",
-        "key": "mask-detailer"
-      },
-      {
-        "file": "CMK 2.7 · Detailer SDXL · Modul.json",
-        "node": "7822",
-        "key": "detailer"
-      },
-      {
-        "file": "CMK 2.7 · FaceProcess SDXL · Modul.json",
-        "node": "7849",
-        "key": "faceprocess"
-      },
-      {
-        "file": "CMK 2.7 · FaceRebuild SDXL · Modul.json",
-        "node": "7829",
-        "key": "facerebuild"
-      },
-      {
-        "file": "CMK 2.7 · FaceSwap · Modul.json",
-        "node": "7772",
-        "key": "faceswap"
-      },
-      {
         "file": "CMK 2.7 · Flow · InOutpaint InstantID.json",
         "node": "8433",
         "key": "refiner"
@@ -391,11 +56,6 @@
         "key": "refiner"
       },
       {
-        "file": "CMK 2.7 · Flow · Text2Image Regional Layout SDXL-ZIT HYBRID.json",
-        "node": "8494",
-        "key": "refiner"
-      },
-      {
         "file": "CMK 2.7 · Flow · Text2Image SDXL · HYBRID · ZIT.json",
         "node": "8493",
         "key": "refiner"
@@ -411,134 +71,269 @@
         "key": "refiner"
       },
       {
-        "file": "CMK 2.7 · Flow · Text2Image ZIT · FaceRebuild.json",
-        "node": "8458",
+        "file": "CMK 2.8 · FaceRebuild Advanced SDXL · Modul.json",
+        "node": "8663",
         "key": "facerebuild"
       },
       {
-        "file": "CMK 2.7 · Full Flow .json",
+        "file": "CMK 2.8 · FaceRebuild SDXL · Modul.json",
+        "node": "8662",
+        "key": "facerebuild"
+      },
+      {
+        "file": "CMK 2.8 · FaceSwap Advanced · Modul.json",
+        "node": "8663",
+        "key": "faceswap"
+      },
+      {
+        "file": "CMK 2.8 · FaceSwap · Modul.json",
+        "node": "8658",
+        "key": "faceswap"
+      },
+      {
+        "file": "CMK 2.8 · Flow · Text2Image ZIT · FaceRebuild.json",
+        "node": "8701",
+        "key": "facerebuild"
+      },
+      {
+        "file": "CMK 2.8 · Full Flow.json",
         "node": "8433",
         "key": "refiner"
       },
       {
-        "file": "CMK 2.7 · Full Flow .json",
-        "node": "8435",
-        "key": "facerebuild"
-      },
-      {
-        "file": "CMK 2.7 · Full Flow .json",
-        "node": "8436",
-        "key": "faceswap"
-      },
-      {
-        "file": "CMK 2.7 · Full Flow .json",
-        "node": "8440",
-        "key": "facerebuild"
-      },
-      {
-        "file": "CMK 2.7 · Full Flow .json",
-        "node": "8441",
-        "key": "faceswap"
-      },
-      {
-        "file": "CMK 2.7 · Full Flow .json",
-        "node": "8442",
-        "key": "faceprocess"
-      },
-      {
-        "file": "CMK 2.7 · Full Flow .json",
-        "node": "8443",
-        "key": "faceprocess"
-      },
-      {
-        "file": "CMK 2.7 · Full Flow .json",
-        "node": "8444",
-        "key": "upscale_save"
-      },
-      {
-        "file": "CMK 2.7 · Full Flow .json",
-        "node": "8445",
-        "key": "detailer"
-      },
-      {
-        "file": "CMK 2.7 · Full Flow .json",
-        "node": "8446",
-        "key": "detailer"
-      },
-      {
-        "file": "CMK 2.7 · Full Flow .json",
-        "node": "8455",
-        "key": "mask-detailer"
-      },
-      {
-        "file": "CMK 2.7 · Full Flow .json",
+        "file": "CMK 2.8 · Full Flow.json",
         "node": "8459",
         "key": "controlnet"
       },
       {
-        "file": "CMK 2.7 · InOutpaint.json",
-        "node": "8433",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK 2.7 · InOutpaint.json",
-        "node": "8455",
-        "key": "facerebuild"
-      },
-      {
-        "file": "CMK 2.7 · InOutpaint.json",
-        "node": "8459",
-        "key": "faceprocess"
-      },
-      {
-        "file": "CMK 2.7 · MaskDetailer SDXL · Modul.json",
-        "node": "8451",
-        "key": "mask-detailer"
-      },
-      {
-        "file": "CMK 2.7 · Text2Image · Identity 1.json",
-        "node": "8433",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK 2.7 · Text2Image · Identity 1.json",
-        "node": "8455",
-        "key": "facerebuild"
-      },
-      {
-        "file": "CMK 2.7 · Text2Image · Identity 1.json",
-        "node": "8459",
-        "key": "faceprocess"
-      },
-      {
-        "file": "CMK 2.7 · Text2Image · Identity 3.json",
-        "node": "8433",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK 2.7 · Text2Image · Identity 3.json",
-        "node": "8459",
-        "key": "faceprocess"
-      },
-      {
-        "file": "CMK 2.7 · Text2Image · Identity 3.json",
-        "node": "8496",
-        "key": "facerebuild"
-      },
-      {
-        "file": "CMK 2.7 · Text2Image.json",
-        "node": "8433",
-        "key": "refiner"
-      },
-      {
-        "file": "CMK 2.7 · Text2Image.json",
-        "node": "8438",
+        "file": "CMK 2.8 · Full Flow.json",
+        "node": "8626",
         "key": "detailer"
       },
       {
-        "file": "CMK 2.7 · Text2Image.json",
-        "node": "8451",
+        "file": "CMK 2.8 · Full Flow.json",
+        "node": "8628",
+        "key": "faceprocess"
+      },
+      {
+        "file": "CMK 2.8 · Full Flow.json",
+        "node": "8641",
+        "key": "faceprocess"
+      },
+      {
+        "file": "CMK 2.8 · Full Flow.json",
+        "node": "8660",
+        "key": "facerebuild"
+      },
+      {
+        "file": "CMK 2.8 · Full Flow.json",
+        "node": "8672",
+        "key": "facerebuild"
+      },
+      {
+        "file": "CMK 2.8 · Full Flow.json",
+        "node": "8674",
+        "key": "faceswap"
+      },
+      {
+        "file": "CMK 2.8 · Full Flow.json",
+        "node": "8689",
+        "key": "faceswap"
+      },
+      {
+        "file": "CMK 2.8 · Full Flow.json",
+        "node": "8698",
         "key": "mask-detailer"
+      },
+      {
+        "file": "CMK 2.8 · Full Flow.json",
+        "node": "8712",
+        "key": "upscale_save"
+      },
+      {
+        "file": "CMK 2.8 · InOutpaint.json",
+        "node": "8433",
+        "key": "refiner"
+      },
+      {
+        "file": "CMK 2.8 · InOutpaint.json",
+        "node": "8695",
+        "key": "facerebuild"
+      },
+      {
+        "file": "CMK 2.8 · InOutpaint.json",
+        "node": "8696",
+        "key": "faceprocess"
+      },
+      {
+        "file": "CMK 2.8 · MaskDetailer · Modul.json",
+        "node": "8669",
+        "key": "mask-detailer"
+      },
+      {
+        "file": "CMK 2.8 · Text2Image · Identity 1.json",
+        "node": "8433",
+        "key": "refiner"
+      },
+      {
+        "file": "CMK 2.8 · Text2Image · Identity 1.json",
+        "node": "8698",
+        "key": "facerebuild"
+      },
+      {
+        "file": "CMK 2.8 · Text2Image · Identity 1.json",
+        "node": "8699",
+        "key": "faceprocess"
+      },
+      {
+        "file": "CMK 2.8 · Text2Image.json",
+        "node": "8433",
+        "key": "refiner"
+      },
+      {
+        "file": "CMK 2.8 · Text2Image.json",
+        "node": "8649",
+        "key": "faceprocess"
+      },
+      {
+        "file": "CMK 2.8 · Text2Image.json",
+        "node": "8692",
+        "key": "mask-detailer"
+      },
+      {
+        "file": "CMK 2.8 · Text2Image.json",
+        "node": "8693",
+        "key": "facerebuild"
+      },
+      {
+        "file": "CMK Flow · 05 ControlNet Combined.json",
+        "node": "8429",
+        "key": "controlnet"
+      },
+      {
+        "file": "CMK Flow · 20 Refiner SDXL.json",
+        "node": "8365",
+        "key": "refiner"
+      },
+      {
+        "file": "CMK Flow · Detailer SDXL · Advanced.json",
+        "node": "8553",
+        "key": "detailer"
+      },
+      {
+        "file": "CMK Flow · Detailer SDXL.json",
+        "node": "8551",
+        "key": "detailer"
+      },
+      {
+        "file": "CMK Flow · Detailer.json",
+        "node": "8625",
+        "key": "detailer"
+      },
+      {
+        "file": "CMK Flow · FaceProcess SDXL · Advanced.json",
+        "node": "8549",
+        "key": "faceprocess"
+      },
+      {
+        "file": "CMK Flow · FaceProcess SDXL.json",
+        "node": "8547",
+        "key": "faceprocess"
+      },
+      {
+        "file": "CMK Flow · FaceProcess · Advanced.json",
+        "node": "8628",
+        "key": "faceprocess"
+      },
+      {
+        "file": "CMK Flow · FaceProcess.json",
+        "node": "8636",
+        "key": "faceprocess"
+      },
+      {
+        "file": "CMK Flow · FaceRebuild SDXL v2.json",
+        "node": "8659",
+        "key": "facerebuild"
+      },
+      {
+        "file": "CMK Flow · FaceRebuild SDXL · Advanced v2.json",
+        "node": "8661",
+        "key": "facerebuild"
+      },
+      {
+        "file": "CMK Flow · FaceRebuild SDXL · Advanced.json",
+        "node": "8502",
+        "key": "facerebuild"
+      },
+      {
+        "file": "CMK Flow · FaceRebuild SDXL.json",
+        "node": "8500",
+        "key": "facerebuild"
+      },
+      {
+        "file": "CMK Flow · FaceSwap v2.json",
+        "node": "8658",
+        "key": "faceswap"
+      },
+      {
+        "file": "CMK Flow · FaceSwap · Advanced v2.json",
+        "node": "8663",
+        "key": "faceswap"
+      },
+      {
+        "file": "CMK Flow · FaceSwap · Advanced.json",
+        "node": "8522",
+        "key": "faceswap"
+      },
+      {
+        "file": "CMK Flow · FaceSwap.json",
+        "node": "8521",
+        "key": "faceswap"
+      },
+      {
+        "file": "CMK Flow · MaskDetailer SDXL.json",
+        "node": "8554",
+        "key": "mask-detailer"
+      },
+      {
+        "file": "CMK Flow · MaskDetailer.json",
+        "node": "8668",
+        "key": "mask-detailer"
+      },
+      {
+        "file": "CMK Flow · Upscale & Save v2.json",
+        "node": "8556",
+        "key": "upscale_save"
+      },
+      {
+        "file": "CMK Flow · Upscale & Save.json",
+        "node": "8556",
+        "key": "upscale_save"
+      },
+      {
+        "file": "CMK 2.8 · Flow · Text2Image Regional Layout SDXL-ZIT HYBRID.json",
+        "node": "8494",
+        "key": "refiner"
+      },
+      {
+        "file": "CMK 2.8 · Text2Image · Identity 2.json",
+        "node": "8433",
+        "key": "refiner"
+      },
+      {
+        "file": "CMK 2.8 · Text2Image · Identity 2.json",
+        "node": "8662",
+        "key": "facerebuild"
+      },
+      {
+        "file": "CMK 2.8 · Text2Image · Identity 2.json",
+        "node": "8663",
+        "key": "faceprocess"
+      },
+      {
+        "file": "CMK 2.8 · Text2Image · Identity 2.json",
+        "node": "8671",
+        "key": "identity"
       }
     ]
   }

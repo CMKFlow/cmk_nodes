@@ -244,7 +244,7 @@ class StopAfterHandoffTests(unittest.TestCase):
         self.temporary.cleanup()
 
     def _cache_directory(self, scope):
-        path = self.temp_root / "cmk" / scope
+        path = self.temp_root / "cmk_cache" / scope
         path.mkdir(parents=True, exist_ok=True)
         return path
 
@@ -277,14 +277,27 @@ class StopAfterHandoffTests(unittest.TestCase):
         key_after = sampler._sdxl_handoff_cache_key(after, "11")
         self.assertNotEqual(key_before, key_after)
 
-    def test_content_guard_configuration_invalidates_approval(self):
+    def _guard_keys(self, mode):
         guarded = _prompt(stop=True)
         bypassed = _prompt(stop=True)
         bypassed["1"]["inputs"]["content_guard_enabled"] = False
-        key_guarded = sampler._sdxl_handoff_cache_key(guarded, "11")
+        with patch.object(distribution, "DISTRIBUTION_MODE", mode):
+            persistent.reset_persistent_fingerprint_memo()
+            key_guarded = sampler._sdxl_handoff_cache_key(guarded, "11")
+            persistent.reset_persistent_fingerprint_memo()
+            key_bypassed = sampler._sdxl_handoff_cache_key(bypassed, "11")
         persistent.reset_persistent_fingerprint_memo()
-        key_bypassed = sampler._sdxl_handoff_cache_key(bypassed, "11")
+        return key_guarded, key_bypassed
+
+    def test_content_guard_configuration_invalidates_approval(self):
+        # BASELINE only: the switch exists and a bypassed run needs its own approval.
+        key_guarded, key_bypassed = self._guard_keys(distribution.BASELINE)
         self.assertNotEqual(key_guarded, key_bypassed)
+
+    def test_release_ignores_a_serialized_guard_value(self):
+        # RELEASE enforces the guard: a saved OFF value is the guarded run.
+        key_guarded, key_bypassed = self._guard_keys(distribution.RELEASE)
+        self.assertEqual(key_guarded, key_bypassed)
 
     def test_text2image_inpaint_and_controlnet_have_distinct_contracts(self):
         keys = []

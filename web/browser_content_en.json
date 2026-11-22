@@ -32,7 +32,7 @@
       ],
       "placementNote": "Place at the beginning of an image-based standalone flow directly before a family-neutral postprocess module."
     },
-    "CMKImageResize": {
+    "CMKImageResizeV2": {
       "previewAlt": "CMK Flow Image Resize postprocess node",
       "description": "Resizes the current image without loading a model and preserves the complete CMK postprocess transport contract.",
       "features": [
@@ -40,7 +40,8 @@
         "Preserves the original aspect ratio.",
         "Scales either to a maximum edge length or a target megapixel count.",
         "Alternatively fits images into fixed target dimensions and adds black or white padding.",
-        "Passes the image through unchanged when SCALE ENABLE is disabled."
+        "Passes the image through unchanged when SCALE is set to DISABLE.",
+        "Passes MODEL ZIT and MODEL SDXL through unchanged (CMK port contract)."
       ],
       "placementNote": "Place on the family-neutral path after the PostProcess Boundary and before Upscale & Save or the Visualizer."
     },
@@ -52,13 +53,14 @@
         "Output a technical file reference"
       ]
     },
-    "CMKPostProcessSetupPipe": {
+    "CMKPostProcessSetupV2Pipe": {
       "previewAlt": "CMK Flow · 30 PostProcess Setup",
       "description": "Ends the active SDXL, ZIT, or HYBRID generation path and provides an independent working context for downstream PostProcess modules.",
       "features": [
         "Accept only the active generation branch",
         "Pass its result to PostProcess",
-        "Load a separate PostProcess model only when needed"
+        "Load a separate PostProcess model only when needed",
+        "Provides the postprocess model separately as MODEL SDXL and MODEL ZIT (SDXL and Z-Image Turbo sections)"
       ],
       "placementNote": "Use the Combined variant immediately after the final SDXL and ZIT generation stages and before Detailer, FaceRebuild, or FaceProcess. Model-free paths do not materialize the configured postprocess model."
     },
@@ -303,9 +305,9 @@
       "previewAlt": "CMK Image Multi-File Loader"
     },
     "CMKRegionalLayoutSDXL": {
-      "description": "Extends global SDXL conditioning with freely definable image regions and individual prompts. Regions can be created, positioned and edited directly with the mouse on the layout canvas, with no fixed limit on their number.",
+      "description": "Extends global SDXL conditioning with freely definable image regions and individual prompts. Regions can be created, positioned and edited directly with the mouse on the layout canvas. Up to two new regions can be created; existing workflows with additional regions remain supported.",
       "features": [
-        "Create any number of image regions directly with the mouse",
+        "Create up to two image regions directly with the mouse; workflows with additional regions remain supported",
         "Freely move, scale and name regions",
         "Set individual prompts and conditioning strengths for each region",
         "Adjust duration and further settings individually",
@@ -315,6 +317,119 @@
       "info_en": "Spatially limited conditioning takes effect during SDXL generation. In a subsequent ZIT finish, the active regional prompt texts are applied as global conditioning, but the individual region boundaries are not.",
       "placementNote": "Place directly after 01 START HERE and before optional ControlNet or 10 KSampler SDXL.",
       "previewAlt": "CMK Flow 07 Regional Layout"
+    },
+    "c65f6b01-4f30-4937-8ea6-2b229ef2e076": {
+      "previewAlt": "Detailer · Advanced preview",
+      "description": "Independently detects and refines up to three image areas, each with either SDXL or Z-Image Turbo, and merges the results by their actual pasteback masks.",
+      "features": [
+        "Three Detailers with their own model family (NONE · SDXL · ZIT) and settings",
+        "ZIT branches run before SDXL branches in the merge; each family is loaded only once",
+        "Merge by the actual pasteback masks in the order D1 → D2 → D3",
+        "Diagnostic with sampling ROI, mask, pasteback, overlap and composite",
+        "MODE: ENABLE · DISABLE – DISABLE bypasses the module completely"
+      ],
+      "placementNote": "Place on the family-neutral postprocess path after 30 PostProcess Setup and before further image editing or the Visualizer. MODEL SDXL and MODEL ZIT come from the CMK PostProcess Model.",
+      "dependencyNote": "Each Detailer needs a suitable detector model for its image area and the models of its selected family."
+    },
+    "70aa4358-3856-4a78-8304-7fef47a51263": {
+      "previewAlt": "CMK Flow Detailer with one Detailer branch (SDXL or ZIT)",
+      "description": "Automatically detects and segments a relevant image area and refines it selectively with either SDXL or Z-Image Turbo.",
+      "features": [
+        "Automatically detect and segment a relevant image area",
+        "Refine the detected area with either SDXL or Z-Image Turbo",
+        "MODE: DISABLE · SDXL · ZIT – DISABLE bypasses the module completely",
+        "Models load only when needed; results stay in the CMK cache across ComfyUI restarts"
+      ],
+      "placementNote": "Place on the family-neutral postprocess path after 30 PostProcess Setup and before further image editing or the Visualizer. MODEL SDXL and MODEL ZIT come from the CMK PostProcess Model.",
+      "dependencyNote": "Needs a suitable detector model and the models of the selected family (SDXL checkpoint or Z-Image Turbo models)."
+    },
+    "2f64eba0-47e2-4a50-8505-41736a22ff35": {
+      "previewAlt": "FaceProcess preview",
+      "description": "Processes one selected face or all detected faces, either in Restore mode or as a Detailer with SDXL or Z-Image Turbo.",
+      "features": [
+        "Process one selected face or all detected faces",
+        "MODE: DISABLE · RESTORE · SDXL · ZIT – DISABLE bypasses the module completely",
+        "Process faces locally without regenerating the rest of the image",
+        "Models load only when needed"
+      ],
+      "placementNote": "Place on the family-neutral postprocess path after 30 PostProcess Setup and before further image editing or the Visualizer. MODEL SDXL and MODEL ZIT come from the CMK PostProcess Model."
+    },
+    "ffd0a883-f3c2-4eae-a1be-591cc0cb9255": {
+      "previewAlt": "FaceProcess · Advanced preview",
+      "description": "Processes up to three selected faces independently, each in Restore mode or as a Detailer with SDXL or Z-Image Turbo.",
+      "features": [
+        "Up to three faces with their own mode (NONE · RESTORE · SDXL · ZIT) and settings",
+        "Merge through the actual pasteback masks",
+        "MODE: ENABLE · DISABLE – DISABLE bypasses the module completely"
+      ],
+      "placementNote": "Place on the family-neutral postprocess path after 30 PostProcess Setup and before further image editing or the Visualizer. MODEL SDXL and MODEL ZIT come from the CMK PostProcess Model.",
+      "dependencyNote": "Each branch independently selects its target face and processing mode."
+    },
+    "abf9d2d6-e61b-48ea-8a94-ce2aae383478": {
+      "previewAlt": "FaceRebuild SDXL preview",
+      "description": "Reconstructs a selected target face from scratch and composites the edited area back into the otherwise unchanged image.",
+      "features": [
+        "Rebuild one target face with the identity of a reference face",
+        "Return the rebuilt area precisely into the unchanged image",
+        "MODE: ENABLE · DISABLE; MODEL ZIT is passed through unchanged"
+      ],
+      "info": "Include the neck area in the reconstruction if needed.",
+      "placementNote": "Place on the postprocess path after 30 PostProcess Setup. FaceRebuild works with SDXL; MODEL ZIT is only passed through."
+    },
+    "4f31016e-e56d-471b-9094-749efaf79486": {
+      "previewAlt": "FaceRebuild SDXL · Advanced preview",
+      "description": "Reconstructs up to three target faces independently and composites each area back into the unchanged image.",
+      "features": [
+        "Rebuild up to three faces separately",
+        "Use separate settings for each face",
+        "MODE: ENABLE · DISABLE; MODEL ZIT is passed through unchanged"
+      ],
+      "info": "Include the neck areas in the reconstruction if needed.",
+      "placementNote": "Place on the postprocess path after 30 PostProcess Setup. FaceRebuild works with SDXL; MODEL ZIT is only passed through."
+    },
+    "2a24e1b4-11e8-4c16-b11a-f6d5527482b2": {
+      "previewAlt": "FaceSwap preview",
+      "description": "Replaces a selected face in the target image with the identity of a reference face.",
+      "features": [
+        "Replace a target face with a reference face",
+        "Adapt face alignment and fit to the target image automatically",
+        "MODE: ENABLE · DISABLE; MODEL SDXL and MODEL ZIT are passed through unchanged"
+      ],
+      "placementNote": "Place on the family-neutral postprocess path after 30 PostProcess Setup; FaceSwap is model-independent."
+    },
+    "2309dab9-b821-4908-8a37-72a28dbc107a": {
+      "previewAlt": "FaceSwap · Advanced preview",
+      "description": "Performs up to three independent FaceSwaps in a single pass.",
+      "features": [
+        "Replace up to three target faces independently",
+        "Merge through the actual paste masks",
+        "MODE: ENABLE · DISABLE; MODEL SDXL and MODEL ZIT are passed through unchanged"
+      ],
+      "placementNote": "Place on the family-neutral postprocess path after 30 PostProcess Setup; FaceSwap is model-independent.",
+      "dependencyNote": "Select a separate source image for every FaceSwap branch in use."
+    },
+    "63419f68-5573-4c90-9619-226b0c413a9c": {
+      "previewAlt": "MaskDetailer preview",
+      "description": "Refines a manually masked image area precisely and repeatably with SDXL or Z-Image Turbo, without regenerating the rest of the image.",
+      "features": [
+        "Take over the current image with CAPTURE and lock it as a snapshot",
+        "Define the image area manually with a mask",
+        "Choose the model family SDXL or ZIT inside the subgraph",
+        "MODE: ENABLE · DISABLE – DISABLE bypasses the module completely"
+      ],
+      "info": "The image is taken over only with CAPTURE; a painted mask is kept until a new image is captured.",
+      "placementNote": "Place as the last optional editing stage behind the other postprocess modules and before the output. MODEL SDXL and MODEL ZIT come from the CMK PostProcess Model."
+    },
+    "6a25aa85-d5c8-48a9-87d8-7e9a123c947b": {
+      "previewAlt": "Upscale & Save as a flow-compatible saving side branch",
+      "description": "Saves the current processing state.",
+      "features": [
+        "Save the current editing state",
+        "SAVE: ENABLE · DISABLE",
+        "MODEL SDXL, MODEL ZIT and PROCESS are passed through unchanged"
+      ],
+      "info": "Upscaling is optional.",
+      "placementNote": "Freely positionable in the postprocess chain, typically right before the Visualizer. The image is passed on unchanged."
     }
   }
 }

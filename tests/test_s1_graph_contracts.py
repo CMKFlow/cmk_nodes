@@ -54,11 +54,14 @@ class EmbeddedDefinitionClassification(unittest.TestCase):
 
     def test_legacy_definitions_are_the_registered_ones(self):
         # 05 ControlNet gained opt_image_file after these workflows were saved;
-        # Identity Processing Matrix carries a workflow-local helper subgraph.
+        # Identity Processing Matrix carries a workflow-local helper subgraph;
+        # the 2.8 FaceRebuild / FaceSwap module showcases embed the v2
+        # definitions under their pre-rename names (identical topology).
         registered = sorted({(entry["workflow"], entry["definition"]) for entry in _registry("legacy_registry.json")["entries"]})
         self.assertEqual(self._keys(LEGACY_KNOWN), registered)
         self.assertEqual(sorted({definition for _, definition in registered}),
-                         ["CMK Flow · 05 ControlNet", "GENERATION"])
+                         ["CMK Flow · 05 ControlNet", "CMK Flow · FaceRebuild SDXL", "CMK Flow · FaceRebuild SDXL · Advanced",
+                          "CMK Flow · FaceSwap", "CMK Flow · FaceSwap · Advanced", "GENERATION"])
 
     def test_shipped_workflows_use_only_canonical_or_registered_definitions(self):
         self.assertEqual(sorted({row["class"] for row in self.rows}), sorted({IDENTICAL, LEGACY_KNOWN}))

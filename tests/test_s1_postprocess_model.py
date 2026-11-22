@@ -8,14 +8,13 @@ returns the ``make_postprocess_model_spec`` contract that the PostProcess
 Boundary already uses, and the first real consumer materialises it
 (``resolve_postprocess_model``).
 
-Legacy: the nine shipped standalone workflows before H-2 are frozen in
-fixtures/legacy_workflows/showcase_pre_h2, and two fixtures exported before
-H-2 (``*_legacy_checkpoint``) pin the eager loading of the old wiring.
+Legacy: two fixtures exported before H-2 (``*_legacy_checkpoint``) pin the
+eager loading of the old wiring.  (The migration check of the CMK 2.6
+standalone showcase workflows ended with their removal from the 2.8 package.)
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
 import shutil
 import tempfile
@@ -27,71 +26,15 @@ from harness.support import GLOBAL_ENABLE, ScenarioCase
 
 CMK_TEST_TIER = "T1"
 TESTS = Path(__file__).resolve().parent
-PACKAGE = TESTS.parent
-LEGACY_DIR = TESTS / "fixtures" / "legacy_workflows" / "showcase_pre_h2"
-LEGACY = json.loads((TESTS / "contracts" / "legacy_postprocess_model_workflows.json").read_text(encoding="utf-8"))
 CHECKPOINT_FIXTURES = ("detailer_std", "detailer_adv", "faceprocess_std", "faceprocess_adv",
                        "facerebuild_std", "facerebuild_adv", "maskdetailer")
 LOAD = "checkpoint.load_resources"
 RESOLVE = "prepare.resolve_postprocess_model"
 
 
-# Shipped standalone workflows whose embedded definitions were migrated in the
-# 2.7 showcase migration (tests/migration/migrate_showcase.py).
-MIGRATED_2_7 = {"CMK 2.6 · FaceProcess · Modul.json", "CMK 2.6 · FaceRebuild · Modul.json",
-                "CMK 2.6 · SmartDetailer · Modul.json"}
-
-
-# Replaced by its CMK 2.7 Flow Browser version (other checkpoint selected there).
-REPLACED_BY_2_7 = {"FaceSwap vs FaceRebuild.json"}
-
-
-def _named_links(doc):
-    nodes = {node["id"]: node for node in doc["nodes"]}
-    return sorted(
-        (origin, nodes[origin]["outputs"][origin_slot]["name"], target, nodes[target]["inputs"][target_slot]["name"], kind)
-        for _link, origin, origin_slot, target, target_slot, kind in doc["links"]
-    )
-
-
 def _model_source(fixture):
     prompt = json.loads((TESTS / "fixtures" / "api_prompts" / f"{fixture}.json").read_text(encoding="utf-8"))
     return prompt["1"]["inputs"]["MODEL SDXL (opt)"][0], prompt
-
-
-class LegacyWorkflowsFrozen(unittest.TestCase):
-    def test_frozen_copies_are_the_pre_h2_definitions(self):
-        self.assertEqual(len(LEGACY["sha256"]), 9)
-        for name, digest in LEGACY["sha256"].items():
-            with self.subTest(workflow=name):
-                self.assertEqual(hashlib.sha256((LEGACY_DIR / name).read_bytes()).hexdigest(), digest)
-
-    def test_shipped_workflows_only_swap_the_model_source(self):
-        for name in LEGACY["sha256"]:
-            if name in REPLACED_BY_2_7:
-                continue
-            with self.subTest(workflow=name):
-                legacy = json.loads((LEGACY_DIR / name).read_text(encoding="utf-8"))
-                shipped = json.loads((PACKAGE / "workflows" / "showcase" / name).read_text(encoding="utf-8"))
-                old = next(n for n in legacy["nodes"] if n["type"] == "CMKCheckpointVAELoaderPipe")
-                new = next(n for n in shipped["nodes"] if n["id"] == old["id"])
-                self.assertEqual(new["type"], "CMKPostProcessModelPipe")
-                self.assertEqual(new["widgets_values"], old["widgets_values"])
-                self.assertEqual([o["links"] for o in new["outputs"]], [o["links"] for o in old["outputs"]])
-                self.assertEqual([o["type"] for o in new["outputs"]], ["CMK_MODEL_PIPE"])
-                self.assertNotIn("CMKCheckpointVAELoaderPipe", {n["type"] for n in shipped["nodes"]})
-                strip = lambda doc: {**doc, "nodes": [n for n in doc["nodes"] if n["id"] != old["id"]]}
-                if name not in MIGRATED_2_7:
-                    self.assertEqual(strip(shipped), strip(legacy))
-                    continue
-                # 2.7 showcase migration: embedded definitions were replaced by the
-                # canonical ones and the frontend re-serialized the instance ports.
-                # The top-level graph keeps every connection (by port name), every
-                # widget value and every position.
-                self.assertEqual(_named_links(shipped), _named_links(legacy))
-                for key in ("widgets_values", "pos", "type", "mode"):
-                    self.assertEqual({n["id"]: n.get(key) for n in strip(shipped)["nodes"]},
-                                     {n["id"]: n.get(key) for n in strip(legacy)["nodes"]}, key)
 
 
 class LegacyCheckpointLoadsEagerly(ScenarioCase):

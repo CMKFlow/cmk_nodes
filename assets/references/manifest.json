@@ -2,14 +2,14 @@
   "schema": "cmk.reference-assets.v1",
   "assets": [
     {
+      "package_file": "black.png",
+      "original_file": "black.png",
+      "sha256": "642e81f349b78abbfe82e975a54f065d5cfa382928e628ccad9ab999459ea6b7"
+    },
+    {
       "package_file": "clipspace-mask-1792011765214.png",
       "original_file": "clipspace-mask-1792011765214.png",
       "sha256": "4c7f64b6cedd7ddb215acc8d4ec6e7e9eaf186c74cab86ab5104b8b62279d291"
-    },
-    {
-      "package_file": "clipspace-mask-1792499379891.png",
-      "original_file": "clipspace-mask-1792499379891.png",
-      "sha256": "2d6e2de3df2d0fa0f3e5d94d2d28aeec2ec09cb1061d05a0770a0c4f62c53472"
     },
     {
       "package_file": "clipspace-painted-masked-1793926244053.png",
@@ -67,14 +67,9 @@
       "sha256": "5ef290147f9385436803478f9673dde508db878f69ad6413493c6e764c5f23bb"
     },
     {
-      "package_file": "inpaint_reference2.png",
-      "original_file": "inpaint_reference2.png",
-      "sha256": "c3ad98c617e8d8dab652a63e413b603d1cc6f4d0fa6ecc0eb5ee6a09da0da7c9"
-    },
-    {
       "package_file": "mask_detailer_reference.png",
       "original_file": "mask_detailer_reference.png",
-      "sha256": "9878f5bb242f919c592692717e28d85b7fecf96a6f7419199981d1e3501c25f9"
+      "sha256": "14444bcfa3b24eb144949957f91811a8eb7ef26efe637a440b4b489674c42bdd"
     },
     {
       "package_file": "portrait_reference_00001.png",
@@ -87,9 +82,9 @@
       "sha256": "45270ae18ee473f9697681caa7ef02de1a0c3e5232c7fac451d3ae7b8abdcc94"
     },
     {
-      "package_file": "remove_refrence.png",
-      "original_file": "remove_reference.png",
-      "sha256": "be2d471adb155d1a470de5a4e9085196a81df8a768c10e48849295b71376dc7d"
+      "package_file": "Group_Reference_00001.png",
+      "original_file": "Group_Reference_00001.png",
+      "sha256": "43c40f5068434b0b69fe8dfe1ebe9edc632fd0ac93748dd6e7849052558527c9"
     }
   ]
 }

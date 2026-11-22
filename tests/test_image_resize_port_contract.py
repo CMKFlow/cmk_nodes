@@ -12,8 +12,11 @@ import unittest
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 COMFY_ROOT = PACKAGE_ROOT.parents[1]
 TEST_PACKAGE = "_cmk_image_resize_port_contract"
-WORKFLOW = PACKAGE_ROOT / "workflows" / "showcase" / "CMK 2.6 · Full Flow .json"
-WORKFLOW_SHA256 = "b692eda0b61833f7b1258ff3803547b3fb7ab5c5727cb8a43aa00034fcad6e6b"  # 2.7 showcase migration, F-03
+# Compatibility: the legacy CMKImageResize stays registered for saved
+# workflows.  The frontend-exported full_flow fixture (the CMK 2.6 Full Flow,
+# integrity pinned in fixtures/manifest.json) holds such saved links.
+FIXTURES = PACKAGE_ROOT / "tests" / "fixtures"
+WORKFLOW = FIXTURES / "workflows" / "full_flow.json"
 
 EXPECTED_LINKS = {
     22541: (8455, 0, 8456, 0, "CMK_MODEL_PIPE", "MODEL", "MODEL (opt)"),
@@ -83,7 +86,9 @@ class ImageResizePortContractTests(unittest.TestCase):
 
     def test_full_flow_links_match_registered_port_contract(self):
         payload = WORKFLOW.read_bytes()
-        self.assertEqual(hashlib.sha256(payload).hexdigest(), WORKFLOW_SHA256)
+        manifest = json.loads((FIXTURES / "manifest.json").read_text(encoding="utf-8"))
+        entry = next(item for item in manifest["fixtures"] if item["name"] == "full_flow")
+        self.assertEqual(hashlib.sha256(payload).hexdigest(), entry["workflow_sha256"])
         workflow = json.loads(payload)
         nodes = {node["id"]: node for node in workflow["nodes"]}
         links = {link[0]: link for link in workflow["links"]}

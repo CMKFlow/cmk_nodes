@@ -15,6 +15,27 @@ export function makeRegion(index = 1, box = {}) {
   };
 }
 
+// Product rule of CMK Flow 2.8: the editor creates at most two regions.  It
+// only limits creating (add, duplicate, draw); loading, editing, saving and
+// undo/redo keep every stored region, so layouts with more regions from
+// earlier versions stay complete and keep running.
+export const MAX_NEW_REGIONS = 2;
+export const REGION_LIMIT_HINT = "Up to two new regions · existing additional regions remain supported";
+
+export function canCreateRegion(layout) {
+  return (Array.isArray(layout?.regions) ? layout.regions.length : 0) < MAX_NEW_REGIONS;
+}
+
+// Every interactive creation path goes through here.  Returns the region that
+// was inserted into ``layout.regions`` (mutated in place), or null at the limit.
+export function insertNewRegion(layout, region, index = null) {
+  if (!canCreateRegion(layout) || !region) return null;
+  if (!Array.isArray(layout.regions)) layout.regions = [];
+  const at = index === null ? layout.regions.length : Math.max(0, Math.min(layout.regions.length, index));
+  layout.regions.splice(at, 0, region);
+  return region;
+}
+
 export function normalizeBox(box = {}) {
   const width = clamp(box.width ?? 0.5, MIN_EXTENT, 1);
   const height = clamp(box.height ?? 0.5, MIN_EXTENT, 1);
@@ -24,6 +45,25 @@ export function normalizeBox(box = {}) {
     width,
     height,
   };
+}
+
+// CONDITIONING BLEND steps 0 (native AREA) .. 6 (MASK profile), one latent
+// cell of UNet context per step (pipe/cmk_regional_weighting.py).  Layouts of
+// the earlier AREA/MASK selector map to 0/6; layouts without either keep 6.
+export const BLEND_STEPS = 6;
+
+export function normalizeConditioningBlend(blend, mode) {
+  const step = Number(blend);
+  if (blend !== null && blend !== undefined && blend !== "" && Number.isFinite(step)) {
+    return Math.min(BLEND_STEPS, Math.max(0, Math.round(step)));
+  }
+  return String(mode ?? "").trim().toUpperCase() === "AREA" ? 0 : BLEND_STEPS;
+}
+
+export function blendCaption(step) {
+  if (step === 0) return "AREA";
+  if (step === BLEND_STEPS) return "MASK";
+  return `${step} / ${BLEND_STEPS}`;
 }
 
 export function normalizeLayout(value, fallbackWidth = 1024, fallbackHeight = 1024) {
@@ -51,6 +91,7 @@ export function normalizeLayout(value, fallbackWidth = 1024, fallbackHeight = 10
     width: Math.max(64, Math.round(Number(source.width) || Number(fallbackWidth) || 1024)),
     height: Math.max(64, Math.round(Number(source.height) || Number(fallbackHeight) || 1024)),
     strength_offset: clamp(source.strength_offset ?? 0, 0, 2),
+    conditioning_blend: normalizeConditioningBlend(source.conditioning_blend, source.conditioning_mode),
     regions,
   };
 }

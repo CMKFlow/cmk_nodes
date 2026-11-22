@@ -182,7 +182,12 @@ class _Guard:
 
 
 class ZITStopAfterHandoffTests(unittest.TestCase):
+    # The fixtures run with the ContentGuard switched off, a state that only
+    # BASELINE offers; RELEASE enforcement is covered by ReleaseGuardTests.
     def setUp(self):
+        self.mode_patch = patch.object(distribution, "DISTRIBUTION_MODE", distribution.BASELINE)
+        self.mode_patch.start()
+        self.addCleanup(self.mode_patch.stop)
         result_state._results.clear()
         self.temporary = tempfile.TemporaryDirectory()
         self.temp_root = Path(self.temporary.name)
@@ -199,7 +204,7 @@ class ZITStopAfterHandoffTests(unittest.TestCase):
         self.temporary.cleanup()
 
     def _cache_directory(self, scope):
-        path = self.temp_root / "cmk" / scope
+        path = self.temp_root / "cmk_cache" / scope
         path.mkdir(parents=True, exist_ok=True)
         return path
 
@@ -495,6 +500,35 @@ class ZITStopAfterHandoffTests(unittest.TestCase):
         _persist(_process(), torch.zeros((1, 2, 2, 3)), {}, {}, _prompt(), model={})
         persistent.reset_persistent_fingerprint_memo()
         self.assertIsNone(bridge.restore_hybrid_sdxl_first_pass(_process(), _prompt(), "3"))
+
+
+class ReleaseGuardTests(unittest.TestCase):
+    """RELEASE: a serialized OFF value never skips the handoff inspection."""
+
+    _cache_directory = ZITStopAfterHandoffTests._cache_directory
+    tearDown = ZITStopAfterHandoffTests.tearDown
+
+    def setUp(self):
+        ZITStopAfterHandoffTests.setUp(self)
+        release = patch.object(distribution, "DISTRIBUTION_MODE", distribution.RELEASE)
+        release.start()
+        self.addCleanup(release.stop)
+
+    def test_release_inspects_although_the_saved_switch_is_off(self):
+        prompt, process = _prompt(), _process()
+        self.assertFalse(process["content_guard_enabled"])
+        passing = _Guard()
+        with patch.object(bridge, "get_content_guard", return_value=passing):
+            key = _persist(process, torch.zeros((2, 2, 2, 3)), {}, {}, prompt)
+        self.assertEqual(passing.calls, 2)
+        self.assertTrue(persistent.pickle_available(bridge._HYBRID_BOUNDARY_SCOPE, key))
+
+        persistent.clear_persistent_disk_scopes(self.temp_root)
+        blocking = _Guard(RuntimeError("blocked"))
+        with patch.object(bridge, "get_content_guard", return_value=blocking):
+            with self.assertRaisesRegex(RuntimeError, "blocked"):
+                _persist(process, torch.zeros((1, 2, 2, 3)), {}, {}, prompt)
+        self.assertFalse(persistent.pickle_available(bridge._HYBRID_BOUNDARY_SCOPE, key))
 
 
 if __name__ == "__main__":

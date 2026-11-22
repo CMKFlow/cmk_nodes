@@ -1,9 +1,10 @@
-# Technische CMK-Referenz
+# CMK FaceSwap Video · Projektvorlage
 
-Dieser Ordner enthält ausschließlich die separat gepflegte technische Referenz
-für **CMK FaceSwap Video**. Ihr persistenter Projekt-, Segment- und
-Fortsetzungsvertrag erfordert eigene Migrations- und Kompatibilitätsprüfungen.
+`CMK_FaceSwap_Video_Project_Template.json` ist eine Runtime-Ressource: Der
+Video-Speicher des CMK Flow Browsers (`/cmk/video-storage/project/workflow`,
+`_project_workflow` in `__init__.py`) öffnet damit ein gespeichertes
+Videoprojekt, dem kein eigener Workflow zugeordnet ist, und trägt die
+Segment- und Quelleinstellungen des Projekts in den Loader ein.
 
-Alle bestätigten Bild- und Flow-Referenzen liegen unter `workflows/showcase/`
-und werden mit zweisprachigen Metadaten und aktuellen Screenshots im Reiter
-**Referenzen / References** des CMK Flow Browsers veröffentlicht.
+Die im Flow Browser veröffentlichte Video-Referenz ist der LEGACY-Eintrag
+`workflows/showcase/CMK FaceSwap Video.json`.

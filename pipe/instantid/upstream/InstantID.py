@@ -15,6 +15,7 @@ from .CrossAttentionPatch import (
     neutral_keypoint_hint,
 )
 from .utils import tensor_to_image
+from ....models.model_manager import antelopev2_root
 
 from insightface.app import FaceAnalysis
 from insightface.utils import face_align as insightface_face_align
@@ -73,7 +74,6 @@ else:
     current_paths, _ = folder_paths.folder_names_and_paths["instantid"]
 folder_paths.folder_names_and_paths["instantid"] = (current_paths, folder_paths.supported_pt_extensions)
 
-INSIGHTFACE_DIR = os.path.join(folder_paths.models_dir, "insightface")
 
 def draw_kps(image_pil, kps, color_list=[(255,0,0), (0,255,0), (0,0,255), (255,255,0), (255,0,255)]):
     stickwidth = 4
@@ -300,7 +300,7 @@ class InstantIDFaceAnalysis:
     CATEGORY = "InstantID"
 
     def load_insight_face(self, provider):
-        model = FaceAnalysis(name="antelopev2", root=INSIGHTFACE_DIR, providers=[provider + 'ExecutionProvider',]) # alternative to buffalo_l
+        model = FaceAnalysis(name="antelopev2", root=str(antelopev2_root()), providers=[provider + 'ExecutionProvider',]) # alternative to buffalo_l
         model.prepare(ctx_id=0, det_size=(640, 640))
 
         return (model,)

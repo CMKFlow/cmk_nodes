@@ -96,8 +96,8 @@
         ]
       },
       "requiredJsonKeys": {
-        "web/flow_node_metadata.json": "nodes.CMKImageResize",
-        "web/browser_content_en.json": "flows.CMKImageResize"
+        "web/flow_node_metadata.json": "nodes.CMKImageResizeV2",
+        "web/browser_content_en.json": "flows.CMKImageResizeV2"
       }
     }
   ]

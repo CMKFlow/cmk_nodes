@@ -99,7 +99,8 @@ def flow_browser_statistics(package_root: Path | str = PACKAGE_ROOT) -> dict[str
     categories = {category: 0 for category in CATEGORY_ORDER}
     visible = 0
     for _, metadata in records:
-        visible += int(metadata.get("published") is True)
+        # Search-only entries are published but not listed in the category view.
+        visible += int(metadata.get("published") is True and metadata.get("searchOnly") is not True)
         category = str(metadata.get("category") or "UNASSIGNED")
         categories[category] = categories.get(category, 0) + 1
     return {
@@ -168,7 +169,7 @@ def _sum_inventory(items: list[dict[str, int]]) -> dict[str, int]:
 
 def persistent_cache_statistics(
     package_root: Path | str = PACKAGE_ROOT,
-    temp_root: Path | str | None = None,
+    base_directory: Path | str | None = None,
 ) -> dict[str, Any]:
     result: dict[str, Any] = {}
     try:
@@ -176,7 +177,7 @@ def persistent_cache_statistics(
     except OSError as error:
         result["generation_completion"] = {"available": False, "error": str(error)}
     try:
-        scopes = persistent_disk_scope_inventory(temp_root)
+        scopes = persistent_disk_scope_inventory(base_directory)
         result["branch"] = _sum_inventory([
             inventory for scope, inventory in scopes.items() if scope.endswith("_branch")
         ])
@@ -234,14 +235,14 @@ def runtime_statistics() -> dict[str, str | None]:
 def collect_statistics(
     node_mappings: Mapping[str, type],
     package_root: Path | str = PACKAGE_ROOT,
-    temp_root: Path | str | None = None,
+    base_directory: Path | str | None = None,
 ) -> dict[str, Any]:
     root = Path(package_root)
     return {
         "cmk_flow": cmk_flow_statistics(node_mappings, root),
         "flow_browser": flow_browser_statistics(root),
         "showcase": showcase_statistics(root),
-        "persistent_cache": persistent_cache_statistics(root, temp_root),
+        "persistent_cache": persistent_cache_statistics(root, base_directory),
         "runtime": runtime_statistics(),
     }
 

@@ -1,4 +1,5 @@
 import { app } from "../../../scripts/app.js";
+import { applyFixedSize } from "./cmk_fixed_size.js";
 import { api } from "../../../scripts/api.js";
 
 const TARGETS = new Map([
@@ -64,6 +65,7 @@ function setSource(state, descriptor) {
 function compactToContent(node, minWidth = 600) {
     requestAnimationFrame(() => {
         try {
+            if (applyFixedSize(node)) return;
             const computed = node.computeSize?.();
             const width = Math.max(Number(node.size?.[0]) || 0, minWidth);
             const height = Math.max(Number(computed?.[1]) || 0, 380);

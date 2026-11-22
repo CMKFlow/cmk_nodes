@@ -1,0 +1,19 @@
+{
+  "published": true,
+  "displayName": "CMK 2.8 · Text2Image · Identity 2",
+  "kind": "real-world",
+  "order": 104,
+  "category": "REAL-WORLD WORKFLOWS",
+  "category_en": "REAL-WORLD WORKFLOWS",
+  "description": "Zeigt einen Text2Image-Identity-Workflow für bis zu drei Personen mit InstantID Regional und führt die Identitätsverarbeitung anschließend mit den Advanced-Varianten von FaceProcess und FaceRebuild weiter.",
+  "description_en": "Shows a Text2Image identity workflow for up to three people with InstantID Regional, then continues the identity processing with the Advanced variants of FaceProcess and FaceRebuild.",
+  "cmkHighlight": "Bis zu drei Identitäten können innerhalb desselben Workflows unabhängig voneinander verarbeitet werden. FaceRebuild · Advanced erlaubt dafür bis zu drei getrennte Zuordnungen in einem Durchlauf.",
+  "cmkHighlight_en": "Up to three identities can be processed independently within the same workflow. FaceRebuild · Advanced supports up to three separate assignments in a single run.",
+  "previews": [
+    {
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/4 - CMK 2.8 · Text2Image · Identity 2/CMK 2.8 · Text2Image · Identity 2.webp",
+      "label": "Workflow",
+      "label_en": "Workflow"
+    }
+  ]
+}

@@ -29,6 +29,8 @@ REPORTS = TESTS_ROOT / "_reports"
 # Real cache locations that a test run must never modify.
 PROTECTED_CACHE_ROOTS = (
     PACKAGE_ROOT / "cache",
+    COMFY_ROOT / "user" / "cmk_cache",
+    # Location before 2.8.0, still written by an instance started with older code.
     COMFY_ROOT / "temp" / "cmk",
 )
 

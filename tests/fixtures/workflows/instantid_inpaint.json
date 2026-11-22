@@ -676,7 +676,7 @@
         "Node name for S&R": "CMKLoadImage",
         "comparer_mode": "Click",
         "default_output": "b",
-        "image": "CMK Package · inpaint_reference2.png",
+        "image": "inpaint_reference2.png",
         "cmkOuterSize": [
           450,
           965
@@ -697,12 +697,12 @@
         "cmkCleanView": true
       },
       "widgets_values": [
-        "CMK Package · inpaint_reference2.png",
+        "inpaint_reference2.png",
         false,
         "image"
       ],
       "widgets_values_named": {
-        "image": "CMK Package · inpaint_reference2.png",
+        "image": "inpaint_reference2.png",
         "opt_in": false,
         "upload": "image"
       },

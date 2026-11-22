@@ -129,6 +129,21 @@ class CMKInstantIDFaceRebuildAdvancedSDXL:
             f"{content_guard_state_token(PROCESS)}"
         )
 
+    def _bypass_diagnostic(self, image, summary):
+        return make_diagnostic_payload(
+            title=f"{self.DIAGNOSTIC_NAME} · Bypass", node=self.__class__.__name__,
+            stages=[{"title": "Bypass", "subtitle": "target unchanged", "image": image}],
+            previews=[image], summary=summary, details=summary,
+            mode="Bypass", metadata={"bypassed": True},
+        )
+
+    def _module_diagnostic(self, source, result, slots):
+        """Prepare, Face Detailer and Pasteback diagnostics of every slot, in pasteback order."""
+        diagnostics = [item for slot in slots for item in slot["diagnostics"]]
+        return CMKDiagnosticConcat().concat(self.DIAGNOSTIC_NAME, diagnostics[0], **{
+            f"diagnostic_{i}": item for i, item in enumerate(diagnostics[1:], start=2)
+        })[0]
+
     def rebuild(self, VISUAL=None, unique_id=None, **values):
         try:
             return self._rebuild(VISUAL=VISUAL, unique_id=unique_id, **values)
@@ -154,12 +169,7 @@ class CMKInstantIDFaceRebuildAdvancedSDXL:
         visual = empty_visual() if VISUAL is None else VISUAL
         active = [i for i in range(1, 4) if values[f"FACE {i} ENABLE"]]
         if not values["FACEREBUILD ENABLE"] or not active:
-            diagnostic = make_diagnostic_payload(
-                title=f"{self.DIAGNOSTIC_NAME} · Bypass", node=self.__class__.__name__,
-                stages=[{"title": "Bypass", "subtitle": "target unchanged", "image": image}],
-                previews=[image], summary="No active FaceRebuild slot", details="No active FaceRebuild slot",
-                mode="Bypass", metadata={"bypassed": True},
-            )
+            diagnostic = self._bypass_diagnostic(image, "No active FaceRebuild slot")
             return model, process, image, log, visual, diagnostic
 
         cache_key = self._advanced_sampling_key(values)
@@ -256,8 +266,9 @@ class CMKInstantIDFaceRebuildAdvancedSDXL:
         model, process, detail_log, stages = cached
         image = values["IMAGE"]
         log = detail_log
-        diagnostics = []
+        slots = []
         for index, rebuilt, mask, context, block, prepare_diag, detail_diag in stages:
+            before = image
             image, _mask, paste_block, paste_diag = CMKInstantIDFaceRebuildPasteback().pasteback(**{
                 "TARGET IMAGE": image, "REBUILT ROI": rebuilt, "PASTEBACK MASK": mask,
                 "REBUILD CONTEXT": context, "PASTEBACK NECK": values[f"PASTEBACK NECK {index}"],
@@ -265,11 +276,13 @@ class CMKInstantIDFaceRebuildAdvancedSDXL:
             prefix = f"{self.LOG_LABEL} · Slot {index}"
             log = _append_structured_log_block(log, block, prefix)
             log = _append_structured_log_block(log, paste_block, prefix)
-            diagnostics.extend((prepare_diag, detail_diag, paste_diag))
+            slots.append({
+                "index": index, "context": context, "target_face": str(values[f"TARGET FACE {index}"]),
+                "pasteback_neck": bool(values[f"PASTEBACK NECK {index}"]), "before": before, "after": image,
+                "diagnostics": (prepare_diag, detail_diag, paste_diag),
+            })
 
-        diagnostic = CMKDiagnosticConcat().concat(self.DIAGNOSTIC_NAME, diagnostics[0], **{
-            f"diagnostic_{i}": item for i, item in enumerate(diagnostics[1:], start=2)
-        })[0]
+        diagnostic = self._module_diagnostic(values["IMAGE"], image, slots)
         visual = register_provider(
             visual,
             module_instance_id=unique_id or "facerebuild-advanced",
@@ -359,6 +372,9 @@ class CMKInstantIDFaceRebuildSDXL:
             f"{content_guard_state_token(PROCESS)}"
         )
 
+    _bypass_diagnostic = CMKInstantIDFaceRebuildAdvancedSDXL._bypass_diagnostic
+    _module_diagnostic = CMKInstantIDFaceRebuildAdvancedSDXL._module_diagnostic
+
     def rebuild(self, VISUAL=None, unique_id=None, **values):
         try:
             return self._rebuild(VISUAL=VISUAL, unique_id=unique_id, **values)
@@ -383,12 +399,7 @@ class CMKInstantIDFaceRebuildSDXL:
         content_guard_enabled = effective_content_guard_enabled(process)
         visual = empty_visual() if VISUAL is None else VISUAL
         if not values["FACEREBUILD ENABLE"]:
-            diagnostic = make_diagnostic_payload(
-                title=f"{self.DIAGNOSTIC_NAME} · Bypass", node=self.__class__.__name__,
-                stages=[{"title": "Bypass", "subtitle": "target unchanged", "image": image}],
-                previews=[image], summary="FaceRebuild disabled", details="FaceRebuild disabled",
-                mode="Bypass", metadata={"bypassed": True},
-            )
+            diagnostic = self._bypass_diagnostic(image, "FaceRebuild disabled")
             return model, process, image, log, visual, diagnostic
 
         cache_key = self._sampling_key(values)
@@ -441,10 +452,11 @@ class CMKInstantIDFaceRebuildSDXL:
         })
         log = _append_structured_log_block(detail_log, block, self.LOG_LABEL)
         log = _append_structured_log_block(log, paste_block, self.LOG_LABEL)
-        diagnostics = (prepare_diag, detail_diag, paste_diag)
-        diagnostic = CMKDiagnosticConcat().concat(self.DIAGNOSTIC_NAME, diagnostics[0], **{
-            f"diagnostic_{i}": item for i, item in enumerate(diagnostics[1:], start=2)
-        })[0]
+        diagnostic = self._module_diagnostic(values["IMAGE"], image, [{
+            "index": 1, "context": context, "target_face": str(values["TARGET FACE"]),
+            "pasteback_neck": bool(values["PASTEBACK NECK"]), "before": values["IMAGE"], "after": image,
+            "diagnostics": (prepare_diag, detail_diag, paste_diag),
+        }])
         visual = register_provider(
             visual,
             module_instance_id=unique_id or "facerebuild-standard",

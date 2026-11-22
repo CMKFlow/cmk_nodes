@@ -1,0 +1,20 @@
+{
+  "published": true,
+  "searchOnly": true,
+  "displayName": "CMK 2.8 · FaceProcess Advanced · Modul",
+  "kind": "module",
+  "order": 304,
+  "category": "MODULE WORKFLOWS",
+  "category_en": "MODULE WORKFLOWS",
+  "description": "Zeigt FaceProcess · Advanced als fertiges CMK-Modul: bis zu drei ausgewählte Gesichter, jedes mit eigenem Modus (RESTORE · SDXL · ZIT) und eigenen Einstellungen. MODE schaltet das gesamte Modul ein oder aus.",
+  "description_en": "Shows FaceProcess · Advanced as a complete CMK module: up to three selected faces, each with its own mode (RESTORE · SDXL · ZIT) and settings. MODE switches the whole module on or off.",
+  "cmkHighlight": "Der diskrete FaceProcess-Ablauf ist zu einem wiederverwendbaren Modul mit einheitlicher Schnittstelle gekapselt.",
+  "cmkHighlight_en": "The discrete FaceProcess sequence is encapsulated in a reusable module with a consistent interface.",
+  "previews": [
+    {
+      "src": "assets/showcase/MODULE WORKFLOWS/CMK · FaceProcess Advanced · Modul/CMK 2.8 · FaceProcess Advanced · Modul.webp",
+      "label": "Workflow",
+      "label_en": "Workflow"
+    }
+  ]
+}

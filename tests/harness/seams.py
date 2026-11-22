@@ -510,6 +510,8 @@ def fake_call_node_kwargs(names, **kwargs):
     if name.startswith("Conditioning"):
         if name == "ConditioningSetAreaPercentage":
             REGIONAL_AREAS.append({key: kwargs[key] for key in ("x", "y", "width", "height", "strength")})
+        if name == "ConditioningSetMask":
+            REGIONAL_AREAS[-1]["mask_shape"] = tuple(kwargs["mask"].shape)
         return (next(iter(kwargs.values())),)
     if name == "UNETLoader":
         return (_fake_model("zit", kwargs.get("unet_name", "zit")),)
@@ -622,4 +624,31 @@ def install_standard(seams: Seams, runtime, *, stop_prepare: bool = True, fake_p
     import comfy.model_management
 
     seams.watch(comfy.model_management, "unload_all_models", "lifecycle.unload_all_models", rebind=True)
+    install_release_guard(seams, runtime)
     install_tripwires(seams)
+
+
+def install_release_guard(seams: Seams, runtime) -> None:
+    """RELEASE enforces the ContentGuard regardless of the saved switch.
+
+    The harness loads no models, so the guard's NudeNet/InsightFace inference
+    would hit the tripwires and fail closed.  In RELEASE the inspections are
+    therefore answered model-free with an approval and counted under their own
+    seam names; the real guard decisions are covered by the ContentGuard unit
+    tests.  BASELINE keeps the unmodified guard.
+    """
+    distribution = runtime.cmk_module("cmk_distribution")
+    if distribution.distribution_mode() != distribution.RELEASE:
+        return
+    content_guard = runtime.cmk_module("engine.content_guard")
+
+    def approve_content(self, image_rgb, role):
+        return None
+
+    def approve_image(self, image_rgb, face, role):
+        return content_guard.GuardResult(role=str(role), estimated_age=30, explicit_detections=())
+
+    seams.substitute(content_guard.CMKContentGuard, "inspect_content",
+                     "guard.release.inspect_content", approve_content)
+    seams.substitute(content_guard.CMKContentGuard, "inspect_image",
+                     "guard.release.inspect_image", approve_image)

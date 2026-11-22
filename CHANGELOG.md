@@ -1,3 +1,107 @@
+# CMK Flow 2.8.0 — 2026-11-22
+
+Paketversion: **CMK 2.8.0**.
+
+- Neuer Standard-Detailer `CMK Flow · Detailer` für SDXL oder Z-Image Turbo
+  und neuer `CMK Flow · Detailer · Advanced` mit drei unabhängigen Detailern,
+  jeder mit eigener Modellfamilie (NONE · SDXL · ZIT) und eigenen Einstellungen.
+- Lazy-Modellmaterialisierung: Prepare liefert Modell-Spezifikationen, Modelle
+  entstehen erst beim Branch-Cache-MISS; der Advanced-Merge fordert ZIT-Zweige
+  vor SDXL-Zweigen an, jede Familie wird einmal geladen und ZIT vor SDXL freigegeben.
+- Maskenbasierter Advanced-Merge: Zweige werden mit ihren tatsächlichen
+  Pasteback-Masken in der Reihenfolge D1 → D2 → D3 zusammengeführt; große
+  Sampling-ROIs überschreiben keine bearbeiteten Bereiche mehr.
+- Räumliche Diagnose: Smart Detailer mit Sampling ROI, Mask und Pasteback;
+  Merge mit INPUT SEGS, OVERLAP, COMPOSITE (Alpha-Anteile) und FINAL.
+- Beide Detailer-Subgraphen enthalten fest integrierte `CMK Preview Render`
+  (Standard: ein Render, Advanced: vier) für die Diagnose im Subgraphen.
+- Persistente Branch- und Boundary-Caches liegen unter
+  `ComfyUI/user/cmk_cache/` und überstehen ComfyUI-Neustarts.
+- Außenansicht beider Detailer mit Dropdown `MODE` (Standard: DISABLE · SDXL ·
+  ZIT, Advanced: ENABLE · DISABLE) mit rechtsbündigen Werten.
+- Flow Browser: Flows-Katalog zeigt `Detailer` mit den Varianten Standard und
+  Advanced. Die SDXL-Detailer und ihre Referenz-Workflows bleiben als Dateien
+  erhalten, sind aber nicht mehr veröffentlicht.
+- Einheitlicher Portvertrag für alle PostProcess-Module: Eingänge und Ausgänge
+  MODEL ZIT, MODEL SDXL, PROCESS, IMAGE, LOG, VISUAL (plus `diagnostic`).
+- Neue v2-Subgraphen `FaceProcess` (Standard/Advanced, RESTORE · SDXL · ZIT),
+  `FaceRebuild SDXL v2`, `FaceSwap v2` (jeweils Standard/Advanced),
+  `MaskDetailer` (SDXL oder ZIT) und `Upscale & Save v2`; die Vorgänger
+  bleiben als Dateien erhalten, sind aber nicht mehr veröffentlicht.
+- MODE-Dropdowns statt Toggles: FaceSwap, MaskDetailer (außen ENABLE · DISABLE,
+  innen Modellfamilie SDXL · ZIT), Upscale & Save (`SAVE`) und Image Resize v2
+  (`SCALE`).
+- MaskDetailer Flow Gate v2: Diagnose nur bei ENABLE; bei DISABLE bleiben
+  Intake, Prepare und Process stumm.
+- Detailer Advanced und FaceProcess Advanced mit der Ausführungsgrenze der
+  Standard-Varianten: Ein eigener Mode-Node speist Bypass Gate, Preview &
+  Compare und das neue `CMK Module Diagnostic Gate`; bei MODE = DISABLE laufen
+  Prepare, Zweige, Merge und Diagnose-Renders nicht mehr. Der Detailer-Merge
+  beachtet den globalen Schalter des Prepare.
+- Preview & Compare: Deaktivierte Module werden nach ihrer tatsächlichen
+  Steuerung (MODE, Modellfamilie, Prozessmodus) erkannt und übernehmen keine
+  Live-Vorschau fremder Module; ein abgebrochener Lauf hinterlässt keine
+  Live-Bilder, sondern den zuletzt abgeschlossenen Stand.
+- `30 PostProcess Setup v2` mit getrennten SDXL- und Z-Image-Turbo-Bereichen
+  und `Image Resize v2` ersetzen ihre Vorgänger im Flows-Katalog (die
+  Vorgänger-Nodes bleiben registriert).
+- Showcase 2.8: Text2Image, InOutpaint, Identity 1/2, Text2Image ZIT ·
+  FaceRebuild, Full Flow, CMK · Detailer/FaceProcess/MaskDetailer und die
+  Modul-Workflows Detailer, FaceProcess, FaceRebuild SDXL, FaceSwap und
+  MaskDetailer ersetzen ihre 2.7-Gegenstücke. Die Advanced-Modul-Workflows
+  (302 Detailer, FaceProcess, FaceRebuild SDXL, FaceSwap) sind katalogisiert,
+  aber nicht veröffentlicht. Die Previews werden mit der Release-Validierung ersetzt.
+- `07 Regional Layout`: Regler `Conditioning Blend` unter ADVANCED mit sieben
+  Rastpunkten von `AREA` (Stufe 0, nativer ComfyUI-AREA-Pfad) bis `MASK`
+  (Stufe 6, gemeinsames Kantenprofil `cmk-regional-edge-true-v1` ohne
+  ComfyUIs AREA-Randabschwächung); die Stufen 1–5 mischen beide mit
+  stufenweise wachsendem UNet-Ausschnitt, ohne zusätzliche UNet-Durchgänge.
+  Gespeichert als `conditioning_blend` (0–6) in `regions_json`; Standard,
+  Layouts ohne Wert und `02 Regional Conditioning SDXL` nutzen MASK (6). LOG und
+  Cache-Schlüssel nennen die verwendete Stufe. Offen und nicht Teil dieser
+  Änderung: die Global-/Regionalprompt-Koordination bei mehreren Regionen und
+  die visuelle und funktionale Validierung von InstantID-Hybrid mit dem neuen
+  Regional Conditioning.
+- InstantID Sampler und InstantID Regional Advanced (`InstantID reference`):
+  Die native Referenz wird pro Conditioning-Eintrag aus dessen eigenem Prompt
+  kodiert; Regionalprompts werden nicht mehr zu 75 % durch den Globalprompt
+  ersetzt. Ohne Regionen bleibt das Conditioning bitgleich. Passt das
+  Conditioning nicht zu den aktiven Regionen, bricht der Lauf mit einer
+  Diagnose ab. Gespeicherte InstantID-Ergebnisse werden einmal neu berechnet.
+  Die visuelle Validierung steht noch aus.
+- `07 Regional Layout`: **Bewusste Begrenzung gegenüber CMK Flow 2.7** – der
+  Editor legt höchstens zwei Regionen neu an (Hinzufügen, Duplizieren und
+  Aufziehen auf der Fläche). Drei und mehr Regionen zeigten in der
+  2.8-Validierung wiederholt Kompositionsprobleme ohne geklärte Ursache.
+  Gespeicherte Layouts mit mehr Regionen werden vollständig geladen, bleiben
+  bearbeitbar, werden verlustfrei gespeichert und unverändert ausgeführt;
+  das Backend und `regions_json` sind unverändert.
+- InstantID Regional Advanced (Hybrid, Text2Image): **adaptiver Handoff**.
+  Der Handoff-Regler bezeichnet den angestrebten Übergabe-Step. Modul 10
+  sampelt bis zu vier Steps darüber hinaus (höchstens bis Steps − 1) und hält
+  für jeden Step ab 1 das x0 und den Latent-Zustand bereit. Advanced prüft
+  zuerst den Ziel-Step, dann die späteren Steps aufsteigend, zuletzt die
+  früheren absteigend bis Step 1, und übernimmt den ersten Step, auf dem seine
+  unveränderte TARGET-Auswahl beide (bzw. das eine) Zielgesicht auflöst; ohne
+  Treffer bricht es mit Gesichtsdiagnose pro Step ab. Das LOG nennt Ziel- und
+  tatsächlichen Step sowie die Suchrichtung. Nur für präfixstabile Sampler
+  (u. a. Euler, Euler Ancestral, DPM++ 2M); SDE-Sampler, Inpaint-Bridge,
+  Zero-Pass und InstantID Standard behalten den festen Handoff. STOP AFTER
+  HANDOFF sampelt bei Advanced dasselbe Fenster (bis zu vier SDXL-Steps mehr,
+  ohne InstantID), sodass die anschließende Fortsetzung den Handoff-Cache trifft. SDXL-Handoff-Cache-Schema v2, Suchstrategie `cmk-adaptive-handoff-v2`.
+- Modellpfade: FaceSwap (Hyperswap, Reswapper) und InstantID FaceAnalysis
+  (`antelopev2`) berücksichtigen die von ComfyUI registrierten Modellordner,
+  etwa die gemeinsamen Ordner von ComfyUI Desktop; lokale Modellordner bleiben
+  unterstützt. InstantID verwendet nur einen Ordner mit vollständigem, flachem
+  `antelopev2`-Paket und meldet sonst einen klaren Fehler statt eines
+  automatischen Downloads. Die Ressourcenprüfung kennt `antelopev2` und erkennt
+  verschachtelte Installationen.
+- Showcase `CMK 2.8 · Text2Image · Identity 2`: eine unverkabelte, deckungsgleich
+  über der aktiven Instanz liegende Kopie des 15A-Subgraphen entfernt.
+- Dokumentation: Entwicklungs- und Referenzumgebung (MacBook Pro M1 Pro, 16 GB,
+  ComfyUI 0.46.2) sowie die Rolle des LoRA Managers (optional für den Kern,
+  erforderlich für die Showcase-Workflows mit LoRA-Stack) beschrieben.
+
 # CMK Flow 2.7.0 — 2026-11-10
 
 Paketversion: **CMK 2.7.0**.

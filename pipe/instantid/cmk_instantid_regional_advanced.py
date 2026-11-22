@@ -30,6 +30,8 @@ from ...engine.content_guard import (
 from ...engine.instantid_face_rebuild import select_target_face
 from ...utils.tensor_utils import tensor_to_uint8_rgb
 from .cmk_instantid_conditioning import _hybrid_positive_conditioning
+from .cmk_instantid_reference import apply_reference_conditioning
+from ..cmk_adaptive_handoff import CandidateRejected, first_resolved_candidate, search_label
 from .upstream.InstantID import InstantIDAttentionPatch, extractFeatures
 
 
@@ -217,6 +219,105 @@ def _regional_hints(faceanalysis, layout_image, target_a, target_b):
             "CMK InstantID Regional Advanced: TARGET A and TARGET B resolve to the same person"
         )
     return hint_a, mask_a, hint_b, mask_b, overlap
+
+
+def _detected_faces(faceanalysis, layout_image):
+    """Faces the target search sees, for diagnostics only (same size cascade as extractFeatures)."""
+    try:
+        from .upstream.utils import tensor_to_image
+
+        image = tensor_to_image(layout_image)[0]
+        detector = faceanalysis.det_model
+        for size in range(640, 128, -64):
+            detector.input_size = (size, size)
+            faces = list(faceanalysis.get(image) or [])
+            if faces:
+                return [
+                    (tuple(int(round(float(value))) for value in face["bbox"][:4]), float(face["det_score"]))
+                    for face in faces
+                ]
+        return []
+    except Exception:
+        return None
+    finally:
+        try:
+            faceanalysis.det_model.input_size = (640, 640)
+        except Exception:
+            pass
+
+
+def _face_summary(faces):
+    if faces is None:
+        return "faces n/a"
+    if not faces:
+        return "0 faces"
+    listed = ", ".join(f"{bbox} {score:.2f}" for bbox, score in sorted(faces, key=lambda item: item[0][0]))
+    return f"{len(faces)} face{'s' if len(faces) != 1 else ''} [{listed}]"
+
+
+def _rejection(reason):
+    """Short form of the unchanged TARGET error texts."""
+    text = str(reason)
+    if "resolve to the same person" in text:
+        return "TARGET A and TARGET B resolve to the same person"
+    if "could not be detected" in text:
+        return "target face not detected"
+    return text
+
+
+def _adaptive_target_regions(
+    *, candidates, decode, faceanalysis, target_face_a, target_face_b, source_b_enabled,
+):
+    """First handoff candidate, in search order, whose targets resolve with the unchanged TARGET logic.
+
+    Returns ``(candidate, layout_image, hints, rejected)``.  A rejected
+    candidate is described by its TARGET reason and its detected faces; when
+    none resolves, the error lists every candidate.
+    """
+    images = {}
+    faces = {}
+
+    def evaluate(candidate):
+        try:
+            layout_image = decode(candidate["x0"])
+        except ValueError as exc:  # a decode failure is not a rejected candidate
+            raise RuntimeError(f"adaptive handoff: decoding step {candidate['step']} failed: {exc}") from exc
+        images[candidate["step"]] = layout_image
+        try:
+            if source_b_enabled:
+                return _regional_hints(faceanalysis, layout_image, target_face_a, target_face_b)
+            hint_a, mask_a = _regional_hint(faceanalysis, layout_image, target_face_a)
+            return hint_a, mask_a, None, None, 0.0
+        except ValueError:
+            faces[candidate["step"]] = _detected_faces(faceanalysis, layout_image)
+            raise
+
+    try:
+        candidate, hints, attempts = first_resolved_candidate(candidates, evaluate)
+    except CandidateRejected as exc:
+        attempts = exc.args[0]
+        detail = " | ".join(
+            f"step {step}: {_rejection(reason)} · {_face_summary(faces.get(step))}" for step, reason in attempts
+        )
+        targets = "TARGET A and TARGET B" if source_b_enabled else "TARGET A"
+        raise ValueError(
+            f"CMK InstantID Regional Advanced: no handoff candidate "
+            f"({search_label([candidate['step'] for candidate in candidates])}) "
+            f"resolves {targets} · {detail}"
+        ) from None
+    rejected = [
+        f"step {step}: {_rejection(reason)} · {_face_summary(faces.get(step))}"
+        for step, reason in attempts
+        if reason is not None
+    ]
+    return candidate, images[candidate["step"]], hints, rejected
+
+
+def _guard_handoff_candidate(layout_image):
+    """ContentGuard for a chosen candidate module 10 did not inspect itself."""
+    guard = get_content_guard()
+    for image in layout_image:
+        guard.inspect_content(tensor_to_uint8_rgb(image), "target_intermediate")
 
 
 def _merge_control_outputs(current, addition):
@@ -610,6 +711,13 @@ class CMKInstantIDRegionalAdvancedSDXLPipe:
             raise ContentGuardBlocked("CG_HANDOFF_UNVERIFIED", "target_intermediate")
         layout_latent = _first(sampled_in.get("samples"), sampled_in.get("latent_1st_pass"), sampled_in.get("latent_image"))
         keypoints_latent = None if zero_pass_mode else sampled_in.get("instantid_keypoints_latent")
+        # Adaptive handoff (module 10 sampled a window for this node): the
+        # first candidate whose targets resolve sets x0, latent and start step.
+        handoff_candidates = (
+            None
+            if zero_pass_mode or inpaint_bridge_mode
+            else (sampled_in.get("instantid_handoff_candidates") or None)
+        )
         vae = _first(model_pipe.get("vae"), sampled_in.get("vae"))
         identity_sampling_source = (
             "aligned Hybrid ModelSampling"
@@ -660,6 +768,9 @@ class CMKInstantIDRegionalAdvancedSDXLPipe:
         if missing:
             raise ValueError("CMK InstantID Sampler SDXL -Pipe-: missing " + ", ".join(missing))
 
+        # Before the hybrid handoff removes the spatial keys: the reference
+        # assignment checks them.
+        source_positive = positive
         positive = _hybrid_positive_conditioning(
             positive,
             instantid_mode=process.get("instantid_mode", "HYBRID"),
@@ -672,55 +783,18 @@ class CMKInstantIDRegionalAdvancedSDXLPipe:
         )
         conditioning_source = "CMK prepared"
         if str(conditioning_mode) == "InstantID reference":
-            prepared_positive = positive
-            prepared_negative = negative
-            clean_clip = model_pipe.get("clip")
-            if clean_clip is None:
-                from ..loaders.checkpoint_vae_loader import ensure_sdxl_text_encoder
-
-                clean_clip, _ = ensure_sdxl_text_encoder(model_pipe)
-            prompt_pos = str(process.get("prompt_pos", sampled_in.get("prompt_pos", "")) or "")
-            prompt_neg = str(process.get("prompt_neg", sampled_in.get("prompt_neg", "")) or "")
-            translation_pos = translate_prompt(prompt_pos)
-            translation_neg = translate_prompt(prompt_neg)
-            with cmk_timed("15 INSTANTID REFERENCE CONDITIONING", "native CLIP Text Encode"):
-                reference_positive = _outputs(_call_node(("CLIPTextEncode",), clip=clean_clip, text=translation_pos.text))[0]
-                reference_negative = _outputs(_call_node(("CLIPTextEncode",), clip=clean_clip, text=translation_neg.text))[0]
-            if bool(process.get("unload_models_after_use", True)):
-                from ..loaders.checkpoint_vae_loader import evict_sdxl_text_encoder
-
-                evict_sdxl_text_encoder(model_pipe, sampled_in)
-                clean_clip = None
-                import gc
-
-                gc.collect()
-                try:
-                    import comfy.model_management
-
-                    comfy.model_management.cleanup_models_gc()
-                    comfy.model_management.soft_empty_cache(force=True)
-                except Exception:
-                    pass
-            reference_weight = max(0.0, min(1.0, float(reference_conditioning_weight)))
-            with cmk_timed(
-                "15 INSTANTID HYBRID CONDITIONING",
-                f"reference={reference_weight:.2f} | CMK prepared={1.0 - reference_weight:.2f}",
-            ):
-                positive = _outputs(_call_node(
-                    ("ConditioningAverage",),
-                    conditioning_to=prepared_positive,
-                    conditioning_from=reference_positive,
-                    conditioning_to_strength=1.0 - reference_weight,
-                ))[0]
-                negative = _outputs(_call_node(
-                    ("ConditioningAverage",),
-                    conditioning_to=prepared_negative,
-                    conditioning_from=reference_negative,
-                    conditioning_to_strength=1.0 - reference_weight,
-                ))[0]
-            conditioning_source = (
-                f"hybrid: {reference_weight:.0%} native reference | "
-                f"{1.0 - reference_weight:.0%} CMK prepared"
+            positive, negative, conditioning_source, translation_pos, translation_neg = apply_reference_conditioning(
+                source_positive=source_positive,
+                positive=positive,
+                negative=negative,
+                process=process,
+                sampled_in=sampled_in,
+                model_pipe=model_pipe,
+                reference_conditioning_weight=reference_conditioning_weight,
+                call_node=_call_node,
+                outputs=_outputs,
+                translate=translate_prompt,
+                timed=cmk_timed,
             )
 
         if zero_pass_mode:
@@ -734,6 +808,8 @@ class CMKInstantIDRegionalAdvancedSDXLPipe:
                     batch_size=1,
                     color=0,
                 ))[0]
+        elif handoff_candidates:
+            layout_image = None  # decoded per candidate during the target search
         else:
             # Decode the sampler's clean x0 estimate for face/keypoint detection.
             # The separate noisy layout latent remains untouched for continuation.
@@ -754,15 +830,56 @@ class CMKInstantIDRegionalAdvancedSDXLPipe:
         with cmk_timed("15 INSTANTID CONTROLNET LOAD", str(controlnet_model)):
             control_net = _outputs(_call_node(("ControlNetLoader",), control_net_name=controlnet_model))[0]
         target_detail = f"A={target_face_a} | B={target_face_b}" if source_b_enabled else f"A={target_face_a} | B=disabled"
-        with cmk_timed("15R ADVANCED TARGET REGIONS", target_detail):
-            if source_b_enabled:
-                hint_a, mask_a, hint_b, mask_b, region_overlap = _regional_hints(
-                    faceanalysis, layout_image, target_face_a, target_face_b,
+        handoff_step = None
+        handoff_rejected = []
+        if handoff_candidates:
+            def decode_candidate(samples):
+                latent = dict(keypoints_latent) if isinstance(keypoints_latent, dict) else {}
+                latent["samples"] = samples
+                with cmk_timed("15 INSTANTID KEYPOINTS X0 VAE DECODE"):
+                    return _outputs(_call_node(("VAEDecode",), samples=latent, vae=vae))[0]
+
+            handoff_search = search_label([item["step"] for item in handoff_candidates])
+            with cmk_timed(
+                "15R ADVANCED ADAPTIVE HANDOFF",
+                f"{target_detail} | target step {handoff_candidates[0]['step']} | search {handoff_search}",
+            ):
+                candidate, layout_image, hints, handoff_rejected = _adaptive_target_regions(
+                    candidates=handoff_candidates,
+                    decode=decode_candidate,
+                    faceanalysis=faceanalysis,
+                    target_face_a=target_face_a,
+                    target_face_b=target_face_b,
+                    source_b_enabled=source_b_enabled,
                 )
-            else:
-                hint_a, mask_a = _regional_hint(faceanalysis, layout_image, target_face_a)
-                hint_b = mask_b = None
-                region_overlap = 0.0
+            hint_a, mask_a, hint_b, mask_b, region_overlap = hints
+            handoff_step = int(candidate["step"])
+            handoff_direction = (
+                "TARGET"
+                if handoff_step == handoff_candidates[0]["step"]
+                else ("FORWARD" if handoff_step > handoff_candidates[0]["step"] else "BACKWARD")
+            )
+            print(
+                f"[CMK InstantID Advanced] HANDOFF TARGET: STEP {handoff_candidates[0]['step']} · "
+                f"ACTUAL: STEP {handoff_step} · {handoff_direction} · SEARCH {handoff_search}",
+                flush=True,
+            )
+            layout_latent = dict(layout_latent) if isinstance(layout_latent, dict) else {}
+            layout_latent["samples"] = candidate["latent"]
+            if content_guard_enabled and candidate is not handoff_candidates[0]:
+                # Module 10 inspected the target-step candidate only.
+                with cmk_timed("15R ADVANCED CONTENTGUARD HANDOFF", f"step {handoff_step}"):
+                    _guard_handoff_candidate(layout_image)
+        else:
+            with cmk_timed("15R ADVANCED TARGET REGIONS", target_detail):
+                if source_b_enabled:
+                    hint_a, mask_a, hint_b, mask_b, region_overlap = _regional_hints(
+                        faceanalysis, layout_image, target_face_a, target_face_b,
+                    )
+                else:
+                    hint_a, mask_a = _regional_hint(faceanalysis, layout_image, target_face_a)
+                    hint_b = mask_b = None
+                    region_overlap = 0.0
         with cmk_timed(
             "15R ADVANCED APPLY A",
             f"target={target_face_a} | identity={float(identity_strength_a):.2f} | pose={float(pose_strength_a):.2f}",
@@ -806,6 +923,9 @@ class CMKInstantIDRegionalAdvancedSDXLPipe:
 
         final_steps = int(sampled_in.get("steps_1st_pass", sampled_in.get("steps", 20)))
         start_at_step = 0 if zero_pass_mode else int(sampled_in.get("instantid_end_at_step", 2))
+        if handoff_step is not None:
+            # Adaptive handoff: the step of the chosen candidate.
+            start_at_step = handoff_step
         add_noise = "enable" if (zero_pass_mode or inpaint_bridge_mode) else "disable"
         workflow_mode = (
             "ZERO-PASS"
@@ -855,7 +975,10 @@ class CMKInstantIDRegionalAdvancedSDXLPipe:
             identity_decoded = _outputs(_call_node(("VAEDecode",), samples=result, vae=vae))
             identity_image = identity_decoded[0]
         sampled_out = dict(sampled_in)
+        # The candidates were consumed here; they never travel further downstream.
+        sampled_out.pop("instantid_handoff_candidates", None)
         sampled_out.update({
+            "instantid_handoff_step": start_at_step,
             "model_patched": patched_model,
             "conditioning_pos": positive_out,
             "conditioning_neg": negative_out,
@@ -903,6 +1026,22 @@ class CMKInstantIDRegionalAdvancedSDXLPipe:
             f"InstantID CFG     : {float(cfg):.2f}",
             f"Identity emb noise: {float(noise):.2f}",
             "Target mapping     : preliminary x0 face regions",
+            *(
+                [
+                    f"Handoff target    : step {handoff_candidates[0]['step']}/{final_steps}",
+                    f"Handoff actual    : step {start_at_step}/{final_steps}",
+                    f"Handoff search    : {handoff_search}",
+                    f"Handoff result    : {handoff_direction} · step {start_at_step} · success · "
+                    f"{len(handoff_rejected) + 1} checked",
+                ]
+                if handoff_step is not None
+                else [f"Handoff           : step {start_at_step}/{final_steps} · fixed" if not zero_pass_mode else "Handoff           : n/a"]
+            ),
+            *(
+                [f"Handoff rejected  : {item}" for item in handoff_rejected]
+                if handoff_rejected
+                else []
+            ),
             *(
                 [
                     (

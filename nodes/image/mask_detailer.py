@@ -573,6 +573,110 @@ class CMKMaskDetailerFlowGate:
         )
 
 
+def _prepare_source(kwargs, LOG, label):
+    """Image source of a Prepare: the locked Intake snapshot or PROCESS + IMAGE."""
+    terminal_source = kwargs.get("MASK DETAILER SOURCE")
+    source = terminal_source if isinstance(terminal_source, dict) else kwargs.get(
+        "PROCESS", kwargs.get("PROCESS SDXL")
+    )
+    image = source.get("image") if isinstance(terminal_source, dict) else kwargs.get("IMAGE")
+    if not isinstance(source, dict):
+        raise TypeError(f"{label}: connect CMK Load Image or Mask Detailer Intake.")
+    if not isinstance(image, torch.Tensor):
+        raise TypeError(f"{label}: IMAGE is missing.")
+    if isinstance(terminal_source, dict):
+        if terminal_source.get("type") != MASK_DETAILER_SOURCE or not terminal_source.get("terminal"):
+            raise TypeError(f"{label}: invalid terminal source.")
+        if LOG is None:
+            LOG = terminal_source.get("log")
+    return source, image, LOG
+
+
+def _prepared_mask(source, image, fill_mask_holes, solid_mask):
+    mask = _mask_bhw(source.get("mask"), image)
+    if bool(fill_mask_holes):
+        mask = fill_mask_holes_fn(mask)
+    if bool(solid_mask):
+        mask = _normalize_solid_mask(mask)
+    return mask
+
+
+def _positive_text(source, own_prompt):
+    """The source prompt plus the Mask Detailer's own prompt addition."""
+    return "\n".join(text for text in (str(source.get("prompt_pos") or "").strip(), own_prompt) if text)
+
+
+def _process_pipe(source, image, mask, model, clip, vae, positive, negative, positive_text, negative_text,
+                  loaded_loras, fill_mask_holes, model_family="sdxl"):
+    return {
+        "type": MASK_DETAILER_PROCESS,
+        "version": 1,
+        "model": model,
+        "clip": clip,
+        "vae": vae,
+        "image": image,
+        "mask": mask,
+        "positive": positive,
+        "negative": negative,
+        "prompt_pos": positive_text,
+        "prompt_neg": negative_text,
+        "lora": loaded_loras,
+        "fill_mask_holes": bool(fill_mask_holes),
+        "source_model_family": source.get("source_model_family", "image"),
+        "model_family": model_family,
+        "result_contract": "mask_detailer",
+        "filename_string": source.get("filename_string", ""),
+        "file_name": source.get("file_name", source.get("filename_string", "")),
+        **_source_operation(source),
+    }
+
+
+def _prepare_diagnostic(image, mask, fill_mask_holes, solid_mask, node="CMKMaskDetailerPrepare", metadata=None,
+                        with_stages=True):
+    """Prepare diagnostic.  ``with_stages=False`` gives the text card of a
+    Prepare (2.8 rule, like CMK Detailer Prepare Multi-Model): the mask is
+    shown where it is used, in the Process stages."""
+    mask_float = mask.detach().float()
+    mask_min = float(mask_float.min().cpu())
+    mask_max = float(mask_float.max().cpu())
+    mask_mean = float(mask_float.mean().cpu())
+    mask_active = int((mask_float > SOLID_MASK_THRESHOLD).sum().cpu())
+    mask_total = int(mask_float.numel())
+    mask_preview = mask.unsqueeze(-1).expand(-1, -1, -1, 3)
+    diagnostic_summary = "\n".join([
+        "Status          : Prepared",
+        f"Image           : {int(image.shape[2])} x {int(image.shape[1])}",
+        f"Mask range      : {mask_min:.6f} .. {mask_max:.6f}",
+        f"Mask mean       : {mask_mean:.6f}",
+        f"Active pixels   : {mask_active} / {mask_total}",
+        f"Fill mask holes : {'ON' if bool(fill_mask_holes) else 'OFF'}",
+        f"Solid mask      : {'ON' if bool(solid_mask) else 'OFF'}",
+    ])
+    return make_diagnostic_payload(
+        title="CMK Mask Detailer · Prepare",
+        node=node,
+        previews=[image, mask_preview] if with_stages else [image],
+        stages=[
+            {"title": "01 Source", "image": image},
+            {"title": "02 Effective Mask", "image": mask_preview},
+        ] if with_stages else None,
+        summary=diagnostic_summary,
+        details=diagnostic_summary,
+        mode="Prepare",
+        metadata={
+            "fill_mask_holes": bool(fill_mask_holes),
+            "solid_mask": bool(solid_mask),
+            "mask_min": mask_min,
+            "mask_max": mask_max,
+            "mask_mean": mask_mean,
+            "mask_active_pixels": mask_active,
+            "mask_total_pixels": mask_total,
+            **(metadata or {}),
+        },
+        metrics={"mask_coverage": mask_active / mask_total if mask_total else 0.0},
+    )
+
+
 class CMKMaskDetailerPrepare:
     """Create the isolated mask-detailer process from an image or terminal snapshot."""
 
@@ -615,31 +719,14 @@ class CMKMaskDetailerPrepare:
 
     @staticmethod
     def prepare(MODEL, lora_name, lora_strength, prompt_pos, fill_mask_holes=False, solid_mask=False, LOG=None, VISUAL=None, **kwargs):
-        terminal_source = kwargs.get("MASK DETAILER SOURCE")
-        source = terminal_source if isinstance(terminal_source, dict) else kwargs.get(
-            "PROCESS", kwargs.get("PROCESS SDXL")
-        )
-        IMAGE = source.get("image") if isinstance(terminal_source, dict) else kwargs.get("IMAGE")
         if not isinstance(MODEL, dict):
             raise TypeError("CMK Mask Detailer Prepare: MODEL must come from CMK Checkpoint & VAE.")
         MODEL = resolve_postprocess_model(MODEL)
-        if not isinstance(source, dict):
-            raise TypeError("CMK Mask Detailer Prepare: connect CMK Load Image or Mask Detailer Intake.")
-        if not isinstance(IMAGE, torch.Tensor):
-            raise TypeError("CMK Mask Detailer Prepare: IMAGE is missing.")
-        if isinstance(terminal_source, dict):
-            if terminal_source.get("type") != MASK_DETAILER_SOURCE or not terminal_source.get("terminal"):
-                raise TypeError("CMK Mask Detailer Prepare: invalid terminal source.")
-            if LOG is None:
-                LOG = terminal_source.get("log")
+        source, IMAGE, LOG = _prepare_source(kwargs, LOG, "CMK Mask Detailer Prepare")
         model, clip, vae = MODEL.get("model"), MODEL.get("clip"), MODEL.get("vae")
         if any(item is None for item in (model, clip, vae)):
             raise ValueError("CMK Mask Detailer Prepare: MODEL is missing model, clip or vae.")
-        mask = _mask_bhw(source.get("mask"), IMAGE)
-        if bool(fill_mask_holes):
-            mask = fill_mask_holes_fn(mask)
-        if bool(solid_mask):
-            mask = _normalize_solid_mask(mask)
+        mask = _prepared_mask(source, IMAGE, fill_mask_holes, solid_mask)
         lora = str(lora_name or "None")
         loaded_loras = ""
         if lora.lower() != "none":
@@ -648,33 +735,12 @@ class CMKMaskDetailerPrepare:
                 model, clip, opt_lora_syntax=syntax
             )
         own_prompt = str(prompt_pos or "").strip()
-        positive_text = "\n".join(
-            text for text in (str(source.get("prompt_pos") or "").strip(), own_prompt) if text
-        )
+        positive_text = _positive_text(source, own_prompt)
         negative_text = str(source.get("prompt_neg") or "").strip()
         positive = _node("CLIPTextEncode", "encode", clip=clip, text=positive_text)[0]
         negative = _node("CLIPTextEncode", "encode", clip=clip, text=negative_text)[0]
-        process = {
-            "type": MASK_DETAILER_PROCESS,
-            "version": 1,
-            "model": model,
-            "clip": clip,
-            "vae": vae,
-            "image": IMAGE,
-            "mask": mask,
-            "positive": positive,
-            "negative": negative,
-            "prompt_pos": positive_text,
-            "prompt_neg": negative_text,
-            "lora": loaded_loras,
-            "fill_mask_holes": bool(fill_mask_holes),
-            "source_model_family": source.get("source_model_family", "image"),
-            "model_family": "sdxl",
-            "result_contract": "mask_detailer",
-            "filename_string": source.get("filename_string", ""),
-            "file_name": source.get("file_name", source.get("filename_string", "")),
-            **_source_operation(source),
-        }
+        process = _process_pipe(source, IMAGE, mask, model, clip, vae, positive, negative, positive_text, negative_text,
+                                loaded_loras, fill_mask_holes)
         log = cmk_add_block(LOG, "Mask Detailer Prepare", 50, [
             "MODEL SOURCE     : MODEL",
             f"CHECKPOINT       : {MODEL.get('ckpt_name', 'Unknown')}",
@@ -684,44 +750,7 @@ class CMKMaskDetailerPrepare:
             f"LORA             : {loaded_loras or 'None'}",
             f"PROMPT ADDITION  : {own_prompt or 'None'}",
         ], True)
-        mask_float = mask.detach().float()
-        mask_min = float(mask_float.min().cpu())
-        mask_max = float(mask_float.max().cpu())
-        mask_mean = float(mask_float.mean().cpu())
-        mask_active = int((mask_float > SOLID_MASK_THRESHOLD).sum().cpu())
-        mask_total = int(mask_float.numel())
-        mask_preview = mask.unsqueeze(-1).expand(-1, -1, -1, 3)
-        diagnostic_summary = "\n".join([
-            "Status          : Prepared",
-            f"Image           : {int(IMAGE.shape[2])} x {int(IMAGE.shape[1])}",
-            f"Mask range      : {mask_min:.6f} .. {mask_max:.6f}",
-            f"Mask mean       : {mask_mean:.6f}",
-            f"Active pixels   : {mask_active} / {mask_total}",
-            f"Fill mask holes : {'ON' if bool(fill_mask_holes) else 'OFF'}",
-            f"Solid mask      : {'ON' if bool(solid_mask) else 'OFF'}",
-        ])
-        diagnostic = make_diagnostic_payload(
-            title="CMK Mask Detailer · Prepare",
-            node="CMKMaskDetailerPrepare",
-            previews=[IMAGE, mask_preview],
-            stages=[
-                {"title": "01 Source", "image": IMAGE},
-                {"title": "02 Effective Mask", "image": mask_preview},
-            ],
-            summary=diagnostic_summary,
-            details=diagnostic_summary,
-            mode="Prepare",
-            metadata={
-                "fill_mask_holes": bool(fill_mask_holes),
-                "solid_mask": bool(solid_mask),
-                "mask_min": mask_min,
-                "mask_max": mask_max,
-                "mask_mean": mask_mean,
-                "mask_active_pixels": mask_active,
-                "mask_total_pixels": mask_total,
-            },
-            metrics={"mask_coverage": mask_active / mask_total if mask_total else 0.0},
-        )
+        diagnostic = _prepare_diagnostic(IMAGE, mask, fill_mask_holes, solid_mask)
         return (MODEL, process, log, empty_visual() if VISUAL is None else VISUAL, diagnostic)
 
 
@@ -758,6 +787,13 @@ class CMKMaskDetailerProcess:
 
     @staticmethod
     def process(MODEL, seed, steps, cfg, sampler_name, scheduler, denoise, mask_expand, mask_feather, LOG=None, VISUAL=None, unique_id=None, **kwargs):
+        return CMKMaskDetailerProcess._run(MODEL, seed, steps, cfg, sampler_name, scheduler, denoise, mask_expand,
+                                           mask_feather, LOG=LOG, VISUAL=VISUAL, unique_id=unique_id, **kwargs)[0]
+
+    @staticmethod
+    def _run(MODEL, seed, steps, cfg, sampler_name, scheduler, denoise, mask_expand, mask_feather, LOG=None, VISUAL=None, unique_id=None, **kwargs):
+        """The outputs plus what the run used: the effective sampling mask, the
+        SEGS from the mask and the detailed SEGS SEGSPaste pasted back."""
         pipe = kwargs.get("MASK DETAILER PROCESS")
         if not isinstance(pipe, dict) or pipe.get("type") != MASK_DETAILER_PROCESS:
             raise TypeError("CMK Mask Detailer Process: invalid process family.")
@@ -854,4 +890,6 @@ class CMKMaskDetailerProcess:
             },
             metrics={"mask_coverage": mask_active / mask_total if mask_total else 0.0},
         )
-        return (MODEL, result_pipe, after, log, visual, diagnostic)
+        return (MODEL, result_pipe, after, log, visual, diagnostic), {
+            "before": before, "after": after, "mask": mask, "segs": segs, "detailed": detailed,
+        }

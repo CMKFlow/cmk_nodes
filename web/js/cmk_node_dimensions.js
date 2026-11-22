@@ -1,4 +1,5 @@
 import { app } from "../../../scripts/app.js";
+import { FIXED_SIZE_PROPERTY, fixedSize } from "./cmk_fixed_size.js";
 
 const STORAGE_KEY = "cmk-node-size-defaults-v1";
 const MENU_LABEL = "CMK · Node Dimensions …";
@@ -16,7 +17,10 @@ const BUILTIN_MINIMUMS = {
     CMKRefinerPrepareSDXLPipe: [450, 360],
     CMKInstantIDSamplerSDXLPipe: [450, 800],
     CMKInstantIDFaceRebuildSDXL: [450, 590],
+    CMKInstantIDFaceRebuildSDXLV2: [450, 590],
     CMKFaceSwapImagePipe: [380, 400],
+    CMKFaceSwapImagePipeV2: [380, 400],
+    CMKFaceSwapSlotPipeV2: [380, 400],
     CMKMultiImageLoader: [300, 420],
 };
 // CMK nodes registered by the frontend only.  ComfyUI does not call
@@ -33,10 +37,16 @@ const BUILTIN_DEFAULTS = {
     CMKZITControlNetPreparePipe: [600, 1225],
     CMKCheckpointVAELoaderPipe: [600, 165],
     CMKPostProcessModelPipe: [600, 165],
+    CMKPostProcessModelSourcePipe: [600, 330],
+    CMKDetailerFamilyEnable: [450, 130],
+    CMKFaceProcessModeEnable: [450, 130],
+    CMKDetailerPrepareAdvancedMultiModelPipe: [450, 900],
+    CMKFaceProcessPrepareAdvancedMultiModelPipe: [450, 900],
     CMKImageLoadAndResizePipe: [600, 860],
     CMKLoadImage: [600, 1225],
     CMKSwapImageLoaderPipe: [1200, 800],
     CMKPostProcessSetupPipe: [600, 500],
+    CMKPostProcessSetupV2Pipe: [600, 500],
     CMKDiagnosticConcat: [320, 135],
     CMK_FaceProcess: [540, 1015],
     CMKFaceSwapImage: [400, 395],
@@ -225,7 +235,14 @@ function applySize(node, width, height) {
     node.properties ||= {};
     node.properties.cmkOuterSize = [...persistedSize];
     node.properties.cmkManualSize = [...persistedSize];
-    if (node.properties.cmkCleanView === true) {
+    // A deliberate resize re-pins a node whose size is fixed; the size then
+    // holds in both views (see cmk_fixed_size.js).
+    if (fixedSize(node)) {
+        node.properties[FIXED_SIZE_PROPERTY] = [...persistedSize];
+        node.properties.cmkCleanViewSize = [...persistedSize];
+        node.properties.cmkCleanViewExpandedSize = [...persistedSize];
+        node.properties.cmkCleanViewExpandedHeight = persistedSize[1];
+    } else if (node.properties.cmkCleanView === true) {
         node.properties.cmkCleanViewSize = [...persistedSize];
     } else {
         node.properties.cmkCleanViewExpandedSize = [...persistedSize];

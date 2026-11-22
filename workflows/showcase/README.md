@@ -10,7 +10,7 @@ and `LEGACY`.
 Technical references that are not Flow Browser entries remain in
 `workflows/reference` and are deliberately not shown in this tab.
 
-Each published workflow needs a same-named sidecar file in `metadata/`. The sidecar controls its browser name, order, bilingual descriptions, CMK-specific highlight, and preview images. A workflow appears only when its sidecar contains `"published": true`.
+Each published workflow needs a same-named sidecar file in `metadata/`. The sidecar controls its browser name, order, bilingual descriptions, CMK-specific highlight, and preview images. A workflow appears only when its sidecar contains `"published": true`. With `"searchOnly": true` in addition, a published workflow is loadable and found by the browser search, but is not listed in the category view (CMK 2.8: the four Advanced module workflows).
 
 Reference inputs that are required to reproduce a workflow belong in the CMK
 package under `assets/references/`. Workflows select these assets through their

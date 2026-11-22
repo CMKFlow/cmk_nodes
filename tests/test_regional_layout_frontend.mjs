@@ -3,9 +3,10 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
-  automaticPreviewSignature, commitHistory, createHistory, createLatestRequestGuard,
+  automaticPreviewSignature, canCreateRegion, cloneLayout, commitHistory, createHistory, createLatestRequestGuard,
+  insertNewRegion, makeRegion, MAX_NEW_REGIONS, REGION_LIMIT_HINT,
   firstImageReference, hitRegionIndices, moveBox, normalizeBackgroundSource,
-  normalizeLayout, packagedReferenceAssetPath, prepareImageGeometry,
+  blendCaption, normalizeConditioningBlend, normalizeLayout, packagedReferenceAssetPath, prepareImageGeometry,
   processDimensionsFromWidgets, redoHistory, regionalCanvasGeometry,
   regionalLayoutAvailable, resolveAutomaticPreviewSource, resizeBox, serializeLayout,
   undoHistory,
@@ -59,7 +60,7 @@ test("frontend registration uses 07 name and enforces the pure-ZIT edit lock", (
   assert.match(source, /if \(editingLocked\) return;/);
   assert.match(source, /new ResizeObserver\(resizeCanvas\)\.observe\(root\)/);
   assert.match(source, /_cmkRegionalLayoutSyncCanvas\?\.\(\)/);
-  assert.match(loader, /cmk-regional-layout-v6/);
+  assert.match(loader, /cmk-regional-layout-v12/);
 });
 
 test("region labels are drawn in layout units, not in zoomed screen pixels", () => {
@@ -300,4 +301,166 @@ test("background calculations never mutate region data", () => {
   prepareImageGeometry(1920, 1080, base.width, base.height, "Crop", "Left", "Custom");
   automaticPreviewSignature({ imageReference: "source.png", width: base.width, height: base.height });
   assert.equal(serializeLayout(base), before);
+});
+
+test("CONDITIONING BLEND survives save and reload inside regions_json", () => {
+  const legacy = '{"version":1,"width":1024,"height":1024,"strength_offset":0,"regions":[{"id":"r","name":"Region 1","prompt":"person","strength":1,"end":1,"box":{"x":0.25,"y":0.25,"width":0.25,"height":0.5}}]}';
+  // Layouts without a step keep MASK (6); the earlier AREA/MASK selector's values become 0/6.
+  assert.equal(normalizeLayout(legacy).conditioning_blend, 6);
+  assert.equal(normalizeLayout({ ...JSON.parse(legacy), conditioning_mode: "AREA" }).conditioning_blend, 0);
+  assert.equal(normalizeLayout({ ...JSON.parse(legacy), conditioning_mode: "MASK" }).conditioning_blend, 6);
+  assert.equal("conditioning_mode" in normalizeLayout({ ...JSON.parse(legacy), conditioning_mode: "AREA" }), false);
+  const saved = serializeLayout({ ...normalizeLayout(legacy), conditioning_blend: 3 });
+  // Same string as test_frontend_serialisation_round_trip in tests/test_regional_conditioning_blend.py.
+  assert.equal(saved, '{"version":1,"width":1024,"height":1024,"strength_offset":0,"conditioning_blend":3,"regions":[{"id":"r","name":"Region 1","prompt":"person","strength":1,"end":1,"box":{"x":0.25,"y":0.25,"width":0.25,"height":0.5}}]}');
+  assert.equal(normalizeLayout(saved).conditioning_blend, 3);
+  assert.equal(serializeLayout(normalizeLayout(saved)), saved);
+  const history = commitHistory(createHistory(normalizeLayout(saved)), { ...normalizeLayout(saved), conditioning_blend: 5 });
+  assert.equal(undoHistory(history).present.conditioning_blend, 3);
+  assert.deepEqual([0, 1, 2, 3, 4, 5, 6].map((step) => normalizeConditioningBlend(step)), [0, 1, 2, 3, 4, 5, 6]);
+  assert.deepEqual([normalizeConditioningBlend(9), normalizeConditioningBlend(-2), normalizeConditioningBlend("4"), normalizeConditioningBlend(undefined, "area")], [6, 0, 4, 0]);
+  assert.deepEqual([0, 3, 6].map(blendCaption), ["AREA", "3 / 6", "MASK"]);
+});
+
+test("CONDITIONING BLEND is a 7-step ADVANCED slider, not a new node widget", () => {
+  const source = readFileSync(new URL("../web/js/cmk_regional_layout_ui.js", import.meta.url), "utf8");
+  assert.match(source, /conditioningBlend\.min = "0"; conditioningBlend\.max = String\(BLEND_STEPS\); conditioningBlend\.step = "1"/);
+  assert.match(source, /field\("Conditioning Blend · MASK", conditioningBlend\)/);
+  assert.match(source, /details\.append\(summary, layoutOptions, geometry\)/);
+  assert.match(source, /next\.conditioning_blend = Number\(conditioningBlend\.value\)/);
+  assert.doesNotMatch(source, /conditioningMode|CONDITIONING_MODES/);
+  // widgets_values keep width, height, regions_json: no index shift for saved workflows.
+  assert.match(source, /node\.widgets = \[\.\.\.canonical\.filter\(\(widget\) => widget !== dataWidget\), panel, dataWidget\]/);
+  assert.doesNotMatch(source, /addWidget\(/);
+  assert.match(source, /cmk_regional_layout_core\.js\?cmk-regional-layout-v12/);
+});
+
+// CMK Flow 2.8 product rule: at most two NEW regions; stored regions are never cut.
+function legacyLayout(count) {
+  return normalizeLayout({ width: 1344, height: 768, strength_offset: 0.25, conditioning_blend: 2, regions: Array.from({ length: count }, (_, index) => ({
+    id: `legacy-${index}`, name: `Legacy ${index}`, prompt: `Person ${index}`, strength: 0.6 + index / 10, end: 0.9 - index / 20,
+    box: { x: index / 6, y: 0.2 + index / 50, width: 0.15, height: 0.5 },
+  })) });
+}
+
+function add(layout) {
+  const next = cloneLayout(layout);
+  return { next, created: insertNewRegion(next, makeRegion(next.regions.length + 1)) };
+}
+
+function duplicate(layout, index) {
+  const next = cloneLayout(layout);
+  const copy = cloneLayout({ regions: [layout.regions[index]] }).regions[0];
+  copy.id = `${copy.id}-copy`;
+  return { next, created: insertNewRegion(next, copy, index + 1) };
+}
+
+test("new regions: 0 -> 1 -> 2, then add and duplicate are refused", () => {
+  assert.equal(MAX_NEW_REGIONS, 2);
+  let layout = normalizeLayout({ regions: [] });
+  assert.ok(canCreateRegion(layout));
+  layout = add(layout).next; assert.equal(layout.regions.length, 1);
+  assert.ok(canCreateRegion(layout));
+  layout = add(layout).next; assert.equal(layout.regions.length, 2);
+  assert.equal(canCreateRegion(layout), false);
+  const refused = add(layout);
+  assert.equal(refused.created, null); assert.deepEqual(refused.next, layout);
+  const copy = duplicate(layout, 0);
+  assert.equal(copy.created, null); assert.equal(copy.next.regions.length, 2);
+});
+
+test("deleting below two regions allows a new region again", () => {
+  const layout = add(add(normalizeLayout({ regions: [] })).next).next;
+  const next = cloneLayout(layout); next.regions.splice(0, 1);
+  assert.ok(canCreateRegion(next));
+  assert.equal(add(next).next.regions.length, 2);
+});
+
+test("legacy layouts with 3, 4 and 7 regions load, edit and save without loss", () => {
+  for (const count of [3, 4, 7]) {
+    const stored = legacyLayout(count);
+    const loaded = normalizeLayout(serializeLayout(stored));
+    assert.equal(loaded.regions.length, count);
+    assert.deepEqual(loaded, stored);
+    const edited = cloneLayout(loaded);
+    edited.regions[count - 1].prompt = "edited"; edited.regions[0].box = moveBox(edited.regions[0].box, 0.05, 0);
+    const reloaded = normalizeLayout(serializeLayout(edited));
+    assert.equal(reloaded.regions.length, count);
+    assert.equal(reloaded.regions[count - 1].prompt, "edited");
+    assert.deepEqual(reloaded.regions.slice(1, -1), stored.regions.slice(1, -1));
+    assert.equal(reloaded.strength_offset, 0.25); assert.equal(reloaded.conditioning_blend, 2);
+    assert.equal(canCreateRegion(reloaded), false);
+    assert.equal(add(reloaded).created, null);
+    assert.equal(duplicate(reloaded, 1).created, null);
+  }
+});
+
+test("legacy three regions: delete one keeps creation locked, delete two unlocks it", () => {
+  const one = cloneLayout(legacyLayout(3)); one.regions.splice(1, 1);
+  assert.equal(one.regions.length, 2); assert.equal(canCreateRegion(one), false);
+  const two = cloneLayout(one); two.regions.splice(0, 1);
+  assert.equal(two.regions.length, 1); assert.ok(canCreateRegion(two));
+  assert.equal(add(two).next.regions.length, 2);
+});
+
+test("undo restores deleted legacy regions; the limit only blocks creating", () => {
+  const history = commitHistory(createHistory(legacyLayout(3)), (() => { const next = cloneLayout(legacyLayout(3)); next.regions.splice(0, 2); return next; })());
+  assert.equal(history.present.regions.length, 1);
+  const restored = undoHistory(history);
+  assert.equal(restored.present.regions.length, 3);
+  assert.equal(redoHistory(restored).present.regions.length, 1);
+});
+
+test("every interactive creation path of the editor goes through the limit", () => {
+  const source = readFileSync(new URL("../web/js/cmk_regional_layout_ui.js", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /regions\.push\(/);
+  assert.equal((source.match(/insertNewRegion\(/g) || []).length, 3); // draw, add, duplicate
+  assert.match(source, /add\.addEventListener\("click", \(\) => \{ if \(!canCreateRegion\(layout\(\)\)\) return;/);
+  assert.match(source, /if \(!region \|\| !canCreateRegion\(layout\(\)\)\) return;/);
+  assert.match(source, /if \(!region\) return;\n    selectedId = region\.id;\n    setPresent\(next\);/);
+  assert.match(source, /setButtonEnabled\(add, !editingLocked && creatable\);/);
+  assert.match(source, /REGION_LIMIT_HINT/);
+  assert.doesNotMatch(source, /keydown/);
+  assert.match(REGION_LIMIT_HINT, /Up to two new regions/);
+  // Loading stays unlimited: the editor builds its history from normalizeLayout alone.
+  assert.match(source, /createHistory\(normalizeLayout\(dataWidget\.value, widthWidget\.value, heightWidget\.value\)\)/);
+});
+
+test("toolbar: + greys out at the limit and the reorder arrows are gone", () => {
+  const source = readFileSync(new URL("../web/js/cmk_regional_layout_ui.js", import.meta.url), "utf8");
+  // Disabled buttons get a visible look; inline styles would otherwise hide it.
+  assert.match(source, /element\.disabled = !enabled;\n  element\.style\.opacity = enabled \? "1" : "0\.38";/);
+  assert.match(source, /setButtonEnabled\(add, !editingLocked && creatable\);/);
+  assert.match(source, /setButtonEnabled\(duplicate, !editingLocked && creatable && Boolean\(region\)\);/);
+  // ↑/↓ removed with their handlers; the toolbar has seven cells, no gaps.
+  assert.doesNotMatch(source, /[↑↓]|Move region (earlier|later)|\bup\.addEventListener|\bdown\.addEventListener/);
+  assert.match(source, /toolbar\.append\(add, duplicate, remove, undo, redo, reference, backgroundSource\);/);
+  assert.match(source, /gridTemplateColumns: "repeat\(5, minmax\(0, 1fr\)\) minmax\(0, 1\.4fr\) minmax\(92px, 3\.2fr\)"/);
+  // Selecting a region by clicking it on the canvas stays.
+  assert.match(source, /const hits = hitRegionIndices\(layout\(\)\.regions, p\.x, p\.y\);/);
+  assert.match(source, /selectedId = layout\(\)\.regions\[hits\[hitCycle\]\]\.id; render\(\);/);
+});
+
+test("region labels show the name only, without a position number", () => {
+  const source = readFileSync(new URL("../web/js/cmk_regional_layout_ui.js", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /\$\{index \+ 1\} · /);
+  assert.match(source, /const label = String\(region\.name \|\| `Region \$\{index \+ 1\}`\)\.slice\(0, 22\);/);
+});
+
+test("regions are selected on the canvas only; the selection dropdown is gone", () => {
+  const source = readFileSync(new URL("../web/js/cmk_regional_layout_ui.js", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /\bselection\b|createElement\("option"\)\; option\.value = region\.id/);
+  // NAME/STRENGTH sit directly below the canvas.
+  assert.match(source, /root\.append\(processSize, toolbar, stage, editGrid, field\("POSITIVE PROMPT", prompt\), details\);/);
+  // Clicking a region selects it (cycling through overlaps) and refreshes every field.
+  assert.match(source, /selectedId = layout\(\)\.regions\[hits\[hitCycle\]\]\.id; render\(\);/);
+  assert.match(source, /name\.value = region\?\.name \|\| ""; prompt\.value = region\?\.prompt \|\| ""; strength\.value = region\?\.strength \?\? 1;/);
+  assert.match(source, /for \(const key of \["x", "y", "width", "height"\]\) detailInputs\[key\]\.value = region\.box\[key\]\.toFixed\(3\);/);
+  // The selected region keeps its handles; a NAME edit redraws the label at once.
+  assert.match(source, /if \(region\.id === selectedId\) \{\n        ctx\.fillStyle = "#fff";/);
+  assert.match(source, /bindLiveEdit\(name, \(region, value\) => \{ region\.name = value; \}\);/);
+  assert.match(source, /update\(region, control\.value\);\n      save\(\); renderCanvas\(\);/);
+  // After deleting, a remaining region is selected; an invalid id falls back to the first.
+  assert.match(source, /selectedId = next\.regions\[Math\.min\(index, next\.regions\.length - 1\)\]\?\.id \|\| null;/);
+  assert.match(source, /if \(selectedIndex\(\) < 0\) selectedId = layout\(\)\.regions\[0\]\?\.id \|\| null;/);
 });

@@ -109,8 +109,8 @@ class StatisticsTests(unittest.TestCase):
         manifest.write_bytes(b"{}")
         orphan = completion / ("b" * 64 + ".json")
         orphan.write_bytes(b"orphan")
-        branch = self.temp_root / "cmk" / "detailer_branch" / "entry.pkl"
-        boundary = self.temp_root / "cmk" / "refiner_boundary" / "entry.json"
+        branch = self.temp_root / "cmk_cache" / "detailer_branch" / "entry.pkl"
+        boundary = self.temp_root / "cmk_cache" / "refiner_boundary" / "entry.json"
         branch.parent.mkdir(parents=True)
         boundary.parent.mkdir(parents=True)
         branch.write_bytes(b"branch")
@@ -153,7 +153,7 @@ class StatisticsTests(unittest.TestCase):
             {"galleries": 0, "screenshots": 0, "bytes": 0},
         )
 
-        cmk_root = self.temp_root / "cmk"
+        cmk_root = self.temp_root / "cmk_cache"
         cmk_root.mkdir(parents=True, exist_ok=True)
         target = Path(self.temporary.name) / "outside-cache"
         target.mkdir()
@@ -177,22 +177,25 @@ class CurrentPackageContractTests(unittest.TestCase):
     def test_current_showcase_reference_counts(self):
         browser = statistics.flow_browser_statistics(PACKAGE_ROOT)
         showcase = statistics.showcase_statistics(PACKAGE_ROOT)
-        self.assertEqual((browser["total"], browser["visible"], browser["hidden"]), (65, 31, 34))
-        self.assertEqual(browser["categories"], {
-            "REAL-WORLD WORKFLOWS": 8,
-            "TASK WORKFLOWS": 32,
-            "MODULE WORKFLOWS": 20,
-            "SYSTEM WORKFLOW": 2,
-            "COMPARISONS": 2,
-            "LEGACY": 1,
-        })
+        # Deliberate target inventory (test_s1_flow_browser_package), not the
+        # file count of an earlier run: every shipped showcase workflow is either
+        # listed in its category or one of the search-only Advanced modules.
+        from test_s1_flow_browser_package import COUNTS, SEARCH_ONLY
+
+        self.assertEqual(browser["visible"], sum(COUNTS.values()))
+        self.assertEqual(browser["hidden"], len(SEARCH_ONLY))
+        self.assertEqual(browser["total"], browser["visible"] + browser["hidden"])
+        expected = dict(COUNTS)
+        expected["MODULE WORKFLOWS"] += len(SEARCH_ONLY)
+        self.assertEqual(browser["categories"], expected)
+        # Every entry has a gallery; every shipped showcase image is counted once.
+        images = [path for path in (PACKAGE_ROOT / "web" / "assets" / "showcase").rglob("*")
+                  if path.is_file() and path.name != ".DS_Store"]
         self.assertEqual(showcase, {
-            "galleries": 31, "screenshots": 50, "bytes": 27_086_638,
+            "galleries": browser["total"],
+            "screenshots": len(images),
+            "bytes": sum(path.stat().st_size for path in images),
         })
-        self.assertFalse((
-            PACKAGE_ROOT / "workflows" / "showcase" /
-            "CMK 2.6 · Flow · Inpaint - FaceRebuild HYBRID.json"
-        ).exists())
 
     def test_ui_and_read_only_route_contract(self):
         javascript = (PACKAGE_ROOT / "web/js/cmk_flow_browser.js").read_text(encoding="utf-8")

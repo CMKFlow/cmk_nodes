@@ -6,9 +6,9 @@
 
 Modular custom-node package for ComfyUI.
 
-**Development baseline: CMK 2.7.0 · CMK Flow Baseline**
+**Development baseline: CMK 2.8.0 · CMK Flow Baseline**
 
-**Current public release: CMK 2.7.0**
+**Current public release: CMK 2.8.0**
 
 [Deutsch](README.md) · **English**
 
@@ -98,7 +98,7 @@ keys, and UUIDs.
 - local FaceSwap image/video paths with mandatory ContentGuard;
 - a Flow Browser reference catalog organized into Task Workflows, Module
   Workflows, Comparisons, Real-World Workflows, System Workflow, and Legacy,
-  including 20 task workflows ordered by increasing functional complexity;
+  including 13 task workflows ordered by increasing functional complexity;
 - dedicated Z-Image Turbo loader, sampler, and optional ControlNet modules.
 
 ZIT-Inpaint is explicitly marked `EXPERIMENTAL` and temporarily frozen because
@@ -250,8 +250,8 @@ files in `subgraphs/` remain part of the node pack; additional copies under
 <!-- cmk-reference-environment:start -->
 | Component | Reference value |
 | --- | --- |
-| CMK Flow | `2.7.0` |
-| ComfyUI | `0.42.5` |
+| CMK Flow | `2.8.0` |
+| ComfyUI | `0.46.2` |
 | Python | `3.13.12` |
 | PyTorch | `2.12.1` |
 | Compute backend | `Apple MPS` |
@@ -262,14 +262,19 @@ and they do not imply complete testing of every workflow, extension, or
 hardware platform.
 <!-- cmk-reference-environment:end -->
 
-## Required ComfyUI frontend
+## Development and Testing Environment
 
-> **Validated release target**
->
-> CMK 2.5.7 was fully validated with **ComfyUI 0.38.2** and
-> **comfyui-frontend-package 1.53.6**. This includes Flow Browser navigation,
-> packaged subgraphs and reference workflows, embedded previews, cache paths,
-> and the serialized link, socket, UUID, and topology contracts.
+CMK Flow 2.8.0 was developed and tested on an Apple MacBook Pro (M1 Pro, 16 GB
+unified memory) running macOS with ComfyUI 0.46.2.
+
+Windows and Linux environments have not been independently validated by the
+project maintainer. Compatibility, performance, and functionality on these
+platforms are therefore not guaranteed.
+
+The documented development environment is a tested reference configuration,
+not a declaration of minimum system requirements.
+
+## Required ComfyUI frontend
 
 CMK Flow requires **Vue Nodes / Nodes 2.0** in the active ComfyUI user profile.
 Without it, dynamic CMK nodes fall back to legacy LiteGraph rendering and their
@@ -283,11 +288,18 @@ method → auto**.
 
 The CMK core nodes for detection, `SEGS`, Detailer, pasteback, FaceProcess
 restore, SAM loading, and the included ControlNet preprocessors do not require
-third-party custom-node packs. The optional `LoRA Stack · SDXL`, `LoRA Stack ·
-ZIT`, and `LoRA Stack · Combined` subgraphs, as well as references that use
-them, require the
-[ComfyUI LoRA Manager](https://github.com/willmiao/ComfyUI-Lora-Manager).
-All other CMK modules remain usable without it.
+third-party custom-node packs. The
+[ComfyUI LoRA Manager](https://github.com/willmiao/ComfyUI-Lora-Manager) is
+optional for CMK's core functionality: every CMK node and module registers and
+works without it, and the LoRA inputs of `01 START HERE` are optional.
+
+It is required by the bundled `LoRA Stack · SDXL`, `LoRA Stack · ZIT`, and
+`LoRA Stack · Combined` subgraphs and by the showcase workflows that connect
+one of them to `01 START HERE`. These are currently 18 of the 35 showcase
+workflows, including all Real-World and Task workflows and the Full Flow.
+Without LoRA Manager, ComfyUI reports missing nodes for these workflows; they
+run only after the LoRA Stack node is removed or LoRA Manager is installed. The
+showcase workflows were validated with LoRA Manager 1.3.0.
 
 Python dependencies are listed in `requirements.txt`. Model-backed features
 still require the selected Ultralytics, SAM, InsightFace, optional face-restore,
@@ -309,17 +321,19 @@ See [`CONTENT_GUARD.md`](CONTENT_GUARD.md) for the authoritative policy.
 
 ## Cache behavior
 
-Internal CMK caches are stored under:
+Internal CMK branch and boundary caches are stored in the ComfyUI user
+directory (`--user-directory`), by default under:
 
 ```text
-ComfyUI/temp/cmk/
+ComfyUI/user/cmk_cache/
 ```
 
-The first execution after a restart, code change, or cache cleanup normally
-produces `MISS → STORED`. Unchanged branches and module boundaries may then
-resolve as `HIT` during the same ComfyUI session. Restarting ComfyUI clears
-these image-boundary caches; only the explicitly persistent video workflow has
-a cross-session continuation contract.
+ComfyUI empties its temp directory at every start and shutdown; this directory
+is kept. The first execution after a code change, configuration change, or
+cache cleanup normally produces `MISS → STORED`. Unchanged branches and module
+boundaries then resolve as `HIT`, also after a ComfyUI restart. `Clear
+Persistent Cache` in the Flow Browser removes only the registered CMK scopes in
+this directory.
 
 Cache entries carry revision and dependency markers. A branch is reused only
 when its manifest matches the currently materialized revisions. Caches are

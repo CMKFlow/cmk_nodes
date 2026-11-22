@@ -1,0 +1,145 @@
+import { app } from "../../../scripts/app.js";
+
+// MODE dropdown of the outer Detailer subgraphs (2.8.0). Presentation only:
+// the stored and sent COMBO value stays the backend value; the select shows
+// its label through the frontend's options.getOptionLabel and right-aligns it.
+const MODE_WIDGETS = {
+    "CMK Flow · Detailer": {
+        widget: "model_family",
+        labels: { None: "DISABLE", SDXL: "SDXL", "Z-Image Turbo": "ZIT" },
+    },
+    // Mask Detailer (2.8): MODE only switches the module; the model family
+    // is chosen inside the subgraph (CMK Detailer Family Enable).
+    "CMK Flow · MaskDetailer": {
+        widget: "maskdetailer_mode",
+        labels: { ENABLE: "ENABLE", DISABLE: "DISABLE" },
+    },
+    // FaceRebuild v2 keeps the title of the SDXL subgraphs; only v2 has the
+    // facerebuild_mode widget, so the legacy ENABLE toggle stays untouched.
+    "CMK Flow · FaceRebuild SDXL": {
+        widget: "facerebuild_mode",
+        labels: { ENABLE: "ENABLE", DISABLE: "DISABLE" },
+    },
+    "CMK Flow · FaceRebuild SDXL · Advanced": {
+        widget: "facerebuild_mode",
+        labels: { ENABLE: "ENABLE", DISABLE: "DISABLE" },
+    },
+    // FaceSwap v2 keeps the title of the legacy subgraphs; only v2 has the
+    // faceswap_mode widget, so the legacy ENABLE toggle stays untouched.
+    "CMK Flow · FaceSwap": {
+        widget: "faceswap_mode",
+        labels: { ENABLE: "ENABLE", DISABLE: "DISABLE" },
+    },
+    "CMK Flow · FaceSwap · Advanced": {
+        widget: "faceswap_mode",
+        labels: { ENABLE: "ENABLE", DISABLE: "DISABLE" },
+    },
+    // Upscale & Save v2: ENABLE / DISABLE in place of the SAVE ENABLED toggle,
+    // captioned SAVE.
+    "CMK Flow · Upscale & Save": {
+        widget: "upscale_save_mode",
+        label: "SAVE",
+        labels: { ENABLE: "ENABLE", DISABLE: "DISABLE" },
+    },
+    "CMK Flow · Detailer · Advanced": {
+        widget: "detailer_global_enable",
+        labels: { ENABLE: "ENABLE", DISABLE: "DISABLE" },
+    },
+};
+// Nodes (not subgraphs) with the same dropdown, by node class.
+const NODE_MODE_WIDGETS = {
+    // Image Resize v2: ENABLE / DISABLE in place of the SCALE ENABLE toggle,
+    // captioned SCALE (it up- and downscales).
+    CMKImageResizeV2: {
+        widget: "scale_mode",
+        label: "SCALE",
+        labels: { ENABLE: "ENABLE", DISABLE: "DISABLE" },
+    },
+};
+const ROW_ATTRIBUTE = "data-cmk-mode-select";
+// Active state of a marked MODE row (also set by cmk_faceprocess_mode_ui.js):
+// the selected text shows the CMK accent unless the module is off.
+const ACTIVE_ATTRIBUTE = "data-cmk-mode-active";
+const INACTIVE_VALUES = ["None", "DISABLE"];
+const STYLE_ID = "cmk-detailer-mode-style";
+
+function markModeState(row, value) {
+    const active = String(!INACTIVE_VALUES.includes(String(value)));
+    if (row.getAttribute(ACTIVE_ATTRIBUTE) !== active) row.setAttribute(ACTIVE_ATTRIBUTE, active);
+}
+
+export function modeSpec(node) {
+    if (!node?.isSubgraphNode?.()) {
+        return NODE_MODE_WIDGETS[node?.comfyClass ?? node?.constructor?.comfyClass ?? node?.type] ?? null;
+    }
+    // A blueprint inserted from the library is named after its file, e.g.
+    // "CMK Flow · FaceRebuild SDXL v2"; the spec is that of the title.
+    const name = String(node.subgraph?.name ?? "");
+    return MODE_WIDGETS[name] ?? MODE_WIDGETS[name.replace(/ v2$/, "")] ?? null;
+}
+
+export function applyMode(node) {
+    const spec = modeSpec(node);
+    if (!spec) return false;
+    const widget = node.widgets?.find((item) => item?.name === spec.widget);
+    if (!widget) return false;
+    widget.label = spec.label ?? "MODE";
+    widget.options ??= {};
+    if (widget.options.cmkModeLabels !== spec.labels) {
+        widget.options.cmkModeLabels = spec.labels;
+        widget.options.getOptionLabel = (value) => spec.labels[value] ?? value;
+    }
+    return true;
+}
+
+function graphNode(id) {
+    return [app.canvas?.graph, app.graph, app.rootGraph]
+        .map((graph) => graph?.getNodeById?.(id) ?? graph?.getNodeById?.(Number(id)))
+        .find(Boolean);
+}
+
+function decorate() {
+    for (const root of document.querySelectorAll(".lg-node[data-node-id]")) {
+        const node = graphNode(root.getAttribute("data-node-id"));
+        const spec = modeSpec(node);
+        if (!spec) continue;
+        applyMode(node);
+        const row = root.querySelector(`.lg-node-widget[data-widget-name="${spec.widget}"]`);
+        if (!row) continue;
+        if (!row.hasAttribute(ROW_ATTRIBUTE)) row.setAttribute(ROW_ATTRIBUTE, "");
+        markModeState(row, node.widgets?.find((item) => item?.name === spec.widget)?.value);
+    }
+}
+
+function installStyle() {
+    if (document.getElementById(STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = STYLE_ID;
+    style.textContent = `
+.lg-node-widget[${ROW_ATTRIBUTE}] [data-testid="widget-select-default-trigger"] > span { text-align: right; }
+:root { --cmk-accent: rgb(88, 190, 230); }
+.lg-node-widget[${ACTIVE_ATTRIBUTE}="true"] [data-testid="widget-select-default-trigger"] > span { color: var(--cmk-accent); }
+`;
+    document.head.appendChild(style);
+}
+
+function schedule(node) {
+    for (const delay of [0, 50, 200]) setTimeout(() => applyMode(node), delay);
+}
+
+app.registerExtension({
+    name: "cmk.detailer.mode.ui.v1",
+
+    setup() {
+        installStyle();
+        new MutationObserver(decorate).observe(document.documentElement, { childList: true, subtree: true });
+    },
+
+    nodeCreated(node) {
+        schedule(node);
+    },
+
+    loadedGraphNode(node) {
+        schedule(node);
+    },
+});

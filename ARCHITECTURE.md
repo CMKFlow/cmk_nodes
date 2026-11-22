@@ -40,7 +40,7 @@ registrierte CMK-Python-Nodes und Engines
 
 - Die Python-Nodes in diesem Paket implementieren Typverträge, Verarbeitung, Caches und Diagnostik.
 - Die JSON-Dateien unter `subgraphs/` bilden daraus die geführten sichtbaren CMK-Module. Ihre UUIDs sind Teil des Workflow-Vertrags und dürfen nicht ohne Migration geändert werden.
-- Die JSON-Dateien unter `workflows/reference/` definieren den verbindlichen Gesamtaufbau. `workflows/examples/` enthält eigenständige Anwendungsbeispiele; `workflows/archive/` dient ausschließlich der historischen Nachvollziehbarkeit.
+- `workflows/reference/` enthält nur die Runtime-Vorlage für das Öffnen von FaceSwap-Video-Projekten. `workflows/examples/` enthält eigenständige Anwendungsbeispiele; `workflows/archive/` dient ausschließlich der historischen Nachvollziehbarkeit.
 
 Die versionierten Subgraphdateien werden direkt aus `custom_nodes/cmk_nodes/subgraphs/` geladen. Sie dürfen nicht zusätzlich nach `ComfyUI/user/default/subgraphs/` kopiert werden, weil ComfyUI Node-Pack-Blueprints und benutzereigene Blueprints als getrennte Quellen registriert. Nur installierte Workflows werden nach `ComfyUI/user/default/workflows/` kopiert.
 
@@ -148,6 +148,27 @@ Schalter, Megapixelgrenzen und 4x-/2x-Modellwahl sind Advanced-Eingaben.
 Er verwendet dafür die bestehenden Result-Unpack-, Smart-Upscale- und Save-
 Verträge und implementiert weder einen zweiten Cache noch eine abweichende
 Speicher- oder Upscale-Logik.
+
+Anschlussgruppen (2.7.1): `Z-IMAGE TURBO` und `SDXL` sind die
+Generierungsanschlüsse, `POSTPROCESS` die Anschlüsse der PostProcess-Kette:
+
+| Anzeige | Interner Name | Verwendung |
+|---|---|---|
+| MODEL ZIT | `POSTPROCESS MODEL ZIT` | Weitergabe des ZIT-Modells (z. B. Multi-Model-Detailer); wird nie angefordert |
+| MODEL SDXL | `MODEL (opt)` | unverändert: Result Unpack, Save, Freigabe der SDXL-PostProcess-Spec |
+| PROCESS, IMAGE, LOG, VISUAL | unverändert | unverändert |
+
+- `POSTPROCESS MODEL ZIT` ist ein lazy Eingang ohne Anforderung: Der Visualizer
+  materialisiert und referenziert dort kein Modell; die ZIT-Freigabe vor SDXL
+  bleibt wirksam. Die internen Namen der übrigen Eingänge sind unverändert,
+  deshalb bleiben API-Prompts und gespeicherte Workflows gültig. Das Frontend
+  ordnet gespeicherte Eingänge nach Namen zu; die Migration alter
+  5-Eingang-Visualizer setzt die Gruppe auf Slot 11.
+- Normalansicht: Überschrift `POSTPROCESS`, Abstand zur SDXL-Gruppe und eine
+  dezente Fläche (`cmk_family_merge_layout.js`, Zuordnung über Eingangsnamen).
+- Clean View: Überschrift, Fläche und Abstände entfallen vollständig; die
+  kompakte Größe berücksichtigt den neuen Eingang nicht, Clean View bleibt
+  damit unverändert.
 
 `enable upscale = false` ist echter Bypass: kein Modell wird geladen, das Bild
 bleibt unverändert und es entsteht kein Register. Bei `true` wird das
@@ -551,6 +572,166 @@ CHECKPOINT + VAE-Auswahl → MODEL
 
 Lokale LoRAs, PAG, Sampling-Patches, FreeU und modulbezogener Zustand werden niemals in `MODEL` zurückgeschrieben.
 
+#### Gemeinsame PostProcess-Modellquelle (2.7.1)
+
+`CMK PostProcess Model` (`CMKPostProcessModelSourcePipe`) vereint beide
+Modellquellen in einem Node mit zwei unabhängigen Ausgängen:
+
+```text
+SDXL:          ckpt_name (inkl. None) + vae_name + checkpoint_vae        → MODEL SDXL
+Z-IMAGE TURBO: diffusion_model + text_encoder + vae + weight_dtype
+               + clip_device                                              → MODEL ZIT
+```
+
+- Beide Ausgänge sind die unveränderten Spezifikationen der Einzelquellen
+  (`make_postprocess_model_spec`, `make_zit_postprocess_model_spec`); der Node
+  lädt nichts. Jede Familie wird nur von ihrem eigenen Verbraucher
+  materialisiert, Lifecycle und ZIT-Freigabe bleiben unverändert.
+- Beide Familien sind gleichzeitig konfigurierbar; es gibt keinen
+  Familienumschalter. Die Oberfläche zeigt die Bereiche `SDXL` und
+  `Z-IMAGE TURBO` (`cmk_postprocess_model_source_ui.js`).
+- Die Einzelquellen bleiben registriert und unverändert; die SDXL-Einzelquelle
+  heißt in der Oberfläche jetzt `CMK PostProcess Model SDXL`.
+- Wird in einem Workflow die Quelle gewechselt, ändern sich die
+  graphbasierten Cache-Schlüssel nachgelagerter Boundaries einmalig.
+
+#### PostProcess Setup v2 (2.8)
+
+`CMK Flow · 30 PostProcess Setup v2` (`CMKPostProcessSetupV2Pipe`) erbt das
+unveränderte `CMK Flow · 30 PostProcess Setup`: Generierungsabschluss, dessen
+Cache, Freigabe der Generierungsmodelle und die SDXL-PostProcess-Spezifikation.
+Neu ist die ZIT-PostProcess-Spezifikation aus den Einstellungen von
+`CMK PostProcess Model` (`CMKPostProcessModelSourcePipe.load`).
+
+```text
+Eingänge   : MODEL/PROCESS/IMAGE/LOG/VISUAL ZIT und SDXL (wie bisher)
+Einstellung: postprocess_checkpoint, postprocess_vae, use_checkpoint_vae (SDXL, wie bisher)
+             postprocess_zit_model, _text_encoder, _vae, _weight_dtype, _clip_device (ZIT)
+Ausgänge   : MODEL ZIT, MODEL SDXL, PROCESS, IMAGE, LOG, VISUAL
+```
+
+- Beide Modelle sind nicht materialisierte Spezifikationen; jede Familie lädt
+  erst ihr erster Verbraucher. Der Generierungs-Cache-Schlüssel hängt nicht an
+  den Modell-Einstellungen.
+- PROCESS erhält zusätzlich `postprocess_zit_model`, LOG den Block
+  `PostProcess Model ZIT`; bei STOP AFTER HANDOFF bleiben PROCESS und LOG wie
+  beim Legacy-Setup.
+- Oberfläche: Bereiche `SDXL` und `Z-IMAGE TURBO` wie bei `CMK PostProcess
+  Model` (`cmk_postprocess_model_source_ui.js`); alle Einstellungen sind
+  Advanced-Inputs.
+- CleanView: 230 × 100 ist nur die erste kompakte Größe. Eine gewählte
+  kompakte Größe (`cmkCleanViewSize`) und die erweiterte Größe
+  (`cmkCleanViewExpandedSize`) bleiben über Umschalten, Speichern und Laden
+  erhalten. Das Legacy-Setup setzt beim Einschalten weiterhin jedes Mal
+  230 × 100.
+- Laden eines Graphen (Workflow-Tab-Wechsel, Seiten-Neuladen):
+  `ComfyApp.loadGraphDataNow` vergrößert jeden Node auf `computeSize()` (für
+  die v2 rund 410 px Höhe, alle Port- und Widget-Zeilen) und ruft direkt danach
+  `loadedGraphNode` auf. Dort stellt `cmk_clean_view_prototype.js` für die v2
+  die gespeicherte Größe des aktiven Zustands wieder her.
+
+#### ZIT-Modellquelle für PostProcess
+
+`CMK Z-Image Turbo PostProcess Model` liefert eine nicht materialisierte
+Z-Image-Turbo-Spezifikation. Vorbild ist die SDXL-Spezifikation von
+`CMK PostProcess Model SDXL`.
+
+```text
+DIFFUSION MODEL + TEXT ENCODER + VAE + weight_dtype + clip_device → MODEL ZIT
+```
+
+```python
+{
+    "model_role": "postprocess",
+    "model_family": "z_image_turbo",
+    "model_architecture": "z_image_turbo",
+    "diffusion_model_name": str,
+    "text_encoder_name": str,
+    "vae_name": str,
+    "weight_dtype": str,
+    "clip_device": str,
+    "model_pipe_source": "CMK Z-Image Turbo PostProcess Model",
+    "materialized": False,
+}
+```
+
+- Die Spezifikation enthält ausschließlich primitive Werte und dieselben
+  Identitätsfelder wie das MODEL von `CMK Z-Image Turbo Loader -Pipe-`.
+  Gleiche Dateien ergeben dieselbe Modellidentität.
+- MODEL-Forward, Gate und Boundary reichen sie unverändert weiter. Das
+  Weiterreichen lädt weder UNet noch Textencoder noch VAE.
+- Erst ein aktiver ZIT-Verbraucher materialisiert sie über
+  `resolve_zit_postprocess_model`. Das Ergebnis ist eine Kopie; die
+  Spezifikation selbst bleibt unverändert.
+- SDXL- und ZIT-Spezifikation sind getrennt: SDXL-Helfer erkennen eine
+  ZIT-Spezifikation nicht als SDXL, `resolve_postprocess_model` weist sie mit
+  einer klaren Meldung zurück und `unload_model_pipe` greift für sie nicht auf
+  den SDXL-Ressourcencache zu.
+
+#### ZIT-Ressourcenlebenszyklus
+
+Verbindlich gilt der bestehende ZIT-Lebenszyklus, gemeinsam für den ZIT-Loader
+und die PostProcess-Spezifikation:
+
+- Ein gemeinsamer Ressourcencache (`_ZIT_RESOURCE_CACHE`) für Loader und
+  Spezifikation; gleiche Dateien werden nicht doppelt geladen.
+- UNet und VAE bleiben gemäß der bestehenden Cache-Politik verfügbar. Ein
+  Wechsel der Dateien ersetzt den Cache-Eintrag.
+- Der Textencoder (Qwen) wird nach dem Encoding freigegeben und bei Bedarf
+  neu materialisiert (`ensure_zit_text_encoder` / `evict_zit_text_encoder`).
+- Es gibt keine globale Freigabe durch den Visualizer, keine Referenzzählung
+  und keine zusätzliche Ressourcenverwaltung.
+
+Wechsel ZIT → SDXL im Multi-Model-Detailer (2.7.1): Auf Unified Memory gibt
+ComfyUI ein Modell erst frei, wenn keine Python-Referenz mehr besteht; ein
+Entladen verschiebt die Gewichte nur von MPS in den Arbeitsspeicher. Bevor der
+ausgeführte SDXL-Zweig des Multi-Model Prepare SDXL materialisiert, ruft er
+deshalb `release_zit_resources` auf:
+
+- Leerer ZIT-Ressourcencache: keine Aktion.
+- Ist ein Textencoder im Eintrag aktiv oder ein Teil nicht per Weakref
+  verfolgbar: `KEPT · IN USE`, Eintrag unverändert.
+- Sonst werden die CMK-Referenzen entfernt und per Weakref geprüft, ob UNet
+  (ModelPatcher und Gewichte) und VAE (Objekt und `first_stage_model`)
+  tatsächlich frei wurden. Ein noch verwendeter Teil wird unverändert
+  zurückgelegt und wiederverwendet; ein freigegebener Teil wird nie
+  zurückgelegt. Teilweise Freigabe: Der Eintrag enthält nur den verbliebenen
+  Teil, `_load_zit_resources` lädt beim nächsten ZIT-Bedarf nur den fehlenden
+  Teil (`HIT · PARTIAL RELOAD`).
+- Kein Entladen eines noch verwendeten Modells, kein globales Unload; nach
+  einer echten Freigabe nur `cleanup_models_gc` und `soft_empty_cache`.
+- Konsolenlog: `[CMK Model Lifecycle] ZIT -> SDXL Detailer: ZIT RESOURCES
+  RELEASED | PARTIALLY RELEASED | KEPT · IN USE`.
+
+Wirkung: Zwischen getrennten Prompts (ZIT-Lauf, danach SDXL-Lauf) wird ZIT
+freigegeben. Innerhalb eines Prompts (ZIT → SDXL → ZIT) hält ComfyUI die
+Ausgabe des ersten ZIT-Prepare; dann bleibt ZIT erhalten und wird ohne zweite
+Kopie wiederverwendet. Ein Boundary-HIT führt Prepare nicht aus und gibt nichts
+frei.
+
+Verbindliche Modellquelle: In eigenständigen PostProcess-Workflows kommt
+`MODEL ZIT` ausschließlich aus `CMK Z-Image Turbo PostProcess Model`. Der
+`CMK Z-Image Turbo Loader -Pipe-` lädt sofort und gibt UNet und VAE als
+Objekte aus; ComfyUI hält diese Ausgabe im Ausgabecache, solange die Node im
+Prompt steht. Die Freigabe meldet dann korrekt `KEPT · IN USE`, und SDXL läuft
+neben dem weiterhin referenzierten ZIT-Modell.
+
+Realvalidierung (2026-11-12, M1 Pro, 16 GB Unified Memory, ComfyUI 0.45.2,
+Standard-Cache `RAM_PRESSURE`, ZIT-Lauf und anschließender SDXL-Lauf ohne
+Neustart):
+
+| | ZIT Loader -Pipe- als Quelle | ZIT PostProcess Model als Quelle |
+|---|---|---|
+| ZIT-Lauf | 8 Steps, 86,35 s/Step, 14:55 min | 8 Steps, 88,03 s/Step, 14:36 min |
+| Freigabe vor SDXL | `KEPT · IN USE` | `RELEASED · UNET RELEASED · VAE RELEASED` |
+| SDXL-Checkpoint | 90,38 s, Lumina2 7.443,77 MB weiter geladen | 11,39 s |
+| SDXL-Sampling | erster Step 123,83 s, abgebrochen | 30 Steps, 3,64 s/Step |
+| SDXL gesamt | abgebrochen | 143,59 s |
+
+Der SDXL-Lauf nach ZIT entspricht damit einem regulären SDXL-Lauf
+(Referenz ohne vorherigen ZIT-Lauf: 10,78 s Checkpoint, 3,73 s/Step,
+143,68 s).
+
 ### 5.3 ControlNet
 
 `CMK ControlNet Prepare -Pipe-`:
@@ -846,6 +1027,249 @@ Cache-Artefakt in einer kopierten `PROCESS`-Pipe. Ein nachfolgendes weiteres
 Detailer-Modul verwendet damit das unmittelbare Detailer-Ergebnis und nicht
 fälschlich weiterhin das ältere Refiner-Artefakt.
 
+### 5.6a Multi-Model-Detailer
+
+Neben den SDXL-Detailer-Nodes bestehen eigenständig registrierte
+Multi-Model-Nodes. Die SDXL-Nodes bleiben in Verhalten, Schnittstellen,
+gespeicherten Widgetwerten und Cache-Schlüsseln unverändert.
+
+| Generation | Prepare | Execute | DETAILER-Typ |
+|---|---|---|---|
+| SDXL | `CMKDetailerPreparePipe` | `CMK_SmartDetailerPipe` | `CMK_DETAILER_PIPE` |
+| Multi-Model | `CMKDetailerPrepareMultiModelPipe` | `CMK_SmartDetailerMultiModelPipe` | `CMK_DETAILER_MULTIMODEL_PIPE` |
+
+Die getrennten DETAILER-Typen verhindern eine Querverdrahtung der
+Generationen.
+
+Prepare Multi-Model:
+
+```text
+MODEL ZIT (optional) + MODEL SDXL + PROCESS + IMAGE + optional LOG
+    + optional LoRA ZIT + MODEL FAMILY (None / SDXL / Z-Image Turbo)
+    ↓
+CMK Detailer Prepare Multi-Model -Pipe-
+    ↓
+DETAILER (Multi-Model) + LOG + diagnostic
+```
+
+- `None` ist der vollständige Bypass ohne Modell-, SAM- oder LoRA-Anforderung.
+- Nur die Modellquelle der gewählten Familie wird lazy angefordert.
+- Jede Familie besitzt eigene Steps, CFG, Sampler, Scheduler und einen eigenen
+  Sampling Entry (SDXL 95 %, ZIT 85 % als Ausgangswerte). Der gewählte
+  Sampling Entry liegt im DETAILER-Pipe; der Multi-Model Smart Detailer hat
+  keinen eigenen Regler.
+- Die Cache-Identität des Multi-Model Smart Detailers verwendet ein eigenes
+  Schema und berücksichtigt Familie, Sampling Entry, Sampler/Scheduler,
+  ZIT-Modellidentität, geladene LoRAs und Model Shift.
+
+Subgraph `CMK Flow · Detailer`:
+
+```text
+MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG + VISUAL + MODEL FAMILY
+    ↓
+MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG + VISUAL + diagnostic
+```
+
+- `CMK Detailer Family Enable` übersetzt MODEL FAMILY in das boolesche
+  ENABLE von Module Bypass Gate und Preview & Compare.
+
+`CMK Detailer Family Enable` als Steuer-Node (2.8.0), ein Node je Detailer:
+
+- Oberfläche: drei Auswahlflächen `NONE | SDXL | ZIT` statt Dropdown;
+  Standardbreite 450 px (`cmk_node_dimensions.js`). Gespeichert und
+  übergeben werden die unveränderten Werte `None`, `SDXL`, `Z-Image Turbo`.
+- Ausgänge: `ENABLE` (unverändert, Slot 0) und `MODEL FAMILY` (Slot 1) für
+  den Eingang `model_family` des Multi-Model Prepare. Ohne Steuer-Node bleibt
+  das Dropdown im Prepare maßgeblich; mit Steuer-Node blendet ComfyUI es aus,
+  und der Prepare zeigt die Einstellungen der gewählten Familie.
+- `cmk_prompt_family_inline` ersetzt vor der Ausführung jeden Link vom
+  Ausgang `MODEL FAMILY` durch die wörtliche Auswahl des Steuer-Nodes. Gate,
+  Boundary (Bypass-Zustand, Aufbewahrungsslot) und Cache-Schlüssel sehen
+  damit denselben Prompt wie mit dem Dropdown. Eine selbst verlinkte Auswahl
+  bleibt unverändert.
+- Im Standard-Subgraphen ist die Auswahl mit der äußeren MODEL FAMILY
+  verbunden; die Auswahlflächen sind dort ausgeblendet, das äußere Layout ist
+  unverändert.
+- `MODEL SDXL` ist die SDXL-PostProcess-Spezifikation; die Detailer-Boundary
+  fordert sie als öffentlichen MODEL-Eingang an.
+- `MODEL ZIT` ist die ZIT-PostProcess-Spezifikation. Der Ausgang `MODEL ZIT`
+  ist ein Forward für nachgelagerte Multi-Model-Module.
+- Aufbewahrung der Detailer-Boundary: Jede Boundary behält pro Node nur den
+  zuletzt gespeicherten Eintrag (`latest_by_node.json`). Für den
+  Multi-Model-Detailer gilt diese Regel pro Node **und Modellfamilie**
+  (Slot `<unique_id>#sdxl` bzw. `<unique_id>#z_image_turbo`). Die Familie
+  stammt aus dem `model_family`-Eingang des vorgeschalteten Multi-Model
+  Prepare (`_detailer_retention_family`). Ein Wechsel SDXL ↔ ZIT trifft
+  daher beide Male; geänderte Parameter ersetzen nur den Eintrag ihrer
+  Familie. Cache-Schlüssel, Manifeste und Artefaktformat sind unverändert.
+  Der SDXL-Detailer und alle anderen Boundaries behalten den einfachen Slot
+  `<unique_id>`. Ein vor 2.7.1 unter dem einfachen Slot gespeicherter Eintrag
+  bleibt lesbar und wird bei Wiederverwendung von der Familie übernommen.
+
+### 5.6b Advanced Multi-Model Detailer (2.8.0)
+
+Drei unabhängig konfigurierte Detailer aus einer Vorbereitung; jede
+Modellfamilie wird höchstens einmal materialisiert, ZIT vor SDXL.
+
+```text
+CMK Detailer Family Enable ×3 ──MODEL FAMILY──┐
+MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG ┴→ CMK Detailer Prepare Advanced Multi-Model -Pipe-
+    → DETAILER 1/2/3 (Specs, keine Modelle) → CMK Smart Detailer Multi-Model -Pipe- ×3
+    → CMK Detailer Merge Multi-Model (lazy, ZIT → SDXL, von None nur die Diagnose) → Detailer-Boundary → Gate
+    MODE → CMK Detailer Advanced · Mode → ENABLE von Gate, Diagnostic Gate und Preview & Compare
+    Gate diagnostic → CMK Preview Render · Merge diagnostic 1/2/3 → CMK Module Diagnostic Gate → CMK Preview Render ×3
+```
+
+- **Advanced Prepare:** gemeinsame Einstellungen (SAM, Prompt aus 1st Pass,
+  SDXL-Extras) und je Detailer MODEL FAMILY, Steps, CFG, Sampler, Scheduler,
+  Sampling Entry, bei ZIT Model Shift. Promptless, keine LoRA je Detailer.
+  Die Pipes enthalten Specs, Einstellungen und die Argumente des
+  Multi-Model Prepare, aber weder Modell, VAE, SAM noch Conditioning.
+  `ENABLE` ist wahr, solange mindestens eine Familie gewählt ist.
+- **Smart Detailer Multi-Model:** Bei einem Branch-Cache-MISS ruft der Hook
+  `_materialize_detailer` den unveränderten Multi-Model Prepare für diese
+  Konfiguration auf (ZIT: Qwen laden, encodieren, freigeben, dann UNet; SDXL:
+  zuvor `release_zit_resources`). Ein Memo je Prompt verwendet ZIT-Conditioning
+  nur bei identischer Konfiguration (Encoder, Gerät, Text, keine LoRA) wieder.
+  Der SDXL-only Smart Detailer und der Standard-Detailer sind unverändert.
+  Der Smart Detailer Multi-Model hat keinen eigenen `ENABLE`-Schalter: Die
+  Aktivierung erfolgt nur über MODEL FAMILY bzw. CMK Detailer Family Enable.
+  Ein `enable` älterer API-Prompts schaltet weder Branch-Revision noch
+  Boundary ab. Eine Migration gespeicherter 2.8-Entwicklungsstände gibt es
+  nicht; die 2.8-Subgraphen und -Workflows tragen den aktuellen Vertrag.
+  Bei MODEL FAMILY = None zeigt der Prepare nur noch MODEL FAMILY und der
+  Smart Detailer (Familie aus dem verbundenen Prepare bzw. dem Advanced-Slot)
+  kein Widget; alle Werte bleiben erhalten, die Node-Größe ändert sich nicht.
+  Die Boundary des Standard-Subgraphen liest `DETAILER IMAGE`, nicht
+  `IMAGE PROCEED`: OUTPUT IMAGE PROCEED = aus funktioniert auch beim
+  Boundary-MISS, und Umschalten ändert den Boundary-Schlüssel nicht. Der
+  Preview Render liest die Diagnose hinter dem Gate (kein Output-Root am
+  Zweig, ein Boundary-HIT führt Prepare und Smart Detailer nicht aus).
+  Paket-Subgraph und Showcase folgen bei der Paketübernahme.
+- **Branch-Cache je Slot:** Der Schlüssel eines Advanced-Detailers enthält nur
+  die gemeinsamen Einstellungen und seinen eigenen Slot; ein `None`-Slot meldet
+  `DISABLED_REVISION`.
+- **Merge:** fordert die Zweige lazy an, zuerst ZIT, dann SDXL; von einem
+  `None`-Slot nur dessen Diagnose (Bypass), zuletzt. Ergebnisse, LOG und
+  Diagnose werden nach Slot zugeordnet, unabhängig von der
+  Ausführungsreihenfolge und vom Cache-Zustand.
+- **Einzel-Diagnosen hinter dem Merge** (2.8.0 Plan B): Der Merge gibt die
+  Diagnosen der drei Detailer unverändert an den Ausgängen `diagnostic 1..3`
+  weiter (angehängt, die bisherigen Ausgangs-Slots bleiben). Die drei
+  Einzel-Previews hängen dort und nicht direkt an den Smart Detailern: Ein
+  Output-Node an einem Detailer ist ein eigener Output-Root, den ComfyUI in
+  der zufälligen Root-Reihenfolge ausführt, also außerhalb der Reihenfolge
+  ZIT → SDXL. Boundary, Cache-Schlüssel und `MERGE_SEMANTICS` sind
+  unverändert. `tests/test_detailer_advanced_output_roots.py` verhindert
+  Output-Pfade an einem Smart Detailer vorbei am Merge.
+- **Boundary:** Alle drei `None` gelten als Bypass; die Aufbewahrung folgt der
+  einfachen Regel (ein Eintrag je Boundary).
+- **Subgraph** `CMK Flow · Detailer · Advanced`: drei Family Enable über ihren
+  Smart Detailern, Prepare links, Merge, Boundary, Gate und Forwards unten.
+- **Paket und Flow Browser:** `subgraphs/CMK Flow · Detailer.json` und
+  `subgraphs/CMK Flow · Detailer · Advanced.json` sind die abgenommenen
+  Vorlagen, unverändert bis auf `extra.CMKFlow`. Im Flows-Katalog ist
+  `Detailer` der Primäreintrag, `Detailer · Advanced` seine Variante; die
+  SDXL-Detailer bleiben ladbar, sind aber mit `published: false` ausgeblendet.
+  MODULE WORKFLOWS 301/302 sind die beiden 2.8-Modul-Workflows. Außen trägt das
+  Dropdown die Beschriftung `MODE`; die Anzeige `DISABLE`/`ZIT` des Standard-
+  Detailers ist reine Frontend-Darstellung (`web/js/cmk_detailer_mode_ui.js`),
+  die gespeicherten Werte bleiben `None`/`Z-Image Turbo`.
+- **MODE** (2.8.0, Ausführungsgrenze der Standard-Variante): Der äußere MODE
+  `detailer_global_enable` (`ENABLE`/`DISABLE`) speist
+  `CMKDetailerAdvancedModeEnable` (FaceRebuild-v2-MODE-Control, gleicher
+  Widget-Name). Sein `ENABLE` schaltet Bypass Gate, `CMKModuleDiagnosticGate`
+  und Preview & Compare; das Gate entscheidet also, ohne Prepare anzufordern.
+  Die Haupt-Preview liest die Diagnose des Gates, die drei Slot-Previews die
+  des Diagnostic Gates (lazy, bei DISABLE blockiert). Bei `DISABLE` laufen nur
+  Mode, Gates, Compare (leer) und Transport-Forwards; Prepare, Smart Detailer,
+  Merge, Boundary und Diagnose-Renders werden nicht angefordert. Der
+  Prepare-Schalter selbst bleibt im Subgraphen auf `ENABLE`; ein älterer
+  Prepare mit `DISABLE` gilt auch im Merge als drei None-Slots
+  (`slot_families`). Die Detailer-Einstellungen bleiben erhalten; die
+  Branch-Keys enthalten den Schalter nicht. Das Frontend wertet den MODE nach
+  seinem Steuerungsvertrag aus (`MODULE_CONTROLS` in `cmk_visualizer.js`).
+- **Räumliche Diagnose** (`utils/segs_diagnostic.py`, nur Bilddaten aus
+  vorhandenen SEGS, keine Detektion, kein Sampling, keine Modelle): Der Smart
+  Detailer ergänzt `Sampling ROI` (`crop_region` neben der Detektionsbox),
+  `Mask` (`cropped_mask` projiziert) und `Pasteback` (Gewicht aus `SEGSPaste`,
+  feather 5). Ältere Branch-Cache-Einträge erhalten diese Stufen beim HIT aus
+  den gecachten SEGS. Der Merge liefert eine eigene Diagnose `01 · INPUT SEGS`,
+  `02 · OVERLAP` (Maskenüberschneidung; ROI-Überschneidung nur als Referenz),
+  `03 · COMPOSITE` (exakte Alpha-Anteile je Slot) und `04 · FINAL`; die
+  Eingänge `diagnostic i` werden mit ihrem Zweig angefordert und nur
+  weitergereicht.
+- **Maskenbasierter Merge** (`merge_segs_collections_masked`, nur
+  `CMK Detailer Merge Multi-Model`): jeder Zweig wird in Slot-Reihenfolge mit
+  `SEGSPaste.doit` und den Pasteback-Werten des Smart Detailers
+  (`BRANCH_PASTE_FEATHER`/`ALPHA`) auf das bisherige Composite gelegt:
+  `previous * (1 - alpha) + processed * alpha`. Die Sampling-ROI bestimmt nicht
+  mehr den Übernahmebereich. Vorher muss das Einfügen auf das Ausgangsbild das
+  gespeicherte `branch_image` reproduzieren, sonst bricht der Merge ab. Der
+  Detailer-Boundary-Key enthält `MERGE_SEMANTICS`, damit kein Ergebnis der
+  früheren Rechteck-Regel wiederverwendet wird; andere Detailer-Keys bleiben
+  unverändert. `CMK_SEGSConcate` behält `merge_segs_collections`.
+
+### 5.6c MaskDetailer Multi-Model (2.8, Runde 1)
+
+Diskreter Zwei-Modell-Aufbau nach dem Muster des Multi-Model-Detailers
+(Referenz `CMK · Detailer.json`, Workflow `CMK · MaskDetailer.json`):
+`CMK Detailer Family Enable` → `CMK Mask Detailer · Prepare Multi-Model`
+(`CMKMaskDetailerPrepareMultiModel`) → `CMK Mask Detailer · Process Multi-Model`
+(`CMKMaskDetailerProcessMultiModel`). Die öffentlichen Ausgänge sind die von
+`CMK Mask Detailer Prepare` / `Process` (`CMK_MASK_DETAILER_PROCESS`,
+`result_contract` `mask_detailer`); die Legacy-Nodes bleiben unverändert und
+teilen sich mit dem Prepare die Helfer für Quelle, Maske, Prompt und Prozess.
+
+- **Familie**: `None` / `SDXL` / `Z-Image Turbo`. Der Prepare fordert lazy nur
+  das Modell der aktiven Familie an (`MODEL SDXL` bzw. `MODEL ZIT`); `None` lädt
+  nichts, der Process reicht das Bild unverändert durch. ZIT nutzt die
+  Bausteine des Detailers (`resolve_zit_postprocess_model`, Text-Encoder
+  laden/entladen, `ConditioningZeroOut` als Negativ, `ModelSamplingAuraFlow`).
+- **Maske statt Detektion**: kein SAM, kein Detektor; Quelle ist der
+  `MASK DETAILER SOURCE` der Intake oder `PROCESS` + `IMAGE` mit Maske (CMK Load
+  Image).
+- **Prompt / LoRA / Seed**: Quellprompt plus eigener Zusatz, je Familie eine
+  lokale LoRA; der Seed kommt aus `PROCESS` (0, wenn keiner vorhanden ist).
+  Keine SDXL-Modellpatches, wie beim Legacy-MaskDetailer. Der Prompt läuft
+  vor dem Encoden durch die zentrale Übersetzung (`translate_prompt`, wie
+  CMK Detailer Prepare): SDXL positiv und negativ, ZIT positiv; der Prozess
+  behält den Originaltext. Der Legacy-MaskDetailer übersetzt nicht.
+- **Sampling Entry**: eigener Bereich 0–99 % (Denoise = (100 − Entry)/100,
+  0.01–1.0, Standard 45 % ≙ 0.55). Die Detailer-Grenze (Denoise ≤ 0.5) gilt hier
+  nicht, weil das Inpainting einer gemalten Fläche mehr Denoise braucht.
+- **Diagnostik** (§9.1, wie Detailer): Der Prepare liefert eine Textkarte
+  (`PLAIN_PREVIEW_NODES`) und wird über `opt_diagnostic` des Process in die
+  Modul-Timeline `CMK Flow · MaskDetailer` verkettet (wie beim Smart Detailer).
+  Der Process zeigt `01 Sampling ROI` (crop_region und Grenzen der gemalten
+  Maske auf dem Quellbild), `02 Mask` (effektive Sampling-Maske nach MASK EXPAND
+  als Overlay), `03 Pasteback` (eingefügtes Ergebnis × Pasteback-Gewicht aus
+  MASK FEATHER, alpha 255) und `04 Difference` (nur bei Änderung). Die Geometrie
+  stammt aus den SEGS, die `SEGSPaste` zurückschreibt (`detailer_spatial_stages`).
+  Keine Source-, Detection- oder Result-Stufe. Bei `None` entsteht nur eine
+  Textkarte. Die Diagnosen des Legacy-MaskDetailers bleiben unverändert.
+- **Subgraph `CMK Flow · MaskDetailer`** (neben dem unveränderten
+  `CMK Flow · MaskDetailer SDXL`): dessen Intake-Struktur bleibt –
+  Result Unpack → `CMK Mask Detailer Intake` (Capture, Snapshot,
+  Zustandsautomat) → `CMK Mask Detailer Flow Gate` (`READY`, Bypass = Unpack) →
+  VisualCompare. Ersetzt sind Prepare/Process/Concat durch Prepare/Process
+  Multi-Model (Timeline über `opt_diagnostic`). Öffentliche Ports nach dem
+  CMK-Port-Vertrag wie `CMK Flow · Detailer`: Eingänge MODEL ZIT, MODEL SDXL,
+  PROCESS, IMAGE, LOG, VISUAL, MODE; Ausgänge MODEL ZIT, MODEL SDXL (beide über
+  `CMKModelForwardPipe` aus den Eingängen), PROCESS (Mask-Detailer-Prozess der
+  Gate), IMAGE, LOG, VISUAL, diagnostic. Dazu
+  Family Enable (`ENABLE` → Gate `enabled` und VisualCompare `enable`; ersetzt
+  den Eingang `enabled`) und eine innere Preview Render. Intake-spezifisch:
+  solange die Intake nicht READY ist (S0–S2, Maske leer), fordert der Prepare
+  kein Modell an, materialisiert und sampelt nicht (Status `INTAKE PENDING`,
+  Process `NO PAINTED MASK · BYPASS`), denn die Diagnose an Preview Render und
+  Ausgang erzwingt die Ausführung von Prepare/Process. Der Seed kommt aus dem
+  `PROCESS` des Flows, weil der Snapshot keinen trägt. Die Prepare-Karte nennt
+  Intake-Status und Snapshot. Bild und Maske stammen aus dem gesperrten
+  Snapshot (Maske = 1 − Alpha), die Diagnose-Geometrie aus den SEGS der
+  Verarbeitung.
+- Kein Branch- oder Boundary-Cache (wie Legacy).
+
 ### 5.7 FaceProcess-Modul
 
 Öffentliche Moduloberfläche:
@@ -947,6 +1371,226 @@ ebenfalls `FaceProcess` und wird unabhängig vom gewählten `process mode` auf d
 unterstützten konkreten FaceProcess-Node-Typen aufgelöst. Restore und Detailer
 erzeugen daher niemals unterschiedliche Registeridentitäten.
 
+### 5.7a FaceProcess 2.8 (in Arbeit: F1–F4)
+
+Neue Nodes neben den unveränderten Legacy-Nodes; die Subgraphen
+`CMK Flow · FaceProcess` / `· Advanced` folgen in F5.
+
+```text
+CMK FaceProcess Mode Enable ──PROCESS MODE──┐ (None / Restore / SDXL / Z-Image Turbo)
+MODEL ZIT + MODEL SDXL + PROCESS + IMAGE + LOG ┴→ CMK FaceProcess Prepare Multi-Model -Pipe-
+    → FACE (Spezifikation, keine Modelle) → CMK FaceProcess Multi-Model -Pipe- → CMK Face Boundary Cache
+```
+
+- **Mode Enable (F1):** eigene Steuerklasse; `ENABLE` ist aus bei `None`. Der
+  Prompt-Handler `cmk_prompt_family_inline` setzt `PROCESS MODE` wie die
+  Detailer-Familie als Literal ein; Detailer-Werte und -Prompts unverändert.
+- **Prepare (F2):** lädt nichts (kein Modell, SAM, LoRA, Conditioning) und
+  fordert je Modus nur an, was der Modus braucht: NONE und RESTORE nur IMAGE
+  und LOG; SDXL zusätzlich PROCESS und MODEL SDXL; ZIT PROCESS und MODEL ZIT.
+- **REFINE MODE** gehört zum Prepare (sichtbar bei RESTORE, SDXL, ZIT; bei
+  NONE gilt Off) und erreicht die Ausführung über FACE; er ist Teil der
+  Prepare-Identität des Branch-Schlüssels.
+- **RESTORE MODEL / VISIBILITY** gehören ebenfalls zum Prepare (nur bei
+  RESTORE sichtbar, VISIBILITY-Default 0.50) und erreichen die Ausführung über
+  FACE. Nur RESTORE-Schlüssel enthalten sie (Backend-Identität des gewählten
+  Modells); SDXL/ZIT schließen sie aus.
+- **Execute bei NONE** zeigt kein Widget; Werte bleiben, keine Größenänderung.
+- **OUTPUT IMAGE PROCEED** am Ausführungs-Node wie am Smart Detailer: aus
+  bedeutet leerer Ausgang `IMAGE PROCEED`, SEGS, VISUAL und Diagnose bleiben;
+  kein Teil des Cache-Schlüssels. Die Boundary liest nicht IMAGE PROCEED,
+  sondern den angehängten Ausgang `FACE IMAGE` (wie `DETAILER IMAGE` am Smart
+  Detailer Multi-Model), der unabhängig vom Schalter das verarbeitete Bild
+  trägt; „aus“ funktioniert so auch beim Boundary-MISS. In Upstream-
+  Fingerprints zählt der Schalter dieser beiden Multi-Model-Nodes nur für
+  Links, die IMAGE PROCEED lesen (`OUTPUT_SWITCH_SLOTS` in
+  `cmk_persistent_cache`); Umschalten hält die Boundary auf HIT.
+- **Standard-Subgraph `CMK Flow · FaceProcess` (F5, Entwicklungsstand):**
+  äußere Ports wie der Multi-Model Detailer, `MODE` (DISABLE / RESTORE / SDXL
+  / ZIT) ist ein Subgraph-Eingang am `process_mode` des Prepare und des Mode
+  Enable (dessen `ENABLE` steuert Gate und Compare). Das Frontend spiegelt den
+  äußeren MODE wie beim Detailer in den inneren Prepare (beim Umschalten und
+  beim Öffnen des Subgraphen), damit die Innenansicht den aktiven Satz zeigt.
+  Preview Render und Compare hängen hinter dem Gate, nicht am Zweig.
+- **Ausführung (F2):** kein eigener Enable- oder Modus-Schalter. NONE ist der
+  vollständige Bypass (keine Detektion, kein Restore/Detailer, kein Refine,
+  `DISABLED_REVISION`). Nur beim Branch-MISS wird materialisiert: RESTORE ohne
+  Diffusionsmodell und ohne SAM; SDXL über die unveränderte Legacy-Vorbereitung
+  nach `release_zit_resources`; ZIT über die ZIT-Vorbereitung des Multi-Model
+  Detailer Prepare. Die Verarbeitung selbst ist der unveränderte Legacy-Pfad.
+- **Branch-Schlüssel** (`cmk_faceprocess_multimodel_branch_v1`): Modus, eigene
+  Einstellungen und der Prepare-Anteil des aktiven Modus. RESTORE ignoriert
+  Modellquellen, PROCESS, SDXL-/ZIT- und Detail-Einstellungen; SDXL ignoriert
+  ZIT- und Restore-Einstellungen, ZIT entsprechend SDXL. LOG und Diagnose sind
+  Transport.
+- **Boundary:** `CMKFaceBoundaryCache` unverändert im Schema; die neue
+  Ausführung ist zusätzliche Branch-Klasse des Manifests, `process_mode = None`
+  des Prepare gilt als Modul aus. Legacy-Schlüssel bleiben gleich.
+- **RESTORE (F3):** YOLO erkennt und wählt aus (dieselbe Auswahl wie
+  Coverage und Detailer). InsightFace ordnet jedem ausgewählten YOLO-Gesicht
+  nur sein vollständiges Face-Objekt zu (`utils/face_matching.py`, Regel
+  `iou_kps_margin_v1`: bester Kandidat IoU ≥ 0,30, mindestens 4 von 5
+  Keypoints in der YOLO-Box, Abstand zum zweiten Kandidaten ≥ 0,20; ein
+  InsightFace-Gesicht für zwei YOLO-Gesichter ist ein Konflikt). Nicht
+  zugeordnete oder mehrdeutige Gesichter werden übersprungen, nicht ersetzt,
+  und weder restauriert noch beansprucht; LOG und Diagnose unterscheiden „nicht
+  erkannt“, „keine Zuordnung“ und „mehrdeutig“. Restauriert wird in der
+  2.7-Reihenfolge (aufsteigende Fläche) über `RestoreFaceAdvanced` mit
+  `assigned_faces` (106 Landmarken erhalten). Ohne YOLO-Detektor oder mit
+  `restore_model = none` ist RESTORE ein Konfigurationsfehler.
+- **Restore-Modelle (E5, `pipe/cmk_faceprocess_restore.py`):** GFPGAN mit
+  genau der gewählten Datei; CodeFormer mit dem festen CMK-Referenzverhalten
+  (Fidelity 0,72, danach 72 % Ergebnis / 28 % Eingang) und nur für die Datei,
+  die das Backend tatsächlich lädt; GPEN nur `GPEN-BFR-512.onnx`. Alles andere
+  wird abgelehnt, kein stiller Rückfall. Backend und Datei stehen in LOG und
+  Diagnose und im Branch-Schlüssel. `restore_facedetection` und
+  `restore_codeformer_weight` bietet der 2.8-Node nicht an.
+- **SDXL/ZIT-Detailer (F4):** der 2.7-Detailer-Schritt (Detektion mit SAM,
+  Detektor-Ersatz bei nicht gesichtsbezogenem Standard-Detektor,
+  `SEGSDetailer`, `SEGSPaste` mit `detail_paste_feather`) im 2.8-Node, mit
+  derselben YOLO-Auswahlfunktion wie RESTORE.
+- **Refine (F4, E9):** feste Werte unverändert, wirkt nur auf die Gesichter des
+  Zweigs: RESTORE nur auf zugeordnete und restaurierte, SDXL/ZIT auf die
+  ausgewählten. Keine Auswahl heißt kein Refine; die ungefilterte
+  Neuerkennung entfällt.
+- **Verarbeitungsebenen (F4, `utils/face_layers.py`):** `SEGS PROCESSED` ist
+  `CMKFaceLayerSEGS` (Unterklasse der stabilen SEGS) mit `cmk_layers` in
+  Verarbeitungsreihenfolge: `quantize` (`round` vor Restore, `trunc` vor Refine
+  nach einem Detailer; über die Vereinigung der Zweig-Regionen), `restore` je
+  Gesicht (zurückgewarptes Ergebnis, Float32-Pasteback-Alpha, Visibility),
+  `detailer` je SEG (Crop wie eingefügt, Feather eingerechnet), `refine`
+  (gefiltertes Bild, Alpha 0,75 · Ellipse, vollständiger Wirkbereich).
+  `compose_layers` wiederholt die Mischoperationen der 2.7-Pfade und
+  reproduziert das Zweigergebnis innerhalb der Regionen exakt; außerhalb liegt
+  nur die 2.7-Ganzbild-Quantisierung (0 auf dem 8-Bit-Raster, sonst ≤ 1/255).
+  Branch-Schema `…_v3`.
+- **Advanced (F5, `pipe/cmk_faceprocess_advanced_multimodel.py`):**
+  `CMK FaceProcess Prepare Advanced Multi-Model -Pipe-` liefert FACE 1–3 im
+  unveränderten Standard-FACE-Vertrag; jeder Zweig ist die abgenommene
+  Ausführung mit eigenem Branch-Cache. Je Zweig MODE (über einen eigenen Mode
+  Enable), REFINE, RESTORE MODEL/VISIBILITY und SDXL-/ZIT-Einstellungen;
+  gemeinsame Einstellungen und promptloses Verhalten wie beim Advanced
+  Multi-Model Detailer, globaler Schalter `faceprocess_global_enable`
+  (ENABLE/DISABLE). Wie dort (5.6b, MODE) speist der äußere MODE
+  `CMKFaceProcessAdvancedModeEnable`, dessen `ENABLE` Bypass Gate, Diagnostic
+  Gate und Preview & Compare schaltet; bei DISABLE werden Prepare, Zweige,
+  Merge und Diagnose-Renders nicht angefordert. Der Branch-Schlüssel enthält nur den eigenen Slot und die
+  gemeinsamen Werte, die sein Modus liest (`advanced_prepare_excluded_inputs`).
+  `CMK FaceProcess Merge Multi-Model` fordert lazy RESTORE → ZIT → SDXL an
+  (NONE nur Diagnose, zuletzt) und komponiert in Slotreihenfolge D1 → D2 → D3
+  mit `compose_layers` über die F4-Ebenen jedes Zweigs: tatsächliche Restore-,
+  Detailer- und Refine-Masken samt Mischarithmetik, jeder Zweig auf dem
+  Ergebnis der vorigen. Außerhalb aller Zweigregionen bleibt das Eingangsbild
+  unverändert (keine Ganzbild-Quantisierung). Zweige aus einem anderen Bild
+  werden abgewiesen. `diagnostic 1..3` reicht die Zweigdiagnosen unverändert
+  weiter; die Previews hängen hinter dem Merge (kein Output-Root am Zweig).
+  Boundary unverändert; Modul aus bei DISABLE oder drei NONE-Zweigen.
+- **Räumliche Diagnostik (F5, `utils/face_diagnostic.py`):** nur aus
+  vorhandenen Daten (Quellbild, YOLO-Detektion/-Auswahl, RESTORE-Zuordnung,
+  F4-Ebenen); das Bild bleibt unberührt. Payload-Stufen (sichtbar ohne
+  Source, Primary-/Refine-Ergebnis und Final, siehe 9.1): Zweig SDXL/ZIT: Source, Detection
+  (erkannt/ausgewählt), Sampling ROI, Mask, Pasteback (Detailer-Ebenen-Alpha),
+  Detailer, Differenz, Final. RESTORE: Source, Detection · Assignment, Restore
+  Region, Restore Alpha, Visibility (Alpha × Visibility), Restore, Differenz,
+  Final. Mit Refine zusätzlich Refine Mask (0,75 · Ellipse), Refine und
+  Differenzen. NONE ohne. Ältere Branch-Cache-Einträge werden beim HIT aus
+  ihren SEGS/Ebenen ergänzt (`with_face_stages`, idempotent). Merge:
+  INPUT LAYERS (wirksame Alpha je Zweig), OVERLAP (Alpha-Überlappung, später
+  oben), COMPOSITE (exakte Anteile D1 → D2 → D3), FINAL.
+- **GFPGAN ist nicht deterministisch:** Der Decoder speist Zufallsrauschen ein;
+  dieselbe Eingabe ergibt ohne festen Torch-Seed unterschiedliche Pixel (auch
+  in 2.7). Der Branch-Cache hält einen Lauf fest.
+- **Bedienung wie der Multi-Model Detailer:** Der Prepare hat exakt dessen
+  Parametersatz (nur `process_mode` statt `model_family`), einschließlich
+  `SAMPLING ENTRY` (SDXL, 95 %), `ZIT SAMPLING ENTRY` (85 %) und des
+  optionalen Eingangs `LoRA ZIT` (nur im ZIT-Modus angefordert). SDXL und ZIT
+  materialisieren über den unveränderten `CMKDetailerPrepareMultiModelPipe`:
+  dieselbe Prompt- und Seed-Auflösung (1st Pass, sonst lokal; Seed aus PROCESS,
+  sonst 0), dieselben LoRA-Regeln (SDXL: 1st Pass gleicher Familie oder lokale
+  LoRA; ZIT: ZIT-1st-Pass vor `LoRA ZIT`, nie die SDXL-LoRA) und die
+  ZIT-Freigabe vor SDXL. Der Einstieg wird mit der Detailer-Funktion
+  `_sampling_entry_to_denoise` in Denoise umgerechnet; `detail_denoise` gibt es
+  im 2.8-Node nicht mehr. Branch-Schema `…_v4`.
+
+### 5.7b FaceRebuild v2 (2.8)
+
+Neue Subgraph-Dateien `CMK Flow · FaceRebuild SDXL v2.json` und
+`CMK Flow · FaceRebuild SDXL · Advanced v2.json` neben den unveränderten
+SDXL-Subgraphen; der sichtbare Titel bleibt. FaceRebuild bleibt ein
+SDXL-Modul, ZIT wird nur durchgereicht.
+
+- **Ports** (CMK-Port-Vertrag wie `CMK Flow · Detailer`): Eingänge MODEL ZIT,
+  MODEL SDXL, PROCESS, IMAGE, LOG, VISUAL, MODE, danach die Quellgesicht-Dateien;
+  Ausgänge MODEL ZIT, MODEL SDXL (beide über `CMKModelForwardPipe` aus den
+  Eingängen), PROCESS, IMAGE, LOG, VISUAL, diagnostic. MODEL ZIT wird weder
+  materialisiert noch verarbeitet; am Visualizer gehört er an
+  `POSTPROCESS MODEL ZIT` (nicht an `MODEL ZIT` der ZIT-Generierungsgruppe).
+- **MODE** ENABLE / DISABLE (äußeres Widget `facerebuild_mode`, Darstellung über
+  `cmk_detailer_mode_ui.js` wie die Advanced-Module): `CMK FaceRebuild · Mode`
+  (`CMKFaceRebuildModeEnable`) liefert `ENABLE` an den Executor
+  (`FACEREBUILD ENABLE`), die Bypass-Gate und VisualCompare; DISABLE ist der
+  bestehende Modul-Bypass. Der Legacy-Schalter `FACEREBUILD ENABLE` bleibt in den
+  SDXL-Subgraphen unverändert.
+- **Executoren** `CMKInstantIDFaceRebuildSDXLV2` / `…AdvancedSDXLV2` erben die
+  SDXL-Verarbeitung unverändert; nur die Diagnose (`_module_diagnostic`,
+  `_bypass_diagnostic`) ist neu. Die Legacy-Executoren liefern bytegleich die
+  bisherige Diagnose.
+- **Diagnose** (`utils/facerebuild_diagnostic.py`, Geometrie aus dem
+  Rebuild-Kontext und den Engine-Masken der Verarbeitung): Prepare-Textkarten
+  mit kurzen Bezeichnungen (höchstens 52 Zeichen je Zeile, höchstens 18 Zeilen,
+  so passt der Text in die Bildzone); Standard eine Karte, Advanced eine
+  Modulkarte („FaceRebuild · Prepare“) und je aktivem Slot eine Karte
+  („Slot n · Prepare“) in Verarbeitungsreihenfolge. Die Karten tragen
+  `summary_card_layout = footer_rule`: `render_summary_panel` zieht dann den
+  Abschnittsstrich über der Fußzeile, an dem `combine_preview_panels` die Karten
+  ausrichtet – sonst zählte der ganze Textkörper als Info-Bereich und vergrößerte
+  jede Bildkarte. Andere Textkarten bleiben unverändert. Standard: Rebuild ROI (Zielgesicht + Kopf/Hals-ROI),
+  Inpaint Mask (Sampling-Maske), Pasteback (eingefügtes Ergebnis ×
+  Pasteback-Gewicht, PASTEBACK NECK), Difference nur bei Änderung. Advanced:
+  Target Faces (Slots, Selektor, Reihenfolge), Inpaint Masks, Pasteback in
+  Pasteback-Reihenfolge (größtes Gesicht zuerst), Overlap nur bei überlappenden
+  Slots, Difference. Keine Source-, Detection- oder Rebuilt-ROI-Stufe; Bypass
+  und „kein aktiver Slot“ sind Textkarten.
+- **Preview-Kette**: Die innere Preview Render hängt an der Bypass-Gate (nach
+  Boundary Cache), nicht mehr direkt am Executor; bei DISABLE blockiert die Gate
+  die Diagnose (keine alte Diagnose, kein Platzhalter).
+
+### 5.7c FaceSwap v2 (2.8)
+
+Neue Subgraph-Dateien `CMK Flow · FaceSwap v2.json` und
+`CMK Flow · FaceSwap · Advanced v2.json` neben den unveränderten
+Legacy-Subgraphen; Subgraph-Name und Gruppentitel ohne „v2“, eigene IDs.
+FaceSwap bleibt modellunabhängig: MODEL ZIT und MODEL SDXL werden nur
+durchgereicht.
+
+- **Ports** (CMK-Port-Vertrag wie `CMK Flow · Detailer`): Eingänge MODEL ZIT,
+  MODEL SDXL, PROCESS, IMAGE, LOG, VISUAL, MODE, Quelldateien; Ausgänge
+  MODEL ZIT, MODEL SDXL, PROCESS, IMAGE, LOG, VISUAL, diagnostic.
+  MODEL ZIT: `CMKModelForwardPipe`. MODEL SDXL: der Legacy-Pfad
+  (Result Unpack → Boundary → Bypass Gate) unverändert; die Ausgänge kommen
+  vom Gate (der Result Pack hat sie nur auf CMK_RESULT_* umtypisiert).
+- **MODE**: `CMKFaceSwapModeEnable` (Widget `faceswap_mode`, Unterklasse von
+  `CMKFaceRebuildModeEnable`) speist alle früheren FACESWAP-ENABLE-Ziele
+  (Executor GLOBAL ENABLE, Gate ENABLE, Visual Compare). DISABLE: das Gate
+  fordert nur die Bypass-Eingänge an; Executor, Quell-Loader und Boundary
+  laufen nicht.
+- **Executoren**: `CMKFaceSwapImagePipeV2` (Standard) und
+  `CMKFaceSwapSlotPipeV2` (Advanced) erben die Verarbeitung von
+  `CMKFaceSwapImagePipe` unverändert; nur `_merge_transport` ersetzt die
+  Diagnose. `CMKFaceSwapAdvancedDiagnosticV2` hinter dem unveränderten
+  SEGS CONCAT baut die Advanced-Diagnose und speist den Boundary-Eingang
+  diagnostic.
+- **Diagnose** (`utils/faceswap_diagnostic.py`, Daten nur aus dem Lauf):
+  Prepare-Karte(n) mit `footer_rule`; Standard: Swap Face (gewähltes
+  Zielgesicht + Einfügeregion), Paste Mask (`branch_mask` der stabilen SEGS =
+  paste mask × BLEND > 0), Pasteback, Difference nur bei Änderung. Advanced:
+  Modulkarte (Slots, Merge-Reihenfolge), je aktivem Slot eine Karte, dann
+  Target Faces, Paste Masks, Merge (SEGS-CONCAT-Eingangsreihenfolge, späterer
+  Slot oben), Overlap nur bei Überlappung, Difference. Abgeschaltete Läufe:
+  Textkarte ohne Platzhalterbild.
+- **Preview Render** liest die Gate-Diagnose: bei Cache-HIT die gespeicherte
+  Boundary-Diagnose ohne FaceSwap-Neuberechnung, bei DISABLE blockiert.
+
 ### 5.8 Image Resize
 
 `CMK Flow · Image Resize` ist ein modellfreies, familienunabhängiges
@@ -967,6 +1611,15 @@ einem methodenspezifischen Fingerprint verwendet; Parameter inaktiver Verfahren
 gehören deshalb nicht zum Cache-Schlüssel. Erfolgreiche Verarbeitung ergänzt
 LOG, VISUAL und das CMK-Diagnostic-Format, ohne Modelle zu laden oder den
 Model-Lifecycle zu verändern.
+
+**Image Resize v2 (2.8):** `CMKImageResizeV2` (`CMK Flow · Image Resize v2`)
+ist der unveränderte Image Resize mit dem CMK-Port-Vertrag
+`MODEL ZIT, MODEL SDXL, PROCESS, IMAGE, LOG, VISUAL` → zusätzlich `diagnostic`.
+Beide MODEL-Eingänge sind reiner Transport und wie PROCESS und VISUAL nicht Teil
+des Cache-Schlüssels; Verarbeitung, Bypass, Diagnose und VISUAL-Provider sind
+die des Legacy-Nodes.
+Statt des Schalters `SCALE ENABLE` hat v2 das Dropdown `scale_mode`
+(ENABLE/DISABLE, Beschriftung SCALE, rechtsbündig) mit derselben Bedeutung.
 
 ### 5.8a Upscale und Save
 
@@ -1002,6 +1655,19 @@ PROCESS + IMAGE + LOG + Speicherparameter → Datei (keine verbrauchten Ausgäng
 ist echter Bypass ohne Upscaler-, Boundary- oder Speicherausführung.
 Eingebettete Definitionen vor Version 1.4.0 bleiben unverändert lauffähig und
 behalten ihre bisherige Semantik (Abschnitt 3.0).
+
+**Upscale & Save v2 (2.8):** `CMK Flow · Upscale & Save v2.json` (User-Verzeichnis,
+eigene ID, Titel unverändert) folgt dem CMK-Port-Vertrag:
+`MODEL ZIT, MODEL SDXL, PROCESS, IMAGE, LOG, VISUAL, SAVE ENABLED, FILENAME PREFIX`
+→ `MODEL ZIT, MODEL SDXL, PROCESS, IMAGE, LOG, VISUAL, diagnostic`. MODEL ZIT,
+MODEL SDXL (`CMKModelForwardPipe`) und PROCESS (`CMKResultProcessForwardPipe`,
+Eingang `*`, Ausgang `CMK_RESULT_PROCESS`) werden direkt vom Subgraph-Eingang
+weitergereicht; PROCESS speist weiterhin den Save Endpoint. Upscaler, Boundary,
+Gate, Visual Provider und Save Endpoint sind unverändert: Ein Anfordern der
+Forward-Ausgänge führt keinen von ihnen aus.
+Statt des Schalters `SAVE ENABLED` hat v2 das Dropdown `upscale_save_mode`
+(ENABLE/DISABLE, Beschriftung SAVE, rechtsbündig); `CMKUpscaleSaveModeEnable`
+speist alle bisherigen SAVE-ENABLED-Ziele.
 
 Der Zielpfad wird unterhalb von ComfyUIs Output-Verzeichnis in dieser Reihenfolge
 gebildet:
@@ -1205,14 +1871,18 @@ Die persistenten Generation-Completion-Ergebnisse liegen paketlokal unter
 ComfyUI-Neustart erhalten, bis sie durch die Begrenzung des Caches, eine gezielte
 Invalidierung oder die manuelle Bereinigung im Flow Browser entfernt werden.
 
-Branch- und Boundary-Caches liegen dagegen unter `ComfyUI/temp/cmk/`. Sie werden
-promptübergreifend innerhalb der laufenden Instanz wiederverwendet, gehören aber
-zum temporären ComfyUI-Dateisystem und sind daher nicht verlässlich
-neustartpersistent.
+Branch- und Boundary-Caches liegen seit 2.8.0 unter
+`<ComfyUI-User-Verzeichnis>/cmk_cache/<scope>/` (standardmäßig
+`ComfyUI/user/cmk_cache/`). Alle Scopes lösen diesen Ort über
+`cmk_persistent_cache.cache_directory` auf, das ihn aus
+`folder_paths.get_user_directory()` ableitet. Bis 2.7 lagen sie unter
+`ComfyUI/temp/cmk/`; ComfyUI löscht sein Temp-Verzeichnis jedoch bei jedem Start
+und Beenden (`app/assets/lifecycle.cleanup_temp_filesystem`), sodass sie keinen
+Neustart überlebten. Alte Temp-Einträge werden nicht übernommen.
 
 Die manuelle Aktion `Clear Persistent Cache` erfasst ausschließlich diese
 paketlokalen Generation-Completion-Dateien und die ausdrücklich registrierten
-CMK-Scopes unter `ComfyUI/temp/cmk/`. In-Memory-Ergebnisse, ComfyUIs normaler
+CMK-Scopes unter `cmk_cache/`. In-Memory-Ergebnisse, ComfyUIs normaler
 Execution Cache einschließlich RAM-Pressure-Modus sowie allgemeine Modell- und
 Ressourcencaches sind nicht Bestandteil dieser Bereinigung.
 
@@ -1375,6 +2045,34 @@ CMK LOG CONCAT  → LOG BLOCK 1 ... N
 ```
 
 Preview- und Comparer-Nodes innerhalb eines geschlossenen Moduls müssen hinter dem jeweiligen Boundary angeschlossen sein, sofern sie ein verarbeitetes Modulergebnis anzeigen.
+
+### 9.1 Grundregel: Preview zeigt das Ergebnis, Diagnostik den Vorgang (2.8)
+
+Gilt für alle CMK-Module mit Preview- und Diagnosefunktion.
+
+- **Preview / Compare** (Visualizer, Preview & Compare) zeigt die Bilder zur
+  Qualitätsbeurteilung: Eingang, Ergebnis, Before/After.
+- **Diagnostik** zeigt, wo, wie und mit welcher Wirkung ein Ergebnis entstand:
+  Detektion und Auswahl, ROI, Masken, Alpha, Pasteback und Visibility,
+  Refine-Masken, Überlappungen, Kompositionsanteile, Differenzen zwischen
+  relevanten Stufen (z. B. Source → Primary, Primary → Refine, Source → Final),
+  Zuordnungen und Status.
+- **Keine Vollbilder in der Diagnosefolge:** Source, Primary-Ergebnis,
+  Refine-Ergebnis, Final und die gewöhnliche Node-Vorschau („Preview N“)
+  erscheinen nicht als Diagnosekachel. Jede Kachel beantwortet eine eigene
+  technische Frage; eine Kachel ohne Informationsgewinn entfällt.
+- **Umsetzung:** Die Erzeuger behalten diese Bilder in ihren Payloads (Caches,
+  Rekonstruktion, andere Verbraucher); die Diagnose-Renderer (`CMK Preview
+  Render`, `CMK Preview Board`, `utils/comfy_preview_output.py`) lassen sie
+  aus. Zugeordnet wird je (Node, Stufentitel) in `utils/cmk_diagnostic.py`
+  (`PLAIN_IMAGE_STAGES`, `PLAIN_PREVIEW_NODES`), weil derselbe Titel woanders
+  technisch sein kann (die „Source“ von `CMK Face Crop` zeigt die Auswahl mit
+  Boxen und Landmarken). Gecachte Diagnosen folgen der Regel ohne
+  Neuberechnung. Bleibt einer Diagnose kein sichtbarer Schritt, zeigt der
+  Renderer ihre Zusammenfassung als Textkarte statt eines Vollbilds.
+- Neue Diagnosen benennen ihre Stufen eindeutig; reine Vollbilder einer neuen
+  Node werden in die Tabelle aufgenommen. Bildverarbeitung, Caches,
+  Lazy-Verträge und Preview/Compare bleiben davon unberührt.
 
 ## 10. UI- und Benennungsvertrag
 
@@ -2066,7 +2764,7 @@ Ein Detailer-HIT übernimmt MODEL aus dem aktuellen Eingang und stellt IMAGE,
 LOG, Diagnose und VISUAL aus dem gespeicherten Eintrag wieder her; es gibt
 keine Session-Kopie von MODEL mehr. Ein gültiger Eintrag ist damit nach
 Eviction und nach einem Neustart nutzbar, solange die Dateien unter
-`ComfyUI/temp/cmk/` erhalten sind.
+`cmk_cache/` erhalten sind.
 
 Ein lokal deaktivierter Zweig speichert keinen Pickle und veröffentlicht keine
 Revision. Seinen Manifest-Zustand liefert deshalb ebenfalls die Zweig-Klasse

@@ -1,0 +1,20 @@
+{
+  "published": true,
+  "searchOnly": true,
+  "displayName": "CMK 2.8 · Detailer Advanced · Modul",
+  "kind": "module",
+  "order": 302,
+  "category": "MODULE WORKFLOWS",
+  "category_en": "MODULE WORKFLOWS",
+  "description": "Zeigt den Advanced Detailer mit drei unabhängigen Detailern, jeder mit eigener Modellfamilie: hier D1 SDXL für eine Hand, D2 Z-Image Turbo für das Gesicht, D3 frei (NONE). MODE schaltet das gesamte Modul ein oder aus.\n\nDie Merge-Diagnose zeigt Eingangs-SEGS, Masken-Überschneidungen, den Composite-Anteil jedes Detailers und das Ergebnis.",
+  "description_en": "Shows the Advanced Detailer with three independent Detailers, each with its own model family: here D1 SDXL for a hand, D2 Z-Image Turbo for the face, D3 free (NONE). MODE switches the whole module on or off.\n\nThe merge diagnostic shows the input SEGS, mask overlaps, each Detailer's composite share and the result.",
+  "cmkHighlight": "SDXL und Z-Image Turbo in einem Durchlauf: ZIT vor SDXL, jede Familie nur einmal geladen, Zusammenführung über die tatsächlichen Pasteback-Masken.",
+  "cmkHighlight_en": "SDXL and Z-Image Turbo in one run: ZIT before SDXL, each family loaded only once, merged by the actual pasteback masks.",
+  "previews": [
+    {
+      "src": "assets/showcase/MODULE WORKFLOWS/CMK · Detailer Advanced · Modul/CMK 2.8 · Detailer Advanced · Modul.webp",
+      "label": "Workflow",
+      "label_en": "Workflow"
+    }
+  ]
+}

@@ -873,6 +873,58 @@ class CMKModuleBypassGate:
         return result
 
 
+DIAGNOSTIC_GATE_SLOTS = (1, 2, 3)
+
+
+class CMKModuleDiagnosticGate:
+    """The slot diagnostics of an Advanced module behind its MODE (2.8.0).
+
+    The companion of CMK Module Bypass Gate for the per-slot diagnostics, which
+    the Bypass Gate (one diagnostic beside IMAGE and LOG) cannot carry: with
+    the same ENABLE as the module gate it requests a connected slot
+    diagnostic only while the module is active and blocks every output
+    otherwise, so the Preview Renders behind it never pull the Merge, the
+    branches or the Prepare of a disabled module.  Values pass unchanged.
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        lazy = ("CMK_DIAGNOSTIC", {"lazy": True})
+        return {
+            "required": {"ENABLE": ("BOOLEAN", {"default": False})},
+            "optional": {f"diagnostic {slot}": lazy for slot in DIAGNOSTIC_GATE_SLOTS},
+            "hidden": {"prompt": "PROMPT", "unique_id": "UNIQUE_ID"},
+        }
+
+    RETURN_TYPES = ("CMK_DIAGNOSTIC",) * len(DIAGNOSTIC_GATE_SLOTS)
+    RETURN_NAMES = tuple(f"diagnostic {slot}" for slot in DIAGNOSTIC_GATE_SLOTS)
+    FUNCTION = "gate"
+    CATEGORY = "CMK/Internal/Gates"
+    DEV_ONLY = True
+
+    @staticmethod
+    def _enabled(ENABLE, prompt, unique_id):
+        # The decision of the module's Bypass Gate (same ENABLE, same STOP).
+        return bool(ENABLE) and not stop_after_handoff_prompt_state(prompt, unique_id)
+
+    def check_lazy_status(self, ENABLE=False, prompt=None, unique_id=None, **inputs):
+        if not self._enabled(ENABLE, prompt, unique_id):
+            return []
+        # Only connected slots are requested (as in CMK Module Bypass Gate).
+        current = prompt.get(str(unique_id), {}) if isinstance(prompt, dict) else {}
+        connected = current.get("inputs", {}) or {} if isinstance(current, dict) else {}
+        return [name for name in self.RETURN_NAMES if name in connected and inputs.get(name) is None]
+
+    @classmethod
+    def gate(cls, ENABLE=False, prompt=None, unique_id=None, **inputs):
+        if not cls._enabled(ENABLE, prompt, unique_id):
+            return tuple(ExecutionBlocker(None) for _ in cls.RETURN_NAMES)
+        return tuple(
+            inputs[name] if inputs.get(name) is not None else ExecutionBlocker(None)
+            for name in cls.RETURN_NAMES
+        )
+
+
 class CMKControlNetBypassGate:
     """Select ControlNet output or its unchanged SDXL input lazily."""
 
@@ -3801,6 +3853,7 @@ _VISUALIZER_COMMON_INPUTS = {
 _VISUALIZER_FAMILY_SUFFIXES = ("ZIT", "SDXL")
 _POSTPROCESS_COMPLETION_NODES = {
     "CMKPostProcessSetupPipe",
+    "CMKPostProcessSetupV2Pipe",
     "CMKPostProcessBoundarySDXLPipe",
     "CMKPostProcessBoundaryZITPipe",
     "CMKFamilyResultMergePipe",

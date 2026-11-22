@@ -20,6 +20,8 @@ _STATUSES = {
 }
 _LIVE_TYPE_ALIASES = {
     "FaceProcess": {"CMKFaceProcessPipe", "CMK_FaceProcess", "CMKFaceProcess"},
+    # FaceSwap v2 runs the unchanged FaceSwap processing (SEGS CONCAT provider).
+    "CMKFaceSwapImagePipe": {"CMKFaceSwapImagePipeV2", "CMKFaceSwapSlotPipeV2"},
 }
 
 
@@ -278,6 +280,9 @@ class CMKVisualProvider:
         return (result,)
 
 
+POSTPROCESS_MODEL_ZIT = "POSTPROCESS MODEL ZIT"
+
+
 class CMKVisualizer:
     OUTPUT_NODE = True
 
@@ -309,6 +314,11 @@ class CMKVisualizer:
                 "IMAGE SDXL": ("IMAGE", {"lazy": True}),
                 "LOG SDXL": ("CMK_LOG_PIPE", {"lazy": True}),
                 "VISUAL SDXL": (VISUAL_TYPE, {"lazy": True}),
+                # PostProcess MODEL ZIT (shown as "MODEL ZIT" in the POSTPROCESS
+                # group): a connection anchor for the Multi-Model PostProcess
+                # chain. It is never requested, so the Visualizer neither
+                # materialises nor references the ZIT model.
+                POSTPROCESS_MODEL_ZIT: ("CMK_MODEL_PIPE", {"lazy": True}),
                 "MODEL (opt)": (CMK_FINISH_INPUT, {"lazy": True}),
                 "PROCESS": (CMK_FINISH_INPUT, {"lazy": True}),
                 "IMAGE": (CMK_FINISH_INPUT, {"lazy": True}),

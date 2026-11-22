@@ -45,7 +45,7 @@ def selfcheck_prompt() -> dict:
 
 
 def _scope_status(workdir: Path, scope: str):
-    path = Path(workdir) / "temp" / "cmk" / scope / "last_status.json"
+    path = Path(workdir) / "user" / "cmk_cache" / scope / "last_status.json"
     if not path.is_file():
         return None
     return json.loads(path.read_text(encoding="utf-8")).get("status")
@@ -110,12 +110,12 @@ def scope_inventory(workdir: str) -> dict:
     # Caches with their own directory helper instead of a SCOPE constant
     # (e.g. the Refiner boundary) are found by calling that helper inside the
     # isolated work directory.
-    temp_cmk = (Path(workdir) / "temp" / "cmk").resolve()
+    cache_root = (Path(workdir) / "user" / "cmk_cache").resolve()
     for module_name, module in runtime.cmk_modules.items():
         helper = vars(module).get("_cache_directory")
         if callable(helper) and not inspect.signature(helper).parameters:
             directory = Path(helper()).resolve()
-            if directory.parent == temp_cmk:
+            if directory.parent == cache_root:
                 declared.setdefault(directory.name, set()).add(f"{module_name.split('.')[-1]}._cache_directory")
     persistent = runtime.cmk_module("pipe.cmk_persistent_cache")
     completion = runtime.cmk_module("pipe.cmk_generation_completion_cache")
@@ -505,7 +505,7 @@ HYBRID_SCOPES = ("sdxl_hybrid_boundary", "sdxl_handoff_boundary")
 
 
 def _scope_listing(workdir: Path) -> dict:
-    root = Path(workdir) / "temp" / "cmk"
+    root = Path(workdir) / "user" / "cmk_cache"
     return {scope: sorted(p.name for p in (root / scope).glob("*.pkl")) if (root / scope).is_dir() else []
             for scope in HYBRID_SCOPES}
 
@@ -542,17 +542,28 @@ def tensor_hash_of(value) -> str:
     return tensor_hash(value) if hasattr(value, "detach") else type(value).__name__
 
 
-def _add_postprocess_tail(prompt: dict) -> None:
+POSTPROCESS_ZIT_SETTINGS = {
+    "postprocess_zit_model": "z_image_turbo_bf16.safetensors", "postprocess_zit_text_encoder": "qwen_3_4b.safetensors",
+    "postprocess_zit_vae": "ae.safetensors", "postprocess_zit_weight_dtype": "default",
+    "postprocess_zit_clip_device": "default",
+}
+
+
+def _add_postprocess_tail(prompt: dict, version=True) -> None:
+    """PostProcess Setup (``version="v2"``: PostProcess Setup v2)."""
     visualizer = prompt["8334"]["inputs"]
     family = {name: visualizer.pop(name) for name in list(visualizer)
-              if name.endswith((" ZIT", " SDXL"))}
-    prompt["9100"] = {"class_type": "CMKPostProcessSetupPipe", "inputs": {
+              if name.endswith((" ZIT", " SDXL")) and not name.startswith("POSTPROCESS")}
+    v2 = version == "v2"
+    prompt["9100"] = {"class_type": "CMKPostProcessSetupV2Pipe" if v2 else "CMKPostProcessSetupPipe", "inputs": {
         **family, "postprocess_checkpoint": "juggernautXL_ragnarok.safetensors",
         "postprocess_vae": "ClearVAE_V2.2.safetensors", "use_checkpoint_vae": True,
+        **(POSTPROCESS_ZIT_SETTINGS if v2 else {}),
     }}
-    prompt["9101"] = {"class_type": "CMKModelForwardPipe", "inputs": {"MODEL": ["9100", 0]}}
-    visualizer.update({"MODEL (opt)": ["9101", 0], "PROCESS": ["9100", 1], "IMAGE": ["9100", 2],
-                       "LOG": ["9100", 3], "VISUAL": ["9100", 4]})
+    first = 1 if v2 else 0
+    prompt["9101"] = {"class_type": "CMKModelForwardPipe", "inputs": {"MODEL": ["9100", first]}}
+    visualizer.update({"MODEL (opt)": ["9101", 0], "PROCESS": ["9100", first + 1], "IMAGE": ["9100", first + 2],
+                       "LOG": ["9100", first + 3], "VISUAL": ["9100", first + 4]})
 
 
 def _add_mask_detailer_tail(prompt: dict) -> None:
@@ -669,7 +680,9 @@ def _insert_regional_node(runtime, prompt: dict, spec: dict) -> None:
         regions = [{"id": f"region-id-{index}", "name": f"REGION NAME {index}", "prompt": text, "strength": 1.5,
                     "end": 0.65, "box": {"x": 0.1, "y": 0.2, "width": 0.3, "height": 0.4}}
                    for index, text in enumerate(spec["layout"])]
-        layout = json.dumps({"version": 1, "width": 1024, "height": 1024, "regions": regions})
+        layout = json.dumps({"version": 1, "width": 1024, "height": 1024, "regions": regions,
+                             **({"conditioning_mode": spec["mode"]} if "mode" in spec else {}),
+                             **({"conditioning_blend": spec["blend"]} if "blend" in spec else {})})
         prompt[REGIONAL_NODE] = {"class_type": "CMKRegionalLayoutSDXL",
                                  "inputs": {**links, "width": 1024, "height": 1024, "regions_json": layout}}
     else:
@@ -736,7 +749,7 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
                 raise content_guard.ContentGuardBlocked("CG_EXPLICIT_CONTENT", role)
         seams.substitute(content_guard.CMKContentGuard, "inspect_content", "guard.inspect_content", fake_inspect)
     for relative, data in (preseed or {}).items():
-        target = workdir / "temp" / "cmk" / relative
+        target = workdir / "user" / "cmk_cache" / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(bytes.fromhex(data))
     import comfy.utils
@@ -780,7 +793,7 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
             if inpaint_source is not None:
                 _add_inpaint_source(prompt, inpaint_source)
             if postprocess_tail:
-                _add_postprocess_tail(prompt)
+                _add_postprocess_tail(prompt, postprocess_tail)
             if mask_detailer_tail:
                 _add_mask_detailer_tail(prompt)
             prompt["8334"]["inputs"].update(visualizer_inputs or {})
@@ -803,9 +816,12 @@ def hybrid_stop_sequence(workdir: str, fixture: str = "hybrid_stop", stops=(Fals
                 "stop": bool(stop),
                 "public_image_png": _tensor_png_hash(runtime, refiner_gate[1][0]) if refiner_gate and refiner_gate[1] else None,
                 "visualizer_model": (lambda output: None if not output else _payload_view(output[0][0]))(runtime.output("9101")),
-                "setup_image": (lambda output: None if not output else tensor_hash_of(output[2][0]))(runtime.output("9100")),
-                "setup_guard": (lambda output: None if not output or not isinstance(output[1][0], dict)
-                                else output[1][0].get("content_guard_enabled", "missing"))(runtime.output("9100")),
+                "setup_image": (lambda output: None if not output else tensor_hash_of(output[-4][0]))(runtime.output("9100")),
+                "setup_guard": (lambda output: None if not output or not isinstance(output[-5][0], dict)
+                                else output[-5][0].get("content_guard_enabled", "missing"))(runtime.output("9100")),
+                "setup_process": (lambda output: None if not output else _payload_view(output[-5][0]))(runtime.output("9100")),
+                "setup_zit_model": (lambda output: None if not output or len(output) != 6
+                                    else _payload_view(output[0][0]))(runtime.output("9100")),
                 "sampling": dict(seam_module.GENERATION_CALLS),
                 "inpaint_prepares": [dict(item) for item in seam_module.INPAINT_PREPARES],
                 "sampler_noise_masks": list(seam_module.SAMPLER_NOISE_MASKS),
@@ -1177,13 +1193,28 @@ def seam_neutrality(workdir: str, fixture: str, extra_model_paths: str | None = 
 
 def boundary_key(workdir: str, fixture: str, boundary_class: str, input_source: str = SELFCHECK_INPUT,
                  extra_model_paths: str | None = None, model_source_class: str | None = None,
-                 schema: str | None = None) -> dict:
+                 schema: str | None = None, distribution_mode: str | None = None) -> dict:
     """Boundary cache key exactly as the boundary computes it, for the given
     content of the (same-named) input file.  ``model_source_class`` replaces
-    the class of the node feeding CMK Load Image's MODEL input (H-2)."""
+    the class of the node feeding CMK Load Image's MODEL input (H-2).
+
+    Boundary keys carry the ContentGuard token (``baseline:off`` /
+    ``release:on``), so a key pinned to a contract record is computed in the
+    distribution mode the record was taken in (``distribution_mode``)."""
     from .comfy_runtime import boot
 
     runtime = boot(Path(workdir), extra_model_paths=extra_model_paths)
+    distribution = runtime.cmk_module("cmk_distribution")
+    shipped_mode = distribution.DISTRIBUTION_MODE
+    if distribution_mode is not None:
+        distribution.DISTRIBUTION_MODE = distribution_mode
+    try:
+        return _boundary_key(workdir, fixture, boundary_class, input_source, model_source_class, schema)
+    finally:
+        distribution.DISTRIBUTION_MODE = shipped_mode
+
+
+def _boundary_key(workdir, fixture, boundary_class, input_source, model_source_class, schema) -> dict:
     write_selfcheck_input(Path(workdir), input_source)
     import nodes
 
@@ -1380,3 +1411,281 @@ def swap_loader_packaged_references(workdir: str, extra_model_paths: str | None 
     own = _Path(module._resolve_image_path("portrait_reference_00001.png")).resolve()
     fresh["user_file_wins"] = own == (input_dir / "portrait_reference_00001.png").resolve()
     return fresh
+
+
+# -- FaceProcess 2.8 F2: deferred Prepare, Multi-Model execution ---------------
+FP28_PREPARE, FP28_EXECUTE, FP28_MODE, FP28_BOUNDARY = "8417:7845", "8417:7842", "8417:9000", "8417:7844"
+
+
+def faceprocess28_prompt(mode: str, overrides: dict | None = None) -> dict:
+    """The FaceProcess Standard fixture rebuilt on the 2.8 nodes: Mode Enable ->
+    deferred Prepare -> Multi-Model execution -> the unchanged FaceProcess
+    boundary and gate; the model source delivers MODEL SDXL and MODEL ZIT specs."""
+    prompt = load_api_prompt("faceprocess_std")
+    prompt["8419"] = {"class_type": "CMKPostProcessModelSourcePipe", "inputs": {
+        "ckpt_name": "juggernautXL_ragnarok.safetensors", "vae_name": "ClearVAE_V2.2.safetensors", "checkpoint_vae": True,
+        "diffusion_model": "z_image_turbo_bf16.safetensors", "text_encoder": "qwen_3_4b.safetensors", "vae": "ae.safetensors",
+        "weight_dtype": "default", "clip_device": "default"}}
+    legacy = dict(prompt[FP28_PREPARE]["inputs"])
+    for name in ("face_global_enable", "MODEL"):
+        legacy.pop(name)
+    legacy.update({"MODEL SDXL": ["8419", 0], "MODEL ZIT": ["8419", 1], "process_mode": [FP28_MODE, 1],
+                   "sampling_entry": 95.0, "zit_steps": 8, "zit_cfg": 1.0, "zit_sampling_entry": 85.0,
+                   "zit_sampler": "res_multistep", "zit_scheduler": "simple", "zit_model_shift": 3.0})
+    prompt[FP28_PREPARE] = {"class_type": "CMKFaceProcessPrepareMultiModelPipe", "inputs": legacy}
+    prompt[FP28_MODE] = {"class_type": "CMKFaceProcessModeEnable", "inputs": {"process_mode": mode}}
+    execute = dict(prompt[FP28_EXECUTE]["inputs"])
+    for name in ("enable", "process_mode", "detail_denoise"):
+        execute.pop(name)
+    # REFINE MODE, RESTORE MODEL and VISIBILITY belong to the Prepare (the
+    # fixture's execution sets no restore model); the execution has OUTPUT
+    # IMAGE PROCEED.
+    prompt[FP28_PREPARE]["inputs"].update(refine_mode=execute.pop("refine_mode"), restore_model="GFPGANv1.4.pth",
+                                          restore_visibility=1.0)
+    execute["output_image_proceed"] = True
+    prompt[FP28_EXECUTE] = {"class_type": "CMKFaceProcessMultiModelPipe", "inputs": execute}
+    # The boundary stores FACE IMAGE (always the processed image), so OUTPUT
+    # IMAGE PROCEED stays an output switch of the execution node.
+    prompt[FP28_BOUNDARY]["inputs"]["IMAGE"] = [FP28_EXECUTE, 7]
+    prompt["8417:7847"]["inputs"]["ENABLE"] = [FP28_MODE, 0]
+    prompt["8417:7846"]["inputs"]["enable"] = [FP28_MODE, 0]
+    for key, value in (overrides or {}).items():
+        node_id, name = key.rsplit(".", 1)
+        prompt[node_id]["inputs"][name] = value
+    return prompt
+
+
+FP28A_PREPARE, FP28A_MERGE = "8417:7845", "8417:7850"
+FP28A_BRANCHES = {1: "8417:7842", 2: "8417:7848", 3: "8417:7849"}
+FP28A_PREVIEWS = ("8417:7851", "8417:7852", "8417:7853", "8417:7854")
+
+
+def faceprocess28_advanced_prompt(modes, enable: str = "ENABLE", overrides: dict | None = None) -> dict:
+    """FaceProcess 2.8 Advanced on the Standard fixture: Advanced Prepare (each
+    branch's mode from its own Mode Enable) -> three Multi-Model branches ->
+    layer merge -> the unchanged FaceProcess boundary and gate; the four
+    Preview Renders hang on the merge outputs."""
+    base = faceprocess28_prompt("Restore")
+    standard = base[FP28_PREPARE]["inputs"]
+    execute = base[FP28_EXECUTE]["inputs"]
+    prompt = {key: base[key] for key in ("1", "8419", "8418", "8417:7843", "8417:8420", "8417:7846", "8417:7847", FP28_BOUNDARY)}
+    shared = ("sam_model_name", "sam_device_mode", "use_prompt_lora_from_sampler", "stop_at_clip_layer", "pag_scale",
+              "sampling", "zsnr", "freeu_enabled", "freeu_b1", "freeu_b2", "freeu_s1", "freeu_s2")
+    per_slot = ("refine_mode", "restore_model", "restore_visibility", "steps", "cfg", "sampling_entry", "sampler",
+                "scheduler", "zit_steps", "zit_cfg", "zit_sampling_entry", "zit_sampler", "zit_scheduler", "zit_model_shift")
+    inputs = {"MODEL SDXL": ["8419", 0], "MODEL ZIT": ["8419", 1], "PROCESS": ["1", 1], "IMAGE": ["1", 2], "LOG": ["1", 3],
+              "faceprocess_global_enable": enable, **{name: standard[name] for name in shared}}
+    merge = {"IMAGE": ["1", 2], "LOG": [FP28A_PREPARE, 4]}
+    for slot, mode in enumerate(modes, 1):
+        control = f"8417:900{slot}"
+        prompt[control] = {"class_type": "CMKFaceProcessModeEnable", "inputs": {"process_mode": mode}}
+        inputs[f"process_mode_{slot}"] = [control, 1]
+        inputs.update({f"{name}_{slot}": standard[name] for name in per_slot})
+        branch = FP28A_BRANCHES[slot]
+        prompt[branch] = {"class_type": "CMKFaceProcessMultiModelPipe", "inputs": {
+            **execute, "FACE": [FP28A_PREPARE, slot - 1], "opt_log": [FP28A_PREPARE, 4], "opt_diagnostic": [FP28A_PREPARE, 5]}}
+        merge.update({f"SEGS {slot}": [branch, 2], f"LOG {slot}": [branch, 4], f"diagnostic {slot}": [branch, 6]})
+    prompt[FP28A_PREPARE] = {"class_type": "CMKFaceProcessPrepareAdvancedMultiModelPipe", "inputs": inputs}
+    prompt[FP28A_MERGE] = {"class_type": "CMKFaceProcessMergeMultiModel", "inputs": merge}
+    prompt[FP28_BOUNDARY]["inputs"].update(IMAGE=[FP28A_MERGE, 0], LOG=[FP28A_MERGE, 1], VISUAL=[FP28A_MERGE, 2],
+                                           diagnostic=[FP28A_MERGE, 3])
+    prompt["8417:7847"]["inputs"]["ENABLE"] = [FP28A_PREPARE, 3]
+    prompt["8417:7846"]["inputs"]["enable"] = [FP28A_PREPARE, 3]
+    for index, preview in enumerate(FP28A_PREVIEWS):
+        prompt[preview] = {"class_type": "CMKPreviewRender", "inputs": {"caption": "Details", "diagnostic": [FP28A_MERGE, 3 + index]}}
+    for key, value in (overrides or {}).items():
+        node_id, name = key.rsplit(".", 1)
+        prompt[node_id]["inputs"][name] = value
+    return prompt
+
+
+def faceprocess28_advanced_sequence(workdir: str, steps: list, extra_model_paths: str | None = None) -> dict:
+    """Run FaceProcess 2.8 Advanced prompts in one session with the real
+    PromptExecutor.  Each step: {"modes", "enable", "overrides", "drop_scopes",
+    "restart"}.  Records the order the branches run in (with their loads) and
+    the merge image against ``compose_layers`` over the SEGS the branches gave."""
+    import shutil
+
+    runtime, probes, seams = _session(workdir, extra_model_paths, "classic", True, False, SELFCHECK_INPUT,
+                                      fake_postprocess=True)
+    counters = {"zit_load": []}
+    _install_zit_fakes(runtime, counters)
+    _install_restore_fakes(runtime, seams)
+    inline = runtime.cmk_module("cmk_prompt_family_inline")
+    pc = runtime.cmk_module("pipe.cmk_persistent_cache")
+    zit = runtime.cmk_module("pipe.loaders.z_image_turbo_loader")
+    ckpt = runtime.cmk_module("pipe.loaders.checkpoint_vae_loader")
+    mm = runtime.cmk_module("pipe.cmk_faceprocess_multimodel")
+    layers = runtime.cmk_module("utils.face_layers")
+    branch = mm.CMKFaceProcessMultiModelPipe
+    events = []
+
+    def total(name):
+        return seams.original_calls.get(name, 0) + seams.substituted_calls.get(name, 0)
+
+    def recording(self, *args, unique_id=None, prompt=None, **kwargs):
+        before = (len(counters["zit_load"]), total("checkpoint.load_resources"))
+        result = original(self, *args, unique_id=unique_id, prompt=prompt, **kwargs)
+        slot = next(s for s, node in FP28A_BRANCHES.items() if node == str(unique_id))
+        events.append({"slot": slot, "mode": mm.branch_mode(prompt, unique_id),
+                       "zit": len(counters["zit_load"]) - before[0], "checkpoint": total("checkpoint.load_resources") - before[1]})
+        return result
+
+    original = branch.run_pipe
+    branch.run_pipe = recording
+    records = []
+    try:
+        for step in steps:
+            if step.get("restart"):
+                zit._ZIT_RESOURCE_CACHE.clear()
+                ckpt._SDXL_RESOURCE_CACHE.clear()
+                runtime.new_executor("classic")
+            for scope in step.get("drop_scopes", []):
+                shutil.rmtree(pc.cache_directory(scope), ignore_errors=True)
+            prompt = faceprocess28_advanced_prompt(step["modes"], step.get("enable", "ENABLE"), step.get("overrides"))
+            prompt, inlined = inline.inline_family_links(prompt)
+            counters["zit_load"].clear()
+            events.clear()
+            record = _run_once(runtime, probes, seams, Path(workdir), prompt,
+                               {"image": "8417:7847:1", "source": "1:2", "merge": f"{FP28A_MERGE}:0",
+                                **{f"preview {index}": f"{node}:0" for index, node in enumerate(FP28A_PREVIEWS)}})
+            record["inlined"] = inlined
+            record["branches"] = list(events)
+            record["zit_load"] = list(counters["zit_load"])
+            record["branch_keys"] = {slot: (branch.dependency_cache_key(prompt, node)[0] or "")[:16]
+                                     for slot, node in FP28A_BRANCHES.items()}
+            merged, source = runtime.output(FP28A_MERGE), runtime.output("1")
+            if merged is not None and source is not None:
+                expected = source[2][0]
+                for slot, node in FP28A_BRANCHES.items():
+                    output = runtime.output(node)
+                    if output is not None and mm.branch_mode(prompt, node) != "none":
+                        expected = layers.compose_layers(expected, output[2][0].cmk_layers)
+                record["composition_deviation"] = float((merged[0][0] - expected).abs().max())
+            records.append(record)
+            runtime.new_executor("classic")
+    finally:
+        branch.run_pipe = original
+        seams.uninstall()
+        probes.uninstall()
+    return {"runs": records}
+
+
+def _install_zit_fakes(runtime, counters):
+    """Model-free Z-Image Turbo materialisation (UNet/VAE/text encoder loads counted)."""
+    class FakeZit:
+        def __init__(self, name):
+            self.name, self.model = name, object()
+
+    zit = runtime.cmk_module("pipe.loaders.z_image_turbo_loader")
+    mm = runtime.cmk_module("pipe.cmk_detailer_prepare_multimodel")
+
+    def zit_node(names, **kwargs):
+        counters["zit_load"].append(names[0])
+        return (FakeZit(f"ZIT {names[0]}"),)
+
+    class PassLoRA:
+        def load_loras(self, model, clip, opt_lora_syntax="", opt_lora_stack=None):
+            return (model, clip, "", "")
+
+    zit._call_node_kwargs = zit_node
+    mm._call_node = lambda names, *args: ((args[0],) if names[0] == "ModelSamplingAuraFlow" else ([["cond", {}]],))
+    mm._validate_conditioning = lambda value, name: value
+    mm.CMKLoRATextLoader = PassLoRA
+
+
+def _install_restore_fakes(runtime, seams):
+    """Model-free 2.8 branches: one YOLO face in the image centre, the matching
+    InsightFace face object (bbox, kps, 106 landmarks), an inverting enhancer
+    and an inverting SEGSDetailer (F4); detection, assignment, backend
+    resolution and detailer runs are counted."""
+    import numpy as np
+    import torch
+    from types import SimpleNamespace
+
+    native = runtime.cmk_module("engine.native_detailer")
+    core = runtime.cmk_module("nodes.swap.face_process").CMK_FaceProcess
+    module = runtime.cmk_module("pipe.cmk_faceprocess_multimodel")
+
+    def centre(width, height):
+        return (width // 3, height // 4, 2 * width // 3, 3 * height // 4)
+
+    def fake_detect(self, image, detect_model, opt_sam_model=None, **_kwargs):
+        _batch, height, width, _ = image.shape
+        x1, y1, x2, y2 = centre(width, height)
+        seg = native.CMKSEG(image[:, y1:y2, x1:x2, :].clone(), torch.ones(1, y2 - y1, x2 - x1), 0.9,
+                            (x1, y1, x2, y2), (x1, y1, x2, y2), "face", None, 0)
+        return ((width, height), [seg])
+
+    def fake_faces(rgb):
+        height, width = rgb.shape[:2]
+        x1, y1, x2, y2 = centre(width, height)
+        w, h = x2 - x1, y2 - y1
+        angles = np.linspace(0, 2 * np.pi, 106, endpoint=False)
+        return [SimpleNamespace(
+            bbox=np.asarray([x1 + 2, y1 + 2, x2 - 2, y2 - 2], np.float32),
+            kps=np.asarray([(x1 + .3 * w, y1 + .4 * h), (x1 + .7 * w, y1 + .4 * h), (x1 + .5 * w, y1 + .55 * h),
+                            (x1 + .35 * w, y1 + .75 * h), (x1 + .65 * w, y1 + .75 * h)], np.float32),
+            landmark_2d_106=np.stack([x1 + w / 2 + .45 * w * np.cos(angles), y1 + h / 2 + .5 * h * np.sin(angles)], 1).astype(np.float32),
+            det_score=0.9)]
+
+    class Inverting:
+        model_size = 512
+
+        def enhance_aligned(self, aligned):
+            return 255 - aligned
+
+    def fake_segs_detailer(self, image, segs, **_kwargs):
+        return ((segs[0], [seg._replace(cropped_image=(1.0 - seg.cropped_image).clamp(0, 1)) for seg in segs[1]]),)
+
+    seams.substitute(core, "_detect_segs", "branch.yolo", fake_detect)
+    seams.substitute(native.SEGSDetailer, "doit", "detailer.segs", fake_segs_detailer)
+    seams.substitute(module.CMKFaceProcessMultiModelPipe, "_insightface_faces", "restore.insightface", fake_faces)
+    seams.substitute(module, "resolve_restore_backend", "restore.backend",
+                     lambda name: (Inverting(), {"backend": "FAKE", "file": f"/fake/{name}"}))
+
+
+def faceprocess28_sequence(workdir: str, steps: list, extra_model_paths: str | None = None) -> dict:
+    """Run FaceProcess 2.8 Standard prompts in one session with the real
+    PromptExecutor.  Each step: {"mode", "overrides", "drop_scopes", "restart"}.
+    ``restart`` clears CMK's in-process model caches and starts a new executor
+    (the persistent caches below the user directory stay)."""
+    import shutil
+
+    runtime, probes, seams = _session(workdir, extra_model_paths, "classic", True, False, SELFCHECK_INPUT,
+                                      fake_postprocess=True)
+    counters = {"zit_load": []}
+    _install_zit_fakes(runtime, counters)
+    _install_restore_fakes(runtime, seams)
+    inline = runtime.cmk_module("cmk_prompt_family_inline")
+    pc = runtime.cmk_module("pipe.cmk_persistent_cache")
+    zit = runtime.cmk_module("pipe.loaders.z_image_turbo_loader")
+    ckpt = runtime.cmk_module("pipe.loaders.checkpoint_vae_loader")
+    branch = runtime.cmk_module("pipe.cmk_faceprocess_multimodel").CMKFaceProcessMultiModelPipe
+    records = []
+    try:
+        for step in steps:
+            if step.get("restart"):
+                zit._ZIT_RESOURCE_CACHE.clear()
+                ckpt._SDXL_RESOURCE_CACHE.clear()
+                runtime.new_executor("classic")
+            for scope in step.get("drop_scopes", []):
+                shutil.rmtree(pc.cache_directory(scope), ignore_errors=True)
+            prompt = faceprocess28_prompt(step["mode"], step.get("overrides"))
+            prompt, inlined = inline.inline_family_links(prompt)
+            counters["zit_load"].clear()
+            record = _run_once(runtime, probes, seams, Path(workdir), prompt,
+                               {"image": "8417:7847:1", "log": "8417:7847:2"})
+            record["inlined"] = inlined
+            record["zit_load"] = list(counters["zit_load"])
+            # Keys come from the validated prompt the executor runs; read the one
+            # the branch published in this run (statuses), not a recomputation.
+            keys = [key for scope, _status, key in record["statuses"] if scope == "faceprocess_branch" and key]
+            record["branch_key"] = keys[-1] if keys else None
+            record["branch_revision"] = branch.dependency_revision(prompt, FP28_EXECUTE, record["branch_key"])
+            records.append(record)
+            runtime.new_executor("classic")  # the next step starts like a new queue, not from the output cache
+    finally:
+        seams.uninstall()
+        probes.uninstall()
+    return {"runs": records}

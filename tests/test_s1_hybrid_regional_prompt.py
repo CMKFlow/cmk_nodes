@@ -11,6 +11,7 @@ reaches the ZIT text encoder is recorded.
 
 from __future__ import annotations
 
+import json
 import unittest
 
 from harness.support import ScenarioCase
@@ -39,6 +40,8 @@ class ZitPrompt(ScenarioCase):
         cls.both = sequence(cls, regional={"layout": [ONE, TWO]})
         cls.one = sequence(cls, global_prompt=False, regional={"layout": [ONE]})
         cls.many = sequence(cls, global_prompt=False, regional={"layout": [ONE, TWO, THREE]})
+        cls.many_area = sequence(cls, global_prompt=False, regional={"layout": [ONE, TWO, THREE], "mode": "AREA"})
+        cls.many_blend = sequence(cls, global_prompt=False, regional={"layout": [ONE, TWO, THREE], "blend": 3})
         cls.conditioning = sequence(cls, global_prompt=False, regional={"conditioning": [TWO, ONE]})
         cls.blank_regions = sequence(cls, global_prompt=False, regional={"layout": [" ", ONE, ""]})
         cls.empty = sequence(cls, global_prompt=False, regional={"layout": ["  "]})
@@ -101,7 +104,43 @@ class ZitPrompt(ScenarioCase):
     def test_sdxl_regions_stay_spatial(self):
         run = self.many["runs"][0]
         self.assertEqual(len(run["regional_areas"]), 3)
-        self.assertEqual({(item["x"], item["strength"]) for item in run["regional_areas"]}, {(0.1, 1.5)})
+        for item in run["regional_areas"]:
+            # The AREA is the UNet crop around the 0.1/0.2/0.3/0.4 box; the mask carries the box.
+            self.assertEqual(item["strength"], 1.5)
+            self.assertLessEqual(item["x"], 0.1)
+            self.assertGreaterEqual(item["x"] + item["width"], 0.4)
+            self.assertEqual(len(item["mask_shape"]), 3)
+
+    def test_area_layout_of_the_earlier_selector_is_native_step_0(self):
+        run = self.many_area["runs"][0]
+        self.assertTrue(run["succeeded"], run["errors"])
+        self.assertEqual(self.zit_prompt(self.many_area), self.zit_prompt(self.many))
+        self.assertEqual(len(run["regional_areas"]), 3)
+        for item in run["regional_areas"]:
+            self.assertEqual({k: round(v, 6) for k, v in item.items()},
+                             {"x": 0.1, "y": 0.2, "width": 0.3, "height": 0.4, "strength": 1.5})  # no mask
+
+    def test_blend_step_3_uses_a_mask_and_a_wider_crop(self):
+        run = self.many_blend["runs"][0]
+        self.assertTrue(run["succeeded"], run["errors"])
+        self.assertEqual(self.zit_prompt(self.many_blend), self.zit_prompt(self.many))
+        mask_crop = self.many["runs"][0]["regional_areas"][0]
+        for item in run["regional_areas"]:
+            self.assertEqual(item["strength"], 1.5)
+            self.assertEqual(list(item["mask_shape"]), [1, 128, 128])
+            self.assertTrue(mask_crop["x"] < item["x"] < 0.1 and item["x"] + item["width"] > 0.4)
+
+    def test_log_names_the_used_step(self):
+        area_log = json.dumps(self.many_area["runs"][0], default=str)
+        blend_log = json.dumps(self.many_blend["runs"][0], default=str)
+        mask_log = json.dumps(self.many["runs"][0], default=str)
+        self.assertIn("REGIONAL CONDITIONING: BLEND 0/6 \\u00b7 AREA", area_log)
+        self.assertNotIn("REGIONAL PROFILE", area_log)
+        self.assertIn("REGIONAL CONDITIONING: BLEND 3/6 \\u00b7 AREA 50 % / MASK 50 %", blend_log)
+        self.assertIn("| blend 3/6", blend_log)
+        self.assertIn("REGIONAL CONDITIONING: BLEND 6/6 \\u00b7 MASK", mask_log)
+        self.assertIn("REGIONAL PROFILE", mask_log)
+        self.assertNotIn("| blend", mask_log)
 
     def test_sdxl_without_zit_is_unchanged(self):
         run = self.sdxl["runs"][0]

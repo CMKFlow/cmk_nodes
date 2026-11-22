@@ -14,6 +14,8 @@ from ..cmk_distribution import (
 )
 from ..utils.cmk_timing import cmk_timed_call
 from .cmk_persistent_cache import (
+    NODE_BEHAVIOUR_REVISIONS,
+    cache_directory,
     _INPUT_CONTENT_MEMO_KEY,
     apply_input_content,
     input_content_identities,
@@ -157,6 +159,8 @@ def _canonical_node(prompt: dict, node_id: Any, memo: dict, stack: set):
         "class_type": class_type,
         "inputs": canonical_inputs,
     }
+    if class_type in NODE_BEHAVIOUR_REVISIONS:
+        payload["revision"] = NODE_BEHAVIOUR_REVISIONS[class_type]
     stack.remove(key)
     encoded = json.dumps(
         payload,
@@ -248,15 +252,7 @@ def build_refiner_fingerprint(prompt: Any, unique_id: Any) -> tuple[str | None, 
 
 
 def _cache_directory() -> Path:
-    import folder_paths  # type: ignore
-
-    directory = (
-        Path(folder_paths.get_temp_directory())
-        / "cmk"
-        / "refiner_boundary"
-    )
-    directory.mkdir(parents=True, exist_ok=True)
-    return directory
+    return cache_directory("refiner_boundary")
 
 
 def _entry_paths(cache_key: str) -> tuple[Path, Path]:

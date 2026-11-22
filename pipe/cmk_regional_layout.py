@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 from .cmk_log_pipe import cmk_add_block, cmk_clean_text
+from .cmk_regional_weighting import DEFAULT_CONDITIONING_BLEND, blend_label, conditioning_blend
 from .cmk_visual import normalize_visual
 from ..utils.cmk_diagnostic import make_diagnostic_payload
 
@@ -48,11 +49,22 @@ def _layout_payload(value):
     return payload
 
 
+def layout_conditioning_blend(payload):
+    """CONDITIONING BLEND step of a layout; layouts saved with the earlier AREA/MASK selector map to 0 and 6."""
+    if "conditioning_blend" in payload:
+        return conditioning_blend(payload["conditioning_blend"])
+    mode = str(payload.get("conditioning_mode", "MASK")).strip().upper()
+    if mode not in {"AREA", "MASK"}:
+        raise ValueError(f"CMK Regional Layout: unknown conditioning mode {payload['conditioning_mode']!r}")
+    return 0 if mode == "AREA" else DEFAULT_CONDITIONING_BLEND
+
+
 def parse_layout(value, width, height):
     """Validate workflow-owned editor data and return executable regions."""
     payload = _layout_payload(value)
     raw_regions = payload.get("regions", [])
     strength_offset = _clamp(payload.get("strength_offset", 0.0), 0.0, 2.0)
+    blend = layout_conditioning_blend(payload)
 
     regions = []
     used_ids = set()
@@ -86,6 +98,7 @@ def parse_layout(value, width, height):
             "strength": individual_strength + strength_offset,
             "start": 0.0,
             "end": _clamp(raw.get("end", 1.0)),
+            "conditioning_blend": blend,
             "source": f"LAYOUT {int(width)}x{int(height)}",
             "module_region": index,
         })
@@ -181,6 +194,7 @@ class CMKRegionalLayoutSDXL:
 
         process_width, process_height = process_dimensions(PROCESS)
         strength_offset = _clamp(payload.get("strength_offset", 0.0), 0.0, 2.0)
+        blend = layout_conditioning_blend(payload)
         process = dict(PROCESS)
         chained = [dict(region) for region in process.get("regional_conditioning", []) if isinstance(region, dict)]
         added = parse_layout(payload, process_width, process_height)
@@ -191,6 +205,7 @@ class CMKRegionalLayoutSDXL:
         lines = [
             f"PROCESS SIZE    : {process_width} x {process_height}",
             f"STRENGTH OFFSET : +{strength_offset:.2f}",
+            f"CONDITIONING    : {blend_label(blend)}",
             f"ACTIVE REGIONS : {len(added)}",
             f"TOTAL CHAINED  : {len(chained)}",
         ]
@@ -216,6 +231,7 @@ class CMKRegionalLayoutSDXL:
                 "width": process_width,
                 "height": process_height,
                 "strength_offset": strength_offset,
+                "conditioning_blend": blend,
             },
         )
         return process, IMAGE, log, normalize_visual(kwargs.get("VISUAL")), diagnostic

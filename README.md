@@ -6,9 +6,9 @@
 
 Modulares Custom-Node-Paket für ComfyUI.
 
-**Entwicklungsstand: CMK 2.7.0 · CMK Flow Baseline**
+**Entwicklungsstand: CMK 2.8.0 · CMK Flow Baseline**
 
-**Aktueller öffentlicher Release: CMK 2.7.0**
+**Aktueller öffentlicher Release: CMK 2.8.0**
 
 **Deutsch** · [English](README.en.md)
 
@@ -103,7 +103,7 @@ Node-Klassen, Provider-Keys und UUIDs.
 - `CMK Swap Image Loader -Pipe-` lädt Target und Source in einer zweispaltigen Oberfläche; nur das Target nutzt Resize und optionalen Advanced-Crop, die Source bleibt pixelmäßig unverändert.
 - Z-Image Turbo besitzt eigene Loader-, Sampler- und optionale ControlNet-Module. ZIT-Inpaint bleibt aufgrund der sehr hohen Speicher- und Laufzeitanforderungen ausdrücklich `EXPERIMENTAL` und vorläufig eingefroren.
 - Der Referenzkatalog gliedert sich in Task Workflows, Module Workflows,
-  Comparisons, Real-World Workflows, System Workflow und Legacy. Er enthält 20
+  Comparisons, Real-World Workflows, System Workflow und Legacy. Er enthält 13
   aufsteigend komplexe Task-Workflows, diskrete und gekapselte Modulbeispiele,
   direkte Vergleiche, vollständige Praxisabläufe und den Full Flow als
   Systemreferenz.
@@ -269,8 +269,8 @@ zweite Befehl verbindlich zur Installation und zu jedem Update.
 <!-- cmk-reference-environment:start -->
 | Komponente | Referenzwert |
 | --- | --- |
-| CMK Flow | `2.7.0` |
-| ComfyUI | `0.42.5` |
+| CMK Flow | `2.8.0` |
+| ComfyUI | `0.46.2` |
 | Python | `3.13.12` |
 | PyTorch | `2.12.1` |
 | Compute-Backend | `Apple MPS` |
@@ -281,15 +281,19 @@ und implizieren keine vollständige Prüfung sämtlicher Workflows, Erweiterunge
 oder Hardwareplattformen.
 <!-- cmk-reference-environment:end -->
 
-### Erforderliche ComfyUI-Oberfläche
+### Entwicklungs- und Testumgebung
 
-> **Bestätigte Zielversion**
->
-> CMK 2.5.7 wurde mit **ComfyUI 0.38.2** und
-> **comfyui-frontend-package 1.53.6** vollständig geprüft. Dazu gehören die
-> Flow-Browser-Navigation, paketierte Subgraphen und Referenzworkflows,
-> eingebettete Vorschauen, Cache-Pfade sowie die serialisierten Link-, Socket-,
-> UUID- und Topologieverträge.
+CMK Flow 2.8.0 wurde auf einem Apple MacBook Pro (M1 Pro, 16 GB Unified Memory)
+unter macOS mit ComfyUI 0.46.2 entwickelt und getestet.
+
+Windows- und Linux-Umgebungen wurden vom Projektbetreuer nicht eigenständig
+validiert. Kompatibilität, Leistung und Funktionsumfang sind auf diesen
+Plattformen daher nicht garantiert.
+
+Die dokumentierte Entwicklungsumgebung ist eine getestete
+Referenzkonfiguration und keine Angabe von Mindestsystemanforderungen.
+
+### Erforderliche ComfyUI-Oberfläche
 
 CMK Flow benötigt die ComfyUI-Einstellung **Vue Nodes / Nodes 2.0**. Ohne sie
 fallen dynamische CMK-Nodes auf die alte LiteGraph-Darstellung zurück;
@@ -311,11 +315,20 @@ Vor dem Kopieren sollten vorhandene gleichnamige Workflows außerhalb des Node-P
 
 Die CMK-Kernnodes für Detektion, `SEGS`, Detailer, Pasteback,
 FaceProcess-Restore, SAM-Laden und die angebotenen ControlNet-Preprozessoren
-benötigen keine fremden Custom-Node-Pakete. Die optionalen Subgraphen
-`LoRA Stack · SDXL`, `LoRA Stack · ZIT` und `LoRA Stack · Combined` sowie
-Referenzworkflows, die sie verwenden, setzen den
-[ComfyUI LoRA Manager](https://github.com/willmiao/ComfyUI-Lora-Manager)
-voraus. Ohne ihn bleiben die übrigen CMK-Module verwendbar.
+benötigen keine fremden Custom-Node-Pakete. Der
+[ComfyUI LoRA Manager](https://github.com/willmiao/ComfyUI-Lora-Manager) ist
+für die CMK-Kernfunktionen optional: Alle CMK-Nodes und -Module sind ohne ihn
+registriert und verwendbar, und die LoRA-Eingänge von `01 START HERE` sind
+optional.
+
+Erforderlich ist er für die mitgelieferten Subgraphen `LoRA Stack · SDXL`,
+`LoRA Stack · ZIT` und `LoRA Stack · Combined` sowie für die Showcase-Workflows,
+die einen dieser Subgraphen an `01 START HERE` angeschlossen haben. Das sind
+derzeit 18 der 35 Showcase-Workflows, darunter alle Real-World- und
+Task-Workflows sowie der Full Flow. Ohne LoRA Manager meldet ComfyUI für diese
+Workflows fehlende Nodes; ausführbar werden sie erst, wenn der LoRA-Stack-Node
+entfernt wird oder der LoRA Manager installiert ist. Validiert wurden die
+Showcase-Workflows mit LoRA Manager 1.3.0.
 
 Die Python-Bibliotheken stehen in `requirements.txt`. Modellgestützte Funktionen
 benötigen weiterhin die jeweils ausgewählten Modelle, insbesondere
@@ -346,19 +359,20 @@ Policy und zu den neutralen Diagnosecodes stehen in
 
 ## Cache-Verhalten
 
-Interne CMK-Caches liegen unter:
+Interne CMK-Branch- und Boundary-Caches liegen im ComfyUI-User-Verzeichnis
+(`--user-directory`), standardmäßig unter:
 
 ```text
-ComfyUI/temp/cmk/
+ComfyUI/user/cmk_cache/
 ```
 
-Ein erster Lauf nach Neustart, Codeänderung oder Cache-Bereinigung erzeugt
-erwartbar `MISS → STORED`. Unveränderte parallele Zweige und abgeschlossene
-Modulgrenzen sollen innerhalb derselben ComfyUI-Sitzung anschließend als `HIT`
-aufgelöst werden, ohne die teure Verarbeitung erneut auszuführen. Ein
-ComfyUI-Neustart leert diese Bild-Boundary-Caches; nur die ausdrücklich
-persistente Videoverarbeitung besitzt einen sitzungsübergreifenden
-Fortsetzungsvertrag.
+ComfyUI leert sein Temp-Verzeichnis bei jedem Start und Beenden; dieses
+Verzeichnis bleibt dagegen erhalten. Ein erster Lauf nach Codeänderung,
+Konfigurationsänderung oder Cache-Bereinigung erzeugt erwartbar
+`MISS → STORED`. Unveränderte Zweige und abgeschlossene Modulgrenzen werden
+anschließend als `HIT` aufgelöst, auch nach einem ComfyUI-Neustart, ohne die
+teure Verarbeitung erneut auszuführen. `Clear Persistent Cache` im Flow Browser
+entfernt ausschließlich die registrierten CMK-Scopes in diesem Verzeichnis.
 
 Branch-Caches besitzen Revisionsmarker. Detailer- und FaceProcess-Boundaries
 akzeptieren einen HIT nur dann, wenn ihr Dependency-Manifest exakt zu den

@@ -276,6 +276,21 @@ def _odd_kernel(value: int, minimum: int = 1) -> int:
     return size if size % 2 == 1 else size + 1
 
 
+def warp_aligned(aligned_result: np.ndarray, affine_matrix: np.ndarray, height: int, width: int) -> np.ndarray:
+    """The aligned face warped back into the target frame, exactly as pasteback_native pastes it."""
+    import cv2
+
+    inverse = cv2.invertAffineTransform(np.asarray(affine_matrix, dtype=np.float32))
+    return cv2.warpAffine(
+        _clip_rgb(aligned_result),
+        inverse,
+        (width, height),
+        flags=cv2.INTER_LANCZOS4,
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=0,
+    )
+
+
 def pasteback_native(
     target_rgb: np.ndarray,
     aligned_result: np.ndarray,
@@ -327,14 +342,7 @@ def pasteback_native(
         height, width = target.shape[:2]
         aligned_height, aligned_width = aligned.shape[:2]
 
-        warped = cv2.warpAffine(
-            aligned,
-            inverse,
-            (width, height),
-            flags=cv2.INTER_LANCZOS4,
-            borderMode=cv2.BORDER_CONSTANT,
-            borderValue=0,
-        )
+        warped = warp_aligned(aligned, matrix, height, width)
 
         # Build the paste mask from pixels that genuinely originate inside the
         # target frame. A rotated/aligned face crop may contain black padding

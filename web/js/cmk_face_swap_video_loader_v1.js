@@ -1,5 +1,6 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
+import { applyFixedSize } from "./cmk_fixed_size.js";
 
 const NODE_CLASS = "CMKFaceSwapVideoLoader";
 const WIDGET_NAME = "MEDIA SOURCES";
@@ -276,6 +277,7 @@ function updatePreview(card, value) {
 function resizeNode(node) {
     requestAnimationFrame(() => {
         try {
+            if (applyFixedSize(node)) return;
             const computed = node.computeSize?.();
             const width = Math.max(Number(node.size?.[0]) || 0, 980);
             const height = Math.max(Number(computed?.[1]) || Number(node.size?.[1]) || 0, 700);

@@ -128,3 +128,97 @@ def make_diagnostic_payload(
         "images": preview_images,
         "stages": normalized_stages,
     }
+
+
+# --------------------------------------------------------------------------
+# CMK design rule (2.8): Preview / Compare show what came out; a diagnostic
+# shows where, how and with which effect it came out.
+#
+# A diagnostic does not show a plain full image that only exists as a step of
+# the processing: the source, a primary or Refine result, the final result or
+# the ordinary preview of a node.  Those belong to Preview / Compare.  The
+# producers keep them in their payloads (caches and other consumers read
+# them); the diagnostic renderers leave them out.  Detection, ROI, masks,
+# alpha, pasteback, overlaps, shares and differences stay.
+#
+# Classified per (node, stage title), because the same title can carry
+# technical content elsewhere (the "Source" of CMK Face Crop shows the
+# selection with boxes and landmarks).
+# --------------------------------------------------------------------------
+
+PLAIN_IMAGE_STAGES = {
+    "CMK Smart Detailer": {"Source", "Detailer", "Final"},
+    "CMK FaceProcess": {"Source", "Primary Restore", "Primary Detailer", "Primary Off",
+                        "Refine Detail", "Refine Sharpen", "Refine Smooth", "Final"},
+    "CMKImageResize": {"Source", "Resized"},
+    "CMKMaskDetailerPrepare": {"Source"},
+    "CMKMaskDetailerProcess": {"Source", "Result"},
+    "CMK Smart Outpaint Pad": {"Source"},
+    "CMK Smart Upscaler": {"Source", "Final"},
+    "CMK InstantID Face Detailer SDXL": {"Rebuilt ROI", "Bypass"},
+    "CMK InstantID Face Rebuild Prepare": {"Bypass"},
+    "CMK InstantID Face Rebuild Pasteback": {"Final Pasteback", "Bypass"},
+    "CMKInstantIDFaceRebuildAdvancedSDXL": {"Bypass"},
+    "CMKInstantIDFaceRebuildSDXL": {"Bypass"},
+    "CMK Face Select": {"No Detection"},
+    "CMK FaceSwap Image": {"Target", "Source", "Swap Result", "Passthrough", "Final"},
+    "CMK FaceSwap Image -Pipe-": {"Target", "Source", "Swap Result", "Passthrough", "Final"},
+    "CMK Face Crop": {"Cropped Image"},
+    "CMK Merge and Save Video": {"MERGED VIDEO"},
+    "CMK Split Video into Segments": {"SOURCE VIDEO"},
+    "CMK Detailer Finalize -Pipe-": {"Source", "Final"},
+    "CMK Pipe Create Image -Pipe-": {"Source"},
+    "CMK Z-Image Turbo Finalize -Pipe-": {"Z-Image Turbo Result"},
+    "CMK Swap Image Loader -Pipe-": {"SOURCE", "TARGET"},
+    "CMK ControlNet Prepare": {"Source"},
+    "CMK ControlNet Prepare -Pipe-": {"Source"},
+    "CMK Detailer Merge Multi-Model": {"FINAL"},
+    "CMK FaceProcess Merge Multi-Model": {"FINAL"},
+}
+
+# Nodes whose diagnostic without stages carries only the ordinary preview
+# (the input or output image itself).
+PLAIN_PREVIEW_NODES = frozenset({
+    "CMK Image Metrics",
+    "CMK Smart Detailer -Pipe-",
+    "CMK Detailer Prepare -Pipe-",
+    "CMK Detailer Prepare Multi-Model -Pipe-",
+    "CMKMaskDetailerPrepareMultiModel",
+    "CMKMaskDetailerProcessMultiModel",
+    "CMK FaceRebuild v2 · Prepare",
+    "CMK FaceRebuild v2",
+    "CMK FaceRebuild v2 · Advanced",
+    "CMK FaceSwap v2 · Prepare",
+    "CMK FaceSwap v2",
+    "CMK FaceSwap v2 · Advanced",
+    "CMK Detailer Prepare Advanced Multi-Model -Pipe-",
+    "CMK FaceProcess -Pipe-",
+    "CMK FaceProcess Prepare -Pipe-",
+    "CMK FaceProcess Prepare Multi-Model -Pipe-",
+    "CMK FaceProcess Prepare Advanced Multi-Model -Pipe-",
+    "CMK FaceProcess Multi-Model -Pipe-",
+    "CMK Boundary Cache / Detailer",
+    "CMK Boundary Cache / FaceProcess",
+    "CMK Sampler Prepare SDXL -Pipe-",
+    "CMK Image Load and Resize -Pipe-",
+})
+
+
+def bare_stage_title(title) -> str:
+    """Stage title without its running number ("05 Final", "04 · FINAL")."""
+    text = str(title or "").strip()
+    head, _, rest = text.partition(" ")
+    if head.isdigit() and rest:
+        text = rest.strip()
+        if text.startswith("·"):
+            text = text[1:].strip()
+    return text
+
+
+def plain_image_stage(node, title) -> bool:
+    """Whether the stage ``title`` of a diagnostic from ``node`` is a plain full image."""
+    return bare_stage_title(title) in PLAIN_IMAGE_STAGES.get(str(node or ""), ())
+
+
+def plain_preview_node(node) -> bool:
+    return str(node or "") in PLAIN_PREVIEW_NODES

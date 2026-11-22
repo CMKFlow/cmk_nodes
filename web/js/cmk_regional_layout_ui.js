@@ -2,12 +2,12 @@ import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import {
   automaticPreviewSignature, clamp, cloneLayout, commitHistory, createHistory,
-  createLatestRequestGuard, hitRegionIndices, makeRegion, moveBox,
+  createLatestRequestGuard, hitRegionIndices, makeRegion, moveBox, canCreateRegion, insertNewRegion, REGION_LIMIT_HINT,
   normalizeBackgroundSource, normalizeLayout, prepareImageGeometry,
   packagedReferenceAssetPath, processDimensionsFromWidgets, redoHistory,
   regionalCanvasGeometry, resizeBox, serializeLayout, undoHistory,
-  resolveAutomaticPreviewSource, upstreamStartNode,
-} from "./cmk_regional_layout_core.js?cmk-regional-layout-v6";
+  resolveAutomaticPreviewSource, upstreamStartNode, BLEND_STEPS, blendCaption,
+} from "./cmk_regional_layout_core.js?cmk-regional-layout-v12";
 
 const NODE_CLASS = "CMKRegionalLayoutSDXL";
 const DISPLAY_NAME = "CMK Flow · 07 Regional Layout";
@@ -69,6 +69,13 @@ function button(label, title = "") {
     background: "#25292c", color: "#e5e5e5", cursor: "pointer", font: "600 11px system-ui",
   });
   return element;
+}
+
+// Inline button styles hide the browser's disabled look, so it is set here.
+function setButtonEnabled(element, enabled) {
+  element.disabled = !enabled;
+  element.style.opacity = enabled ? "1" : "0.38";
+  element.style.cursor = enabled ? "pointer" : "not-allowed";
 }
 
 function field(label, input) {
@@ -145,14 +152,12 @@ function editor(node) {
   Object.assign(processSize.style, { minHeight: "26px", display: "grid", placeItems: "center", marginBottom: "7px", border: "1px solid rgba(97,205,221,.32)", borderRadius: "5px", background: "rgba(97,205,221,.08)", color: "#bdeff4", font: "700 11px system-ui", letterSpacing: ".04em" });
   processSize.textContent = "PROCESS SIZE · waiting for 01 START HERE";
   const toolbar = document.createElement("div");
-  Object.assign(toolbar.style, { display: "grid", gridTemplateColumns: "repeat(9, minmax(0, 1fr))", gap: "5px", marginBottom: "7px" });
+  Object.assign(toolbar.style, { display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr)) minmax(0, 1.4fr) minmax(92px, 3.2fr)", gap: "5px", marginBottom: "7px" });
   const add = button("＋", "Add region");
   const duplicate = button("⧉", "Duplicate selected region");
   const remove = button("−", "Delete selected region");
   const undo = button("↶", "Undo");
   const redo = button("↷", "Redo");
-  const up = button("↑", "Move region earlier");
-  const down = button("↓", "Move region later");
   const reference = button("BG", "Choose reference background");
   const backgroundSource = document.createElement("select");
   for (const [value, label] of [["manual", "Manual"], ["automatic", "Automatic"]]) {
@@ -160,7 +165,7 @@ function editor(node) {
   }
   Object.assign(backgroundSource.style, { minWidth: "0", border: "1px solid rgba(255,255,255,.16)", borderRadius: "5px", background: "#25292c", color: "#e5e5e5", font: "600 10px system-ui" });
   backgroundSource.value = normalizeBackgroundSource(node.properties.cmkRegionalBackgroundSource);
-  toolbar.append(add, duplicate, remove, undo, redo, up, down, reference, backgroundSource);
+  toolbar.append(add, duplicate, remove, undo, redo, reference, backgroundSource);
 
   const stage = document.createElement("div");
   Object.assign(stage.style, { position: "relative", width: "100%", background: "#111416", border: "1px solid rgba(255,255,255,.16)", borderRadius: "5px", overflow: "hidden", boxSizing: "border-box" });
@@ -170,8 +175,6 @@ function editor(node) {
   Object.assign(backgroundHint.style, { position: "absolute", inset: "0", display: "none", placeItems: "center", padding: "18px", textAlign: "center", color: "#f0c879", background: "rgba(10,12,14,.5)", font: "600 12px system-ui", pointerEvents: "none", zIndex: "1" });
   stage.append(canvas, backgroundHint);
 
-  const selection = document.createElement("select");
-  Object.assign(selection.style, { width: "100%", marginTop: "7px", minHeight: "30px", borderRadius: "4px", background: "#171a1c", color: "#eee", border: "1px solid rgba(255,255,255,.15)" });
   const name = input();
   const prompt = document.createElement("textarea");
   Object.assign(prompt.style, { width: "100%", boxSizing: "border-box", minHeight: "164px", resize: "none", border: "1px solid rgba(255,255,255,.15)", borderRadius: "4px", background: "#171a1c", color: "#eee", padding: "7px" });
@@ -181,8 +184,23 @@ function editor(node) {
   details.style.marginTop = "7px";
   const summary = document.createElement("summary"); summary.textContent = "ADVANCED"; summary.style.cursor = "pointer";
   const strengthOffsetField = field("Strength Offset · +0.00", strengthOffset);
-  strengthOffsetField.style.marginTop = "6px";
   const strengthOffsetCaption = strengthOffsetField.querySelector("span");
+  const conditioningBlend = input("range"); conditioningBlend.min = "0"; conditioningBlend.max = String(BLEND_STEPS); conditioningBlend.step = "1";
+  const blendTicks = document.createElement("datalist");
+  blendTicks.id = `cmk-regional-blend-${node.id}`;
+  for (let step = 0; step <= BLEND_STEPS; step += 1) {
+    const option = document.createElement("option"); option.value = String(step); blendTicks.append(option);
+  }
+  conditioningBlend.setAttribute("list", blendTicks.id);
+  const blendEnds = document.createElement("div");
+  Object.assign(blendEnds.style, { display: "flex", justifyContent: "space-between", color: "#8d969b", font: "600 9px system-ui" });
+  blendEnds.append(Object.assign(document.createElement("span"), { textContent: "AREA" }), Object.assign(document.createElement("span"), { textContent: "MASK" }));
+  const conditioningBlendField = field("Conditioning Blend · MASK", conditioningBlend);
+  conditioningBlendField.append(blendTicks, blendEnds);
+  const conditioningBlendCaption = conditioningBlendField.querySelector("span");
+  const layoutOptions = document.createElement("div");
+  Object.assign(layoutOptions.style, { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "7px", marginTop: "6px", alignItems: "start" });
+  layoutOptions.append(strengthOffsetField, conditioningBlendField);
   const geometry = document.createElement("div");
   Object.assign(geometry.style, { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "6px", marginTop: "6px" });
   const detailInputs = {};
@@ -190,11 +208,11 @@ function editor(node) {
     const element = input("number"); element.min = key === "width" || key === "height" ? "0.01" : "0"; element.max = "1"; element.step = "0.01";
     detailInputs[key] = element; geometry.append(field(key.toUpperCase(), element));
   }
-  details.append(summary, strengthOffsetField, geometry);
+  details.append(summary, layoutOptions, geometry);
   const editGrid = document.createElement("div");
   Object.assign(editGrid.style, { display: "grid", gridTemplateColumns: "2fr 1fr", gap: "7px", marginTop: "7px" });
   editGrid.append(field("NAME", name), field("STRENGTH", strength));
-  root.append(processSize, toolbar, stage, selection, editGrid, field("POSITIVE PROMPT", prompt), details);
+  root.append(processSize, toolbar, stage, editGrid, field("POSITIVE PROMPT", prompt), details);
 
   const panel = node.addDOMWidget("CMK REGIONAL LAYOUT", "cmk_regional_layout", root, {
     serialize: false, hideOnZoom: false, getMinHeight: () => PANEL_HEIGHT, getHeight: () => PANEL_HEIGHT, getMaxHeight: () => PANEL_HEIGHT,
@@ -285,7 +303,7 @@ function editor(node) {
       const x = box.x * width, y = box.y * height, w = box.width * width, h = box.height * height;
       ctx.fillStyle = `${color}2b`; ctx.fillRect(x, y, w, h);
       ctx.strokeStyle = color; ctx.lineWidth = region.id === selectedId ? 3 : 1.5; ctx.strokeRect(x, y, w, h);
-      const label = `${index + 1} · ${String(region.name || "Region").slice(0, 22)}`;
+      const label = String(region.name || `Region ${index + 1}`).slice(0, 22);
       ctx.font = "600 12px system-ui"; const labelWidth = Math.min(w, ctx.measureText(label).width + 12);
       ctx.fillStyle = color; ctx.fillRect(x, y, labelWidth, 22);
       ctx.fillStyle = "#101315"; ctx.fillText(label, x + 6, y + 15, Math.max(0, labelWidth - 8));
@@ -299,27 +317,31 @@ function editor(node) {
   function render() {
     if (selectedIndex() < 0) selectedId = layout().regions[0]?.id || null;
     node.properties.cmkRegionalSelectedId = selectedId;
-    selection.replaceChildren();
-    layout().regions.forEach((region, index) => {
-      const option = document.createElement("option"); option.value = region.id; option.textContent = `${index + 1} · ${region.name || `Region ${index + 1}`}`; selection.append(option);
-    });
-    selection.value = selectedId || "";
     const region = selected();
-    for (const control of [selection, name, prompt, strength, ...Object.values(detailInputs)]) {
+    for (const control of [name, prompt, strength, ...Object.values(detailInputs)]) {
       control.disabled = editingLocked || !region;
     }
     name.value = region?.name || ""; prompt.value = region?.prompt || ""; strength.value = region?.strength ?? 1;
     strengthOffset.value = layout().strength_offset ?? 0;
+    conditioningBlend.value = layout().conditioning_blend;
+    conditioningBlendCaption.textContent = `Conditioning Blend · ${blendCaption(layout().conditioning_blend)}`;
     if (strengthOffsetCaption) strengthOffsetCaption.textContent = `Strength Offset · +${Number(layout().strength_offset ?? 0).toFixed(2)}`;
     if (region) {
       for (const key of ["x", "y", "width", "height"]) detailInputs[key].value = region.box[key].toFixed(3);
       detailInputs.end.value = Number(region.end ?? 1).toFixed(2);
     }
-    for (const control of [add, duplicate, remove, up, down, reference, backgroundSource, strengthOffset]) {
+    for (const control of [backgroundSource, strengthOffset, conditioningBlend]) {
       control.disabled = editingLocked;
     }
-    undo.disabled = editingLocked || !history.past.length;
-    redo.disabled = editingLocked || !history.future.length;
+    const creatable = canCreateRegion(layout());
+    setButtonEnabled(add, !editingLocked && creatable);
+    setButtonEnabled(duplicate, !editingLocked && creatable && Boolean(region));
+    setButtonEnabled(remove, !editingLocked);
+    setButtonEnabled(reference, !editingLocked);
+    add.title = creatable ? "Add region" : REGION_LIMIT_HINT;
+    duplicate.title = creatable ? "Duplicate selected region" : REGION_LIMIT_HINT;
+    setButtonEnabled(undo, !editingLocked && history.past.length > 0);
+    setButtonEnabled(redo, !editingLocked && history.future.length > 0);
     summary.style.pointerEvents = editingLocked ? "none" : "auto";
     summary.style.opacity = editingLocked ? "0.55" : "1";
     canvas.style.cursor = editingLocked ? "not-allowed" : "crosshair";
@@ -404,9 +426,11 @@ function editor(node) {
       selectedId = layout().regions[hits[hitCycle]].id; render();
       drag = { mode: "move", start: p, before, original: { ...selected().box } }; return;
     }
-    const region = makeRegion(layout().regions.length + 1, { x: p.x, y: p.y, width: 0.01, height: 0.01 });
+    const next = cloneLayout(layout());
+    const region = insertNewRegion(next, makeRegion(next.regions.length + 1, { x: p.x, y: p.y, width: 0.01, height: 0.01 }));
+    if (!region) return;
     selectedId = region.id;
-    const next = cloneLayout(layout()); next.regions.push(region); setPresent(next);
+    setPresent(next);
     drag = { mode: "draw", start: p, before, createdId: region.id };
   });
 
@@ -432,14 +456,11 @@ function editor(node) {
     drag = null; save(); render();
   });
 
-  add.addEventListener("click", () => commit((next) => { const region = makeRegion(next.regions.length + 1); next.regions.push(region); selectedId = region.id; }));
-  duplicate.addEventListener("click", () => { const region = selected(); if (!region) return; commit((next) => { const copy = cloneLayout({ regions: [region] }).regions[0]; copy.id = makeRegion(next.regions.length + 1).id; copy.name = `${region.name} copy`; copy.box = moveBox(copy.box, 0.025, 0.025); next.regions.splice(selectedIndex() + 1, 0, copy); selectedId = copy.id; }); });
+  add.addEventListener("click", () => { if (!canCreateRegion(layout())) return; commit((next) => { const region = insertNewRegion(next, makeRegion(next.regions.length + 1)); if (region) selectedId = region.id; }); });
+  duplicate.addEventListener("click", () => { const region = selected(); if (!region || !canCreateRegion(layout())) return; commit((next) => { const copy = cloneLayout({ regions: [region] }).regions[0]; copy.id = makeRegion(next.regions.length + 1).id; copy.name = `${region.name} copy`; copy.box = moveBox(copy.box, 0.025, 0.025); if (insertNewRegion(next, copy, selectedIndex() + 1)) selectedId = copy.id; }); });
   remove.addEventListener("click", () => { const index = selectedIndex(); if (index < 0) return; commit((next) => { next.regions.splice(index, 1); selectedId = next.regions[Math.min(index, next.regions.length - 1)]?.id || null; }); });
   undo.addEventListener("click", () => { history = undoHistory(history); selectedId = history.present.regions.find((r) => r.id === selectedId)?.id || history.present.regions[0]?.id || null; save(); render(); });
   redo.addEventListener("click", () => { history = redoHistory(history); selectedId = history.present.regions.find((r) => r.id === selectedId)?.id || history.present.regions[0]?.id || null; save(); render(); });
-  up.addEventListener("click", () => { const index = selectedIndex(); if (index <= 0) return; commit((next) => next.regions.splice(index - 1, 0, next.regions.splice(index, 1)[0])); });
-  down.addEventListener("click", () => { const index = selectedIndex(); if (index < 0 || index >= layout().regions.length - 1) return; commit((next) => next.regions.splice(index + 1, 0, next.regions.splice(index, 1)[0])); });
-  selection.addEventListener("change", () => { selectedId = selection.value; save(); render(); });
   const editStarts = new WeakMap();
   function bindLiveEdit(control, update) {
     control.addEventListener("focus", () => editStarts.set(control, cloneLayout(layout())));
@@ -482,6 +503,8 @@ function editor(node) {
     strengthOffsetStart = null;
     render();
   });
+  conditioningBlend.addEventListener("input", () => { conditioningBlendCaption.textContent = `Conditioning Blend · ${blendCaption(Number(conditioningBlend.value))}`; });
+  conditioningBlend.addEventListener("change", () => commit((next) => { next.conditioning_blend = Number(conditioningBlend.value); }));
   for (const key of ["x", "y", "width", "height", "end"]) detailInputs[key].addEventListener("change", () => commit((next) => {
     const region = next.regions[selectedIndex()];
     if (key === "end") region.end = clamp(detailInputs[key].value);

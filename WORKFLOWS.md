@@ -9,15 +9,17 @@ Die aktuelle Nutzungs- und Bereinigungsmatrix steht in [`SUBGRAPH_AUDIT.md`](SUB
 | Verzeichnis | Rolle |
 |---|---|
 | `subgraphs/` | Wiederverwendbare ComfyUI-Module und interne Hilfsgraphen |
-| `workflows/reference/` | Technische Referenzen einzelner Module und Funktionen |
+| `workflows/reference/` | Runtime-Vorlage für das Öffnen von CMK-FaceSwap-Video-Projekten |
 | `workflows/showcase/` | Kuratierte, im Flow Browser veröffentlichte Beispielworkflows |
 | `workflows/examples/` | Interne oder spezialisierte Arbeitsbeispiele; kein Veröffentlichungseinstieg |
 
 Die aktuellen veröffentlichten Bildbeispiele liegen unter `workflows/showcase/` und
 werden ausschließlich über den Flow Browser als neue Kopie geöffnet. Technische
 Modulreferenzen unter `workflows/reference/` werden nicht als allgemeiner Einstieg
-angeboten. Der Video-Referenzworkflow bleibt
-`workflows/reference/CMK_FaceSwap_Video_Reference_v2.2.json`.
+angeboten. Der Video-Referenzworkflow ist der LEGACY-Eintrag
+`workflows/showcase/CMK FaceSwap Video.json`;
+`workflows/reference/CMK_FaceSwap_Video_Project_Template.json` ist die Vorlage, mit
+der der Video-Speicher ein Projekt ohne zugeordneten Workflow im Flow öffnet.
 
 ## CMK Flow Browser
 
@@ -79,7 +81,7 @@ CMK Flow · 10 KSampler SDXL 1st Pass
     ↓
 CMK Flow · 20 Refiner SDXL
     ↓
-CMK Flow · Detailer SDXL
+CMK Flow · Detailer (MODE SDXL/ZIT) oder CMK Flow · Detailer · Advanced
     ↓
 CMK Flow · FaceProcess SDXL
     ↓

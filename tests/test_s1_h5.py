@@ -229,7 +229,7 @@ class EntryWithoutDiagnostic(ScenarioCase):
         workdir = cls.workdir("migration")
         common = dict(overrides=_local("faceprocess_std", (1,)), fake_postprocess=True)
         legacy = cls.run_case("run_fixture", workdir=workdir, fixture="faceprocess_std_legacy_pre_h5", **common)["runs"][0]
-        diagnostic_files = sorted(p.name for p in (Path(workdir) / "temp" / "cmk" / SCOPE).glob("*.diagnostic.*"))
+        diagnostic_files = sorted(p.name for p in (Path(workdir) / "user" / "cmk_cache" / SCOPE).glob("*.diagnostic.*"))
         first = cls.run_case("run_fixture", workdir=workdir, fixture="faceprocess_std",
                              inspect=_inspect("faceprocess_std"), **common)["runs"][0]
         second = cls.run_case("run_fixture", workdir=workdir, fixture="faceprocess_std",

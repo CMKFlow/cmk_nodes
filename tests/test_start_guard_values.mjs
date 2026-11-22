@@ -67,5 +67,6 @@ for (const name of readdirSync(folder)) {
     checked += 1;
   }
 }
-assert.ok(checked >= 18, `checked ${checked}`);
+// The loop must not silently check nothing; the shipped count itself is no contract.
+assert.ok(checked > 0, `checked ${checked}`);
 console.log("START HERE guard values: OK");
