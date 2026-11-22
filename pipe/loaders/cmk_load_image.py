@@ -21,7 +21,6 @@ _CMK_REFERENCE_FILENAMES = (
     "face_00003.png",
     "face_identity_referenceII.png",
     "portrait_reference_00001.png",
-    "clipspace-mask-1792499379891.png",
     "face_reference.png",
     "controlnet_reference.png",
     "controlnet_reference4.png",
@@ -29,10 +28,8 @@ _CMK_REFERENCE_FILENAMES = (
     "face_identity_reference.png",
     "faceswap_reference.png",
     "inpaint_reference.png",
-    "inpaint_reference2.png",
     "mask_detailer_reference.png",
     "portrait_reference_00002.png",
-    "remove_refrence.png",
 )
 CMK_PACKAGED_REFERENCES = {
     f"CMK Package · {filename}": filename

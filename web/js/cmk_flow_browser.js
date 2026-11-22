@@ -9,7 +9,7 @@ const EXTENSION_DIRECTORY = decodeURIComponent(
 );
 const NODE_PACK = `custom_nodes.${EXTENSION_DIRECTORY}`;
 const ALLOWED_STATUS = new Set(["STABLE", "BETA", "EXPERIMENTAL"]);
-const PREVIEW_CACHE_VERSION = "20261018-cmk270-previews-r2";
+const PREVIEW_CACHE_VERSION = "20261121-cmk280-previews-r1";
 const MEMORY_DISPLAY_KEY = "cmk-flow-memory-display";
 const MEMORY_POLL_MS = 2000;
 
@@ -969,6 +969,17 @@ function renderFlowBrowser(root, flows) {
   update();
 }
 
+// Search-only references (sidecar "searchOnly": true) are published and
+// loadable, but appear only in search results, never in the category view.
+export function filterReferences(references, term, locale = "de") {
+  return references.filter((reference) => {
+    if (!term) return reference.searchOnly !== true;
+    return `${reference.name} ${reference.categoryLabel} ${reference.descriptionLabel} ${reference.highlightLabel} ${reference.infoLabel}`
+      .toLocaleLowerCase(locale)
+      .includes(term);
+  });
+}
+
 function renderReferenceBrowser(root, references) {
   const list = root.querySelector(".cmk-flow-list");
   const detail = root.querySelector(".cmk-flow-detail");
@@ -999,7 +1010,7 @@ function renderReferenceBrowser(root, references) {
   const update = () => {
     const scrollTop = list.scrollTop;
     const term = referenceSearchText.trim().toLocaleLowerCase(language);
-    const visible = references.map(localizeReference).filter((reference) => !term || `${reference.name} ${reference.categoryLabel} ${reference.descriptionLabel} ${reference.highlightLabel} ${reference.infoLabel}`.toLocaleLowerCase(language).includes(term));
+    const visible = filterReferences(references.map(localizeReference), term, language);
     if (!visible.some((reference) => reference.filename === referenceSelectedId)) referenceSelectedId = visible[0]?.filename || null;
     list.replaceChildren();
     if (!visible.length) list.innerHTML = `<div class="cmk-flow-empty">${references.length ? labels.empty : labels.catalogEmpty}</div>`;

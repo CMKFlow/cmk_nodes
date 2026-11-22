@@ -11,7 +11,7 @@
   "cmkHighlight_en": "The module freezes the current image as its working basis and reuses that state for subsequent mask edits. The binding is released and a new image state adopted only when the input changes.",
   "previews": [
     {
-      "src": "assets/showcase/MODULE WORKFLOWS/10 - CMK 2.7 · MaskDetailer SDXL · Modul/CMK 2.7 · MaskDetailer SDXL · Modul.webp",
+      "src": "assets/showcase/MODULE WORKFLOWS/10 - CMK 2.8 · MaskDetailer · Modul/CMK 2.8 · MaskDetailer · Modul.webp",
       "label": "Workflow",
       "label_en": "Workflow"
     }

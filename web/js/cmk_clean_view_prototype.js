@@ -1,4 +1,5 @@
 import { app } from "../../../scripts/app.js";
+import { applyFixedSize, fixedSize } from "./cmk_fixed_size.js";
 
 const EXTENSION_NAME = "cmk.clean_view.prototype.v1";
 const STYLE_ID = "cmk-clean-view-prototype-style";
@@ -149,6 +150,8 @@ function isPostProcessSetupV2(node) {
 // Setup v2), not the rendered node, and replaced a smaller chosen height.
 // The size remembered for the active Clean View state is the chosen one.
 function restoreLoadedSize(node) {
+    // A pinned size (cmkFixedSize) is the only valid outer size in both views.
+    if (applyFixedSize(node)) return;
     if (!isPostProcessSetupV2(node)) return;
     const stored = node.properties?.[cleanEnabled(node) ? COMPACT_SIZE_PROPERTY : EXPANDED_SIZE_PROPERTY];
     if (validSize(stored)) node.setSize?.([Number(stored[0]), Number(stored[1])]);
@@ -276,7 +279,7 @@ function applyCompactSize(node, size, remember = false) {
 function restoreCompactSize(node) {
     if (!cleanEnabled(node)) return false;
     if (node.__cmkManualResizeActive) return false;
-    return applyCompactSize(node, node?.properties?.[COMPACT_SIZE_PROPERTY]);
+    return applyCompactSize(node, fixedSize(node) || node?.properties?.[COMPACT_SIZE_PROPERTY]);
 }
 
 function scheduleCompactSizeRestore(node) {
@@ -503,6 +506,16 @@ function resizeForState(node, enabled) {
     const width = Number(node?.size?.[0]);
     const height = Number(node?.size?.[1]);
     if (!Number.isFinite(width) || !Number.isFinite(height)) return;
+
+    // A pinned outer size does not change with the view: both remembered
+    // sizes follow it, so no later restore can resize the node either.
+    const fixed = fixedSize(node);
+    if (fixed) {
+        rememberExpandedSize(node, fixed);
+        rememberCompactSize(node, fixed);
+        applyFixedSize(node);
+        return;
+    }
 
     if (enabled) {
         rememberExpandedSize(node, [width, height]);

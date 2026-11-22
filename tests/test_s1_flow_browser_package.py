@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import unittest
@@ -21,8 +22,15 @@ VISIBLE_NODES = {
     "CMKPipeCreateImage", "CMKRegionalLayoutSDXL", "CMKPostProcessSetupV2Pipe", "CMKImageResizeV2",
 }
 CATEGORIES = ["REAL-WORLD WORKFLOWS", "TASK WORKFLOWS", "MODULE WORKFLOWS", "SYSTEM WORKFLOW", "COMPARISONS", "LEGACY"]
-# 2.8 showcase sync: the Advanced module workflows are catalogued, not published.
+# Entries listed in the category view; the 2.8 Advanced module workflows are
+# published as search-only entries and are not counted here.
 COUNTS = {"REAL-WORLD WORKFLOWS": 4, "TASK WORKFLOWS": 13, "MODULE WORKFLOWS": 10, "SYSTEM WORKFLOW": 1, "COMPARISONS": 2, "LEGACY": 1}
+SEARCH_ONLY = {
+    "CMK 2.8 · Detailer Advanced · Modul.json",
+    "CMK 2.8 · FaceProcess Advanced · Modul.json",
+    "CMK 2.8 · FaceRebuild Advanced SDXL · Modul.json",
+    "CMK 2.8 · FaceSwap Advanced · Modul.json",
+}
 
 
 def metadata():
@@ -36,6 +44,17 @@ def published_showcase():
         if data.get("published"):
             rows.append((path.name, data))
     return sorted(rows, key=lambda row: row[1]["order"])
+
+
+def listed_showcase():
+    return [(name, data) for name, data in published_showcase() if data.get("searchOnly") is not True]
+
+
+def packaged_names(loader):
+    """CMK Package · names a loader resolves (its CMK_PACKAGED_REFERENCES)."""
+    source = (PACKAGE / "pipe" / "loaders" / loader).read_text(encoding="utf-8")
+    block = re.search(r"\(\n((?:\s+\"[^\"]+\",\n)+)\s*\)", source).group(1)
+    return set(re.findall(r'"([^"]+)"', block))
 
 
 class FlowCatalog(unittest.TestCase):
@@ -94,7 +113,7 @@ class CatalogReferences(unittest.TestCase):
 
 class ShowcaseRegistry(unittest.TestCase):
     def test_categories_and_counts_in_order(self):
-        rows = published_showcase()
+        rows = listed_showcase()
         seen = []
         for _, data in rows:
             if data["category"] not in seen:
@@ -104,7 +123,7 @@ class ShowcaseRegistry(unittest.TestCase):
             self.assertEqual(sum(1 for _, data in rows if data["category"] == category), count, category)
 
     def test_numeric_prefixes_set_the_order(self):
-        for name, data in published_showcase():
+        for name, data in listed_showcase():
             if data["category"] in ("LEGACY", "COMPARISONS", "SYSTEM WORKFLOW"):
                 continue
             folder = Path(data["previews"][0]["src"]).parent.name
@@ -136,6 +155,71 @@ class ShowcaseRegistry(unittest.TestCase):
                             self.assertTrue(slot["file"].split(" · ", 1)[-1] in names, (name, slot["file"]))
 
 
+class FlowBrowser28Sync(unittest.TestCase):
+    """2.8 Flow Browser sync: replacement, search-only entries, package references."""
+
+    def test_identity_2_replaces_identity_3_at_its_position(self):
+        rows = {data["order"]: name for name, data in listed_showcase()}
+        self.assertEqual(rows[104], "CMK 2.8 · Text2Image · Identity 2.json")
+        for retired in ("CMK 2.8 · Text2Image · Identity 3.json", "CMK 2.7 · Text2Image · Identity 3.json"):
+            self.assertFalse((SHOWCASE / retired).exists(), retired)
+            self.assertFalse((SHOWCASE / "metadata" / retired).exists(), retired)
+        sources = [p["src"] for _, data in published_showcase() for p in data["previews"]]
+        self.assertFalse([src for src in sources if "Identity 3" in src])
+
+    def test_regional_layout_entry_is_the_2_8_workflow(self):
+        rows = {data["order"]: name for name, data in listed_showcase()}
+        self.assertEqual(rows[209], "CMK 2.8 · Flow · Text2Image Regional Layout SDXL-ZIT HYBRID.json")
+        self.assertFalse((SHOWCASE / "CMK 2.7 · Flow · Text2Image Regional Layout SDXL-ZIT HYBRID.json").exists())
+
+    def test_search_only_entries_are_the_four_advanced_modules(self):
+        search_only = {name for name, data in published_showcase() if data.get("searchOnly") is True}
+        self.assertEqual(search_only, SEARCH_ONLY)
+        for name in SEARCH_ONLY:
+            data = json.loads((SHOWCASE / "metadata" / name).read_text(encoding="utf-8"))
+            self.assertEqual((data["published"], data["category"]), (True, "MODULE WORKFLOWS"), name)
+            self.assertTrue((SHOWCASE / name).is_file(), name)
+            self.assertTrue(data["description"] and data["description_en"], name)
+
+    def test_search_only_flag_reaches_the_browser(self):
+        backend = (PACKAGE / "__init__.py").read_text(encoding="utf-8")
+        route = backend[backend.index('routes.get("/cmk/showcase-workflows")'):backend.index('routes.get("/cmk/reference-assets/')]
+        self.assertIn('"searchOnly": metadata.get("searchOnly", False) is True', route)
+        javascript = (WEB / "js" / "cmk_flow_browser.js").read_text(encoding="utf-8")
+        self.assertIn("filterReferences(references.map(localizeReference), term, language)", javascript)
+
+    def test_every_sidecar_belongs_to_a_workflow(self):
+        for path in (SHOWCASE / "metadata").glob("*.json"):
+            self.assertTrue((SHOWCASE / path.name).is_file(), path.name)
+        referenced = {(WEB / p["src"]).resolve() for path in (SHOWCASE / "metadata").glob("*.json")
+                      for p in json.loads(path.read_text(encoding="utf-8")).get("previews", [])}
+        shipped = {path.resolve() for path in (WEB / "assets" / "showcase").rglob("*") if path.is_file() and path.name != ".DS_Store"}
+        self.assertEqual(shipped - referenced, set(), "showcase assets without a sidecar reference")
+
+    def test_package_references_resolve_through_their_loader(self):
+        resolve_load_image = packaged_names("cmk_load_image.py")
+        resolve_load_resize = packaged_names("cmk_image_load_resize.py")
+        manifest = {entry["package_file"]: entry["sha256"] for entry in json.loads((REFERENCES / "manifest.json").read_text(encoding="utf-8"))["assets"]}
+        for name, _ in published_showcase():
+            workflow = json.loads((SHOWCASE / name).read_text(encoding="utf-8"))
+            nodes = list(workflow.get("nodes", [])) + [node for sub in workflow.get("definitions", {}).get("subgraphs", []) for node in sub.get("nodes", [])]
+            for node in nodes:
+                values = []
+                if node.get("type") in ("CMKLoadImage", "CMKImageFileLoader", "CMKImageLoadAndResizePipe"):
+                    values = [(node.get("widgets_values") or [""])[0]]
+                elif node.get("type") == "CMKMultiImageLoader":
+                    values = [slot["file"] for slot in node["properties"]["cmkMultiImageLoader"]["slots"] if slot["file"]]
+                for value in values:
+                    if not (isinstance(value, str) and value.startswith("CMK Package · ")):
+                        continue
+                    filename = value.split(" · ", 1)[1]
+                    names = resolve_load_resize if node["type"] == "CMKImageLoadAndResizePipe" else resolve_load_image
+                    self.assertIn(filename, names, (name, node["type"], value))
+                    path = REFERENCES / filename
+                    self.assertTrue(path.is_file(), (name, value))
+                    self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), manifest.get(filename), filename)
+
+
 DETAILER_STANDARD = "70aa4358-3856-4a78-8304-7fef47a51263"
 DETAILER_ADVANCED = "c65f6b01-4f30-4937-8ea6-2b229ef2e076"
 
@@ -163,16 +247,15 @@ class DetailerPackage(unittest.TestCase):
     def test_module_workflows_301_and_302_are_the_new_detailers(self):
         # Like every module pair: odd = CMK · <module>, even = its 2.8 module workflow.
         rows = {}
-        for name, data in published_showcase():
+        for name, data in listed_showcase():
             rows.setdefault(data["order"], []).append(name)
         self.assertEqual(rows[301], ["CMK · Detailer.json"])
-        self.assertEqual(rows[302], ["CMK 2.8 · Detailer · Modul.json"], "the Advanced module workflow is catalogued, not published")
+        self.assertEqual(rows[302], ["CMK 2.8 · Detailer · Modul.json"], "the Advanced module workflow is search-only")
         advanced = json.loads((SHOWCASE / "metadata" / "CMK 2.8 · Detailer Advanced · Modul.json").read_text(encoding="utf-8"))
-        self.assertEqual((advanced["order"], advanced["published"]), (302, False))
-        published = {name for name, _ in published_showcase()}
+        self.assertEqual((advanced["order"], advanced["published"], advanced["searchOnly"]), (302, True, True))
+        # 2.8 package cleanup: the SDXL Detailer showcase workflows are gone.
         for legacy in ("CMK · Detailer SDXL.json", "CMK 2.7 · Detailer SDXL · Modul.json"):
-            self.assertNotIn(legacy, published)
-            self.assertTrue((SHOWCASE / legacy).is_file(), legacy)
+            self.assertFalse((SHOWCASE / legacy).exists(), legacy)
 
     def test_module_workflows_use_the_new_subgraphs(self):
         for name, subgraph in (("CMK 2.8 · Detailer · Modul.json", "CMK Flow · Detailer"),

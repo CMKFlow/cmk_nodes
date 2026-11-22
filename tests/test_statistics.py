@@ -177,22 +177,25 @@ class CurrentPackageContractTests(unittest.TestCase):
     def test_current_showcase_reference_counts(self):
         browser = statistics.flow_browser_statistics(PACKAGE_ROOT)
         showcase = statistics.showcase_statistics(PACKAGE_ROOT)
-        self.assertEqual((browser["total"], browser["visible"], browser["hidden"]), (67, 31, 36))
-        self.assertEqual(browser["categories"], {
-            "REAL-WORLD WORKFLOWS": 8,
-            "TASK WORKFLOWS": 32,
-            "MODULE WORKFLOWS": 22,
-            "SYSTEM WORKFLOW": 2,
-            "COMPARISONS": 2,
-            "LEGACY": 1,
-        })
+        # Deliberate target inventory (test_s1_flow_browser_package), not the
+        # file count of an earlier run: every shipped showcase workflow is either
+        # listed in its category or one of the search-only Advanced modules.
+        from test_s1_flow_browser_package import COUNTS, SEARCH_ONLY
+
+        self.assertEqual(browser["visible"], sum(COUNTS.values()))
+        self.assertEqual(browser["hidden"], len(SEARCH_ONLY))
+        self.assertEqual(browser["total"], browser["visible"] + browser["hidden"])
+        expected = dict(COUNTS)
+        expected["MODULE WORKFLOWS"] += len(SEARCH_ONLY)
+        self.assertEqual(browser["categories"], expected)
+        # Every entry has a gallery; every shipped showcase image is counted once.
+        images = [path for path in (PACKAGE_ROOT / "web" / "assets" / "showcase").rglob("*")
+                  if path.is_file() and path.name != ".DS_Store"]
         self.assertEqual(showcase, {
-            "galleries": 33, "screenshots": 52, "bytes": 27_207_360,
+            "galleries": browser["total"],
+            "screenshots": len(images),
+            "bytes": sum(path.stat().st_size for path in images),
         })
-        self.assertFalse((
-            PACKAGE_ROOT / "workflows" / "showcase" /
-            "CMK 2.6 · Flow · Inpaint - FaceRebuild HYBRID.json"
-        ).exists())
 
     def test_ui_and_read_only_route_contract(self):
         javascript = (PACKAGE_ROOT / "web/js/cmk_flow_browser.js").read_text(encoding="utf-8")

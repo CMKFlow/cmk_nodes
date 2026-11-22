@@ -51,7 +51,6 @@ _REFERENCE_FILENAMES = (
     "face_00003.png",
     "face_identity_referenceII.png",
     "portrait_reference_00001.png",
-    "clipspace-mask-1792499379891.png",
     "controlnet_reference.png",
     "controlnet_reference4.png",
     "detailer_reference.png",
@@ -59,10 +58,9 @@ _REFERENCE_FILENAMES = (
     "face_reference.png",
     "faceswap_reference.png",
     "inpaint_reference.png",
-    "inpaint_reference2.png",
     "mask_detailer_reference.png",
     "portrait_reference_00002.png",
-    "remove_refrence.png",
+    "Group_Reference_00001.png",
 )
 _PACKAGED_REFERENCES = {
     f"CMK Package · {filename}": filename
@@ -563,6 +561,9 @@ async def cmk_showcase_workflows(request):
             "info": metadata.get("info", ""),
             "info_en": metadata.get("info_en", ""),
             "previews": metadata.get("previews", []),
+            # Published, loadable and found by the browser search, but not
+            # listed in the category view (2.8 Advanced module workflows).
+            "searchOnly": metadata.get("searchOnly", False) is True,
         })
     entries.sort(key=lambda item: (item["order"], item["name"].casefold()))
     return web.json_response({"workflows": entries})

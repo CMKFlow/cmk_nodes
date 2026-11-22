@@ -192,6 +192,30 @@ RESOURCES = (
         ),
     ),
     Resource(
+        "insightface-antelopev2",
+        "InsightFace antelopev2",
+        "InstantID",
+        (
+            "insightface/models/antelopev2/1k3d68.onnx",
+            "insightface/models/antelopev2/2d106det.onnx",
+            "insightface/models/antelopev2/genderage.onnx",
+            "insightface/models/antelopev2/glintr100.onnx",
+            "insightface/models/antelopev2/scrfd_10g_bnkps.onnx",
+        ),
+        "https://github.com/deepinsight/insightface/releases/download/model-zoo/antelopev2.zip",
+        "insightface/models/antelopev2",
+        "Official InsightFace antelopev2 pack; InsightFace pretrained-model terms apply (approximately 344 MiB)",
+        require_all=True,
+        expected_sha256="8e182f14fc6e80b3bfa375b33eb6cff7ee05d8ef7633e738d1c89021dcf0c5c5",
+        archive_members=(
+            "antelopev2/1k3d68.onnx",
+            "antelopev2/2d106det.onnx",
+            "antelopev2/genderage.onnx",
+            "antelopev2/glintr100.onnx",
+            "antelopev2/scrfd_10g_bnkps.onnx",
+        ),
+    ),
+    Resource(
         "sam-vit-b",
         "SAM ViT-B detector",
         "Detailer / FaceProcess",
@@ -471,6 +495,18 @@ def locate(resource: Resource, roots: Iterable[Path]) -> Path | None:
                 return candidate
             if candidate.is_dir() and any(path.is_file() for path in candidate.rglob("*")):
                 return candidate
+    return None
+
+
+def nested_install(resource: Resource, roots: Iterable[Path]) -> Path | None:
+    """A complete pack one folder too deep, as an archive with a top-level folder extracts."""
+    if not resource.require_all:
+        return None
+    for root in roots:
+        candidates = [root / Path(relative).parent / Path(relative).parent.name / Path(relative).name
+                      for relative in resource.relative_paths]
+        if all(candidate.is_file() for candidate in candidates):
+            return candidates[0].parent
     return None
 
 
@@ -761,9 +797,13 @@ def main() -> int:
     )
     target_root = _models_root(target_root).resolve()
     results = audit(comfy_root, args.models_root)
+    roots = _candidate_roots(comfy_root, args.models_root)
     for resource, path in results:
         status = "FOUND" if path else "MISSING"
         detail = f" -> {path}" if path else (f" | {resource.license_note}" if resource.license_note else "")
+        nested = None if path else nested_install(resource, roots)
+        if nested:
+            detail += f" | nested install not used: {nested} (files belong in {nested.parent})"
         print(
             f"[{status:7}] {resource.resource_id:30} {resource.label}"
             f" | {resource.feature}{detail}"

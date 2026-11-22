@@ -38,6 +38,7 @@ package.__path__ = [str(PACKAGE_ROOT)]
 sys.modules.setdefault(TEST_PACKAGE, package)
 
 adaptive = importlib.import_module(f"{TEST_PACKAGE}.pipe.cmk_adaptive_handoff")
+distribution = importlib.import_module(f"{TEST_PACKAGE}.cmk_distribution")
 advanced = importlib.import_module(f"{TEST_PACKAGE}.pipe.instantid.cmk_instantid_regional_advanced")
 persistent = importlib.import_module(f"{TEST_PACKAGE}.pipe.cmk_persistent_cache")
 prepare = importlib.import_module(f"{TEST_PACKAGE}.pipe.cmk_sampler_prepare")
@@ -682,8 +683,12 @@ class HandoffCache(unittest.TestCase):
         self.prompt = _prompt(adaptive.ADVANCED_CLASS)
         self.plan = adaptive.adaptive_handoff_plan(_pipe(), self.prompt, "10")
 
-    def pipe(self, plan, steps):
-        pipe = _pipe(content_guard_enabled=False, samples={"samples": torch.ones(1)})
+    def pipe(self, plan, steps, approved=True):
+        # A handoff the ContentGuard approved, as module 10 hands it over in
+        # BASELINE and RELEASE alike.
+        pipe = _pipe(content_guard_enabled=True, samples={"samples": torch.ones(1)})
+        if approved:
+            pipe["content_guard_handoff"] = "PASS · SDXL HANDOFF"
         if plan is not None:
             pipe["instantid_handoff_window"] = plan
             pipe["instantid_handoff_candidates"] = [
@@ -725,6 +730,12 @@ class HandoffCache(unittest.TestCase):
         restored, _visual = self.load(self.pipe(None, []))
         self.assertNotIn("instantid_handoff_candidates", restored)
         self.assertIsNotNone(self.load(self.pipe(self.plan, [])))
+
+    def test_release_never_persists_an_unapproved_handoff(self):
+        pipe = self.pipe(self.plan, ORDER, approved=False)
+        pipe["content_guard_enabled"] = False  # a saved OFF value
+        with patch.object(distribution, "DISTRIBUTION_MODE", distribution.RELEASE):
+            self.assertIsNone(self.persist(pipe))
 
 
 class StopAndResume(unittest.TestCase):

@@ -24,7 +24,9 @@ FIXTURES = Path(__file__).resolve().parent
 PACKAGE_ROOT = FIXTURES.parents[1]
 SUBGRAPHS = PACKAGE_ROOT / "subgraphs"
 TEMPLATE = FIXTURES / "workflows" / "detailer_std.json"
-FULL_FLOW = PACKAGE_ROOT / "workflows" / "showcase" / "CMK 2.6 · Full Flow .json"
+# The CMK 2.6 Full Flow Upscale & Save definition, kept byte-for-byte in the
+# stored fixture (the 2.6 showcase workflow is no longer part of the package).
+FULL_FLOW = FIXTURES / "workflows" / "upscale_save_legacy_fullflow.json"
 
 LOADER_ID, VISUALIZER_ID, CHECKPOINT_ID = 1, 8418, 8419
 

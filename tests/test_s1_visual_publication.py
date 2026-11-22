@@ -68,8 +68,9 @@ class BoundaryKeysUnchanged(ScenarioCase):
                 source = None if fixture.startswith("faceswap") else "CMKCheckpointVAELoaderPipe"
                 # K-5 bumped the Detailer schema v3 -> v4; compare with the recorded schema.
                 schema = "cmk_detailer_boundary_v3" if fixture.startswith("detailer") else None
+                # The record was taken in BASELINE; the key carries the guard token.
                 result = self.run_case("boundary_key", fixture=fixture, boundary_class=boundary_class,
-                                       model_source_class=source, schema=schema)
+                                       model_source_class=source, schema=schema, distribution_mode="BASELINE")
                 self.assertEqual(result["key"], PINNED[fixture]["key"])
                 self.assertEqual(result["dependencies"], PINNED[fixture]["deps"])
 
@@ -81,7 +82,8 @@ class BoundaryKeysUnchanged(ScenarioCase):
             if fixture.startswith("faceswap"):
                 continue
             with self.subTest(fixture=fixture):
-                result = self.run_case("boundary_key", fixture=fixture, boundary_class=boundary_class)
+                result = self.run_case("boundary_key", fixture=fixture, boundary_class=boundary_class,
+                                       distribution_mode="BASELINE")
                 self.assertNotEqual((result["key"], result["dependencies"]),
                                     (PINNED[fixture]["key"], PINNED[fixture]["deps"]))
 

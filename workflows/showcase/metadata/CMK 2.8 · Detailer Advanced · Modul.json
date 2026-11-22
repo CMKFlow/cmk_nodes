@@ -1,5 +1,6 @@
 {
-  "published": false,
+  "published": true,
+  "searchOnly": true,
   "displayName": "CMK 2.8 · Detailer Advanced · Modul",
   "kind": "module",
   "order": 302,
@@ -11,7 +12,7 @@
   "cmkHighlight_en": "SDXL and Z-Image Turbo in one run: ZIT before SDXL, each family loaded only once, merged by the actual pasteback masks.",
   "previews": [
     {
-      "src": "assets/showcase/MODULE WORKFLOWS/02 - CMK 2.8 · Detailer Advanced · Modul/CMK 2.8 · Detailer Advanced · Modul.webp",
+      "src": "assets/showcase/MODULE WORKFLOWS/CMK · Detailer Advanced · Modul/CMK 2.8 · Detailer Advanced · Modul.webp",
       "label": "Workflow",
       "label_en": "Workflow"
     }

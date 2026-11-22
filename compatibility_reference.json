@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "comfyui": "0.42.5",
+  "comfyui": "0.46.2",
   "python": "3.13.12",
   "pytorch": "2.12.1",
   "compute_backend": "Apple MPS"

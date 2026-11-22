@@ -6,7 +6,6 @@ const PACKAGED_REFERENCES = new Map([
     ["CMK Package · face_reference.png", "face_reference.png"],
     ["CMK Package · faceswap_reference.png", "faceswap_reference.png"],
     ["CMK Package · inpaint_reference.png", "inpaint_reference.png"],
-    ["CMK Package · remove_reference.png", "remove_reference.png"],
 ]);
 
 function isTarget(node) {

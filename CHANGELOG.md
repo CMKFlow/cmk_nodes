@@ -1,6 +1,6 @@
-# CMK Flow 2.8.0 — in Entwicklung (Stand 2026-11-15)
+# CMK Flow 2.8.0 — 2026-11-22
 
-Noch kein Release; die Paketversion bleibt bis zur Veröffentlichung 2.7.0.
+Paketversion: **CMK 2.8.0**.
 
 - Neuer Standard-Detailer `CMK Flow · Detailer` für SDXL oder Z-Image Turbo
   und neuer `CMK Flow · Detailer · Advanced` mit drei unabhängigen Detailern,
@@ -45,7 +45,7 @@ Noch kein Release; die Paketversion bleibt bis zur Veröffentlichung 2.7.0.
 - `30 PostProcess Setup v2` mit getrennten SDXL- und Z-Image-Turbo-Bereichen
   und `Image Resize v2` ersetzen ihre Vorgänger im Flows-Katalog (die
   Vorgänger-Nodes bleiben registriert).
-- Showcase 2.8: Text2Image, InOutpaint, Identity 1/3, Text2Image ZIT ·
+- Showcase 2.8: Text2Image, InOutpaint, Identity 1/2, Text2Image ZIT ·
   FaceRebuild, Full Flow, CMK · Detailer/FaceProcess/MaskDetailer und die
   Modul-Workflows Detailer, FaceProcess, FaceRebuild SDXL, FaceSwap und
   MaskDetailer ersetzen ihre 2.7-Gegenstücke. Die Advanced-Modul-Workflows
@@ -89,6 +89,18 @@ Noch kein Release; die Paketversion bleibt bis zur Veröffentlichung 2.7.0.
   Zero-Pass und InstantID Standard behalten den festen Handoff. STOP AFTER
   HANDOFF sampelt bei Advanced dasselbe Fenster (bis zu vier SDXL-Steps mehr,
   ohne InstantID), sodass die anschließende Fortsetzung den Handoff-Cache trifft. SDXL-Handoff-Cache-Schema v2, Suchstrategie `cmk-adaptive-handoff-v2`.
+- Modellpfade: FaceSwap (Hyperswap, Reswapper) und InstantID FaceAnalysis
+  (`antelopev2`) berücksichtigen die von ComfyUI registrierten Modellordner,
+  etwa die gemeinsamen Ordner von ComfyUI Desktop; lokale Modellordner bleiben
+  unterstützt. InstantID verwendet nur einen Ordner mit vollständigem, flachem
+  `antelopev2`-Paket und meldet sonst einen klaren Fehler statt eines
+  automatischen Downloads. Die Ressourcenprüfung kennt `antelopev2` und erkennt
+  verschachtelte Installationen.
+- Showcase `CMK 2.8 · Text2Image · Identity 2`: eine unverkabelte, deckungsgleich
+  über der aktiven Instanz liegende Kopie des 15A-Subgraphen entfernt.
+- Dokumentation: Entwicklungs- und Referenzumgebung (MacBook Pro M1 Pro, 16 GB,
+  ComfyUI 0.46.2) sowie die Rolle des LoRA Managers (optional für den Kern,
+  erforderlich für die Showcase-Workflows mit LoRA-Stack) beschrieben.
 
 # CMK Flow 2.7.0 — 2026-11-10
 

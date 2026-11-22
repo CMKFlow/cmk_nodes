@@ -22,6 +22,20 @@ from harness.support import ScenarioCase
 CMK_TEST_TIER = "T1"
 
 
+def _shipped_mode() -> str:
+    """DISTRIBUTION_MODE of the package under test (BASELINE or RELEASE)."""
+    import re
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "cmk_distribution.py").read_text(encoding="utf-8")
+    return re.search(r"(?m)^DISTRIBUTION_MODE\s*=\s*(BASELINE|RELEASE)\s*$", source).group(1)
+
+
+# What the engine receives for a saved OFF switch: BASELINE honours it,
+# RELEASE enforces the guard.
+OFF_REACHES_ENGINE = _shipped_mode() != "RELEASE"
+
+
 class StandaloneFaceSwap(ScenarioCase):
     @classmethod
     def setUpClass(cls):
@@ -34,14 +48,14 @@ class StandaloneFaceSwap(ScenarioCase):
         return run["engine_guard"]
 
     def test_switch_off_reaches_the_engine(self):
-        self.assertEqual(self.guard("off"), [False])
+        self.assertEqual(self.guard("off"), [not OFF_REACHES_ENGINE])
 
     def test_switch_on_reaches_the_engine(self):
         self.assertEqual(self.guard("on"), [True])
 
     def test_off_through_the_process_chain(self):
         # Through CMKResultUnpackPipe the loader's PROCESS reaches the CMK_PIPE input.
-        self.assertEqual(self.guard("off_unpack"), [False])
+        self.assertEqual(self.guard("off_unpack"), [not OFF_REACHES_ENGINE])
         self.assertEqual(self.guard("on_unpack"), [True])
 
 
@@ -52,8 +66,12 @@ class CompletionKey(ScenarioCase):
         cls.keys = cls.run_case("completion_guard_keys")
 
     def test_guard_state_is_part_of_the_key(self):
-        self.assertNotEqual(self.keys["on"], self.keys["off"])
         self.assertEqual(self.keys["on"], self.keys["on_again"])
+        if _shipped_mode() == "RELEASE":
+            # RELEASE enforces the guard: a saved OFF value is the guarded run.
+            self.assertEqual(self.keys["on"], self.keys["off"])
+        else:
+            self.assertNotEqual(self.keys["on"], self.keys["off"])
 
 
 class PromptState(unittest.TestCase):

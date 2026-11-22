@@ -346,8 +346,8 @@
   },
   "class_type": "CMKLoadImage",
   "inputs": {
-   "image": "CMK Package · inpaint_reference2.png",
-   "opt_image_file": "CMK Package · inpaint_reference2.png",
+   "image": "inpaint_reference2.png",
+   "opt_image_file": "inpaint_reference2.png",
    "opt_in": true
   }
  },

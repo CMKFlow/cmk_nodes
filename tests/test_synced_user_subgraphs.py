@@ -87,6 +87,9 @@ EXPECTED = {
             ("CMKPreviewRender", (8005, 2985)): ((1220, 320), 15),
             ("CMKPreviewRender", (8005, 2630)): ((1220, 320), 16),
             ("CMKPreviewRender", (9230, 2630)): ((1220, 320), 17),
+            # 2.8 blueprint sync (2026-11-16): Advanced Mode and Diagnostic Gate.
+            ("CMKDetailerAdvancedModeEnable", (8005, 3370)): ((270, 82), 18),
+            ("CMKModuleDiagnosticGate", (8005, 3445)): ((285, 130), 19),
         },
     },
     # 2.8 package sync: user subgraphs taken over unchanged (ids, ports, layout).
@@ -128,6 +131,9 @@ EXPECTED = {
             ("CMKPreviewRender", (8005, 3065)): ((1280, 320), 15),
             ("CMKPreviewRender", (8005, 2710)): ((1280, 320), 16),
             ("CMKPreviewRender", (9290, 2710)): ((1280, 320), 17),
+            # 2.8 blueprint sync (2026-11-16): Advanced Mode and Diagnostic Gate.
+            ("CMKFaceProcessAdvancedModeEnable", (8025, 3435)): ((270, 82), 18),
+            ("CMKModuleDiagnosticGate", (8025, 3510)): ((285, 130), 19),
         },
     },
     "CMK Flow · FaceRebuild SDXL v2.json": {

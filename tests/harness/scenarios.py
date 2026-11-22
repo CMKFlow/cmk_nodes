@@ -1193,13 +1193,28 @@ def seam_neutrality(workdir: str, fixture: str, extra_model_paths: str | None = 
 
 def boundary_key(workdir: str, fixture: str, boundary_class: str, input_source: str = SELFCHECK_INPUT,
                  extra_model_paths: str | None = None, model_source_class: str | None = None,
-                 schema: str | None = None) -> dict:
+                 schema: str | None = None, distribution_mode: str | None = None) -> dict:
     """Boundary cache key exactly as the boundary computes it, for the given
     content of the (same-named) input file.  ``model_source_class`` replaces
-    the class of the node feeding CMK Load Image's MODEL input (H-2)."""
+    the class of the node feeding CMK Load Image's MODEL input (H-2).
+
+    Boundary keys carry the ContentGuard token (``baseline:off`` /
+    ``release:on``), so a key pinned to a contract record is computed in the
+    distribution mode the record was taken in (``distribution_mode``)."""
     from .comfy_runtime import boot
 
     runtime = boot(Path(workdir), extra_model_paths=extra_model_paths)
+    distribution = runtime.cmk_module("cmk_distribution")
+    shipped_mode = distribution.DISTRIBUTION_MODE
+    if distribution_mode is not None:
+        distribution.DISTRIBUTION_MODE = distribution_mode
+    try:
+        return _boundary_key(workdir, fixture, boundary_class, input_source, model_source_class, schema)
+    finally:
+        distribution.DISTRIBUTION_MODE = shipped_mode
+
+
+def _boundary_key(workdir, fixture, boundary_class, input_source, model_source_class, schema) -> dict:
     write_selfcheck_input(Path(workdir), input_source)
     import nodes
 

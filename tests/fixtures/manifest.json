@@ -320,9 +320,9 @@
     {
       "name": "instantid_inpaint",
       "workflow_file": "workflows/instantid_inpaint.json",
-      "workflow_sha256": "6dc9c004ca42f4a4c8d857c0cc7e678d22294630a16addf21fb58db7b7e78a54",
+      "workflow_sha256": "eb21d67f86e7846067e4143cdfff9cd95af83598d79418df18d33888df46b1f8",
       "api_prompt_file": "api_prompts/instantid_inpaint.json",
-      "api_prompt_sha256": "ac0a1675af0e8063e6063b5eddec6d49318a63d9815bdb37f49c107010ac3372",
+      "api_prompt_sha256": "130e9a3ab14245ae17b6ea76a88db061e9c6565e4479bfb729fbe14302a67a6f",
       "definitions": [
         {
           "name": "CMK Flow · 10 KSampler SDXL 1st Pass",
@@ -344,9 +344,9 @@
     {
       "name": "full_flow",
       "workflow_file": "workflows/full_flow.json",
-      "workflow_sha256": "b692eda0b61833f7b1258ff3803547b3fb7ab5c5727cb8a43aa00034fcad6e6b",
+      "workflow_sha256": "665b19235ab26899689730b15565d27522fff560d4320b996891d6f387806222",
       "api_prompt_file": "api_prompts/full_flow.json",
-      "api_prompt_sha256": "62bb5e9a9b219c3c0fa856e32493cd3d39d6083025ba82b186028dcdee39053c",
+      "api_prompt_sha256": "f9a1b60e2703ca9aacf357c0b67cc4cab69b3caeac296443162e7ae048db41a7",
       "definitions": [
         {
           "name": "CMK Flow · 10 KSampler SDXL 1st Pass",

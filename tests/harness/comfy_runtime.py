@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import hashlib
+import shutil
 import sys
 import uuid
 from dataclasses import dataclass, field
@@ -179,6 +180,10 @@ def boot(workdir: Path, extra_model_paths: str | None = None) -> Runtime:
     import folder_paths
 
     folder_paths.set_input_directory(str(workdir / "input"))
+    # Test-only reference images (tests/fixtures/references) are plain input
+    # files of the harness, never CMK package references.
+    for reference in (Path(__file__).resolve().parents[1] / "fixtures" / "references").glob("*.png"):
+        shutil.copyfile(reference, workdir / "input" / reference.name)
     folder_paths.set_output_directory(str(workdir / "output"))
     folder_paths.set_temp_directory(str(workdir / "temp"))
     folder_paths.set_user_directory(str(workdir / "user"))

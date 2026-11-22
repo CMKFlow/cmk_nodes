@@ -1,4 +1,5 @@
 import { app } from "../../../scripts/app.js";
+import { FIXED_SIZE_PROPERTY, fixedSize } from "./cmk_fixed_size.js";
 
 const STORAGE_KEY = "cmk-node-size-defaults-v1";
 const MENU_LABEL = "CMK · Node Dimensions …";
@@ -234,7 +235,14 @@ function applySize(node, width, height) {
     node.properties ||= {};
     node.properties.cmkOuterSize = [...persistedSize];
     node.properties.cmkManualSize = [...persistedSize];
-    if (node.properties.cmkCleanView === true) {
+    // A deliberate resize re-pins a node whose size is fixed; the size then
+    // holds in both views (see cmk_fixed_size.js).
+    if (fixedSize(node)) {
+        node.properties[FIXED_SIZE_PROPERTY] = [...persistedSize];
+        node.properties.cmkCleanViewSize = [...persistedSize];
+        node.properties.cmkCleanViewExpandedSize = [...persistedSize];
+        node.properties.cmkCleanViewExpandedHeight = persistedSize[1];
+    } else if (node.properties.cmkCleanView === true) {
         node.properties.cmkCleanViewSize = [...persistedSize];
     } else {
         node.properties.cmkCleanViewExpandedSize = [...persistedSize];

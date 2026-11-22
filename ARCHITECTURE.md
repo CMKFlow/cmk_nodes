@@ -40,7 +40,7 @@ registrierte CMK-Python-Nodes und Engines
 
 - Die Python-Nodes in diesem Paket implementieren Typverträge, Verarbeitung, Caches und Diagnostik.
 - Die JSON-Dateien unter `subgraphs/` bilden daraus die geführten sichtbaren CMK-Module. Ihre UUIDs sind Teil des Workflow-Vertrags und dürfen nicht ohne Migration geändert werden.
-- Die JSON-Dateien unter `workflows/reference/` definieren den verbindlichen Gesamtaufbau. `workflows/examples/` enthält eigenständige Anwendungsbeispiele; `workflows/archive/` dient ausschließlich der historischen Nachvollziehbarkeit.
+- `workflows/reference/` enthält nur die Runtime-Vorlage für das Öffnen von FaceSwap-Video-Projekten. `workflows/examples/` enthält eigenständige Anwendungsbeispiele; `workflows/archive/` dient ausschließlich der historischen Nachvollziehbarkeit.
 
 Die versionierten Subgraphdateien werden direkt aus `custom_nodes/cmk_nodes/subgraphs/` geladen. Sie dürfen nicht zusätzlich nach `ComfyUI/user/default/subgraphs/` kopiert werden, weil ComfyUI Node-Pack-Blueprints und benutzereigene Blueprints als getrennte Quellen registriert. Nur installierte Workflows werden nach `ComfyUI/user/default/workflows/` kopiert.
 

@@ -11,14 +11,19 @@
   "cmkHighlight_en": "",
   "previews": [
     {
-      "src": "assets/showcase/MODULE WORKFLOWS/03 - CMK · FaceProcess SDXL/CMK · FaceProcess SDXL - 1 - Restore.webp",
+      "src": "assets/showcase/MODULE WORKFLOWS/03 - CMK · FaceProcess/CMK · FaceProcess - Restore.webp",
       "label": "Restore",
       "label_en": "Restore"
     },
     {
-      "src": "assets/showcase/MODULE WORKFLOWS/03 - CMK · FaceProcess SDXL/CMK · FaceProcess SDXL - 2 - Detailer.webp",
-      "label": "Detailer",
-      "label_en": "Detailer"
+      "src": "assets/showcase/MODULE WORKFLOWS/03 - CMK · FaceProcess/CMK · FaceProcess - Detailer SDXL.webp",
+      "label": "Detailer SDXL",
+      "label_en": "Detailer SDXL"
+    },
+    {
+      "src": "assets/showcase/MODULE WORKFLOWS/03 - CMK · FaceProcess/CMK · FaceProcess - Detailer ZIT.webp",
+      "label": "Detailer ZIT",
+      "label_en": "Detailer ZIT"
     }
   ]
 }

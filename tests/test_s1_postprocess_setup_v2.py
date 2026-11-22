@@ -27,6 +27,8 @@ class SetupV2(ScenarioCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.runs = {}
+        if cls.paths is None:
+            return  # setUp skips every test without the model-path YAML
         for name, start in (("hybrid", {}), ("sdxl", SDXL_ONLY)):
             for version in (True, "v2"):
                 cls.runs[name, version] = cls.run_case(

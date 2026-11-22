@@ -94,7 +94,7 @@
   },
   "8437": {
     "inputs": {
-      "image": "CMK Package · inpaint_reference2.png",
+      "image": "inpaint_reference2.png",
       "opt_in": false
     },
     "class_type": "CMKLoadImage",

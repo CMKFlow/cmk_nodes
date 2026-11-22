@@ -99,7 +99,8 @@ def flow_browser_statistics(package_root: Path | str = PACKAGE_ROOT) -> dict[str
     categories = {category: 0 for category in CATEGORY_ORDER}
     visible = 0
     for _, metadata in records:
-        visible += int(metadata.get("published") is True)
+        # Search-only entries are published but not listed in the category view.
+        visible += int(metadata.get("published") is True and metadata.get("searchOnly") is not True)
         category = str(metadata.get("category") or "UNASSIGNED")
         categories[category] = categories.get(category, 0) + 1
     return {

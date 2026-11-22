@@ -93,9 +93,23 @@ class ShippedAdvancedGraphs(unittest.TestCase):
                     names = [item["name"] for item in merge["outputs"]]
                     self.assertEqual(names, ["IMAGE", "LOG", "VISUAL", "diagnostic",
                                              "diagnostic 1", "diagnostic 2", "diagnostic 3"])
+                    # 2.8 blueprint (2026-11-16): the slot previews reach the merge
+                    # through the CMK Module Diagnostic Gate (diagnostic n -> n),
+                    # the summary preview through the module bypass gate and the
+                    # boundary cache (diagnostic -> diagnostic).
+                    def merge_source(link):
+                        origin = nodes.get(str(link["origin_id"]))
+                        if origin is not None and origin["type"] in ("CMKModuleDiagnosticGate", "CMKModuleBypassGate", "CMKDetailerBoundaryCache"):
+                            name = origin["outputs"][link["origin_slot"]]["name"]
+                            if origin["type"] == "CMKModuleBypassGate":
+                                name = {"diagnostic": "DIAGNOSTIC ACTIVE"}[name]
+                            gate_input = next(item for item in origin["inputs"] if item["name"] == name)
+                            return merge_source(links[gate_input["link"]])
+                        return link
                     previews = [node for node in nodes.values() if node["type"] == "CMKPreviewRender"]
-                    sources = sorted(names[links[node["inputs"][0]["link"]]["origin_slot"]] for node in previews
-                                     if str(links[node["inputs"][0]["link"]]["origin_id"]) == str(merge["id"]))
+                    resolved = [merge_source(links[node["inputs"][0]["link"]]) for node in previews]
+                    sources = sorted(names[link["origin_slot"]] for link in resolved
+                                     if str(link["origin_id"]) == str(merge["id"]))
                     self.assertEqual(sources, ["diagnostic", "diagnostic 1", "diagnostic 2", "diagnostic 3"])
                     # Each slot output carries the diagnostic of its own Detailer.
                     for slot in (1, 2, 3):

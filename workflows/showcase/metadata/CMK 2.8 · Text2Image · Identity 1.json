@@ -11,7 +11,7 @@
   "cmkHighlight_en": "A single external identity source is shared across InstantID, FaceRebuild, and FaceSwap. This allows all three methods to use the same reference person without loading the identity separately in each module.",
   "previews": [
     {
-      "src": "assets/showcase/REAL-WORLD WORKFLOWS/3 - CMK 2.7 · Text2Image · Identity 1/CMK 2.7 · Text2Image · Identity 1.webp",
+      "src": "assets/showcase/REAL-WORLD WORKFLOWS/3 - CMK 2.8 · Text2Image · Identity 1/CMK 2.8 · Text2Image · Identity 1.webp",
       "label": "Workflow",
       "label_en": "Workflow"
     }

@@ -11,7 +11,7 @@
   "cmkHighlight_en": "After ZIT generation, the workflow switches to a separate PostProcess context for FaceRebuild, making facial reconstruction independent of the generation model used.",
   "previews": [
     {
-      "src": "assets/showcase/TASK WORKFLOWS/13 - CMK 2.7 · Flow · Text2Image ZIT · FaceRebuild/CMK 2.7 · Flow · Text2Image ZIT · FaceRebuild.webp",
+      "src": "assets/showcase/TASK WORKFLOWS/13 - CMK 2.8 · Flow · Text2Image ZIT · FaceRebuild/CMK 2.8 · Flow · Text2Image ZIT · FaceRebuild.webp",
       "label": "Workflow",
       "label_en": "Workflow"
     }

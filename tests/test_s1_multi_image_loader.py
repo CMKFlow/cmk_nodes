@@ -33,7 +33,7 @@ class MultiImageLoader(ScenarioCase):
     def test_no_shared_ancestor_in_the_prompt(self):
         references = self.keys["base"]["references"]
         self.assertEqual(references, {
-            CN: "CMK Package · inpaint_reference2.png",
+            CN: "inpaint_reference2.png",  # test-only image, staged into the harness input
             ID_A: "CMK Package · face_identity_reference.png",
             ID_B: "CMK Package · face_reference.png",
             ID_C: "CMK Package · portrait_reference_00002.png",

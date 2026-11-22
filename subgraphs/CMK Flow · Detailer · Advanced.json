@@ -179,8 +179,8 @@
         "version": 1,
         "state": {
           "lastGroupId": 256,
-          "lastNodeId": 8590,
-          "lastLinkId": 22950,
+          "lastNodeId": 8592,
+          "lastLinkId": 22954,
           "lastRerouteId": 1
         },
         "revision": 0,
@@ -877,7 +877,7 @@
                 "widget": {
                   "name": "detailer_global_enable"
                 },
-                "link": 22943
+                "link": null
               }
             ],
             "outputs": [
@@ -909,10 +909,7 @@
                 "localized_name": "ENABLE",
                 "name": "ENABLE",
                 "type": "BOOLEAN",
-                "links": [
-                  27,
-                  28
-                ]
+                "links": []
               },
               {
                 "localized_name": "LOG",
@@ -2161,8 +2158,7 @@
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  26,
-                  22947
+                  26
                 ]
               },
               {
@@ -2170,7 +2166,7 @@
                 "name": "diagnostic 1",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  22948
+                  22953
                 ]
               },
               {
@@ -2178,7 +2174,7 @@
                 "name": "diagnostic 2",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  22949
+                  22954
                 ]
               },
               {
@@ -2186,7 +2182,7 @@
                 "name": "diagnostic 3",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  22950
+                  22952
                 ]
               }
             ],
@@ -2451,7 +2447,8 @@
                 "name": "diagnostic",
                 "type": "CMK_DIAGNOSTIC",
                 "links": [
-                  57
+                  57,
+                  22947
                 ]
               },
               {
@@ -2925,6 +2922,141 @@
               "caption": "Details"
             },
             "shape": 1
+          },
+          {
+            "id": 8591,
+            "type": "CMKDetailerAdvancedModeEnable",
+            "pos": [
+              8005,
+              3370
+            ],
+            "size": [
+              270,
+              82
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 18,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "detailer_global_enable",
+                "name": "detailer_global_enable",
+                "type": "COMBO",
+                "widget": {
+                  "name": "detailer_global_enable"
+                },
+                "link": 22943
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "ENABLE",
+                "name": "ENABLE",
+                "type": "BOOLEAN",
+                "links": [
+                  27,
+                  28,
+                  22951
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKDetailerAdvancedModeEnable"
+            },
+            "widgets_values": [
+              "ENABLE"
+            ],
+            "widgets_values_named": {
+              "detailer_global_enable": "ENABLE"
+            },
+            "shape": 1
+          },
+          {
+            "id": 8592,
+            "type": "CMKModuleDiagnosticGate",
+            "pos": [
+              8005,
+              3445
+            ],
+            "size": [
+              285,
+              130
+            ],
+            "flags": {
+              "collapsed": true
+            },
+            "order": 19,
+            "mode": 0,
+            "inputs": [
+              {
+                "localized_name": "ENABLE",
+                "name": "ENABLE",
+                "type": "BOOLEAN",
+                "widget": {
+                  "name": "ENABLE"
+                },
+                "link": 22951
+              },
+              {
+                "localized_name": "diagnostic 1",
+                "name": "diagnostic 1",
+                "shape": 7,
+                "type": "CMK_DIAGNOSTIC",
+                "link": 22953
+              },
+              {
+                "localized_name": "diagnostic 2",
+                "name": "diagnostic 2",
+                "shape": 7,
+                "type": "CMK_DIAGNOSTIC",
+                "link": 22954
+              },
+              {
+                "localized_name": "diagnostic 3",
+                "name": "diagnostic 3",
+                "shape": 7,
+                "type": "CMK_DIAGNOSTIC",
+                "link": 22952
+              }
+            ],
+            "outputs": [
+              {
+                "localized_name": "diagnostic 1",
+                "name": "diagnostic 1",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  22948
+                ]
+              },
+              {
+                "localized_name": "diagnostic 2",
+                "name": "diagnostic 2",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  22949
+                ]
+              },
+              {
+                "localized_name": "diagnostic 3",
+                "name": "diagnostic 3",
+                "type": "CMK_DIAGNOSTIC",
+                "links": [
+                  22950
+                ]
+              }
+            ],
+            "properties": {
+              "Node name for S&R": "CMKModuleDiagnosticGate"
+            },
+            "widgets_values": [
+              false
+            ],
+            "widgets_values_named": {
+              "ENABLE": false
+            },
+            "shape": 1
           }
         ],
         "groups": [
@@ -3152,16 +3284,16 @@
           },
           {
             "id": 27,
-            "origin_id": 8570,
-            "origin_slot": 3,
+            "origin_id": 8591,
+            "origin_slot": 0,
             "target_id": 10,
             "target_slot": 11,
             "type": "BOOLEAN"
           },
           {
             "id": 28,
-            "origin_id": 8570,
-            "origin_slot": 3,
+            "origin_id": 8591,
+            "origin_slot": 0,
             "target_id": 11,
             "target_slot": 1,
             "type": "BOOLEAN"
@@ -3402,13 +3534,13 @@
             "id": 22943,
             "origin_id": -10,
             "origin_slot": 6,
-            "target_id": 8570,
-            "target_slot": 53,
+            "target_id": 8591,
+            "target_slot": 0,
             "type": "COMBO"
           },
           {
             "id": 22947,
-            "origin_id": 8,
+            "origin_id": 10,
             "origin_slot": 3,
             "target_id": 8587,
             "target_slot": 0,
@@ -3416,26 +3548,58 @@
           },
           {
             "id": 22948,
-            "origin_id": 8,
-            "origin_slot": 4,
+            "origin_id": 8592,
+            "origin_slot": 0,
             "target_id": 8589,
             "target_slot": 0,
             "type": "CMK_DIAGNOSTIC"
           },
           {
             "id": 22949,
-            "origin_id": 8,
-            "origin_slot": 5,
+            "origin_id": 8592,
+            "origin_slot": 1,
             "target_id": 8590,
             "target_slot": 0,
             "type": "CMK_DIAGNOSTIC"
           },
           {
             "id": 22950,
-            "origin_id": 8,
-            "origin_slot": 6,
+            "origin_id": 8592,
+            "origin_slot": 2,
             "target_id": 8588,
             "target_slot": 0,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 22951,
+            "origin_id": 8591,
+            "origin_slot": 0,
+            "target_id": 8592,
+            "target_slot": 0,
+            "type": "BOOLEAN"
+          },
+          {
+            "id": 22952,
+            "origin_id": 8,
+            "origin_slot": 6,
+            "target_id": 8592,
+            "target_slot": 3,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 22953,
+            "origin_id": 8,
+            "origin_slot": 4,
+            "target_id": 8592,
+            "target_slot": 1,
+            "type": "CMK_DIAGNOSTIC"
+          },
+          {
+            "id": 22954,
+            "origin_id": 8,
+            "origin_slot": 5,
+            "target_id": 8592,
+            "target_slot": 2,
             "type": "CMK_DIAGNOSTIC"
           }
         ],

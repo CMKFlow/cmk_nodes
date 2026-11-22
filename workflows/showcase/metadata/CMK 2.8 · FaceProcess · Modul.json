@@ -11,14 +11,19 @@
   "cmkHighlight_en": "The discrete FaceProcess sequence is encapsulated in a reusable module with a consistent interface.",
   "previews": [
     {
-      "src": "assets/showcase/MODULE WORKFLOWS/04 - CMK 2.7 · FaceProcess SDXL · Modul/CMK 2.7 · FaceProcess SDXL · Modul - 1 - Restore.webp",
+      "src": "assets/showcase/MODULE WORKFLOWS/04 - CMK 2.8 · FaceProcess · Modul/CMK 2.8 · FaceProcess · Modul - Restore.webp",
       "label": "Restore",
       "label_en": "Restore"
     },
     {
-      "src": "assets/showcase/MODULE WORKFLOWS/04 - CMK 2.7 · FaceProcess SDXL · Modul/CMK 2.7 · FaceProcess SDXL · Modul - 2 - Detailer.webp",
-      "label": "Detailer",
-      "label_en": "Detailer"
+      "src": "assets/showcase/MODULE WORKFLOWS/04 - CMK 2.8 · FaceProcess · Modul/CMK 2.8 · FaceProcess · Modul - Detailer SDXL.webp",
+      "label": "Detailer SDXL",
+      "label_en": "Detailer SDXL"
+    },
+    {
+      "src": "assets/showcase/MODULE WORKFLOWS/04 - CMK 2.8 · FaceProcess · Modul/CMK 2.8 · FaceProcess · Modul - Detailer ZIT.webp",
+      "label": "Detailer ZIT",
+      "label_en": "Detailer ZIT"
     }
   ]
 }

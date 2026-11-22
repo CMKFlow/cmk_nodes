@@ -1,5 +1,6 @@
 {
-  "published": false,
+  "published": true,
+  "searchOnly": true,
   "displayName": "CMK 2.8 · FaceProcess Advanced · Modul",
   "kind": "module",
   "order": 304,
@@ -11,14 +12,9 @@
   "cmkHighlight_en": "The discrete FaceProcess sequence is encapsulated in a reusable module with a consistent interface.",
   "previews": [
     {
-      "src": "assets/showcase/MODULE WORKFLOWS/04 - CMK 2.7 · FaceProcess SDXL · Modul/CMK 2.7 · FaceProcess SDXL · Modul - 1 - Restore.webp",
-      "label": "Restore",
-      "label_en": "Restore"
-    },
-    {
-      "src": "assets/showcase/MODULE WORKFLOWS/04 - CMK 2.7 · FaceProcess SDXL · Modul/CMK 2.7 · FaceProcess SDXL · Modul - 2 - Detailer.webp",
-      "label": "Detailer",
-      "label_en": "Detailer"
+      "src": "assets/showcase/MODULE WORKFLOWS/CMK · FaceProcess Advanced · Modul/CMK 2.8 · FaceProcess Advanced · Modul.webp",
+      "label": "Workflow",
+      "label_en": "Workflow"
     }
   ]
 }

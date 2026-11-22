@@ -47,13 +47,45 @@ def insightface_root() -> Path:
     return _registered_roots("insightface", _models_root() / "insightface")[0]
 
 
+ANTELOPEV2_FILES = (
+    "1k3d68.onnx",
+    "2d106det.onnx",
+    "genderage.onnx",
+    "glintr100.onnx",
+    "scrfd_10g_bnkps.onnx",
+)
+
+
+def antelopev2_root() -> Path:
+    """First InsightFace root (registered order, local last) with a complete flat antelopev2 pack.
+
+    FaceAnalysis(root=...) reads ``<root>/models/antelopev2/*.onnx`` and downloads
+    the pack into an incomplete root, so only a complete root is returned.
+    """
+    roots = _registered_roots("insightface", _models_root() / "insightface")
+    for root in roots:
+        pack = root / "models" / "antelopev2"
+        if all((pack / name).is_file() for name in ANTELOPEV2_FILES):
+            return root
+    raise FileNotFoundError(
+        "InsightFace antelopev2 not found. Expected " + ", ".join(ANTELOPEV2_FILES)
+        + " directly in models/antelopev2 below one of: " + ", ".join(str(root) for root in roots)
+        + ". A nested models/antelopev2/antelopev2 folder from an automatic download is not used."
+    )
+
+
 def swap_model_dir() -> Path:
     return insightface_root()
 
 
 def swap_model_dirs() -> list[Path]:
+    """Search order for listing and loading: the first directory holding a name wins."""
     root = _models_root()
-    return [insightface_root(), root / "reswapper", root / "hyperswap"]
+    return list(dict.fromkeys([
+        insightface_root(),
+        *_registered_roots("reswapper", root / "reswapper"),
+        *_registered_roots("hyperswap", root / "hyperswap"),
+    ]))
 
 
 def list_swap_models() -> List[str]:
@@ -72,7 +104,7 @@ def resolve_swap_model(name: str) -> str:
             return str(path)
     raise FileNotFoundError(
         f"FaceSwap model not found: {name}\n"
-        "Expected locations: ComfyUI/models/insightface, /reswapper or /hyperswap."
+        "Searched: " + ", ".join(str(root) for root in swap_model_dirs())
     )
 
 

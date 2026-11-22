@@ -61,7 +61,9 @@ class BoundaryKeys(ScenarioCase):
     def test_keys_byte_identical(self):
         for fixture, pinned in PINNED.items():
             with self.subTest(fixture=fixture):
-                result = self.run_case("boundary_key", fixture=fixture, boundary_class="CMKFaceRebuildBoundaryCache")
+                # The record was taken in BASELINE; the key carries the guard token.
+                result = self.run_case("boundary_key", fixture=fixture, boundary_class="CMKFaceRebuildBoundaryCache",
+                                       distribution_mode="BASELINE")
                 self.assertEqual(result["key"], pinned["key"])
 
 
